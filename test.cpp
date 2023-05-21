@@ -2,6 +2,8 @@
  * Even when this one is for testing purposes only,
  * You can still use functions from this in your program, but
  * i am not 100% sure how much they are good.
+ *
+ * Copyright (C) UtoECat 2023
  * MIT License. No any warrianty 
  */
 #include "lua.h"
@@ -9,206 +11,170 @@
 #include "luacode.h"
 #include <cstdio>
 #include <cstdlib>
+#include <cassert>
 
 // this is a C++ SOURCE!!!
 
 #include <string>
+#include <exception>
+#include <stdexcept>
+#include <cstdarg>
+#include <memory>
 
-struct CodeBuffer {
-	char* data;
-	size_t len;
-	char* name;
-};
+const std::string strformat(const char * const fmt, ...) {
+    va_list args, args2;
 
-/*
- * RAW. Must not be used directly.
- */
-static int rawloadcode(lua_State* L, CodeBuffer& B, int env) {
-	size_t len = 0;
-	RAILfree<char*> bcbuff(luau_compile(B.data, B.len, &opts, &len));
-	return luau_load(L, B.name, bcbuff, len, 0);
+    va_start(args, fmt);
+    va_copy(args2, args);
+
+    const int len = std::vsnprintf(NULL, 0, fmt, args2);
+    va_end(args2);
+
+		if (len <= 0) throw "formatting error";
+		auto tmp = std::make_unique<char[]>(len+1);
+
+    std::vsnprintf(tmp.get(), len+1, fmt, args);
+    va_end(args);
+    return std::string(tmp.get(), len+1);
 }
 
-/*
- * dostring() in save enviroment and separate corutine instead of global one
- */
-static int safedocode(lua_State* L, CodeBuffer& B) {
-	// create new coroutine from main threrad with protected enviroment
-	lua_State* ML = lua_newthread(lua_mainthread(L));
-	luaL_sandboxthread(ML);
+using Exception = ::std::runtime_error;
 
-	int status = rawloadcode(ML, B, env);
-	if (status != LUA_OK) {
-		lua_xmove(ML, L, 1); // move error to main thread
-		lua_error(L); // throw again
-	}
-	status = lua_resume(ML, L, 0); // call
-	if (status == LUA_YIELD) {
-		luaL_error("attempt to yield from isolated coroutine");
-	} else if (status == LUA_OK) {
-		
-	} else {
-		lua_error(L);
-	}
-}
-
-/*
- * Loads code in separate enviroment
- */
-static int lua_safeloadcode(lua_State* L, const char* code, size_t len, const char* name) {
-	
-}
-
-
-template <typename T, bool USE_DELETE = false>
-class RAILfree {
-	T ptr = nullptr;
+class ExpectedException : public std::exception {
 	public :
-	RAILfree() = default;
-	RAILfree(T p) : ptr(p) {}
-	~RAILfree() {
-		if (USE_DELETE) {
-			delete[] ptr;
-		} else free(ptr);
-	}
-	RAILfree(const RAILfree&) = delete;
-	RAILfree(RAILfree&&) = default;
-	const RAILfree& operator=(T p) {
-		ptr = p;
-		return *this;
-	}
-	operator T() {
-		return ptr;
+	ExpectedException() = default;
+	virtual ~ExpectedException() = default;
+	virtual const char* what() const noexcept {
+		return "This exception was expected";
 	}
 };
 
-struct LoadRes {
-	const char* filename  = nullptr;
-	std::string chunkname = "=";
-	RAILfree<char*, true> codebuff;
-	size_t len = 0;
-};
+extern int luaopen_extra(lua_State *L);
 
-static lua_CompileOptions opts = {0};
+#include <vector>
+// used by code below + in lib source
+extern lua_CompileOptions opts;
+bool ignore_errors = false;
+static std::vector<const char*> filenames;
 
-static int doloadfile(lua_State* L, struct LoadRes& res) {
-	const char* filename = res.filename;
-	FILE* f = fopen(filename, "r");
-	if (!f) {
-		lua_pushstring(L, "Can't open file!");
-		return LUA_ERRRUN;		
-	};
-	fseek(f, 0, SEEK_END);
-	size_t len = ftell(f);
-
-	// allocate buffer to load file source
-	try {
-		res.codebuff = new char[len + 2];
-		if (!((char*)res.codebuff)) throw "h";
-	} catch (...) {
-		lua_pushstring(L, "NOMEM");
-		return LUA_ERRMEM;
+static void initLuaState (lua_State* L) {
+	if (!L) {
+		throw Exception("Can't create Lua state!");
 	}
-
-	fseek(f, 0, SEEK_SET);
-	int result = fread((char*)res.codebuff, 1, len, f);
-	if (result < len - 5) {
-		lua_pushstring(L, "Can't read file after opening.");
-		return LUA_ERRRUN;
-	}
-	fclose(f);
-	res.len = len;
-	return LUA_OK;
+	luaL_openlibs(L);
+	luaopen_extra(L);
+	luaL_sandbox(L);
+	// default values
+	opts.optimizationLevel=1;
+	opts.debugLevel=1;
 }
 
-static int getenv(lua_State* L) {
-	if (lua_istable(L, 3)) return 3;
+
+static void parseargs (int argc, char** argv) {
+	for (char** p = argv+1; p < argv + argc; p++) {
+		const char* arg = p[0];
+		if (arg[0] == '-') switch (arg[1]) {
+			case '\0':
+				throw Exception("Flag type excepted after character '-'");
+			break;
+			case 'h' : 
+				printf("No help 4u <3\n");
+				throw ExpectedException();
+			case 'v' :
+				printf("lua version is 5.1 (LuaU)\n");
+				break;
+			case 'c' :
+				ignore_errors = true;
+			break;
+			case '-' :
+				printf("reading from stdin is not supported :(\n");
+				throw ExpectedException();
+			case 'O' : {
+				int kind = arg[2] - 0;
+				if (kind < 0 || kind > 2)
+					throw Exception("Bad optimisation level requested");
+				opts.optimizationLevel = kind;
+			}
+			break;
+			case 'g' : {
+				int kind = arg[2] - 0;
+				if (kind < 0 || kind > 2)
+					throw Exception("Bad debug level requested");
+				opts.optimizationLevel = kind;
+			}
+			break;
+			default  :
+				throw Exception(strformat("Option %c is not supported", arg[1]));
+		} else {
+			filenames.push_back(arg);
+		}
+	}
+	if (opts.optimizationLevel == 2 && opts.debugLevel > 1) {
+		fprintf(stderr, "Warning: Debug information may be useless with");
+		fprintf(stderr, " optimization level 2. (Run with -g0 or -O1 to");
+		fprintf(stderr, " not show this warning)");
+	}
+	if (filenames.size() == 0) {
+		throw Exception("Input files excepted to be given");
+	}
+}
+int lua_Main(int argc, char** argv); 
+
+int main(int argc, char** argv) {
+	try {
+		return lua_Main(argc, argv);
+	} catch (ExpectedException& e) {
+		return 0; // all is OK
+	} catch (std::exception& e) {
+		fprintf(stderr, "Fatal : %s!\n", e.what());
+		return -1;
+	} catch (...) {
+		fprintf(stderr, "Fatal : Unknown exception type!\n");
+		return -1;
+	}
 	return 0;
 }
 
-static int Bloadfile(lua_State* L) {
-	const char* name = luaL_checkstring(L, 1);
-	struct LoadRes res = {name, "=" + (std::string)name};
-	int env = getenv(L);
+typedef struct RAIISTATE {
+	lua_State* L;
+	RAIISTATE() {L = luaL_newstate();}
+	~RAIISTATE() {lua_close(L);}
+} RaiiLua;
 
-	int result = doloadfile(L, res);
-	if (result == LUA_OK) { // file loaded? Nice, load code now
-		result = loadcode(L, res.codebuff, res.len, res.chunkname.c_str(), env);
-	}
-	if (result != LUA_OK) {
-		// swap args => [nil, errmsg]
-		if (lua_tostring(L, -1) == nullptr) {
-			lua_pushstring(L, "unknown error");
-		}
-		lua_pushnil(L);
-		lua_insert(L, -2);
- 		return 2;
-	} else {
-		lua_pushnil(L);
-		return 2;
-	};
-}
 
-#include <assert.h>
-
-static int Bloadstring(lua_State* L) {
-    size_t l = 0;
-    const char* s = luaL_checklstring(L, 1, &l);
-    const char* chunkname = luaL_optstring(L, 2, s);
-		int env = getenv(L);
-
-    //lua_setsafeenv(L, LUA_ENVIRONINDEX, false);
-		if (loadcode(L, s, l, chunkname, env) == LUA_OK) {
-			return 1; // nice
-		}
-    lua_pushnil(L);
-    lua_insert(L, -2); // put before error message
-    return 2;          // return nil plus error message
-}
-
-int main(int argc, char** argv) {
-	lua_State* L = luaL_newstate();	
-	luaL_openlibs(L);
-	lua_pushcfunction(L, Bloadfile, "loadfile");
-	lua_setfield(L, LUA_GLOBALSINDEX, "loadfile");
-	lua_pushcfunction(L, Bloadstring, "loadstring");
-	lua_setfield(L, LUA_GLOBALSINDEX, "loadstring");
-	luaL_sandbox(L);
-	const char* filename = nullptr;
-	opts.optimizationLevel=2;
-	opts.debugLevel=1;
-
-	if (argc > 1) {
-		if (argv[1][0] == '-' && argv[1][1] == 'O') {
-			int opt = argv[1][2] - '0';
-			if (opt > 2 || opt < 0) {
-				fprintf(stderr, "bad optimisation level!\n");
-				return -1;
-			}
-			if (argc > 2) filename = argv[2];
-			else goto nofile;
-		} else filename = argv[1];
-	} else {
-		nofile:
-		fprintf(stderr, "Error : file argument excepted!\n");
-		fprintf(stderr, "Error : retrying eith test.lua...\n");
-		filename = "test.lua";
-	}
+static void execfile(lua_State* L, const char* filename) {
 	lua_getfield(L, LUA_GLOBALSINDEX, "debug");
 	lua_getfield(L, -1, "traceback");
-	lua_remove(L, -2);
-	lua_pushcfunction(L, Bloadfile, ".");
+	lua_remove(L, -2); // leave traceback function at the 'top'
+	assert(lua_gettop(L) == 1);
+
+	// function to be called
+	lua_getfield(L, LUA_GLOBALSINDEX, "dofile");
 	lua_pushstring(L, filename);
-	lua_call(L, 1, 2);
-	if (!lua_isfunction(L, -2)) {
-		fprintf(stderr, "Can't load file : %s\n", lua_tostring(L, -1));
-		return -1;		
-	};
-	lua_pop(L, 1); // pop nil
-	//assert(lua_isfunction(L, -2) && lua_isfunction(L, -1));
-	if (lua_pcall(L, 0, 0, -2) != LUA_OK) {
-		fprintf(stderr, "Execution error %s\n", lua_tostring(L, -1));
-	};
-	lua_close(L);
+	if (lua_pcall(L, 1, 0, -3) != LUA_OK) {
+		fprintf(stderr, "%s : Can't execute %s : %s\n", 
+			ignore_errors ? "Warning" : "Error",
+			filename, lua_tostring(L, -1)			
+		);
+		if (!ignore_errors) {
+			throw ExpectedException();
+		}
+	}
+}
+
+int lua_Main(int argc, char** argv) {
+	// init
+	RaiiLua state;
+	lua_State *L = state.L;
+	initLuaState(L);
+	parseargs(argc, argv);
+	
+	// execute files
+	lua_settop(L, 0);
+	for (auto& fname : filenames) {
+		execfile(L, fname);
+	}
+	
+	// no lua_close() here, it will be RAII'd!
 	return 0;
 }

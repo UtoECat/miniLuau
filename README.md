@@ -73,3 +73,6 @@ Other than the STL/CRT, Luau library components don't have external dependencies
 Luau implementation is distributed under the terms of [MIT License](https://github.com/Roblox/luau/blob/master/LICENSE.txt). It is based on Lua 5.x implementation that is MIT licensed as well.
 
 When Luau is integrated into external projects, we ask to honor the license agreement and include Luau attribution into the user-facing product documentation. The attribution using [Luau logo](https://github.com/Roblox/luau/blob/master/docs/logo.svg) is also encouraged.
+
+# Baselib documentation
+[Is here (click)](https://luau-lang.org/library)

@@ -14,11 +14,11 @@ CXXFLAGS = -O2 -DNDEBUG -Wall -Wsign-compare -Wno-unused -I./include -I./src
 CXXFLAGS += -fno-math-errno -std=c++17 -I.
 UNIFLAGS =
 
-SRCS_VM := ./src/*.cpp
+SRCS_VM := $(shell echo ./src/*.cpp)
 OBJS_VM := $(SRCS_VM:%=./build/%.o)
 DEPS = $(OBJS_VM:.o=.d)
 
-SRCS_CMP:= ./src/Luau/*.cpp
+SRCS_CMP:= $(shell echo ./src/Luau/*.cpp)
 OBJS_CMP:= $(SRCS_CMP:%=./build/%.o)
 DEPS += $(OBJS_CMP:.o=.d)
 
@@ -33,7 +33,7 @@ all:
 
 Luau.Test: $(TARGET_TEST)
 
-$(TARGET_TEST): test.cpp $(TARGET_CMP) $(TARGET_VM)
+$(TARGET_TEST): test.cpp baseio.cpp $(TARGET_CMP) $(TARGET_VM)
 	echo "[MAKE] CXX : $^ => $@"
 	$(CXX) $(CXXFLAGS) $(UNIFLAGS) $^ $(TARGET) -o $@
 	echo "[MAKE] SUCCESS : Luau.Test binary build is done!"

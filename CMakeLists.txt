@@ -61,7 +61,7 @@ if(LUAU_BUILD_TEST_EXEC)
 	target_compile_options(Luau.Test PRIVATE ${LUAU_OPTIONS})
 	target_compile_features(Luau.Test PRIVATE cxx_std_11)
 	target_include_directories(Luau.Test PUBLIC include/)
-	target_sources(Luau.Test PRIVATE test.cpp)
+	target_sources(Luau.Test PRIVATE test.cpp baseio.cpp)
 	target_link_libraries(Luau.Test PRIVATE Luau.Compiler Luau.VM)
 endif()
 
