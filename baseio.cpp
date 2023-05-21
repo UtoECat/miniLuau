@@ -43,9 +43,32 @@ lua_CompileOptions opts = {0};
 static int rawloadcode(lua_State* L, CodeBuffer& B, int env) {
 	size_t len = 0;
 	char* c = luau_compile(B.data, B.len, &opts, &len);
-	int status = luau_load(L, B.name, c, len, 0);
+	int status = luau_load(L, B.name, c, len, env);
 	free(c);
 	return status;
+}
+
+/*
+ * Default sandboxthread() forget to change _G :D
+ */
+void doSandboxThread(lua_State* L)
+{
+    // create new global table that proxies reads to original table
+    lua_newtable(L);
+    lua_newtable(L);
+    lua_pushvalue(L, LUA_GLOBALSINDEX);
+    lua_setfield(L, -2, "__index");
+    lua_setreadonly(L, -1, true);
+
+    lua_setmetatable(L, -2);
+
+    // we can set safeenv now although it's important to set it to false if code is loaded twice into the thread
+    lua_replace(L, LUA_GLOBALSINDEX);
+    lua_setsafeenv(L, LUA_GLOBALSINDEX, true);
+
+		// this is change that i need
+		lua_pushvalue(L, LUA_GLOBALSINDEX);
+		lua_setfield(L, LUA_GLOBALSINDEX, "_G");
 }
 
 /*
@@ -59,7 +82,7 @@ static int rawloadcode(lua_State* L, CodeBuffer& B, int env) {
 static int safedocode(lua_State* L, CodeBuffer& B, int env = 0) {
 	// create new coroutine from main threrad with protected enviroment
 	lua_State* ML = lua_newthread(lua_mainthread(L));
-	luaL_sandboxthread(ML);
+	doSandboxThread(ML);
 
 	int status = rawloadcode(ML, B, env);
 	if (status != LUA_OK) {
@@ -88,7 +111,7 @@ static int safedocode(lua_State* L, CodeBuffer& B, int env = 0) {
  * returns errors like rawloadcode() does
  */
 static int (safeloadcodeenv) (lua_State* L, CodeBuffer& B, int env) {
-	if (!env || !lua_istable(L, env)) {
+	if (env==0 || !lua_istable(L, env)) {
 		// no enviroment specified - use isolated and fastest case
 		lua_newtable(L);
 		env = lua_gettop(L);
@@ -100,6 +123,8 @@ static int (safeloadcodeenv) (lua_State* L, CodeBuffer& B, int env) {
 		lua_setfield(L, -2, "__index");
 		lua_setreadonly(L, -1, true); // meta is readonly
 		lua_setmetatable(L, -2);
+		lua_pushvalue(L, -1);
+		lua_setfield(L, -2, "_G");
 	}
 	assert(lua_istable(L, env));
 	int status = rawloadcode(L, B, env);
