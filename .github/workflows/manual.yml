@@ -22,7 +22,7 @@ jobs:
         with:
           submodules: true
       - name: Run actions script
-        run: ./actions_build.sh
+        run: ./actions_pack.sh
       - name: Publish release
         uses: "marvinpinto/action-automatic-releases@latest"
         with:
