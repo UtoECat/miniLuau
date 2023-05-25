@@ -7,8 +7,8 @@ This repo implements lua script `PACK.lua`, to pack official Luau sources
 
 # Building
 
-**Notice : luau.h and luau.c are ALREADY prebuild in this repo! Do packing manually only if you really want to change this process somehow, or to fetch with latest Luau version faster.**
-If you want to pack source manually, you need to install Lua 5.4, git.
+**Notice : luau.h and luau.c are ALREADY packed in this repo! Do packing manually only if you really want to change this process somehow, or to fetch with latest Luau version faster.**
+ If you want to pack source manually, you need to install Lua 5.4, git.
 
 At first clone this repo with this command :
 ```sh
