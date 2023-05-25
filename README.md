@@ -11,13 +11,14 @@ This repo implements lua script `PACK.lua`, to pack official Luau sources
 If you want to pack source manually, you need to install Lua 5.4, git.
 
 At first clone this repo with this command :
-```
-git clone --recursive https://github.com/UtoECat/miniLuau
+```sh
+ $ git clone --recursive https://github.com/UtoECat/miniLuau
 ```
 Then cd into `luau` submodule directory, and run
+```sh
+$ lua5.4 ../PACK.lua
 ```
-lua5.4 ../PACK.lua
-``` You will see errors during building process about not founded `<string.h>` or `<vector>`, that's normal.
+You will see errors during building process about not founded `<string.h>` or `<vector>`, that's normal.
 At the end you will get your own packed luau sources :)  
 
 # Dependencies
