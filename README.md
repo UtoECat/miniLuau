@@ -7,11 +7,18 @@ This repo implements lua script `PACK.lua`, to pack official Luau sources
 
 # Building
 
-**Notice : luau.h and luau.c are ALREADY prebuild in releases! Do packing manually only if you really want to change this process somehow, or to fetch with latest Luau version faster.**
-If you want to pack source manually, you need to install Lua 5.4, git. Then you need to clone [oficial luau repo](https://github.com/Roblox/luau), cd into it, and run ```bash
-lua5.4 /your/path/to/PACK.lua
+**Notice : luau.h and luau.c are ALREADY prebuild in this repo! Do packing manually only if you really want to change this process somehow, or to fetch with latest Luau version faster.**
+If you want to pack source manually, you need to install Lua 5.4, git.
+
+At first clone this repo with this command :
+```
+git clone --recursive https://github.com/UtoECat/miniLuau
+```
+Then cd into `luau` submodule directory, and run
+```
+lua5.4 ../PACK.lua
 ``` You will see errors during building process about not founded `<string.h>` or `<vector>`, that's normal.
-At the end you will get your own packed luau sources :) 
+At the end you will get your own packed luau sources :)  
 
 # Dependencies
 

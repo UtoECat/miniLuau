@@ -23,13 +23,8 @@ jobs:
           submodules: true
       - name: Run actions script
         run: ./actions_pack.sh
-      - name: Publish release
-        uses: "marvinpinto/action-automatic-releases@1.2.1"
+      - name: Commit and push changes
+        uses: devops-infra/action-commit-push@master
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: false
-          title: "Automatic release"
-          files: |
-            luau.cpp
-            luau.hpp
-            PACK.lua
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          commit_message: Automatic packing
