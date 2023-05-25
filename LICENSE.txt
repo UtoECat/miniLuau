@@ -1,5 +1,6 @@
 MIT License
 
+Copyright (C) 2023 UtoECat (test.cpp, baseio.cpp, lrequire.h)
 Copyright (c) 2019-2022 Roblox Corporation
 Copyright (c) 1994–2019 Lua.org, PUC-Rio.
 

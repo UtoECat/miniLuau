@@ -7,12 +7,13 @@ RANLIB=ranlib
 MKDIR = mkdir -p
 
 # select how many parrallel task you want :p
-MAKEFLAGS+=-r -j4
+MAKEFLAGS+=-r -j2
 
 CXX=g++
-CXXFLAGS = -O2 -DNDEBUG -Wall -Wsign-compare -Wno-unused -I./include -I./src
+CXXFLAGS =  -Wall -Wsign-compare -Wno-unused -I./include -I./src
+CXXFLGS  += -NDEBUG -O2 #-O0 -g -Wextra  
 CXXFLAGS += -fno-math-errno -std=c++17 -I.
-UNIFLAGS =
+UNIFLAGS  = -flto #-fsanitize=address -fsanitize=undefined
 
 SRCS_VM := $(shell echo ./src/*.cpp)
 OBJS_VM := $(SRCS_VM:%=./build/%.o)
@@ -35,7 +36,7 @@ Luau.Test: $(TARGET_TEST)
 
 $(TARGET_TEST): test.cpp baseio.cpp $(TARGET_CMP) $(TARGET_VM)
 	echo "[MAKE] CXX : $^ => $@"
-	$(CXX) $(CXXFLAGS) $(UNIFLAGS) $^ $(TARGET) -o $@
+	$(CXX) $(CXXFLAGS) $(UNIFLAGS) $^ $(TARGET) -o $@ -I.
 	echo "[MAKE] SUCCESS : Luau.Test binary build is done!"
 
 ./build/%.cpp.o: %.cpp

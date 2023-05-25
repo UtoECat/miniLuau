@@ -48,27 +48,38 @@ static int rawloadcode(lua_State* L, CodeBuffer& B, int env) {
 	return status;
 }
 
+// applies sanbox metatable to the table at the top of the stack
+// (using enviroment table at index glob, or GLOBALS proxy instead)
+// glob MUST NOT BE PSEUDO!
+void applySandboxMT(lua_State* L, int glob) {
+	lua_createtable(L, 0, 1);
+	if (glob)
+		lua_pushvalue(L, glob);
+	else
+    lua_pushvalue(L, LUA_GLOBALSINDEX);
+  lua_setfield(L, -2, "__index");
+  lua_setreadonly(L, -1, true);
+  lua_setmetatable(L, -2);
+}
+
 /*
  * Default sandboxthread() forget to change _G :D
+ * Also here we can use not only new table as new enviroment,
+ * But precreated by user (and in lua too)
  */
-void doSandboxThread(lua_State* L)
-{
-    // create new global table that proxies reads to original table
-    lua_newtable(L);
-    lua_newtable(L);
-    lua_pushvalue(L, LUA_GLOBALSINDEX);
-    lua_setfield(L, -2, "__index");
-    lua_setreadonly(L, -1, true);
-
-    lua_setmetatable(L, -2);
-
-    // we can set safeenv now although it's important to set it to false if code is loaded twice into the thread
+void doSandboxThread(lua_State* L, int envidx) {
+		if (envidx) {
+				lua_pushvalue(L, envidx);
+		} else {
+    	// create new global table that proxies reads to original table
+    	lua_createtable(L, 0, 1);
+    	lua_setsafeenv(L, -1, true); // it's isolated => not shares globals
+			applySandboxMT(L, 0); // 0 to indicate to use LUA_GLOBALSINDEX
+			lua_pushvalue(L, -1); // very useful change
+			lua_setfield(L, -2, "_G");
+		}
+		assert(lua_istable(L, -1));
     lua_replace(L, LUA_GLOBALSINDEX);
-    lua_setsafeenv(L, LUA_GLOBALSINDEX, true);
-
-		// this is change that i need
-		lua_pushvalue(L, LUA_GLOBALSINDEX);
-		lua_setfield(L, LUA_GLOBALSINDEX, "_G");
 }
 
 /*
@@ -82,18 +93,26 @@ void doSandboxThread(lua_State* L)
 static int safedocode(lua_State* L, CodeBuffer& B, int env = 0) {
 	// create new coroutine from main threrad with protected enviroment
 	lua_State* ML = lua_newthread(lua_mainthread(L));
-	doSandboxThread(ML);
 
-	int status = rawloadcode(ML, B, env);
+	if (env) { // move enviroment to the new coro
+		lua_xmove(L, ML, 1);
+		env = lua_gettop(ML);
+	}
+	doSandboxThread(ML, env);
+
+	int status = rawloadcode(ML, B, 0); // enviroment is already changed
 	if (status != LUA_OK) {
-		lua_error(L); // throw again
+		lua_xmove(ML, L, 1);
+		lua_error(L); // throw compile error again
 	}
 
-	int nresults = lua_gettop(ML); // to track nresults
+	int oldtop = lua_gettop(ML);
 	status = lua_resume(ML, L, 0); // call function in new coro
-	nresults = lua_gettop(ML) - nresults;
-	if (nresults > 0)
+	int nresults = lua_gettop(ML) - oldtop + 1;
+	if (nresults > 0) {
+		lua_checkstack(L, lua_gettop(L) + nresults);
 		lua_xmove(ML, L, nresults); // move results to the main thread
+	}
 	lua_resetthread(ML); // release coro resources (kinda)
 
 	if (status == LUA_YIELD) {
@@ -113,19 +132,13 @@ static int safedocode(lua_State* L, CodeBuffer& B, int env = 0) {
 static int (safeloadcodeenv) (lua_State* L, CodeBuffer& B, int env) {
 	if (env==0 || !lua_istable(L, env)) {
 		// no enviroment specified - use isolated and fastest case
-		lua_newtable(L);
+		lua_createtable(L, 0, 1);
 		env = lua_gettop(L);
 		lua_setsafeenv(L, env, true);
-		// see src/linit.cpp
-		// make isolated safe enviroment
-		lua_newtable(L);
-		lua_pushvalue(L, LUA_GLOBALSINDEX);
-		lua_setfield(L, -2, "__index");
-		lua_setreadonly(L, -1, true); // meta is readonly
-		lua_setmetatable(L, -2);
-		lua_pushvalue(L, -1);
+		applySandboxMT(L, 0); // use real globals table
+		lua_pushvalue(L, -1); // very useful change
 		lua_setfield(L, -2, "_G");
-	}
+	} // in other case user should do all similar stuff (except setsafeenv)
 	assert(lua_istable(L, env));
 	int status = rawloadcode(L, B, env);
 	return status;
@@ -138,7 +151,8 @@ static int luaB_dostring(lua_State* L) {
 	CodeBuffer B;
 	B.data = luaL_checklstring(L, 1, &B.len);
 	B.name = luaL_optstring(L, 2, B.data);
-	return safedocode(L, B); // nothing to free there
+	lua_settop(L, 3);
+	return safedocode(L, B, lua_istable(L, 3) ? 3 : 0);
 }
 
 /*
@@ -274,8 +288,9 @@ static int loadfilecontent(lua_State* L, const char* finm, std::string& buff) {
 		};
 		// read rest
 		size_t n = len - (blocks_num * block_size);
-		assert(len < block_size);
+		assert(n < block_size);
 		auto cnt = file.read(tmp, 1, block_size);
+		if (cnt != n) throw n;
 		buff.append(tmp, cnt);
 	} catch (size_t i) {
 		lua_pushfstring(L, "Can't read file after opening" 
@@ -325,6 +340,7 @@ int luaB_dofile(lua_State* L) {
 
 	CodeBuffer b; // will be filled later
 	b.name = luaL_optstring(L, 2, chunkname.data());
+	lua_settop(L, 3);
 
 	// load file content
 	std::string buffer;
@@ -334,7 +350,8 @@ int luaB_dofile(lua_State* L) {
 	// load code now
 	b.data = buffer.data();
 	b.len  = buffer.size();
-	return safedocode(L, b); // if there is something to free, it should be RAII'd
+	return safedocode(L, b, lua_istable(L, 3) ? 3 : 0);
+	// if there is something to free, it should be RAII'd
 };
 
 
@@ -346,19 +363,33 @@ static int luaB_vector(lua_State* L) {
   return 1;
 }
 
+#include <cstring>
+
+static int luaB_collectgarbage(lua_State* L) {
+	const char* option = luaL_optstring(L, 1, "collect");
+	if (strcmp(option, "collect") == 0) {
+		lua_gc(L, LUA_GCCOLLECT, 0); return 0;
+	}
+	if (strcmp(option, "count") == 0) {
+		int c = lua_gc(L, LUA_GCCOUNT, 0);
+		lua_pushnumber(L, c); return 1;
+	}
+	luaL_error(L, "collectgarbage must be called with 'count' or 'collect'");
+}
+
 static const luaL_Reg extra_funcs[] = {
 	{"loadfile", luaB_loadfile},
 	{"dofile", luaB_dofile},
 	{"dostring", luaB_dostring},
 	{"loadstring", luaB_loadstring},
 	{"vector", luaB_vector},
+	{"collectgarbage", luaB_collectgarbage},
 	{nullptr, nullptr}
 };
-
 
 int luaopen_extra(lua_State *L) {
 	lua_pushvalue(L, LUA_GLOBALSINDEX);
 	luaL_register(L, nullptr, extra_funcs);
 	opts.vectorCtor = "vector";
-	return 1;
+	return 0;
 }

@@ -55,6 +55,7 @@ extern int luaopen_extra(lua_State *L);
 // used by code below + in lib source
 extern lua_CompileOptions opts;
 bool ignore_errors = false;
+bool unsafe = false;
 static std::vector<const char*> filenames;
 
 static void initLuaState (lua_State* L) {
@@ -63,7 +64,15 @@ static void initLuaState (lua_State* L) {
 	}
 	luaL_openlibs(L);
 	luaopen_extra(L);
-	luaL_sandbox(L);
+	if (unsafe) {
+		// DO NOT SET REGISTRY DIRECTLY TO THE GLOBALS, IF
+		// YOU ARE GOING TO ENABLE SANDBOX
+		lua_newtable(L);
+		lua_pushvalue(L, LUA_REGISTRYINDEX);
+		lua_rawsetfield(L, -2, "_REG"); 
+		lua_rawsetfield(L, LUA_GLOBALSINDEX, "unsafe");
+	}
+	if (!unsafe) luaL_sandbox(L);
 	// default values
 	opts.optimizationLevel=1;
 	opts.debugLevel=1;
@@ -103,6 +112,9 @@ static void parseargs (int argc, char** argv) {
 				opts.optimizationLevel = kind;
 			}
 			break;
+			case 'u' :
+				unsafe = true;
+			break;
 			default  :
 				throw Exception(strformat("Option %c is not supported", arg[1]));
 		} else {
@@ -112,7 +124,12 @@ static void parseargs (int argc, char** argv) {
 	if (opts.optimizationLevel == 2 && opts.debugLevel > 1) {
 		fprintf(stderr, "Warning: Debug information may be useless with");
 		fprintf(stderr, " optimization level 2. (Run with -g0 or -O1 to");
-		fprintf(stderr, " not show this warning)");
+		fprintf(stderr, " not show this warning)\n");
+	}
+	if (unsafe) {
+		fprintf(stderr, "Warning: Unsafe mode is enabled, loaded files");
+		fprintf(stderr, " have full access to globals/registry, and ");
+		fprintf(stderr, " sandbox is not enabled! (-u flag does this).\n");
 	}
 	if (filenames.size() == 0) {
 		throw Exception("Input files excepted to be given");
@@ -120,8 +137,18 @@ static void parseargs (int argc, char** argv) {
 }
 int lua_Main(int argc, char** argv); 
 
+/*
+#include <signal.h>
+
+void invalidinstrction(int) {
+	*((int*)0) = 36;
+}
+* Don't ask... Here be dragons...
+*/
+
 int main(int argc, char** argv) {
 	try {
+		//signal(SIGILL, invalidinstrction);
 		return lua_Main(argc, argv);
 	} catch (ExpectedException& e) {
 		return 0; // all is OK
@@ -154,20 +181,21 @@ static void execfile(lua_State* L, const char* filename) {
 	if (lua_pcall(L, 1, 0, -3) != LUA_OK) {
 		fprintf(stderr, "%s : Can't execute %s : %s\n", 
 			ignore_errors ? "Warning" : "Error",
-			filename, lua_tostring(L, -1)			
+			filename, lua_tostring(L, -1) ?	lua_tostring(L, -1) : luaL_typename(L, -1)
 		);
 		if (!ignore_errors) {
 			throw ExpectedException();
 		}
 	}
+	lua_settop(L, 0);
 }
 
 int lua_Main(int argc, char** argv) {
 	// init
 	RaiiLua state;
 	lua_State *L = state.L;
-	initLuaState(L);
 	parseargs(argc, argv);
+	initLuaState(L);
 	
 	// execute files
 	lua_settop(L, 0);

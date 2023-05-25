@@ -12,11 +12,12 @@ Also it has optional luau-test utility, to check if compilation is done correctl
 
 The documentation portion of this repository can be viewed at https://luau-lang.org/
 
-# What is this MiniLuau about?
+# What is MiniLuau about?
 
 This is a bit changed Luau distribution :
 - make system is simplified (a bit .\_.)
-- unneded sources to embend are removed (Native Codegen, Analyzers...)
+- unneeded sources to embend are removed (Native Codegen, Analyzers...)
+- example implementation of `loadfile()`/`dofile()`/`loadstring()` is given
 - and that's it.
 
 # Building
@@ -34,7 +35,7 @@ Alternatively, on Linux/macOS you can use `make` :
 make
 ```
 
-Anytiing is builded with best compiler flags possible by default (release).
+Anything is builded with best compiler flags possible by default (release).
 You can optionally add `-flto` compiler and linker flags to luau + your whole project to get more optimised binary in result.
 
 To integrate Luau into your CMake application projects as a library, at the minimum you'll need to depend on `Luau.VM` project. In case you need to load lua code, not only bytecode, `Lua.Compiler` should be added as dependency.
