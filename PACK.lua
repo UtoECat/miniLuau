@@ -1,7 +1,7 @@
 print([[
 Luau source packer.
 Copyright (C) UtECat 2023.
-GNU GPL LICENSE V.3 or LATER. 
+MIT License.
 NO ANY WARRIANTY!
 ]])
 
