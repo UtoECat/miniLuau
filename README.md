@@ -43,11 +43,7 @@ Luau (lowercase u, /ˈlu.aʊ/) is a fast, small, safe, gradually typed embeddabl
 This is not original Luau repository.
 Visit [Original Luau repository](https://github.com/Roblox/luau) for more information about LuaU.
 
-This repository hosts source code for the VM, LUAAPI and COMPILER implementation, to make it easy to embend in your projects.
-
-Also it has optional luau-test utility, to check if compilation is done correctly and API working as intended.
-
-The documentation portion of this repository can be viewed at [Lua-Lang website](https://luau-lang.org/)
+The documentation portion for Luau language can be viewed at [Luau-Lang website](https://luau-lang.org/)
 
 # Baselib documentation
 [Is here (click)](https://luau-lang.org/library)
