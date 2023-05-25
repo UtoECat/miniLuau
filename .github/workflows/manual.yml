@@ -1,6 +1,7 @@
 name: Manual Sync & Pack workflow
 
 on:
+  push:
   workflow_dispatch:
     # Inputs the workflow accepts.
     inputs:
