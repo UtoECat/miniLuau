@@ -6,9 +6,7 @@
  * Copyright (C) UtoECat 2023
  * MIT License. No any warrianty 
  */
-#include "lua.h"
-#include "lualib.h"
-#include "luacode.h"
+#include "extra.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <cassert>
@@ -49,13 +47,11 @@ class ExpectedException : public std::exception {
 	}
 };
 
-extern int luaopen_extra(lua_State *L);
-
 #include <vector>
 // used by code below + in lib source
-extern lua_CompileOptions opts;
 bool ignore_errors = false;
 bool unsafe = false;
+bool repl = true; // do REPL after all files ends?
 static std::vector<const char*> filenames;
 
 static void initLuaState (lua_State* L) {
@@ -105,6 +101,9 @@ static void parseargs (int argc, char** argv) {
 				opts.optimizationLevel = kind;
 			}
 			break;
+			case 'i':
+				repl = true;
+			break;
 			case 'g' : {
 				int kind = arg[2] - 0;
 				if (kind < 0 || kind > 2)
@@ -131,24 +130,22 @@ static void parseargs (int argc, char** argv) {
 		fprintf(stderr, " have full access to globals/registry, and ");
 		fprintf(stderr, " sandbox is not enabled! (-u flag does this).\n");
 	}
-	if (filenames.size() == 0) {
+	if (filenames.size() == 0 && !repl) {
 		throw Exception("Input files excepted to be given");
 	}
 }
 int lua_Main(int argc, char** argv); 
 
-/*
 #include <signal.h>
 
 void invalidinstrction(int) {
 	*((int*)0) = 36;
 }
-* Don't ask... Here be dragons...
-*/
+// Don't ask... Here be dragons...
 
 int main(int argc, char** argv) {
 	try {
-		//signal(SIGILL, invalidinstrction);
+		signal(SIGILL, invalidinstrction);
 		return lua_Main(argc, argv);
 	} catch (ExpectedException& e) {
 		return 0; // all is OK
@@ -190,6 +187,73 @@ static void execfile(lua_State* L, const char* filename) {
 	lua_settop(L, 0);
 }
 
+// REPL part
+#include <linenoise.h>
+#include <string.h>
+
+static void doREPL(lua_State* L) {
+	std::string buffer;
+	int oldtop = lua_gettop(L);
+
+	// tracebacking...
+	lua_getfield(L, LUA_GLOBALSINDEX, "debug");
+	lua_getfield(L, -1, "traceback");
+	lua_remove(L, -2); // leave traceback function at the 'top'
+
+	assert(lua_gettop(L) == 1);
+	for(;;) {
+		if (lua_gettop(L) != 1) {
+			fprintf(stderr, "ERR %i!\n", lua_gettop(L));
+			assert(0);
+		}
+		char* tmp = linenoise(buffer.empty() ? "luau> " : "   ->>");
+		if (!tmp) continue;
+		buffer += tmp;
+		linenoiseFree(tmp);
+
+		// try load this code
+		if (buffer.compare("quit") == 0) break;
+		int status = luaL_loadbufferx(L, buffer.c_str(), buffer.size(), "=stdin", 0);
+		// try return result at first
+		if (status != LUA_OK) {
+			//lua_pop(L, 1);
+			fprintf(stderr, "TMP : %s\n", lua_tostring(L, -1));
+			std::string tmp = "return ";
+			tmp += buffer;
+			status = luaL_loadbufferx(L, tmp.c_str(), tmp.size(),
+					"=stdin", 0);
+			if (status != LUA_OK) lua_pop(L, 1); // show old message
+			else lua_remove(L, -2); // remove old message
+		}
+		// check message again
+		if (status != LUA_OK) {
+			const char* msg = lua_tostring(L, -1);
+			if (msg && strstr(msg, "<eof>") != NULL) {
+				lua_pop(L, 1); // just need more input
+				continue;
+			}
+			if (!msg) msg = "unknown error!";
+			fprintf(stderr, "cmp : %s\n", lua_tostring(L, -1));
+			lua_pop(L, 1);
+			buffer.clear();
+			continue;
+		}
+		// well done. Execute it now!
+		linenoiseHistoryAdd(buffer.c_str());
+		if (lua_pcall(L, 0, 1, 1) != LUA_OK) {
+			// error
+			fprintf(stderr, "lua : %s", lua_tostring(L, -1));
+		} else {
+			fprintf(stderr, " %s\n", luaL_tolstring(L, -1, nullptr));
+		}
+		lua_pop(L, 1);
+		buffer.clear();
+	}
+	// remove temporary stuff
+	lua_settop(L, oldtop);
+};
+
+
 int lua_Main(int argc, char** argv) {
 	// init
 	RaiiLua state;
@@ -202,6 +266,8 @@ int lua_Main(int argc, char** argv) {
 	for (auto& fname : filenames) {
 		execfile(L, fname);
 	}
+
+	if (repl) doREPL(L);
 	
 	// no lua_close() here, it will be RAII'd!
 	return 0;

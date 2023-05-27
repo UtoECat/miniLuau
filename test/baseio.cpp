@@ -8,33 +8,12 @@
  * Copyright (C) UtoECat 2023
  * MIT License. No any warrianty 
  */
-#include "lua.h"
-#include "lualib.h"
-#include "luacode.h"
-#include <cstdio>
-#include <cstdlib>
+#include "extra.hpp"
 #include <assert.h>
-
-/*
- * Actually, this may be fixed if add -fexceptions to the C side, but... 
- * I am not 100% sure.
- */
-#if LUA_USE_LONGJMP
-static_assert(!"This baseio activly uses c++ exceptions and RAII stuff\
-	that disabled by EXTERN_C. Use C++ instead of C or don't use this library.\
-	Any attempt to workaround this will 100% result into UB.");
-#endif
 
 // this is a C++ SOURCE!!!
 
 #include <string>
-
-struct CodeBuffer {
-	const char* data;
-	size_t len;
-	const char* name;
-};
-
 lua_CompileOptions opts = {0};
 
 /*
@@ -48,45 +27,65 @@ static int rawloadcode(lua_State* L, CodeBuffer& B, int env) {
 	return status;
 }
 
-// applies sanbox metatable to the table at the top of the stack
-// (using enviroment table at index glob, or GLOBALS proxy instead)
-// glob MUST NOT BE PSEUDO!
-void applySandboxMT(lua_State* L, int glob) {
-	lua_createtable(L, 0, 1);
-	if (glob)
-		lua_pushvalue(L, glob);
-	else
-    lua_pushvalue(L, LUA_GLOBALSINDEX);
-  lua_setfield(L, -2, "__index");
-  lua_setreadonly(L, -1, true);
-  lua_setmetatable(L, -2);
+/*
+ * More OOP stuff in the future...
+ * MUST REMOVE ALL ADDED BY ITSELF TO STACK STUFF, EXCEPT FOR NEW
+ * TABLE!
+ */
+static void lua_inherit(lua_State* L) {
+	int top = lua_gettop(L);
+	lua_createtable(L, 0, 1); // new object
+  lua_createtable(L, 0, 1); // new meta
+	lua_pushvalue(L, -3); // copy table above new object
+  lua_setfield(L, -2, "__index"); // proxy reads
+  lua_setreadonly(L, -1, true); // make metatable readonly
+  lua_setmetatable(L, -2); // apply
+	assert(top+1 == lua_gettop(L));
+}
+
+static int luaB_inherit(lua_State* L) {
+	if (!lua_istable(L, -1)) luaL_error(L, "bad argument #%i : Table excepted!", 1);
+	lua_inherit(L);	
+	return 1;
 }
 
 /*
  * Default sandboxthread() forget to change _G :D
- * Also here we can use not only new table as new enviroment,
+ * Also here we can use not only new _G proxy table as new enviroment,
  * But precreated by user (and in lua too)
  */
-void doSandboxThread(lua_State* L, int envidx) {
-		if (envidx) {
-				lua_pushvalue(L, envidx);
-		} else {
-    	// create new global table that proxies reads to original table
-    	lua_createtable(L, 0, 1);
-    	lua_setsafeenv(L, -1, true); // it's isolated => not shares globals
-			applySandboxMT(L, 0); // 0 to indicate to use LUA_GLOBALSINDEX
-			lua_pushvalue(L, -1); // very useful change
-			lua_setfield(L, -2, "_G");
-		}
+static void doSandboxEnv(lua_State* L, int env) {
+	int top = lua_gettop(L);
+	if (env && lua_istable(L, env))
+		// just use specified enviroment
+		lua_pushvalue(L, env);
+	else {
+		lua_pushvalue(L, LUA_GLOBALSINDEX);
+		lua_inherit(L);
+		lua_remove(L, -2); // remove old globals
+    lua_setsafeenv(L, -1, true); // it's isolated => not shares globals
+		env = lua_gettop(L);
+	}
+	if (!lua_getreadonly(L, -1)) { // add _G
+		lua_pushvalue(L, -1);
+		lua_setfield(L, -2, "_G");
+	}
+	assert(lua_istable(L, -1));
+	assert(lua_gettop(L) == top+1);
+}
+
+static void doSandboxThread(lua_State* L, int env) {
+		doSandboxEnv(L, env);
 		assert(lua_istable(L, -1));
     lua_replace(L, LUA_GLOBALSINDEX);
 }
 
 /*
  * dostring/dofile-like() in save enviroment and separate corutine instead of main one.
- * this must be preferrable about loadstring, when you load untrusted code,
- * cause yielding may break your internal code execution a bit, when you do not
- * expect that.
+ * this must be preferrable about loadstring, when you load untrusted code.
+ * (and trusted code too, since setsafeenv() allows VM to do a lot of
+ * additional optimisations, by exepting that all baselib functions are
+ * always reachable from global table (assumes readonly))
  *
  * dostring() throws errors instead of returning them, this is vanilla lua behaviour
  */
@@ -130,18 +129,23 @@ static int safedocode(lua_State* L, CodeBuffer& B, int env = 0) {
  * returns errors like rawloadcode() does
  */
 static int (safeloadcodeenv) (lua_State* L, CodeBuffer& B, int env) {
-	if (env==0 || !lua_istable(L, env)) {
-		// no enviroment specified - use isolated and fastest case
-		lua_createtable(L, 0, 1);
-		env = lua_gettop(L);
-		lua_setsafeenv(L, env, true);
-		applySandboxMT(L, 0); // use real globals table
-		lua_pushvalue(L, -1); // very useful change
-		lua_setfield(L, -2, "_G");
-	} // in other case user should do all similar stuff (except setsafeenv)
-	assert(lua_istable(L, env));
-	int status = rawloadcode(L, B, env);
+	int top = lua_gettop(L);
+	doSandboxEnv(L, env);
+	assert(lua_istable(L, -1));
+	int status = rawloadcode(L, B, -1);
+	lua_remove(L, -2); // remove enviroment
+	assert(lua_gettop(L) == top+1);
 	return status;
+}
+
+int luaL_loadbufferx (lua_State *L, const char *buff, size_t size,
+  const char *name, int env) {
+	assert(buff != nullptr);
+	CodeBuffer b;
+	b.data = buff;
+	b.len = size;
+	b.name = name ? name : "?";
+	return safeloadcodeenv(L, b, env);
 }
 
 /*
@@ -157,7 +161,7 @@ static int luaB_dostring(lua_State* L) {
 
 /*
  * This function is so different because of optimisations that we can get from
- * isolationg out enviroment. Using isolated one is preferabble, cause it's a fastest
+ * isolating out enviroment. Using isolated one is preferabble, cause it's a fastest
  * way to do things.
  */
 static int (luaB_loadstring) (lua_State* L) { // load string with specified enviroment
@@ -165,6 +169,9 @@ static int (luaB_loadstring) (lua_State* L) { // load string with specified envi
 	B.data = luaL_checklstring(L, 1, &B.len);
 	B.name = luaL_optstring(L, 2, B.data);
 	lua_settop(L, 3); // we nned third argument, or nil
+	if (!lua_istable(L, 3) && !lua_isnoneornil(L, 3)) {
+		luaL_error(L, "bad argument #3 : table or nil excepted!");
+	}
 	
 	int status = safeloadcodeenv(L, B, 3);
 
@@ -175,82 +182,10 @@ static int (luaB_loadstring) (lua_State* L) { // load string with specified envi
 	return 2;
 }
 
-/* struct LoadRes {
-	const char* filename  = nullptr;
-	std::string chunkname = "=";
-	RAILfree<char*, true> codebuff;
-	size_t len = 0;
-}; */ // DEPRECATED
-
-// TODO:
-// This is editable fileIO implementation. You can change
-// FILE* IO to ZIP archinve readonly IO and everything will still
-// work, but just in the archive now :p.
-// WARNING: this class MUST NOT throw!
-class FileIO {
-	private:
-	FILE* f = nullptr;
-	public:
-	FileIO() = default;
-	~FileIO() {
-		close();
-	}
-	// FILE* clonning is not supported on some
-	// unix systems, and in most non-unix ones
-	FileIO(const FileIO&) = delete;
-	public:
-	using pos_type = decltype(ftell(nullptr));
-	using size_type = decltype(fread(nullptr, 0, 0, nullptr));
-	enum SeekBase {
-		SET = SEEK_SET,
-		END = SEEK_END,
-		CUR = SEEK_CUR
-	};
-	public:
-	// status
-	bool isOpened() const {return !!f;}
-	bool hasError() const {return f ? ferror(f) : false;}
-	bool isEOF() {return !f || feof(f);}
-	operator bool() const {return isOpened() && !hasError();}
-
-	// opening/closing
-	void close() {if (f) fclose(f); f = nullptr;}
-	bool open(const char* file, const char* mode) {
-		f = fopen(file, mode);
-		return isOpened();
-	}
-
-	// seeking
-	pos_type tell() {return ftell(f);}	
-	bool seek(pos_type pos, SeekBase base) {
-		return fseek(f, pos, (int)base) >= 0;
-	}
-	void rewind() {
-		fseek(f, 0, (int)SeekBase::SET);
-		clearerr(f);
-	}
-
-	// IO
-
-	// dst space must be not less than itemsz*cnt!
-	// returns number of readed elements (in simple case
-	// aka two args only, returns 1 in sucess reading, 0 if 
-	// EOF or other shit, -1 in case of error (and sets error flag)
-	// ((c lib does this by itself!!!1)).
-	size_type read(void* dst, size_t itemsz, size_t num = 1) {
-		return fread(dst, itemsz, num, f);
-	}
-	
-	// same things aas above, but for writing.
-	size_type write(const void* src, size_t itemsz, size_t num = 1) {
-		return fwrite(src, itemsz, num, f);
-	}
-};
-
 /*
  * Reads a whole file into memory (std::string)
  */
-static int loadfilecontent(lua_State* L, const char* finm, std::string& buff) {
+int loadFileContent(lua_State* L, const char* finm, std::string& buff) {
 	FileIO file; // RAIL stdio file wrapper
 	file.open(finm, "r");	
 	if (!file) { // checks for error && is file opened
@@ -317,7 +252,7 @@ static int luaB_loadfile(lua_State* L) {
 	
 	// load file content
 	std::string buffer;
-	int status = loadfilecontent(L, filename, buffer);
+	int status = loadFileContent(L, filename, buffer);
 	if (status != LUA_OK) goto errorcheck;
 
 	// load code now
@@ -344,7 +279,7 @@ int luaB_dofile(lua_State* L) {
 
 	// load file content
 	std::string buffer;
-	int status = loadfilecontent(L, filename, buffer);
+	int status = loadFileContent(L, filename, buffer);
 	if (status != LUA_OK) lua_error(L);
 
 	// load code now
@@ -377,6 +312,133 @@ static int luaB_collectgarbage(lua_State* L) {
 	luaL_error(L, "collectgarbage must be called with 'count' or 'collect'");
 }
 
+struct Serialize {
+	int deep;
+	int cidx;
+	std::string buffer;
+	bool loadable; // is result should be available to load without errors?
+};
+
+static void ser_str(lua_State* L, Serialize* ser) {
+		size_t len = 0;
+		const char* str = lua_tolstring(L, -1, &len);
+
+		ser->buffer += '\"';
+		while (len--) {
+			switch (*str) {
+				case '\"' :
+				case '\\' :
+				case '\n' :
+					ser->buffer += '\\';
+					ser->buffer += *str;
+				break;
+				case '\r' :
+					ser->buffer += "\\r";
+				break;
+				case '\0' :
+					ser->buffer += "\\000";
+				break;
+				default :
+					ser->buffer += *str;
+				break;
+			};
+		str++;	
+	}
+	ser->buffer += '\"';
+}
+
+static void addcache(lua_State* L, Serialize* ser) {
+	lua_pushvalue(L, ser->cidx);
+	lua_pushvalue(L, -2);
+	lua_pushvalue(L, -1);
+	luaL_tolstring(L, -1, nullptr); // simple
+	lua_rawset(L, -3);
+	lua_pop(L, 1);
+}
+
+void luaL_serialize(lua_State* L, Serialize* ser);
+	
+static void servalue(lua_State* L, Serialize* ser, int idx) {
+	ser->deep++;
+	if (ser->deep > 20) luaL_error(L, "Table is too deep!");
+	int oldtop = lua_gettop(L);
+	lua_pushvalue(L, idx);
+	luaL_serialize(L, ser);
+	lua_pop(L, 1);
+	if (oldtop < lua_gettop(L)) {
+		luaL_error(L, "unbalanced servalue!");
+	}
+}
+
+void luaL_serialize(lua_State* L, Serialize* ser) {
+	assert(ser && L);
+	lua_checkstack(L, lua_gettop(L) + 5);
+
+	// CHECK FOR REURSION
+	lua_pushvalue(L, ser->cidx);
+	lua_pushvalue(L, -2);
+	if (lua_rawget(L, -2) != LUA_TNIL) {
+		lua_remove(L, -2); // remove cache table
+		lua_remove(L, -2); // remove original value
+		return; // return cached value
+	};
+	lua_pop(L, 2);
+
+	switch(lua_type(L, -1)) {
+		case LUA_TSTRING:
+		ser_str(L, ser);
+		break;
+		case LUA_TTABLE: {
+		addcache(L, ser);	
+		int idx = lua_gettop(L);
+		lua_pushnil(L);
+		int oldi = 0;
+		int cnt = 0;
+		ser->buffer += "{";
+
+		while (lua_next(L, idx)) { // next will remove key and value at the end
+			if (lua_tonumber(L, -2) - oldi <= 1) { // array part
+				oldi++;
+			} else {
+				ser->buffer += "["; 
+				servalue(L, ser, -2);
+				ser->buffer += "] = "; 
+			}
+			servalue(L, ser, -1);
+			ser->buffer += ", "; 
+			cnt++;
+			if (cnt % 5) ser->buffer += "\n";
+		}
+		ser->buffer += "{";
+		}
+		break;
+		case LUA_TFUNCTION:
+		case LUA_TUSERDATA:
+		case LUA_TTHREAD:
+		if (ser->loadable)
+			luaL_error(L, "Cannot serialize type %s", luaL_typename(L, -1));
+		ser->buffer += luaL_tolstring(L, -1, nullptr); // in other case
+		break;
+		default :
+		ser->buffer += luaL_tolstring(L, -1, nullptr);
+		break;
+	}
+}
+
+static int luaB_serialize(lua_State* L) {
+	Serialize tmp, *ser;
+	ser = &tmp;
+	ser->loadable = lua_toboolean(L, 2);
+	lua_settop(L, 1);
+
+	lua_createtable(L, 1, 1);
+	ser->cidx = lua_gettop(L);
+	lua_pushvalue(L, -2);
+	ser->deep = 0;
+	servalue(L, ser, 1);
+	return 1;
+}
+
 static const luaL_Reg extra_funcs[] = {
 	{"loadfile", luaB_loadfile},
 	{"dofile", luaB_dofile},
@@ -384,6 +446,7 @@ static const luaL_Reg extra_funcs[] = {
 	{"loadstring", luaB_loadstring},
 	{"vector", luaB_vector},
 	{"collectgarbage", luaB_collectgarbage},
+	{"serialize", luaB_serialize},
 	{nullptr, nullptr}
 };
 
@@ -391,5 +454,14 @@ int luaopen_extra(lua_State *L) {
 	lua_pushvalue(L, LUA_GLOBALSINDEX);
 	luaL_register(L, nullptr, extra_funcs);
 	opts.vectorCtor = "vector";
+	if (lua_getfield(L, LUA_GLOBALSINDEX, "table") != LUA_TTABLE) {
+		lua_pop(L, 1); 
+		lua_createtable(L, 1, 0);
+		lua_pushvalue(L, -1);
+		lua_setfield(L, LUA_GLOBALSINDEX, "table");		
+	};
+	lua_pushcfunction(L, luaB_inherit, "inherit");
+	lua_setfield(L, -2, "inherit");
+	lua_pop(L, 1); 
 	return 0;
 }
