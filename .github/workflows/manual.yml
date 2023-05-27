@@ -2,18 +2,23 @@ name: Manual Sync & Pack workflow
 
 # i hate dependabot for limited token :/
 permissions:
-  pull-requests: write
+  id-token: write
+  contents: write
+  actions: write
+  checks: write
+  deployments: write
+  discussions: write
   issues: write
+  pages: read
+  packages: write
+  pull-requests: write
   repository-projects: write
+  security-events: write
+  statuses: write
 
 on:
   pull_request:
   workflow_dispatch:
-    # Inputs the workflow accepts.
-    inputs:
-      name:
-        # Default value if no value is explicitly provided
-        default: 'World'
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -25,7 +30,7 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - name: Checkout with submodules
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: true
       - name: Run actions script
@@ -36,7 +41,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh pr checkout ${{ github.event.number }}
         if: github.ref != 'refs/heads/main' && github.event_name == 'pull_request'
-      - name : Commit chages
+      - name : Commit changes to main branch
         run: git push
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
 
