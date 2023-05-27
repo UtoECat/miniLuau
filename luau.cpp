@@ -186,7 +186,8 @@ enum LuauOpcode
  LOP_DEP_FORGLOOP_INEXT,
  // A: target register (see FORGLOOP for register layout)
  LOP_FORGPREP_NEXT,
- LOP_DEP_FORGLOOP_NEXT,
+ // this is a pseudo-instruction that is never emitted by bytecode compiler, but can be constructed at runtime to accelerate native code dispatch
+ LOP_NATIVECALL,
  // A: target register
  LOP_GETVARARGS,
  // A: target register
@@ -1038,6 +1039,7 @@ typedef struct Proto
  TString* source;
  TString* debugname;
  uint8_t* debuginsn;
+ const Instruction* codeentry;
  void* execdata;
  uintptr_t exectarget;
  GCObject* gclist;
@@ -1215,7 +1217,7 @@ typedef struct CallInfo
 } CallInfo;
 #define LUA_CALLINFO_RETURN (1 << 0)
 #define LUA_CALLINFO_HANDLE (1 << 1) // should the error thrown during execution get handled by continuation from this callinfo? func must be C
-#define LUA_CALLINFO_CUSTOM (1 << 2)
+#define LUA_CALLINFO_NATIVE (1 << 2)
 #define curr_func(L) (clvalue(L->ci->func))
 #define ci_func(ci) (clvalue((ci)->func))
 #define f_isLua(ci) (!ci_func(ci)->isC)
@@ -1313,9 +1315,7 @@ typedef struct global_State
  uint64_t rngstate;
  uint64_t ptrenckey[4]; // pointer encoding key for display
  lua_Callbacks cb;
-#if LUA_CUSTOM_EXECUTION
  lua_ExecutionCallbacks ecb;
-#endif
  void (*udatagc[LUA_UTAG_LIMIT])(lua_State*, void*);
  GCStats gcstats;
 #ifdef LUAI_GCMETRICS
@@ -1540,7 +1540,8 @@ LUAI_FUNC int luaV_tostring(lua_State* L, StkId obj);
 LUAI_FUNC void luaV_gettable(lua_State* L, const TValue* t, TValue* key, StkId val);
 LUAI_FUNC void luaV_settable(lua_State* L, const TValue* t, TValue* key, StkId val);
 LUAI_FUNC void luaV_concat(lua_State* L, int total, int last);
-LUAI_FUNC void luaV_getimport(lua_State* L, Table* env, TValue* k, uint32_t id, bool propagatenil);
+LUAI_FUNC void luaV_getimport(lua_State* L, Table* env, TValue* k, StkId res, uint32_t id, bool propagatenil);
+LUAI_FUNC void luaV_getimport_dep(lua_State* L, Table* env, TValue* k, uint32_t id, bool propagatenil);
 LUAI_FUNC void luaV_prepareFORN(lua_State* L, StkId plimit, StkId pstep, StkId pinit);
 LUAI_FUNC void luaV_callTM(lua_State* L, int nparams, int res);
 LUAI_FUNC void luaV_tryfuncTM(lua_State* L, StkId func);
@@ -6244,6 +6245,7 @@ Proto* luaF_newproto(lua_State* L)
  f->source = NULL;
  f->debugname = NULL;
  f->debuginsn = NULL;
+ f->codeentry = NULL;
  f->execdata = NULL;
  f->exectarget = 0;
  return f;
@@ -9368,9 +9370,7 @@ lua_State* lua_newstate(lua_Alloc f, void* ud)
  g->memcatbytes[i] = 0;
  g->memcatbytes[0] = sizeof(LG);
  g->cb = lua_Callbacks();
-#if LUA_CUSTOM_EXECUTION
  g->ecb = lua_ExecutionCallbacks();
-#endif
  g->gcstats = GCStats();
 #ifdef LUAI_GCMETRICS
  g->gcmetrics = GCMetrics();
@@ -12516,6 +12516,7 @@ int luaopen_utf8(lua_State* L)
 }
 // This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 LUAU_FASTFLAG(LuauUniformTopHandling)
+LUAU_FASTFLAG(LuauGetImportDirect)
 #ifdef __clang__
 #if __has_warning("-Wc99-designator")
 #pragma clang diagnostic ignored "-Wc99-designator"
@@ -12549,7 +12550,7 @@ LUAU_FASTFLAG(LuauUniformTopHandling)
 #define VM_PATCH_E(pc, slot) *const_cast<Instruction*>(pc) = ((uint32_t(slot) << 8) | (0x000000ffu & *(pc)))
 #define VM_INTERRUPT() { void (*interrupt)(lua_State*, int) = L->global->cb.interrupt; if (LUAU_UNLIKELY(!!interrupt)) { VM_PROTECT(L->ci->savedpc++; interrupt(L, -1)); if (L->status != 0) { L->ci->savedpc--; goto exit; } } }
 #define VM_DISPATCH_OP(op) &&CASE_##op
-#define VM_DISPATCH_TABLE() VM_DISPATCH_OP(LOP_NOP), VM_DISPATCH_OP(LOP_BREAK), VM_DISPATCH_OP(LOP_LOADNIL), VM_DISPATCH_OP(LOP_LOADB), VM_DISPATCH_OP(LOP_LOADN), VM_DISPATCH_OP(LOP_LOADK), VM_DISPATCH_OP(LOP_MOVE), VM_DISPATCH_OP(LOP_GETGLOBAL), VM_DISPATCH_OP(LOP_SETGLOBAL), VM_DISPATCH_OP(LOP_GETUPVAL), VM_DISPATCH_OP(LOP_SETUPVAL), VM_DISPATCH_OP(LOP_CLOSEUPVALS), VM_DISPATCH_OP(LOP_GETIMPORT), VM_DISPATCH_OP(LOP_GETTABLE), VM_DISPATCH_OP(LOP_SETTABLE), VM_DISPATCH_OP(LOP_GETTABLEKS), VM_DISPATCH_OP(LOP_SETTABLEKS), VM_DISPATCH_OP(LOP_GETTABLEN), VM_DISPATCH_OP(LOP_SETTABLEN), VM_DISPATCH_OP(LOP_NEWCLOSURE), VM_DISPATCH_OP(LOP_NAMECALL), VM_DISPATCH_OP(LOP_CALL), VM_DISPATCH_OP(LOP_RETURN), VM_DISPATCH_OP(LOP_JUMP), VM_DISPATCH_OP(LOP_JUMPBACK), VM_DISPATCH_OP(LOP_JUMPIF), VM_DISPATCH_OP(LOP_JUMPIFNOT), VM_DISPATCH_OP(LOP_JUMPIFEQ), VM_DISPATCH_OP(LOP_JUMPIFLE), VM_DISPATCH_OP(LOP_JUMPIFLT), VM_DISPATCH_OP(LOP_JUMPIFNOTEQ), VM_DISPATCH_OP(LOP_JUMPIFNOTLE), VM_DISPATCH_OP(LOP_JUMPIFNOTLT), VM_DISPATCH_OP(LOP_ADD), VM_DISPATCH_OP(LOP_SUB), VM_DISPATCH_OP(LOP_MUL), VM_DISPATCH_OP(LOP_DIV), VM_DISPATCH_OP(LOP_MOD), VM_DISPATCH_OP(LOP_POW), VM_DISPATCH_OP(LOP_ADDK), VM_DISPATCH_OP(LOP_SUBK), VM_DISPATCH_OP(LOP_MULK), VM_DISPATCH_OP(LOP_DIVK), VM_DISPATCH_OP(LOP_MODK), VM_DISPATCH_OP(LOP_POWK), VM_DISPATCH_OP(LOP_AND), VM_DISPATCH_OP(LOP_OR), VM_DISPATCH_OP(LOP_ANDK), VM_DISPATCH_OP(LOP_ORK), VM_DISPATCH_OP(LOP_CONCAT), VM_DISPATCH_OP(LOP_NOT), VM_DISPATCH_OP(LOP_MINUS), VM_DISPATCH_OP(LOP_LENGTH), VM_DISPATCH_OP(LOP_NEWTABLE), VM_DISPATCH_OP(LOP_DUPTABLE), VM_DISPATCH_OP(LOP_SETLIST), VM_DISPATCH_OP(LOP_FORNPREP), VM_DISPATCH_OP(LOP_FORNLOOP), VM_DISPATCH_OP(LOP_FORGLOOP), VM_DISPATCH_OP(LOP_FORGPREP_INEXT), VM_DISPATCH_OP(LOP_DEP_FORGLOOP_INEXT), VM_DISPATCH_OP(LOP_FORGPREP_NEXT), VM_DISPATCH_OP(LOP_DEP_FORGLOOP_NEXT), VM_DISPATCH_OP(LOP_GETVARARGS), VM_DISPATCH_OP(LOP_DUPCLOSURE), VM_DISPATCH_OP(LOP_PREPVARARGS), VM_DISPATCH_OP(LOP_LOADKX), VM_DISPATCH_OP(LOP_JUMPX), VM_DISPATCH_OP(LOP_FASTCALL), VM_DISPATCH_OP(LOP_COVERAGE), VM_DISPATCH_OP(LOP_CAPTURE), VM_DISPATCH_OP(LOP_DEP_JUMPIFEQK), VM_DISPATCH_OP(LOP_DEP_JUMPIFNOTEQK), VM_DISPATCH_OP(LOP_FASTCALL1), VM_DISPATCH_OP(LOP_FASTCALL2), VM_DISPATCH_OP(LOP_FASTCALL2K), VM_DISPATCH_OP(LOP_FORGPREP), VM_DISPATCH_OP(LOP_JUMPXEQKNIL), VM_DISPATCH_OP(LOP_JUMPXEQKB), VM_DISPATCH_OP(LOP_JUMPXEQKN), VM_DISPATCH_OP(LOP_JUMPXEQKS),
+#define VM_DISPATCH_TABLE() VM_DISPATCH_OP(LOP_NOP), VM_DISPATCH_OP(LOP_BREAK), VM_DISPATCH_OP(LOP_LOADNIL), VM_DISPATCH_OP(LOP_LOADB), VM_DISPATCH_OP(LOP_LOADN), VM_DISPATCH_OP(LOP_LOADK), VM_DISPATCH_OP(LOP_MOVE), VM_DISPATCH_OP(LOP_GETGLOBAL), VM_DISPATCH_OP(LOP_SETGLOBAL), VM_DISPATCH_OP(LOP_GETUPVAL), VM_DISPATCH_OP(LOP_SETUPVAL), VM_DISPATCH_OP(LOP_CLOSEUPVALS), VM_DISPATCH_OP(LOP_GETIMPORT), VM_DISPATCH_OP(LOP_GETTABLE), VM_DISPATCH_OP(LOP_SETTABLE), VM_DISPATCH_OP(LOP_GETTABLEKS), VM_DISPATCH_OP(LOP_SETTABLEKS), VM_DISPATCH_OP(LOP_GETTABLEN), VM_DISPATCH_OP(LOP_SETTABLEN), VM_DISPATCH_OP(LOP_NEWCLOSURE), VM_DISPATCH_OP(LOP_NAMECALL), VM_DISPATCH_OP(LOP_CALL), VM_DISPATCH_OP(LOP_RETURN), VM_DISPATCH_OP(LOP_JUMP), VM_DISPATCH_OP(LOP_JUMPBACK), VM_DISPATCH_OP(LOP_JUMPIF), VM_DISPATCH_OP(LOP_JUMPIFNOT), VM_DISPATCH_OP(LOP_JUMPIFEQ), VM_DISPATCH_OP(LOP_JUMPIFLE), VM_DISPATCH_OP(LOP_JUMPIFLT), VM_DISPATCH_OP(LOP_JUMPIFNOTEQ), VM_DISPATCH_OP(LOP_JUMPIFNOTLE), VM_DISPATCH_OP(LOP_JUMPIFNOTLT), VM_DISPATCH_OP(LOP_ADD), VM_DISPATCH_OP(LOP_SUB), VM_DISPATCH_OP(LOP_MUL), VM_DISPATCH_OP(LOP_DIV), VM_DISPATCH_OP(LOP_MOD), VM_DISPATCH_OP(LOP_POW), VM_DISPATCH_OP(LOP_ADDK), VM_DISPATCH_OP(LOP_SUBK), VM_DISPATCH_OP(LOP_MULK), VM_DISPATCH_OP(LOP_DIVK), VM_DISPATCH_OP(LOP_MODK), VM_DISPATCH_OP(LOP_POWK), VM_DISPATCH_OP(LOP_AND), VM_DISPATCH_OP(LOP_OR), VM_DISPATCH_OP(LOP_ANDK), VM_DISPATCH_OP(LOP_ORK), VM_DISPATCH_OP(LOP_CONCAT), VM_DISPATCH_OP(LOP_NOT), VM_DISPATCH_OP(LOP_MINUS), VM_DISPATCH_OP(LOP_LENGTH), VM_DISPATCH_OP(LOP_NEWTABLE), VM_DISPATCH_OP(LOP_DUPTABLE), VM_DISPATCH_OP(LOP_SETLIST), VM_DISPATCH_OP(LOP_FORNPREP), VM_DISPATCH_OP(LOP_FORNLOOP), VM_DISPATCH_OP(LOP_FORGLOOP), VM_DISPATCH_OP(LOP_FORGPREP_INEXT), VM_DISPATCH_OP(LOP_DEP_FORGLOOP_INEXT), VM_DISPATCH_OP(LOP_FORGPREP_NEXT), VM_DISPATCH_OP(LOP_NATIVECALL), VM_DISPATCH_OP(LOP_GETVARARGS), VM_DISPATCH_OP(LOP_DUPCLOSURE), VM_DISPATCH_OP(LOP_PREPVARARGS), VM_DISPATCH_OP(LOP_LOADKX), VM_DISPATCH_OP(LOP_JUMPX), VM_DISPATCH_OP(LOP_FASTCALL), VM_DISPATCH_OP(LOP_COVERAGE), VM_DISPATCH_OP(LOP_CAPTURE), VM_DISPATCH_OP(LOP_DEP_JUMPIFEQK), VM_DISPATCH_OP(LOP_DEP_JUMPIFNOTEQK), VM_DISPATCH_OP(LOP_FASTCALL1), VM_DISPATCH_OP(LOP_FASTCALL2), VM_DISPATCH_OP(LOP_FASTCALL2K), VM_DISPATCH_OP(LOP_FORGPREP), VM_DISPATCH_OP(LOP_JUMPXEQKNIL), VM_DISPATCH_OP(LOP_JUMPXEQKB), VM_DISPATCH_OP(LOP_JUMPXEQKN), VM_DISPATCH_OP(LOP_JUMPXEQKS),
 #if defined(__GNUC__) || defined(__clang__)
 #define VM_USE_CGOTO 1
 #else
@@ -12621,7 +12622,7 @@ static void luau_execute(lua_State* L)
  LUAU_ASSERT(L->isactive);
  LUAU_ASSERT(!isblack(obj2gco(L)));
 #if LUA_CUSTOM_EXECUTION
- if ((L->ci->flags & LUA_CALLINFO_CUSTOM) && !SingleStep)
+ if ((L->ci->flags & LUA_CALLINFO_NATIVE) && !SingleStep)
  {
  Proto* p = clvalue(L->ci->func)->l.p;
  LUAU_ASSERT(p->execdata);
@@ -12796,11 +12797,19 @@ reentry:
  else
  {
  uint32_t aux = *pc++;
- VM_PROTECT(luaV_getimport(L, cl->env, k, aux, false));
+ if (FFlag::LuauGetImportDirect)
+ {
+ VM_PROTECT(luaV_getimport(L, cl->env, k, ra, aux, false));
+ VM_NEXT();
+ }
+ else
+ {
+ VM_PROTECT(luaV_getimport_dep(L, cl->env, k, aux, false));
  ra = VM_REG(LUAU_INSN_A(insn));
  setobj2s(L, ra, L->top - 1);
  L->top--;
  VM_NEXT();
+ }
  }
  }
  VM_CASE(LOP_GETTABLEKS)
@@ -13181,18 +13190,9 @@ reentry:
  while (argi < argend)
  setnilvalue(argi++);
  L->top = p->is_vararg ? argi : ci->top;
-#if LUA_CUSTOM_EXECUTION
- if (LUAU_UNLIKELY(p->execdata && !SingleStep))
- {
- ci->flags = LUA_CALLINFO_CUSTOM;
- ci->savedpc = p->code;
- if (L->global->ecb.enter(L, p) == 1)
- goto reentry;
- else
- goto exit;
- }
-#endif
- pc = p->code;
+ // codeentry may point to NATIVECALL instruction when proto is compiled to native code
+ // note that p->codeentry may point *outside* of p->code..p->code+p->sizecode, but that pointer never gets saved to savedpc.
+ pc = SingleStep ? p->code : p->codeentry;
  cl = ccl;
  base = L->base;
  k = p->k;
@@ -13254,7 +13254,7 @@ reentry:
  Closure* nextcl = clvalue(cip->func);
  Proto* nextproto = nextcl->l.p;
 #if LUA_CUSTOM_EXECUTION
- if (LUAU_UNLIKELY((cip->flags & LUA_CALLINFO_CUSTOM) && !SingleStep))
+ if (LUAU_UNLIKELY((cip->flags & LUA_CALLINFO_NATIVE) && !SingleStep))
  {
  if (L->global->ecb.enter(L, nextproto) == 1)
  goto reentry;
@@ -14324,10 +14324,22 @@ reentry:
  LUAU_ASSERT(unsigned(pc - cl->l.p->code) < unsigned(cl->l.p->sizecode));
  VM_NEXT();
  }
- VM_CASE(LOP_DEP_FORGLOOP_NEXT)
+ VM_CASE(LOP_NATIVECALL)
  {
- LUAU_ASSERT(!"Unsupported deprecated opcode");
+ Proto* p = cl->l.p;
+ LUAU_ASSERT(p->execdata);
+ CallInfo* ci = L->ci;
+ ci->flags = LUA_CALLINFO_NATIVE;
+ ci->savedpc = p->code;
+#if LUA_CUSTOM_EXECUTION
+ if (L->global->ecb.enter(L, p) == 1)
+ goto reentry;
+ else
+ goto exit;
+#else
+ LUAU_ASSERT(!"Opcode is only valid when LUA_CUSTOM_EXECUTION is defined");
  LUAU_UNREACHABLE();
+#endif
  }
  VM_CASE(LOP_GETVARARGS)
  {
@@ -14710,7 +14722,7 @@ int luau_precall(lua_State* L, StkId func, int nresults)
  ci->savedpc = p->code;
 #if LUA_CUSTOM_EXECUTION
  if (p->execdata)
- ci->flags = LUA_CALLINFO_CUSTOM;
+ ci->flags = LUA_CALLINFO_NATIVE;
 #endif
  return PCRLUA;
  }
@@ -14756,6 +14768,7 @@ void luau_poscall(lua_State* L, StkId first)
  L->top = (ci->nresults == LUA_MULTRET) ? res : cip->top;
 }
 // This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
+LUAU_FASTFLAGVARIABLE(LuauGetImportDirect, false)
 template<typename T>
 struct TempBuffer
 {
@@ -14778,8 +14791,32 @@ struct TempBuffer
  return data[index];
  }
 };
-void luaV_getimport(lua_State* L, Table* env, TValue* k, uint32_t id, bool propagatenil)
+void luaV_getimport(lua_State* L, Table* env, TValue* k, StkId res, uint32_t id, bool propagatenil)
 {
+ int count = id >> 30;
+ LUAU_ASSERT(count > 0);
+ int id0 = int(id >> 20) & 1023;
+ int id1 = int(id >> 10) & 1023;
+ int id2 = int(id) & 1023;
+ // we take care to not use env again and to restore res before every consecutive use
+ ptrdiff_t resp = savestack(L, res);
+ TValue g;
+ sethvalue(L, &g, env);
+ luaV_gettable(L, &g, &k[id0], res);
+ if (count < 2)
+ return;
+ res = restorestack(L, resp);
+ if (!propagatenil || !ttisnil(res))
+ luaV_gettable(L, res, &k[id1], res);
+ if (count < 3)
+ return;
+ res = restorestack(L, resp);
+ if (!propagatenil || !ttisnil(res))
+ luaV_gettable(L, res, &k[id2], res);
+}
+void luaV_getimport_dep(lua_State* L, Table* env, TValue* k, uint32_t id, bool propagatenil)
+{
+ LUAU_ASSERT(!FFlag::LuauGetImportDirect);
  int count = id >> 30;
  int id0 = count > 0 ? int(id >> 20) & 1023 : -1;
  int id1 = count > 1 ? int(id >> 10) & 1023 : -1;
@@ -14831,7 +14868,15 @@ static void resolveImportSafe(lua_State* L, Table* env, TValue* k, uint32_t id)
  {
  ResolveImport* self = static_cast<ResolveImport*>(ud);
  // this is technically not necessary but it reduces the number of exceptions when loading scripts that rely on getfenv/setfenv for global
- luaV_getimport(L, L->gt, self->k, self->id, true);
+ if (FFlag::LuauGetImportDirect)
+ {
+ luaD_checkstack(L, 1);
+ setnilvalue(L->top);
+ L->top++;
+ luaV_getimport(L, L->gt, self->k, L->top - 1, self->id, true);
+ }
+ else
+ luaV_getimport_dep(L, L->gt, self->k, self->id, true);
  }
  };
  ResolveImport ri = {k, id};
@@ -14897,6 +14942,7 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  p->code = luaM_newarray(L, p->sizecode, Instruction, p->memcat);
  for (int j = 0; j < p->sizecode; ++j)
  p->code[j] = read<uint32_t>(data, size, offset);
+ p->codeentry = p->code;
  p->sizek = readVarInt(data, size, offset);
  p->k = luaM_newarray(L, p->sizek, TValue, p->memcat);
 #ifdef HARDMEMTESTS
@@ -24429,7 +24475,6 @@ BuiltinInfo getBuiltinInfo(int bfid)
  return {-1, -1};
  case LBF_ASSERT:
  return {-1, -1};
- ;
  case LBF_MATH_ABS:
  case LBF_MATH_ACOS:
  case LBF_MATH_ASIN:
@@ -26503,7 +26548,7 @@ LUAU_FASTINTVARIABLE(LuauCompileLoopUnrollThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThreshold, 25)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
-LUAU_FASTFLAGVARIABLE(LuauCompileLimitInsns, false)
+LUAU_FASTFLAGVARIABLE(LuauCompileInlineDefer, false)
 namespace Luau
 {
 using namespace Luau::Compile;
@@ -26671,7 +26716,7 @@ struct Compiler
  bytecode.foldJumps();
  bytecode.expandJumps();
  popLocals(0);
- if (FFlag::LuauCompileLimitInsns && bytecode.getInstructionCount() > kMaxInstructionCount)
+ if (bytecode.getInstructionCount() > kMaxInstructionCount)
  CompileError::raise(func->location, "Exceeded function instruction limit; split the function into parts to compile");
  bytecode.endFunction(uint8_t(stackSize), uint8_t(upvals.size()));
  Function& f = functions[func];
@@ -26890,7 +26935,16 @@ struct Compiler
  {
  RegScope rs(this);
  size_t oldLocals = localStack.size();
+ std::vector<InlineArg> args;
+ if (FFlag::LuauCompileInlineDefer)
+ {
+ args.reserve(func->args.size);
+ }
+ else
+ {
  inlineFrames.push_back({func, oldLocals, target, targetCount});
+ }
+ // note that compiler state (variable registers/values) does not change here - we defer that to a separate loop below to handle nested calls
  for (size_t i = 0; i < func->args.size; ++i)
  {
  AstLocal* var = func->args.data[i];
@@ -26905,8 +26959,16 @@ struct Compiler
  compileExprVarargs(expr, reg, tail);
  else
  LUAU_ASSERT(!"Unexpected expression type");
+ if (FFlag::LuauCompileInlineDefer)
+ {
+ for (size_t j = i; j < func->args.size; ++j)
+ args.push_back({func->args.data[j], uint8_t(reg + (j - i))});
+ }
+ else
+ {
  for (size_t j = i; j < func->args.size; ++j)
  pushLocal(func->args.data[j], uint8_t(reg + (j - i)));
+ }
  break;
  }
  else if (Variable* vv = variables.find(var); vv && vv->written)
@@ -26916,14 +26978,23 @@ struct Compiler
  compileExprTemp(arg, reg);
  else
  bytecode.emitABC(LOP_LOADNIL, reg, 0, 0);
+ if (FFlag::LuauCompileInlineDefer)
+ args.push_back({var, reg});
+ else
  pushLocal(var, reg);
  }
  else if (arg == nullptr)
  {
+ if (FFlag::LuauCompileInlineDefer)
+ args.push_back({var, kInvalidReg, {Constant::Type_Nil}});
+ else
  locstants[var] = {Constant::Type_Nil};
  }
  else if (const Constant* cv = constants.find(arg); cv && cv->type != Constant::Type_Unknown)
  {
+ if (FFlag::LuauCompileInlineDefer)
+ args.push_back({var, kInvalidReg, *cv});
+ else
  locstants[var] = *cv;
  }
  else
@@ -26932,12 +27003,18 @@ struct Compiler
  Variable* lv = le ? variables.find(le->local) : nullptr;
  if (int reg = le ? getExprLocalReg(le) : -1; reg >= 0 && (!lv || !lv->written))
  {
+ if (FFlag::LuauCompileInlineDefer)
+ args.push_back({var, uint8_t(reg)});
+ else
  pushLocal(var, uint8_t(reg));
  }
  else
  {
  uint8_t temp = allocReg(arg, 1);
  compileExprTemp(arg, temp);
+ if (FFlag::LuauCompileInlineDefer)
+ args.push_back({var, temp});
+ else
  pushLocal(var, temp);
  }
  }
@@ -26946,6 +27023,16 @@ struct Compiler
  {
  RegScope rsi(this);
  compileExprAuto(expr->args.data[i], rsi);
+ }
+ if (FFlag::LuauCompileInlineDefer)
+ {
+ // note: locals use current startpc for debug info, although some of them have been computed earlier; this is similar to compileStatLocal
+ for (InlineArg& arg : args)
+ if (arg.value.type == Constant::Type_Unknown)
+ pushLocal(arg.local, arg.reg);
+ else
+ locstants[arg.local] = arg.value;
+ inlineFrames.push_back({func, oldLocals, target, targetCount});
  }
  foldConstants(constants, variables, locstants, builtinsFold, func->body);
  bool usedFallthrough = false;
@@ -29259,6 +29346,12 @@ struct Compiler
  {
  size_t localOffset;
  AstExpr* untilCondition;
+ };
+ struct InlineArg
+ {
+ AstLocal* local;
+ uint8_t reg;
+ Constant value;
  };
  struct InlineFrame
  {
