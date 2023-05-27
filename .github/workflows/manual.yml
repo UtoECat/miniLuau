@@ -1,5 +1,11 @@
 name: Manual Sync & Pack workflow
 
+# i hate dependabot for limited token :/
+permissions:
+  pull-requests: write
+  issues: write
+  repository-projects: write
+
 on:
   pull_request:
   workflow_dispatch:
