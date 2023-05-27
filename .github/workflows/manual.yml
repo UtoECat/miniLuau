@@ -15,6 +15,7 @@ permissions:
   repository-projects: write
   security-events: write
   statuses: write
+  workflows: write
 
 on:
   pull_request:
