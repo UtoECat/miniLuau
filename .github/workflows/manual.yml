@@ -1,24 +1,15 @@
 name: Manual Sync & Pack workflow
 
-# i hate dependabot for limited token :/
-permissions:
-  id-token: write
-  contents: write
-  actions: write
-  checks: write
-  deployments: write
-  discussions: write
-  issues: write
-  pages: read
-  packages: write
-  pull-requests: write
-  repository-projects: write
-  security-events: write
-  statuses: write
-
 on:
-  pull_request:
+  push:
+    branches:
+      - main
   workflow_dispatch:
+    # Inputs the workflow accepts.
+    inputs:
+      name:
+        # Default value if no value is explicitly provided
+        default: 'World'
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -30,23 +21,13 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - name: Checkout with submodules
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
         with:
           submodules: true
       - name: Run actions script
         run: ./actions_pack.sh
-      # fuck off dependabot. I hate it.
-      # And i hate PAT.
-      # So here we create new pull request, based on dependabot, then
-      # accept this one, and fuck off dependabot's PR
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
+      - name: Commit and push changes
+        uses: devops-infra/action-commit-push@master
         with:
-          branch-suffix: timestamp
-          delete-branch: true
-          title: Patched dependabot PR
-          add-paths: |
-            *.cpp
-            *.hpp
-          committer: GitHub <noreply@github.com>
-
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          commit_message: Automatic packing
