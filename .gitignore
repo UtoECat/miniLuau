@@ -5,3 +5,4 @@
 *.exe
 cmake/
 build/
+test/luau-test
