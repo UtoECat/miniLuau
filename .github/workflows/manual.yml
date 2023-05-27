@@ -1,7 +1,7 @@
 name: Manual Sync & Pack workflow
 
 on:
-  push:
+  pull_request:
   workflow_dispatch:
     # Inputs the workflow accepts.
     inputs:
@@ -24,7 +24,14 @@ jobs:
           submodules: true
       - name: Run actions script
         run: ./actions_pack.sh
+      # holy crap
       - name: Checkout PR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh pr checkout ${{ github.event.pull_request.number }}
+        run: gh pr checkout ${{ github.event.number }}
+        if: github.ref != 'refs/heads/main' && github.event_name == 'pull_request'
+      - name : Commit chages
+        run: git push
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+
+        
