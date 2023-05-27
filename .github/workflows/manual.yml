@@ -24,6 +24,8 @@ jobs:
           submodules: true
       - name: Run actions script
         run: ./actions_pack.sh
+      - name : Set bot name
+        run: git config --global user.email "patch@auto.bot" && git config --global user.name "Patch Bot"
       - name : Commit changes
         run: git add . && git commit -m "auto patch"
       - name: Checkout PR
