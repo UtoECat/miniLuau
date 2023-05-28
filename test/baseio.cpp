@@ -316,6 +316,7 @@ struct Serialize {
 	int deep;
 	int cidx;
 	std::string buffer;
+	std::string path;
 	bool loadable; // is result should be available to load without errors?
 };
 
@@ -350,69 +351,159 @@ static void ser_str(lua_State* L, Serialize* ser) {
 static void addcache(lua_State* L, Serialize* ser) {
 	lua_pushvalue(L, ser->cidx);
 	lua_pushvalue(L, -2);
-	lua_pushvalue(L, -1);
-	luaL_tolstring(L, -1, nullptr); // simple
+	lua_pushlstring(L, ser->path.c_str(), ser->path.size()); // simple
 	lua_rawset(L, -3);
 	lua_pop(L, 1);
 }
 
-void luaL_serialize(lua_State* L, Serialize* ser);
+static void luai_serialize(lua_State* L, Serialize* ser);
 	
-static void servalue(lua_State* L, Serialize* ser, int idx) {
+static void servalue(lua_State* L, Serialize* ser, int idx, const char* name = nullptr) {
+	int old = lua_gettop(L);
 	ser->deep++;
-	if (ser->deep > 20) luaL_error(L, "Table is too deep!");
-	int oldtop = lua_gettop(L);
-	lua_pushvalue(L, idx);
-	luaL_serialize(L, ser);
-	lua_pop(L, 1);
-	if (oldtop < lua_gettop(L)) {
-		luaL_error(L, "unbalanced servalue!");
+	size_t oldsz = ser->path.size();
+	if (name) {
+		ser->path += ".";
+		ser->path += name;
 	}
+	if (ser->deep > 20) luaL_error(L, "Table is too deep!");
+	lua_pushvalue(L, idx);
+	luai_serialize(L, ser);
+	lua_pop(L, 1);
+	ser->path.resize(oldsz);
+	ser->deep--;
+	assert(old == lua_gettop(L));
 }
 
-void luaL_serialize(lua_State* L, Serialize* ser) {
+static int rawitlen(lua_State* L, int idx) {
+	int iter = 0;
+	int res  = 0;
+	while ((iter = lua_rawiter(L, idx, iter)) > 0) {
+		res = iter;
+		lua_pop(L, 2);
+	}
+	return res;
+}
+
+#include <string>
+#include <cstdarg>
+#include <memory>
+const std::string strformat(const char * const fmt, ...) {
+    va_list args, args2;
+
+    va_start(args, fmt);
+    va_copy(args2, args);
+
+    const int len = std::vsnprintf(NULL, 0, fmt, args2);
+    va_end(args2);
+
+		if (len <= 0) throw "formatting error";
+		auto tmp = std::make_unique<char[]>(len+1);
+
+    std::vsnprintf(tmp.get(), len+1, fmt, args);
+    va_end(args);
+    return std::string(tmp.get(), len);
+}
+
+static void ser_tbl(lua_State* L, Serialize* ser) {
+	addcache(L, ser);	
+	assert(lua_istable(L, -1));
+	int idx = lua_gettop(L);
+	int iter = 0, old = 0;
+	int len = rawitlen(L, idx);
+	int arrlen = lua_objlen(L, idx);
+	ser->buffer += "{";
+
+	#ifdef SERIALIZER_DEBUG
+	fwrite(ser->path.c_str(), 1, ser->path.size(), stderr);
+	fprintf(stderr, " #%i[%i]\n", len, arrlen);
+	assert(lua_gettop(L) == idx);
+	assert(lua_istable(L, -1));
+	#endif
+
+	while ((iter = lua_rawiter(L, idx, iter)) > 0) {
+		if (old >= arrlen) { // if not array
+			ser->buffer += "[";
+			std::string tmp = strformat("%i", old);
+			servalue(L, ser, -2, tmp.c_str());
+			ser->buffer += "] = "; 
+		} else if (iter - old > 1) { // holes in the array
+			for (int i = old + 1; i < iter; i++) {
+				ser->buffer += "nil, ";
+				if (i % 5 == 4) {
+					ser->buffer += "\n";
+					ser->buffer.append(ser->deep+1, ' ');
+				}
+			}
+		}
+		old = iter;
+		const char* str = luaL_tolstring(L, -2, nullptr);
+		servalue(L, ser, -2, str);
+		lua_remove(L, -2);
+		if (iter != len) {
+			ser->buffer += ", "; 
+			if (iter % 5 == 4) {
+				ser->buffer += "\n";
+				ser->buffer.append(ser->deep+1, ' ');
+			}
+		}
+		lua_pop(L, 2); // pop key and value
+		assert(lua_istable(L, -1));
+	}
+	if (lua_gettop(L) != idx) {
+		fprintf(stderr, "ERR: %i\n", lua_gettop(L) - idx);
+		assert(lua_gettop(L) == idx);
+	}
+	ser->buffer += "}";
+	return;
+}
+
+static void luai_serialize(lua_State* L, Serialize* ser) {
 	assert(ser && L);
+	int old = lua_gettop(L);
 	lua_checkstack(L, lua_gettop(L) + 5);
 
 	// CHECK FOR REURSION
 	lua_pushvalue(L, ser->cidx);
 	lua_pushvalue(L, -2);
 	if (lua_rawget(L, -2) != LUA_TNIL) {
+		if (ser->loadable) luaL_error(L, "Recursion serialization is not supported!");
 		lua_remove(L, -2); // remove cache table
-		lua_remove(L, -2); // remove original value
+		ser->buffer += lua_tolstring(L, -1, nullptr);
+		lua_pop(L, 1); // pop string
+		assert(old == lua_gettop(L));
 		return; // return cached value
 	};
 	lua_pop(L, 2);
 
+	#ifdef SERIALIZER_DEBUG
+	assert(old == lua_gettop(L));
+	fprintf(stderr, "now : %s\n", luaL_typename(L, -1));
+	#endif
+
 	switch(lua_type(L, -1)) {
 		case LUA_TSTRING:
 		ser_str(L, ser);
-		break;
-		case LUA_TTABLE: {
-		addcache(L, ser);	
-		int idx = lua_gettop(L);
 		lua_pushnil(L);
-		int oldi = 0;
-		int cnt = 0;
-		ser->buffer += "{";
-
-		while (lua_next(L, idx)) { // next will remove key and value at the end
-			if (lua_tonumber(L, -2) - oldi <= 1) { // array part
-				oldi++;
-			} else {
-				ser->buffer += "["; 
-				servalue(L, ser, -2);
-				ser->buffer += "] = "; 
-			}
-			servalue(L, ser, -1);
-			ser->buffer += ", "; 
-			cnt++;
-			if (cnt % 5) ser->buffer += "\n";
-		}
-		ser->buffer += "{";
-		}
+		break;
+		case LUA_TTABLE:
+		ser_tbl(L, ser);
+		lua_pushnil(L);
 		break;
 		case LUA_TFUNCTION:
+		if (ser->loadable)
+			luaL_error(L, "Cannot serialize type %s", luaL_typename(L, -1));
+		lua_Debug ar;
+		if (lua_getinfo(L, -1, "na", &ar)) {
+			ser->buffer += strformat("function %s(", ar.name);
+			if (ar.nparams) ser->buffer += strformat("#%i", ar.nparams);
+			ser->buffer += ar.isvararg?(ar.nparams?", ...":"..."):"";
+			ser->buffer += ")";
+		} else {
+			luaL_error(L, "Can't get function info!");
+		}
+		lua_pushnil(L);
+		break;
 		case LUA_TUSERDATA:
 		case LUA_TTHREAD:
 		if (ser->loadable)
@@ -423,6 +514,11 @@ void luaL_serialize(lua_State* L, Serialize* ser) {
 		ser->buffer += luaL_tolstring(L, -1, nullptr);
 		break;
 	}
+	lua_pop(L, 1);
+	if(old != lua_gettop(L)) {
+		fprintf(stderr, "ERR %i\n", lua_gettop(L)	- old);
+		assert(0);		
+	};
 }
 
 static int luaB_serialize(lua_State* L) {
@@ -435,8 +531,21 @@ static int luaB_serialize(lua_State* L) {
 	ser->cidx = lua_gettop(L);
 	lua_pushvalue(L, -2);
 	ser->deep = 0;
+	ser->path = "T";
 	servalue(L, ser, 1);
+	assert(lua_rawequal(L, 1, 3));
+	
+	lua_settop(L, 0);
+	lua_pushlstring(L, ser->buffer.c_str(), ser->buffer.size());
 	return 1;
+}
+
+int luaL_serialize(lua_State* L, int idx, bool loadable) {
+	idx = lua_absindex(L, idx);
+	lua_pushcfunction(L, luaB_serialize, "serialize");
+	lua_pushvalue(L, idx);
+	lua_pushboolean(L, loadable);
+	return lua_pcall(L, 2, 1, 0);
 }
 
 static const luaL_Reg extra_funcs[] = {

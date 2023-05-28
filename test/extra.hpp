@@ -48,6 +48,7 @@ extern lua_CompileOptions opts;
 // FILE* IO to ZIP archinve readonly IO and everything will still
 // work, but just in the archive now :p.
 // WARNING: this class MUST NOT throw ANYTHING!
+#include <string>
 class FileIO {
 	private:
 	FILE* f = nullptr;
@@ -106,6 +107,12 @@ class FileIO {
 	size_type write(const void* src, size_t itemsz, size_t num = 1) {
 		return fwrite(src, itemsz, num, f);
 	}
+
+	bool write(const std::string& s) {
+		size_type cnt = write(s.c_str(), 1, s.size());
+		if (cnt < s.size()) return false;
+		return true;
+	}
 };
 
 #include <string>
@@ -119,6 +126,13 @@ int loadFileContent(lua_State* L, const char* finm, std::string& buff);
  */
 int luaL_loadbufferx (lua_State *L, const char *buff, size_t size,
                                  const char *name, int env);
+
+int luaL_serialize(lua_State* L, int idx, bool loadable);
+
+/*
+ * strformat
+ */
+const std::string strformat(const char * const fmt, ...);
 
 /*
  * Opens extra stuff :)

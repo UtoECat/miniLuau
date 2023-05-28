@@ -16,25 +16,7 @@
 #include <string>
 #include <exception>
 #include <stdexcept>
-#include <cstdarg>
 #include <memory>
-
-const std::string strformat(const char * const fmt, ...) {
-    va_list args, args2;
-
-    va_start(args, fmt);
-    va_copy(args2, args);
-
-    const int len = std::vsnprintf(NULL, 0, fmt, args2);
-    va_end(args2);
-
-		if (len <= 0) throw "formatting error";
-		auto tmp = std::make_unique<char[]>(len+1);
-
-    std::vsnprintf(tmp.get(), len+1, fmt, args);
-    va_end(args);
-    return std::string(tmp.get(), len+1);
-}
 
 using Exception = ::std::runtime_error;
 
@@ -52,6 +34,7 @@ class ExpectedException : public std::exception {
 bool ignore_errors = false;
 bool unsafe = false;
 bool repl = true; // do REPL after all files ends?
+bool bench_enabled = false; // do benchmark?
 static std::vector<const char*> filenames;
 
 static void initLuaState (lua_State* L) {
@@ -88,8 +71,11 @@ static void parseargs (int argc, char** argv) {
 			case 'v' :
 				printf("lua version is 5.1 (LuaU)\n");
 				break;
-			case 'c' :
+			case 'n' :
 				ignore_errors = true;
+			break;
+			case 'b' :
+				bench_enabled = true;
 			break;
 			case '-' :
 				printf("reading from stdin is not supported :(\n");
@@ -130,7 +116,7 @@ static void parseargs (int argc, char** argv) {
 		fprintf(stderr, " have full access to globals/registry, and ");
 		fprintf(stderr, " sandbox is not enabled! (-u flag does this).\n");
 	}
-	if (filenames.size() == 0 && !repl) {
+		if (filenames.size() == 0 && !repl && !bench_enabled) {
 		throw Exception("Input files excepted to be given");
 	}
 }
@@ -165,6 +151,16 @@ typedef struct RAIISTATE {
 	~RAIISTATE() {lua_close(L);}
 } RaiiLua;
 
+#define HAS_BENCH 1
+#if HAS_BENCH == 1
+#include "bench.h"
+static void dobench(lua_State* L) {
+	int i =	luau_load(L, "=bench", __bench_bcode, __bench_size, 0);
+	assert(i == LUA_OK);
+	if (lua_pcall(L, 0, 0, 0) != LUA_OK)
+		fprintf(stderr, "bench error: %s\n", lua_tostring(L, -1));
+}
+#endif
 
 static void execfile(lua_State* L, const char* filename) {
 	lua_getfield(L, LUA_GLOBALSINDEX, "debug");
@@ -200,12 +196,10 @@ static void doREPL(lua_State* L) {
 	lua_getfield(L, -1, "traceback");
 	lua_remove(L, -2); // leave traceback function at the 'top'
 
-	assert(lua_gettop(L) == 1);
+
 	for(;;) {
-		if (lua_gettop(L) != 1) {
-			fprintf(stderr, "ERR %i!\n", lua_gettop(L));
-			assert(0);
-		}
+		bool show_result = false;
+		assert(lua_gettop(L) == 1);
 		char* tmp = linenoise(buffer.empty() ? "luau> " : "   ->>");
 		if (!tmp) continue;
 		buffer += tmp;
@@ -216,14 +210,16 @@ static void doREPL(lua_State* L) {
 		int status = luaL_loadbufferx(L, buffer.c_str(), buffer.size(), "=stdin", 0);
 		// try return result at first
 		if (status != LUA_OK) {
-			//lua_pop(L, 1);
-			fprintf(stderr, "TMP : %s\n", lua_tostring(L, -1));
+			show_result = true;
 			std::string tmp = "return ";
 			tmp += buffer;
 			status = luaL_loadbufferx(L, tmp.c_str(), tmp.size(),
 					"=stdin", 0);
-			if (status != LUA_OK) lua_pop(L, 1); // show old message
-			else lua_remove(L, -2); // remove old message
+			if (status != LUA_OK) {
+				show_result = false;
+				lua_pop(L, 1); // remove new message
+			} else lua_remove(L, -2); // remove old message
+			assert(lua_gettop(L) == 2);
 		}
 		// check message again
 		if (status != LUA_OK) {
@@ -244,7 +240,11 @@ static void doREPL(lua_State* L) {
 			// error
 			fprintf(stderr, "lua : %s", lua_tostring(L, -1));
 		} else {
-			fprintf(stderr, " %s\n", luaL_tolstring(L, -1, nullptr));
+			if (show_result || !lua_isnoneornil(L, -1)) {
+				luaL_serialize(L, -1, false);
+				fprintf(stderr, " %s\n", lua_tolstring(L, -1, nullptr));
+				lua_pop(L, 1);
+			}
 		}
 		lua_pop(L, 1);
 		buffer.clear();
@@ -253,6 +253,27 @@ static void doREPL(lua_State* L) {
 	lua_settop(L, oldtop);
 };
 
+/*
+void compileFiles() {
+	std::string buff;
+	for (auto& fname : filenames) {
+		std::string source;
+		if (loadFileContent(L, fname, &source) != LUA_OK) {
+			fprintf(stderr, "%s", lua_tostring(L, -1));
+			if (!ignore_errors) throw ExpectedException();
+		};
+		size_t len = 0;
+		// check for compile errors
+		char* c = luau_compile(source.c_str(), source.size(), opts, &len);
+		if (luau_load(L, "?", c, len, 0) != LUA_OK) {
+			fprintf(stderr, "%s", lua_tostring(L, -1));				
+			if (!ignore_errors) throw ExpectedException();
+		}
+		lua_pop(L, 1); // don't need this
+		buff.append(c, len); // append bytecode
+		free(c);
+	}
+} */
 
 int lua_Main(int argc, char** argv) {
 	// init
@@ -261,12 +282,15 @@ int lua_Main(int argc, char** argv) {
 	parseargs(argc, argv);
 	initLuaState(L);
 	
+	#if HAS_BENCH==1
+	if (bench_enabled) dobench(L);
+	#endif
+
 	// execute files
 	lua_settop(L, 0);
 	for (auto& fname : filenames) {
 		execfile(L, fname);
 	}
-
 	if (repl) doREPL(L);
 	
 	// no lua_close() here, it will be RAII'd!

@@ -1,22 +1,35 @@
 TARGET_TEST=./luau-test
+TARGET_COMPILER=./luauc
 
 CXXFLAGS =  -Wall -Wsign-compare -Wno-unused -I./ -I../
-CXXFLAGS += -O0 -g -Wextra#-DNDEBUG -O2 #  
+DEBUG=1
+
+ifeq ($(MODE),1)
+CXXFLAGS += -O0 -g -Wextra  -DLUAU_ENABLE_ASSERT
+UNIFLAGS  = -fsanitize=address -fsanitize=undefined
+else
+CXXFLAGS += -DNDEBUG -O2 -g0 
 CXXFLAGS += -fno-math-errno -I.
-UNIFLAGS  = -fsanitize=address -fsanitize=undefined -DLUAU_ENABLE_ASSERT
+UNIFLAGS  = -s # strip debug
+endif
 
 SRCS := ./luau.o ./baseio.cpp ./test.cpp ./linenoise.o
 
-all : $(TARGET_TEST)
+all : $(TARGET_TEST) $(TARGET_COMPILER)
+CC ?= gcc
+CXX ?= g++
 
 ./luau.o : ../luau.cpp
-	g++ $(CXXFLAGS) $(UNIFLAGS) -c $^ -o $@ -std=c++17
+	$(CXX) $(CXXFLAGS) $(UNIFLAGS) -c $^ -o $@ -std=c++17
 
 ./linenoise.o: ./linenoise.c
-	gcc -c $^ -o $@
+	$(CC) -c $^ -o $@ $(CXXFLAGS) $(UNIFLAGS)
 
 $(TARGET_TEST) : $(SRCS)
-	g++ $(CXXFLAGS) $(UNIFLAGS) $^ -o $@ -std=c++17
+	$(CXX) $(CXXFLAGS) $(UNIFLAGS) $^ -o $@ -std=c++17
+
+$(TARGET_COMPILER) : ./luau.o ./compiler.cpp ./baseio.cpp
+	$(CXX) $(CXXFLAGS) $(UNIFLAGS) $^ -o $@ -std=c++17
 
 clear:
-	rm ./luau.o ./linenoise.o $(TARGET_TEST)
+	rm ./luau.o ./linenoise.o $(TARGET_TEST) $(TARGET_COMPILER)
