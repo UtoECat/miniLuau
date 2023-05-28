@@ -1,25 +1,23 @@
 MiniLuau
 ====
 
-This repo implements lua script `PACK.lua`, to pack official Luau sources
-*(compiler & vm only at this point)* into **TWO FILES** : `luau.hpp` and `luau.cpp`, that can be just drag&dropped to your C++ project.
-
+This repository implements the `PACK.lua` lua script for packing official Luau sources.
+*(only compiler and vm at the moment)* into **TWO FILES**: `luau.hpp` and `luau.cpp`, which you can simply drag and drop into your C++ project.
 
 # Building
+**Note: luau.h and luau.c are ALREADY AUTOMATICLY packed in this repository! Do manual packaging only if you really want to change this process in some way or speed up getting the latest version of Luau.**
+ If you want to package sources manually, you need to install Lua 5.4, git.
 
-**Notice : luau.h and luau.c are ALREADY packed in this repo! Do packing manually only if you really want to change this process somehow, or to fetch with latest Luau version faster.**
- If you want to pack source manually, you need to install Lua 5.4, git.
-
-At first clone this repo with this command :
+First clone this repository with this command:
 ```sh
  $ git clone --recursive https://github.com/UtoECat/miniLuau
 ```
-Then cd into `luau` submodule directory, and run
+Then cd to the `luau` submodule directory and run
 ```sh
 $ lua5.4 ../PACK.lua
 ```
-You will see errors during building process about not founded `<string.h>` or `<vector>`, that's normal.
-At the end you will get your own packed luau sources :)  
+During the build process, you will see errors about `<string.h>` or `<vector>` not found, this is normal.
+At the end you will get your packaged luau sources :)
 
 # Dependencies
 
@@ -33,14 +31,14 @@ Luau implementation is distributed under the terms of [MIT License](https://gith
 
 When Luau is integrated into external projects, we ask to honor the license agreement and include Luau attribution into the user-facing product documentation. The attribution using [Luau logo](https://github.com/Roblox/luau/blob/master/docs/logo.svg) is also encouraged.
 
-Pack.lua licensed under MIT too.
+`Pack.lua` is also under the MIT license.
 
 Luau 
 ====
 
 Luau (lowercase u, /ˈlu.aʊ/) is a fast, small, safe, gradually typed embeddable scripting language derived from [Lua](https://lua.org).
 
-This is not original Luau repository.
+This is not the original Luau repository.
 Visit [Original Luau repository](https://github.com/Roblox/luau) for more information about LuaU.
 
 The documentation portion for Luau language can be viewed at [Luau-Lang website](https://luau-lang.org/)
