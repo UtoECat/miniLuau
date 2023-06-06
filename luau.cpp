@@ -894,7 +894,6 @@ inline bool isFlagExperimental(const char* flag)
  "LuauInstantiateInSubtyping", // requires some fixes to lua-apps code
  "LuauTypecheckTypeguards", // requires some fixes to lua-apps code (CLI-67030)
  "LuauTinyControlFlowAnalysis", // waiting for updates to packages depended by internal builtin plugins
- "LuauUnifyTwoOptions", // requires some fixes to lua-apps code
  nullptr,
  };
  for (const char* item : kList)
@@ -5308,7 +5307,6 @@ LUAI_FUNC void luaM_visitpage(lua_Page* page, void* context, bool (*visitor)(voi
 LUAI_FUNC void luaM_visitgco(lua_State* L, void* context, bool (*visitor)(void* context, lua_Page* page, GCObject* gco));
 //included "string.h"
 //included "stdio.h"
-LUAU_FASTFLAGVARIABLE(LuauFixBreakpointLineSearch, false)
 static const char* getfuncname(Closure* f);
 static int currentpc(lua_State* L, CallInfo* ci)
 {
@@ -5656,40 +5654,19 @@ static int getnextline(Proto* p, int line)
  if (LUAU_INSN_OP(p->code[i]) == LOP_PREPVARARGS)
  continue;
  int candidate = luaG_getline(p, i);
- if (FFlag::LuauFixBreakpointLineSearch)
- {
  if (candidate == line)
  return line;
  if (candidate > line && (closest == -1 || candidate < closest))
  closest = candidate;
- }
- else
- {
- if (candidate >= line)
- {
- closest = candidate;
- break;
- }
- }
  }
  }
  for (int i = 0; i < p->sizep; ++i)
  {
  int candidate = getnextline(p->p[i], line);
- if (FFlag::LuauFixBreakpointLineSearch)
- {
  if (candidate == line)
  return line;
  if (candidate > line && (closest == -1 || candidate < closest))
  closest = candidate;
- }
- else
- {
- if (closest == -1 || (candidate >= line && candidate < closest))
- {
- closest = candidate;
- }
- }
  }
  return closest;
 }
