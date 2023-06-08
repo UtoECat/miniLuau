@@ -121,7 +121,8 @@ local function donefile(file, append, prepend)
 	--str = str:gsub("\n?%s*#%s*define[ \t]+([_%w]*)[ \t]?(.-)\n", unused_check)
 	str = str:gsub("#pragma%s-once", "\n") -- remove pragmas
 	str = str:gsub("\\%s-\n", "") -- remove continue line
-	str = str:gsub("(\n[^/\"]+)//.-\n", "%1\n") -- remove C++ comments
+	str = str:gsub('(\n[^/"]-)//.-\n', "%1\n") -- remove C++ comments
+	str = str:gsub('\n%s*//.-\n', "\n") -- remove C++ comments 2
 	str = str:gsub("/%*.-%*/", "") -- remove /* */ commentaries
 	str = str:gsub("\t", " ") -- remove tabs
 	str = str:gsub(" +", " ") -- remove ALL spaces ._.

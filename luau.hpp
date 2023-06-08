@@ -25,19 +25,6 @@ SOFTWARE. */
 // Comment this out to not build AST and Compiler
 #define LUAU_ENABLE_COMPILER 1
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-#include <stdarg.h>
-#include <stddef.h>
-#include <stdint.h>
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-// This will reallocate the stack very aggressively at every opportunity; use this with asan to catch stale stack pointers
-// #define HARDSTACKTESTS 1
-// This will call GC validation very aggressively at every incremental GC step; use this with caution as it's SLOW
-// #define HARDMEMTESTS 1
-// This will call GC validation very aggressively at every GC opportunity; use this with caution as it's VERY SLOW
-// #define HARDMEMTESTS 2
-// Note that /fp:fast changes the semantics of floating point comparisons so this is only safe to do for functions without ones
 #if defined(_MSC_VER) && !defined(__clang__)
 #define LUAU_FASTMATH_BEGIN __pragma(float_control(precise, off, push))
 #define LUAU_FASTMATH_END __pragma(float_control(pop))
@@ -45,7 +32,6 @@ SOFTWARE. */
 #define LUAU_FASTMATH_BEGIN
 #define LUAU_FASTMATH_END
 #endif
-// Note that we only need to do this when SSE4.1 support is not guaranteed by compiler settings, as otherwise compiler will optimize these for us.
 #if (defined(__x86_64__) || defined(_M_X64)) && !defined(__SSE4_1__) && !defined(__AVX__)
 #if defined(_MSC_VER) && !defined(__clang__)
 #define LUAU_TARGET_SSE41
@@ -120,6 +106,9 @@ SOFTWARE. */
 #define LUA_VECTOR_SIZE 3
 #endif
 #define LUA_EXTRA_SIZE (LUA_VECTOR_SIZE - 2)
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdint.h>
 #define LUA_MULTRET (-1)
 #define LUA_REGISTRYINDEX (-LUAI_MAXCSTACK - 2000)
 #define LUA_ENVIRONINDEX (-LUAI_MAXCSTACK - 2001)
@@ -150,7 +139,6 @@ typedef int (*lua_Continuation)(lua_State* L, int status);
 typedef void* (*lua_Alloc)(void* ud, void* ptr, size_t osize, size_t nsize);
 #define l_noret void LUA_NORETURN
 #define LUA_TNONE (-1)
-// clang-format off
 enum lua_Type
 {
  LUA_TNIL = 0,
@@ -168,7 +156,6 @@ enum lua_Type
  LUA_TDEADKEY,
  LUA_T_COUNT = LUA_TPROTO
 };
-// type of numbers in Luau
 typedef double lua_Number;
 typedef int lua_Integer;
 typedef unsigned lua_Unsigned;
@@ -321,7 +308,6 @@ LUA_API void lua_unref(lua_State* L, int ref);
 #define lua_tostring(L, i) lua_tolstring(L, (i), NULL)
 #define lua_pushfstring(L, fmt, ...) lua_pushfstringL(L, fmt, ##__VA_ARGS__)
 typedef struct lua_Debug lua_Debug;
-// Functions to be called by the debugger in specific events
 typedef void (*lua_Hook)(lua_State* L, lua_Debug* ar);
 LUA_API int lua_stackdepth(lua_State* L);
 LUA_API int lua_getinfo(lua_State* L, int level, const char* what, lua_Debug* ar);
@@ -363,7 +349,6 @@ struct lua_Callbacks
 };
 typedef struct lua_Callbacks lua_Callbacks;
 LUA_API lua_Callbacks* lua_callbacks(lua_State* L);
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #define luaL_error(L, fmt, ...) luaL_errorL(L, fmt, ##__VA_ARGS__)
 #define luaL_typeerror(L, narg, tname) luaL_typeerrorL(L, narg, tname)
 #define luaL_argerror(L, narg, extramsg) luaL_argerrorL(L, narg, extramsg)
@@ -417,10 +402,6 @@ struct luaL_Buffer
  char buffer[LUA_BUFFERSIZE];
 };
 typedef struct luaL_Buffer luaL_Buffer;
-// in general, functions expect the mutable string buffer to be placed on top of the stack (top-1)
-// with the exception of luaL_addvalue that expects the value at the top and string buffer further away (top-2)
-// functions that accept a 'boxloc' support string buffer placement at any location in the stack
-// all the buffer users we have in Luau match this pattern, but it's something to keep in mind for new uses of buffers
 #define luaL_addchar(B, c) ((void)((B)->p < (B)->end || luaL_extendbuffer(B, 1, -1)), (*(B)->p++ = (char)(c)))
 #define luaL_addstring(B, s) luaL_addlstring(B, s, strlen(s), -1)
 LUALIB_API void luaL_buffinit(lua_State* L, luaL_Buffer* B);
@@ -451,18 +432,14 @@ LUALIB_API int luaopen_debug(lua_State* L);
 LUALIB_API void luaL_openlibs(lua_State* L);
 LUALIB_API void luaL_sandbox(lua_State* L);
 LUALIB_API void luaL_sandboxthread(lua_State* L);
-//included "stddef.h"
 #ifndef LUACODE_API
 #define LUACODE_API extern
 #endif
 typedef struct lua_CompileOptions lua_CompileOptions;
 struct lua_CompileOptions
 {
- // 1 - baseline optimization level that doesn't prevent debuggability
  int optimizationLevel; // default=1
- // 1 - line info & function names only; sufficient for backtraces
  int debugLevel; // default=1
- // 1 - statement coverage
  int coverageLevel; // default=0
  const char* vectorLib;
  const char* vectorCtor;

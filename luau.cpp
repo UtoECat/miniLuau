@@ -24,212 +24,91 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 #include "luau.hpp"
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// This header contains the bytecode definition for Luau interpreter
-// Creating the bytecode is outside the scope of this file and is handled by bytecode builder (BytecodeBuilder.h) and bytecode compiler (Compiler.h)
-// Note that ALL enums declared in this file are order-sensitive since the values are baked into bytecode that needs to be processed by legacy clients.
-// Bytecode instructions are using "word code" - each instruction is one or many 32-bit words.
-// The first word in the instruction is always the instruction header, and *must* contain the opcode (enum below) in the least significant byte.
-//
-// Instruction word can be encoded using one of the following encodings:
-// ABC - least-significant byte for the opcode, followed by three bytes, A, B and C; each byte declares a register index, small index into some other table or an unsigned integral value
-// AD - least-significant byte for the opcode, followed by A byte, followed by D half-word (16-bit integer). D is a signed integer that commonly specifies constant table index or jump offset
-// E - least-significant byte for the opcode, followed by E (24-bit integer). E is a signed integer that commonly specifies a jump offset
-//
-// Instruction word is sometimes followed by one extra word, indicated as AUX - this is just a 32-bit word and is decoded according to the specification for each opcode.
-// For each opcode the encoding is *static* - that is, based on the opcode you know a-priory how large the instruction is, with the exception of NEWCLOSURE
-// Bytecode instructions commonly refer to integer values that define offsets or indices for various entities. For each type, there's a maximum encodable value.
-// Note that in some cases, the compiler will set a lower limit than the maximum encodable value is to prevent fragile code into bumping against the limits whenever we change the compilation details.
-// Additionally, in some specific instructions such as ANDK, the limit on the encoded value is smaller; this means that if a value is larger, a different instruction must be selected.
-//
-// Registers: 0-254. Registers refer to the values on the function's stack frame, including arguments.
-// Upvalues: 0-199. Upvalues refer to the values stored in the closure object.
-// Constants: 0-2^23-1. Constants are stored in a table allocated with each proto; to allow for future bytecode tweaks the encodable value is limited to 23 bits.
-// Closures: 0-2^15-1. Closures are created from child protos via a child index; the limit is for the number of closures immediately referenced in each function.
-// Jumps: -2^23..2^23. Jump offsets are specified in word increments, so jumping over an instruction may sometimes require an offset of 2 or more. Note that for jump instructions with AUX, the AUX word is included as part of the jump offset.
-// Bytecode serialized format embeds a version number, that dictates both the serialized form as well as the allowed instructions. As long as the bytecode version falls into supported
-// range (indicated by LBC_BYTECODE_MIN / LBC_BYTECODE_MAX) and was produced by Luau compiler, it should load and execute correctly.
-//
-// Note that Luau runtime doesn't provide indefinite bytecode compatibility: support for older versions gets removed over time. As such, bytecode isn't a durable storage format and it's expected
-// that Luau users can recompile bytecode from source on Luau version upgrades if necessary.
-//
-// Note: due to limitations of the versioning scheme, some bytecode blobs that carry version 2 are using features from version 3. Starting from version 3, version should be sufficient to indicate bytecode compatibility.
-//
-// Version 1: Baseline version for the open-source release. Supported until 0.521.
-// Version 2: Adds Proto::linedefined. Supported until 0.544.
-// Version 3: Adds FORGPREP/JUMPXEQK* and enhances AUX encoding for FORGLOOP. Removes FORGLOOP_NEXT/INEXT and JUMPIFEQK/JUMPIFNOTEQK. Currently supported.
 enum LuauOpcode
 {
  LOP_NOP,
  LOP_BREAK,
- // A: target register
  LOP_LOADNIL,
- // A: target register
- // C: jump offset
  LOP_LOADB,
- // A: target register
  LOP_LOADN,
- // A: target register
  LOP_LOADK,
- // A: target register
  LOP_MOVE,
- // A: target register
- // AUX: constant table index
  LOP_GETGLOBAL,
- // A: source register
- // AUX: constant table index
  LOP_SETGLOBAL,
- // A: target register
  LOP_GETUPVAL,
- // A: target register
  LOP_SETUPVAL,
- // A: target register
  LOP_CLOSEUPVALS,
- // A: target register
- // AUX: 3 10-bit indices of constant strings that, combined, constitute an import path; length of the path is set by the top 2 bits (1,2,3)
  LOP_GETIMPORT,
- // A: target register
- // C: index register
  LOP_GETTABLE,
- // A: source register
- // C: index register
  LOP_SETTABLE,
- // A: target register
- // C: predicted slot index (based on hash)
  LOP_GETTABLEKS,
- // A: source register
- // C: predicted slot index (based on hash)
  LOP_SETTABLEKS,
- // A: target register
- // C: index-1 (index is 1..256)
  LOP_GETTABLEN,
- // A: source register
- // C: index-1 (index is 1..256)
  LOP_SETTABLEN,
- // A: target register
  LOP_NEWCLOSURE,
- // A: target register
- // C: predicted slot index (based on hash)
- // Note that this instruction must be followed directly by CALL; it prepares the arguments
  LOP_NAMECALL,
- // A: register where the function object lives, followed by arguments; results are placed starting from the same register
- // C: result count + 1, or 0 to preserve all values and adjust top (MULTRET)
  LOP_CALL,
- // A: register where the returned values start
  LOP_RETURN,
- // D: jump offset (-32768..32767; 0 means "next instruction" aka "don't jump")
  LOP_JUMP,
- // D: jump offset (-32768..32767; 0 means "next instruction" aka "don't jump")
  LOP_JUMPBACK,
- // A: source register
  LOP_JUMPIF,
- // A: source register
  LOP_JUMPIFNOT,
- // A: source register 1
- // AUX: source register 2
  LOP_JUMPIFEQ,
  LOP_JUMPIFLE,
  LOP_JUMPIFLT,
  LOP_JUMPIFNOTEQ,
  LOP_JUMPIFNOTLE,
  LOP_JUMPIFNOTLT,
- // A: target register
- // C: source register 2
  LOP_ADD,
  LOP_SUB,
  LOP_MUL,
  LOP_DIV,
  LOP_MOD,
  LOP_POW,
- // A: target register
- // C: constant table index (0..255)
  LOP_ADDK,
  LOP_SUBK,
  LOP_MULK,
  LOP_DIVK,
  LOP_MODK,
  LOP_POWK,
- // A: target register
- // C: source register 2
  LOP_AND,
  LOP_OR,
- // A: target register
- // C: constant table index (0..255)
  LOP_ANDK,
  LOP_ORK,
- // A: target register
- // C: source register end
  LOP_CONCAT,
- // A: target register
  LOP_NOT,
  LOP_MINUS,
  LOP_LENGTH,
- // A: target register
- // AUX: array size
  LOP_NEWTABLE,
- // A: target register
  LOP_DUPTABLE,
- // A: target register
- // C: value count + 1, or 0 to use all values up to top (MULTRET)
  LOP_SETLIST,
- // A: target register; numeric for loops assume a register layout [limit, step, index, variable]
- // limit/step are immutable, index isn't visible to user code since it's copied into variable
  LOP_FORNPREP,
- // A: target register; see FORNPREP for register layout
  LOP_FORNLOOP,
- // A: target register; generic for loops assume a register layout [generator, state, index, variables...]
- // AUX: variable count (1..255) in the low 8 bits, high bit indicates whether to use ipairs-style traversal in the fast path
- // the first variable is then copied into index; generator/state are immutable, index isn't visible to user code
  LOP_FORGLOOP,
- // A: target register (see FORGLOOP for register layout)
  LOP_FORGPREP_INEXT,
  LOP_DEP_FORGLOOP_INEXT,
- // A: target register (see FORGLOOP for register layout)
  LOP_FORGPREP_NEXT,
- // this is a pseudo-instruction that is never emitted by bytecode compiler, but can be constructed at runtime to accelerate native code dispatch
  LOP_NATIVECALL,
- // A: target register
  LOP_GETVARARGS,
- // A: target register
  LOP_DUPCLOSURE,
- // A: number of fixed arguments
  LOP_PREPVARARGS,
- // A: target register
  LOP_LOADKX,
- // E: jump offset (-2^23..2^23; 0 means "next instruction" aka "don't jump")
  LOP_JUMPX,
- // A: builtin function id (see LuauBuiltinFunction)
- // FASTCALL is followed by one of (GETIMPORT, MOVE, GETUPVAL) instructions and by CALL instruction
- // If FASTCALL *can* perform the call, it jumps over the instructions *and* over the next CALL
  LOP_FASTCALL,
- // E: hit count for the instruction (0..2^23-1)
  LOP_COVERAGE,
- // A: capture type, see LuauCaptureType
  LOP_CAPTURE,
  LOP_DEP_JUMPIFEQK,
  LOP_DEP_JUMPIFNOTEQK,
- // A: builtin function id (see LuauBuiltinFunction)
- // C: jump offset to get to following CALL
  LOP_FASTCALL1,
- // A: builtin function id (see LuauBuiltinFunction)
- // C: jump offset to get to following CALL
  LOP_FASTCALL2,
- // A: builtin function id (see LuauBuiltinFunction)
- // C: jump offset to get to following CALL
  LOP_FASTCALL2K,
- // A: target register; generic for loops assume a register layout [generator, state, index, variables...]
  LOP_FORGPREP,
- // A: source register 1
- // AUX: constant value (for boolean) in low bit, NOT flag (that flips comparison result) in high bit
  LOP_JUMPXEQKNIL,
  LOP_JUMPXEQKB,
- // A: source register 1
- // AUX: constant table index in low 24 bits, NOT flag (that flips comparison result) in high bit
  LOP_JUMPXEQKN,
  LOP_JUMPXEQKS,
  LOP__COUNT
 };
-// Some instruction types require more data and have more 32-bit integers following the header
 #define LUAU_INSN_OP(insn) ((insn) & 0xff)
 #define LUAU_INSN_A(insn) (((insn) >> 8) & 0xff)
 #define LUAU_INSN_B(insn) (((insn) >> 16) & 0xff)
@@ -348,8 +227,6 @@ inline AssertHandler& assertHandler()
  static AssertHandler handler = nullptr;
  return handler;
 }
-// But we also want to prevent compiler from inlining this function when optimization and assertions are enabled together
-// Reason for that is that compilation times can increase significantly in such a configuration
 LUAU_NOINLINE inline int assertCallHandler(const char* expression, const char* file, int line, const char* function)
 {
  if (AssertHandler handler = assertHandler())
@@ -402,7 +279,6 @@ FValue<T>* FValue<T>::list = nullptr;
 #else
 #define LUAU_PRINTF_ATTR(fmt, arg)
 #endif
-//included "Common.h"
 #include <functional>
 #include <utility>
 #include <type_traits>
@@ -767,7 +643,6 @@ struct ItemInterfaceMap
  }
 };
 }
-// This is a faster alternative of unordered_set, but it does not implement the same interface (i.e. it does not support erasing)
 template<typename Key, typename Hash = detail::DenseHashDefault<Key>, typename Eq = std::equal_to<Key>>
 class DenseHashSet
 {
@@ -822,7 +697,6 @@ public:
  return impl.end();
  }
 };
-// contains() instead of find())
 template<typename Key, typename Value, typename Hash = detail::DenseHashDefault<Key>, typename Eq = std::equal_to<Key>>
 class DenseHashMap
 {
@@ -889,7 +763,6 @@ namespace Luau
 {
 inline bool isFlagExperimental(const char* flag)
 {
- // or critical bugs that are found after the code has been submitted.
  static const char* const kList[] = {
  "LuauInstantiateInSubtyping", // requires some fixes to lua-apps code
  "LuauTypecheckTypeguards", // requires some fixes to lua-apps code (CLI-67030)
@@ -902,11 +775,6 @@ inline bool isFlagExperimental(const char* flag)
  return false;
 }
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #include <limits.h>
 typedef LUAI_USER_ALIGNMENT_T L_Umaxalign;
 #define check_exp(c, e) (LUAU_ASSERT(c), (e))
@@ -929,7 +797,6 @@ typedef uint32_t Instruction;
 #define condhardmemtests(x, l) ((void)0)
 #endif
 typedef union GCObject GCObject;
-// clang-format off
 #define CommonHeader uint8_t tt; uint8_t marked; uint8_t memcat
 typedef struct GCheader
 {
@@ -993,10 +860,8 @@ typedef struct lua_TValue
 #define setupvalue(L, obj, x) { TValue* i_o = (obj); i_o->value.gc = cast_to(GCObject*, (x)); i_o->tt = LUA_TUPVAL; checkliveness(L->global, i_o); }
 #define setobj(L, obj1, obj2) { const TValue* o2 = (obj2); TValue* o1 = (obj1); *o1 = *o2; checkliveness(L->global, o1); }
 #define setobj2s setobj
-// from table to same table (no barrier)
 #define setobjt2t setobj
 #define setobj2t setobj
-// to new object (no barrier)
 #define setobj2n setobj
 #define setttype(obj, tt) (ttype(obj) = (tt))
 #define iscollectable(o) (ttype(o) >= LUA_TSTRING)
@@ -1024,7 +889,6 @@ typedef struct Udata
  L_Umaxalign dummy; // ensures maximum alignment for data
  };
 } Udata;
-// clang-format off
 typedef struct Proto
 {
  CommonHeader;
@@ -1155,10 +1019,6 @@ LUAI_FUNC const char* luaO_pushfstring(lua_State* L, const char* fmt, ...);
 LUAI_FUNC const char* luaO_chunkid(char* buf, size_t buflen, const char* source, size_t srclen);
 LUAI_FUNC const TValue* luaA_toobject(lua_State* L, int idx);
 LUAI_FUNC void luaA_pushobject(lua_State* L, const TValue* o);
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-// clang-format off
 typedef enum
 {
  TM_INDEX,
@@ -1183,7 +1043,6 @@ typedef enum
  TM_METATABLE,
  TM_N
 } TMS;
-// clang-format on
 #define gfasttm(g, et, e) ((et) == NULL ? NULL : ((et)->tmcache & (1u << (e))) ? NULL : luaT_gettm(et, e, (g)->tmname[e]))
 #define fasttm(l, et, e) gfasttm(l->global, et, e)
 #define fastnotm(et, e) ((et) == NULL || ((et)->tmcache & (1u << (e))))
@@ -1204,7 +1063,6 @@ typedef struct stringtable
  uint32_t nuse;
  int size;
 } stringtable;
-// clang-format off
 typedef struct CallInfo
 {
  StkId base;
@@ -1281,7 +1139,6 @@ struct lua_ExecutionCallbacks
  int (*enter)(lua_State* L, Proto* proto);
  void (*setbreakpoint)(lua_State* L, Proto* proto, int line); // called when a breakpoint is set in a function
 };
-// clang-format off
 typedef struct global_State
 {
  stringtable strt;
@@ -1321,7 +1178,6 @@ typedef struct global_State
  GCMetrics gcmetrics;
 #endif
 } global_State;
-// clang-format off
 struct lua_State
 {
  CommonHeader;
@@ -1369,7 +1225,6 @@ union GCObject
 #define obj2gco(v) check_exp(iscollectable(v), cast_to(GCObject*, (v) + 0))
 LUAI_FUNC lua_State* luaE_newthread(lua_State* L);
 LUAI_FUNC void luaE_freethread(lua_State* L, lua_State* L1, struct lua_Page* page);
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #define MAXSSIZE (1 << 30)
 #define ATOM_UNDEF -32768
 #define sizestring(len) (offsetof(TString, data) + len + 1)
@@ -1382,7 +1237,6 @@ LUAI_FUNC TString* luaS_newlstr(lua_State* L, const char* str, size_t l);
 LUAI_FUNC void luaS_free(lua_State* L, TString* ts, struct lua_Page* page);
 LUAI_FUNC TString* luaS_bufstart(lua_State* L, size_t size);
 LUAI_FUNC TString* luaS_buffinish(lua_State* L, TString* ts);
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #define gnode(t, i) (&(t)->node[i])
 #define gkey(n) (&(n)->key)
 #define gval(n) (&(n)->val)
@@ -1406,7 +1260,6 @@ LUAI_FUNC Table* luaH_clone(lua_State* L, Table* tt);
 LUAI_FUNC void luaH_clear(Table* tt);
 #define luaH_setslot(L, t, slot, key) (invalidateTMcache(t), (slot == luaO_nilobject ? luaH_newkey(L, t, key) : cast_to(TValue*, slot)))
 extern const LuaNode luaH_dummynode;
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #define sizeCclosure(n) (offsetof(Closure, c.upvals) + sizeof(TValue) * (n))
 #define sizeLclosure(n) (offsetof(Closure, l.uprefs) + sizeof(TValue) * (n))
 LUAI_FUNC Proto* luaF_newproto(lua_State* L);
@@ -1420,9 +1273,6 @@ LUAI_FUNC void luaF_freeclosure(lua_State* L, Closure* c, struct lua_Page* page)
 LUAI_FUNC void luaF_freeupval(lua_State* L, UpVal* uv, struct lua_Page* page);
 LUAI_FUNC const LocVar* luaF_getlocal(const Proto* func, int local_number, int pc);
 LUAI_FUNC const LocVar* luaF_findlocal(const Proto* func, int local_reg, int pc);
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #define pcRel(pc, p) ((pc) ? cast_to(int, (pc) - (p)->code) - 1 : 0)
 #define luaG_typeerror(L, o, opname) luaG_typeerrorL(L, o, opname)
 #define luaG_forerror(L, o, what) luaG_forerrorL(L, o, what)
@@ -1516,14 +1366,11 @@ LUAI_FUNC void luaC_validate(lua_State* L);
 LUAI_FUNC void luaC_dump(lua_State* L, void* file, const char* (*categoryName)(lua_State* L, uint8_t memcat));
 LUAI_FUNC int64_t luaC_allocationrate(lua_State* L);
 LUAI_FUNC const char* luaC_statename(int state);
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #define UTAG_IDTOR LUA_UTAG_LIMIT
 #define UTAG_PROXY (LUA_UTAG_LIMIT + 1)
 #define sizeudata(len) (offsetof(Udata, data) + len)
 LUAI_FUNC Udata* luaU_newudata(lua_State* L, size_t s, int tag);
 LUAI_FUNC void luaU_freeudata(lua_State* L, Udata* u, struct lua_Page* page);
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #define tostring(L, o) ((ttype(o) == LUA_TSTRING) || (luaV_tostring(L, o)))
 #define tonumber(o, n) (ttype(o) == LUA_TNUMBER || (((o) = luaV_tonumber(o, n)) != NULL))
 #define equalobj(L, o1, o2) (ttype(o1) == ttype(o2) && luaV_equalval(L, o1, o2))
@@ -1548,7 +1395,6 @@ LUAI_FUNC void luau_execute(lua_State* L);
 LUAI_FUNC int luau_precall(lua_State* L, struct lua_TValue* func, int nresults);
 LUAI_FUNC void luau_poscall(lua_State* L, StkId first);
 LUAI_FUNC void luau_callhook(lua_State* L, lua_Hook hook, void* userdata);
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #include <math.h>
 #define luai_numadd(a, b) ((a) + (b))
 #define luai_numsub(a, b) ((a) - (b))
@@ -2784,10 +2630,6 @@ size_t lua_totalbytes(lua_State* L, int category)
  api_check(L, category < LUA_MEMORY_CATEGORIES);
  return category < 0 ? L->global->totalbytes : L->global->memcatbytes[category];
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details//included "lualib.h"
-//included "lgc.h"
-//included "lnumutils.h"
-//included "string.h"
 #define abs_index(L, i) ((i) > 0 || (i) <= LUA_REGISTRYINDEX ? (i) : lua_gettop(L) + (i) + 1)
 static const char* currfuncname(lua_State* L)
 {
@@ -2934,8 +2776,6 @@ double luaL_optnumber(lua_State* L, int narg, double def)
 }
 int luaL_checkboolean(lua_State* L, int narg)
 {
- // all other truthy/falsy values. If the desired result
- // directly be used instead.
  if (!lua_isboolean(L, narg))
  tag_error(L, narg, LUA_TBOOLEAN);
  return lua_toboolean(L, narg);
@@ -3216,7 +3056,6 @@ const char* luaL_tolstring(lua_State* L, int idx, size_t* len)
  }
  return lua_tolstring(L, -1, len);
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -3609,8 +3448,6 @@ int luaopen_base(lua_State* L)
  lua_setfield(L, -2, "xpcall");
  return 1;
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-//included "lcommon.h"
 #define ALLONES ~0u
 #define NBITS int(8 * sizeof(unsigned))
 #define trim(x) ((x)&ALLONES)
@@ -3804,9 +3641,6 @@ int luaopen_bit32(lua_State* L)
  luaL_register(L, LUA_BITLIBNAME, bitlib);
  return 1;
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 typedef int (*luau_FastFunction)(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams);
 extern const luau_FastFunction luauF_table[256];
 #ifdef _MSC_VER
@@ -3818,13 +3652,6 @@ extern const luau_FastFunction luauF_table[256];
 #include <cpuid.h>
 #endif
 #endif
-// The rule of thumb is that FASTCALL functions can not call user code, yield, fail, or reallocate stack.
-// If types of the arguments mismatch, luauF_* needs to return -1 and the execution will fall back to the usual call path
-// If luauF_* succeeds, it needs to return *all* requested arguments, filling results with nil as appropriate.
-// On input, nparams refers to the actual number of arguments (0+), whereas nresults contains LUA_MULTRET for arbitrary returns or 0+ for a
-// fixed-length return
-// Because of this, and the fact that "extra" returned values will be ignored, implementations below typically check that nresults is <= expected
-// number, which covers the LUA_MULTRET case.
 static int luauF_assert(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
 {
  if (nparams >= 1 && nresults == 0 && !l_isfalse(arg0))
@@ -4160,10 +3987,8 @@ static int luauF_arshift(lua_State* L, StkId res, TValue* arg0, int nresults, St
  unsigned u;
  luai_num2unsigned(u, a1);
  int s = int(a2);
- // be handled generically)
  if (unsigned(s) < 32)
  {
- // (shift) thing.
  uint32_t r = int32_t(u) >> s;
  setnvalue(res, double(r));
  return 1;
@@ -4342,7 +4167,6 @@ static int luauF_lshift(lua_State* L, StkId res, TValue* arg0, int nresults, Stk
  unsigned u;
  luai_num2unsigned(u, a1);
  int s = int(a2);
- // be handled generically)
  if (unsigned(s) < 32)
  {
  uint32_t r = u << s;
@@ -4416,7 +4240,6 @@ static int luauF_rshift(lua_State* L, StkId res, TValue* arg0, int nresults, Stk
  unsigned u;
  luai_num2unsigned(u, a1);
  int s = int(a2);
- // be handled generically)
  if (unsigned(s) < 32)
  {
  uint32_t r = u >> s;
@@ -4448,7 +4271,6 @@ static int luauF_byte(lua_State* L, StkId res, TValue* arg0, int nresults, StkId
  {
  int c = j - i + 1;
  const char* s = getstr(ts);
- // this is because this frees us from concerns about stack space
  if (c == (nresults < 0 ? 1 : nresults))
  {
  for (int k = 0; k < c; ++k)
@@ -4838,7 +4660,6 @@ LUAU_TARGET_SSE41 static int luauF_round_sse41(lua_State* L, StkId res, TValue* 
  if (nparams >= 1 && nresults <= 1 && ttisnumber(arg0))
  {
  double a1 = nvalue(arg0);
- // offset is prevfloat(0.5), which is important so that we round prevfloat(0.5) to 0.
  const double offset = 0.49999999999999994;
  setnvalue(res, roundsd_sse41<_MM_FROUND_TO_ZERO>(a1 + (a1 < 0 ? -offset : offset)));
  return 1;
@@ -4853,7 +4674,6 @@ static bool luau_hassse41()
 #else
  __cpuid(1, cpuinfo[0], cpuinfo[1], cpuinfo[2], cpuinfo[3]);
 #endif
- // https://en.wikipedia.org/wiki/CPUID#EAX=1:_Processor_Info_and_Feature_Bits
  return (cpuinfo[2] & (1 << 19)) != 0;
 }
 #endif
@@ -4932,8 +4752,6 @@ const luau_FastFunction luauF_table[256] = {
  luauF_extractk,
  luauF_getmetatable,
  luauF_setmetatable,
-// This is important so that older versions of the runtime that don't support newer builtins automatically fall back via luauF_missing.
-// Given the builtin addition velocity this should always provide a larger compatibility window than bytecode versions suggest.
 #define MISSING8 luauF_missing, luauF_missing, luauF_missing, luauF_missing, luauF_missing, luauF_missing, luauF_missing, luauF_missing
  MISSING8,
  MISSING8,
@@ -4945,8 +4763,6 @@ const luau_FastFunction luauF_table[256] = {
  MISSING8,
 #undef MISSING8
 };
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #define CO_STATUS_ERROR -1
 #define CO_STATUS_BREAK -2
 static const char* const statnames[] = {"running", "suspended", "normal", "dead", "dead"}; // dead appears twice for LUA_COERR and LUA_COFIN
@@ -5153,9 +4969,6 @@ int luaopen_coroutine(lua_State* L)
  lua_setfield(L, -2, "resume");
  return 1;
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-//included "stdio.h"
-//included "stdlib.h"
 static lua_State* getthread(lua_State* L, int* arg)
 {
  if (lua_isthread(L, 1))
@@ -5284,9 +5097,6 @@ int luaopen_debug(lua_State* L)
  luaL_register(L, LUA_DBLIBNAME, dblib);
  return 1;
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details//included "ldebug.h"
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 struct lua_Page;
 union GCObject;
 #define luaM_newgco(L, t, size, memcat) cast_to(t*, luaM_newgco_(L, size, memcat))
@@ -5305,8 +5115,6 @@ LUAI_FUNC void luaM_getpagewalkinfo(lua_Page* page, char** start, char** end, in
 LUAI_FUNC lua_Page* luaM_getnextgcopage(lua_Page* page);
 LUAI_FUNC void luaM_visitpage(lua_Page* page, void* context, bool (*visitor)(void* context, lua_Page* page, GCObject* gco));
 LUAI_FUNC void luaM_visitgco(lua_State* L, void* context, bool (*visitor)(void* context, lua_Page* page, GCObject* gco));
-//included "string.h"
-//included "stdio.h"
 static const char* getfuncname(Closure* f);
 static int currentpc(lua_State* L, CallInfo* ci)
 {
@@ -5600,7 +5408,6 @@ void luaG_breakpoint(lua_State* L, Proto* p, int line, bool enable)
  if (L->global->ecb.setbreakpoint)
  L->global->ecb.setbreakpoint(L, p, i);
 #endif
- // we only patch the *first* instruction in each proto that's attributed to a given line
  break;
  }
  }
@@ -5643,7 +5450,6 @@ static int getmaxline(Proto* p)
  }
  return result;
 }
-// instructions.
 static int getnextline(Proto* p, int line)
 {
  int closest = -1;
@@ -5756,7 +5562,6 @@ const char* lua_debugtrace(lua_State* L)
  buf[offset] = '\0';
  return buf;
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #if LUA_USE_LONGJMP
 #include <setjmp.h>
 #else
@@ -6170,7 +5975,6 @@ int luaD_pcall(lua_State* L, Pfunc func, void* u, ptrdiff_t old_top, ptrdiff_t e
  if (status != LUA_ERRRUN)
  seterrorobj(L, status, L->top);
  int err = luaD_rawrunprotected(L, callerrfunc, restorestack(L, ef));
- // out of memory is treated specially because it's common for it to be cascading, in which case we preserve the code
  if (err == 0)
  errstatus = LUA_ERRRUN;
  else if (status == LUA_ERRMEM && err == LUA_ERRMEM)
@@ -6196,7 +6000,6 @@ int luaD_pcall(lua_State* L, Pfunc func, void* u, ptrdiff_t old_top, ptrdiff_t e
  }
  return status;
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 Proto* luaF_newproto(lua_State* L)
 {
  Proto* f = luaM_newgco(L, Proto, sizeof(Proto), L->activememcat);
@@ -6356,7 +6159,6 @@ const LocVar* luaF_findlocal(const Proto* f, int local_reg, int pc)
  return &f->locvars[i];
  return NULL;
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #define GC_SWEEPPAGESTEPCOST 16
 #define GC_INTERRUPT(state) { void (*interrupt)(lua_State*, int) = g->cb.interrupt; if (LUAU_UNLIKELY(!!interrupt)) interrupt(L, state); }
 #define maskmarks cast_byte(~(bitmask(BLACKBIT) | WHITEBITS))
@@ -6659,7 +6461,6 @@ static size_t propagatemark(global_State* g)
  g->grayagain = o;
  black2gray(o);
  }
- // if the thread is inactive, we might not see the thread in this cycle so we must clear it now
  if (!active || g->gcstate == GCSatomic)
  clearstack(th);
  if (g->gcstate == GCSpropagate)
@@ -7017,7 +6818,6 @@ static size_t gcstep(lua_State* L, size_t limit)
 }
 static int64_t getheaptriggererroroffset(global_State* g)
 {
- // https://en.wikipedia.org/wiki/PID_controller
  int32_t errorKb = int32_t((g->gcstats.atomicstarttotalsizebytes - g->gcstats.heapgoalsizebytes) / 1024);
  const size_t triggertermcount = sizeof(g->gcstats.triggerterms) / sizeof(g->gcstats.triggerterms[0]);
  int32_t* slot = &g->gcstats.triggerterms[g->gcstats.triggertermpos % triggertermcount];
@@ -7025,7 +6825,6 @@ static int64_t getheaptriggererroroffset(global_State* g)
  *slot = errorKb;
  g->gcstats.triggerintegral += errorKb - prev;
  g->gcstats.triggertermpos++;
- // https://en.wikipedia.org/wiki/Ziegler%E2%80%93Nichols_method
  const double Ku = 0.9;
  const double Tu = 2.5; // oscillation period (measured)
  const double Kp = 0.45 * Ku;
@@ -7038,7 +6837,6 @@ static int64_t getheaptriggererroroffset(global_State* g)
 }
 static size_t getheaptrigger(global_State* g, size_t heapgoal)
 {
- // our goal is to begin the sweep when used memory has reached the heap goal
  const double durationthreshold = 1e-3;
  double allocationduration = g->gcstats.atomicstarttimestamp - g->gcstats.endtimestamp;
  if (allocationduration < durationthreshold)
@@ -7128,8 +6926,6 @@ void luaC_fullgc(lua_State* L)
  }
  shrinkbuffersfull(L);
  size_t heapgoalsizebytes = (g->totalbytes / 100) * g->gcgoal;
- // we will try to place it so that we can reach the goal based on
- // and on amount of bytes we need to traverse in propagation stage.
  g->GCthreshold = g->totalbytes * (g->gcgoal * g->gcstepmul / 100 - 100) / g->gcstepmul;
  if (g->GCthreshold < g->totalbytes)
  g->GCthreshold = g->totalbytes;
@@ -7192,7 +6988,6 @@ void luaC_upvalclosed(lua_State* L, UpVal* uv)
  }
  }
 }
-// returns -1 if allocation rate cannot be measured
 int64_t luaC_allocationrate(lua_State* L)
 {
  global_State* g = L->global;
@@ -7227,8 +7022,6 @@ const char* luaC_statename(int state)
  return NULL;
  }
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-//included "stdio.h"
 static void validateobjref(global_State* g, GCObject* f, GCObject* t)
 {
  LUAU_ASSERT(!isdead(g, t));
@@ -7703,8 +7496,6 @@ void luaC_dump(lua_State* L, void* file, const char* (*categoryName)(lua_State* 
  fprintf(f, "}\n");
  fprintf(f, "}}\n");
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-//included "stdlib.h"
 static const luaL_Reg lualibs[] = {
  {"", luaopen_base},
  {LUA_COLIBNAME, luaopen_coroutine},
@@ -7770,7 +7561,6 @@ lua_State* luaL_newstate(void)
 {
  return lua_newstate(l_alloc, NULL);
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #include <time.h>
 #undef PI
 #define PI (3.14159265358979323846)
@@ -7965,7 +7755,6 @@ static int math_random(lua_State* L)
  {
  case 0:
  {
- // Using ldexp instead of division for speed & clarity.
  uint32_t rl = pcg32_random(&g->rngstate);
  uint32_t rh = pcg32_random(&g->rngstate);
  double rd = ldexp(double(rl | (uint64_t(rh) << 32)), -64);
@@ -8143,7 +7932,6 @@ int luaopen_math(lua_State* L)
  lua_setfield(L, -2, "huge");
  return 1;
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #ifndef __has_feature
 #define __has_feature(x) 0
 #endif
@@ -8186,9 +7974,6 @@ struct SizeClassConfig
  {
  memset(sizeOfClass, 0, sizeof(sizeOfClass));
  memset(classForSize, -1, sizeof(classForSize));
- // - all size classes are aligned by 8b to satisfy pointer alignment requirements
- // - after the first cutoff we allocate size classes in multiples of 16
- // this balances internal fragmentation vs external fragmentation
  for (int size = 8; size < 64; size += 8)
  sizeOfClass[classCount++] = size;
  for (int size = 64; size < 256; size += 16)
@@ -8243,7 +8028,6 @@ static lua_Page* newpage(lua_State* L, lua_Page** gcopageset, int pageSize, int 
  page->gcolistnext = NULL;
  page->pageSize = pageSize;
  page->blockSize = blockSize;
- // either order would work, but that way we don't need to store the block count in the page
  page->freeList = NULL;
  page->freeNext = (blockCount - 1) * blockSize;
  page->busyBlocks = 0;
@@ -8544,14 +8328,8 @@ void luaM_visitgco(lua_State* L, void* context, bool (*visitor)(void* context, l
  curr = next;
  }
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #ifdef _MSC_VER
 #endif
-// Raffaello Giulietti. The Schubfach way to render doubles. 2021
-// https://drive.google.com/file/d/1IEeATSVnEE6TkrHlCYNY2GjaraBjOT4f/edit
-// 9.8.2. Precomputed table for 128-bit overestimates of powers of 10 (see figure 3 for table bounds)
-// To avoid storing 616 128-bit numbers directly we use a technique inspired by Dragonbox implementation and store 16 consecutive
-// powers using a 128-bit baseline and a bitvector with 1-bit scale and 3-bit offset for the delta between each entry and base*5^k
 static const int kPow10TableMin = -292;
 static const int kPow10TableMax = 324;
 static const uint64_t kPow5Table[16] = {
@@ -8653,7 +8431,6 @@ static Decimal schubfach(int exponent, uint64_t fraction)
  const int C2 = 3483294;
  int k = (q * C + (irr ? A : 0)) >> Q;
  int h = q + ((-k * C2) >> Q) + 1;
- // Recover 10^-k fraction using compact tables generated by tools/numutils.py
  LUAU_ASSERT(-k >= kPow10TableMin && -k <= kPow10TableMax);
  int gtoff = -k - kPow10TableMin;
  const uint64_t* gt = kPow10Table[gtoff >> 4];
@@ -8677,7 +8454,6 @@ static Decimal schubfach(int exponent, uint64_t fraction)
  if (upin != wpin)
  return {sp + wpin, k + 1};
  }
- // rup computes the last 4 conditions in that algorithm
  bool uin = vbl + out <= 4 * s;
  bool win = 4 * s + 4 + out <= vbr;
  bool rup = vb >= 4 * s + 2 + 1 - (s & 1);
@@ -8806,10 +8582,6 @@ char* luai_num2str(char* buf, double n)
  return printexp(exp, dot - 1);
  }
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-//included "string.h"
-//included "stdio.h"
-//included "stdlib.h"
 const TValue luaO_nilobject_ = {{NULL}, {0}, LUA_TNIL};
 int luaO_log2(unsigned int x)
 {
@@ -8939,9 +8711,6 @@ const char* luaO_chunkid(char* buf, size_t buflen, const char* source, size_t sr
  }
  return buf;
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-//included "string.h"
-//included "time.h"
 #define LUA_STRFTIMEOPTIONS "aAbBcdHIjmMpSUwWxXyYzZ%"
 #if defined(_WIN32)
 static tm* gmtime_r(const time_t* timep, tm* result)
@@ -9114,7 +8883,6 @@ int luaopen_os(lua_State* L)
  luaL_register(L, LUA_OSLIBNAME, syslib);
  return 1;
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -9165,7 +8933,6 @@ double lua_clock()
  static double period = clock_period();
  return clock_timestamp() * period;
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 typedef struct LG
 {
  lua_State l;
@@ -9365,12 +9132,10 @@ void lua_close(lua_State* L)
  luaF_close(L, L->stack); // close all upvalues for this thread
  close_state(L);
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 unsigned int luaS_hash(const char* str, size_t len)
 {
  unsigned int a = 0, b = 0;
  unsigned int h = unsigned(len);
- // note that we stop at length<32 to maintain compatibility with Lua 5.1
  while (len >= 32)
  {
 #define rol(x, s) ((x >> s) | (x << (32 - s)))
@@ -9511,9 +9276,6 @@ void luaS_free(lua_State* L, TString* ts, lua_Page* page)
  LUAU_ASSERT(ts->next == NULL);
  luaM_freegco(L, ts, sizestring(ts->len), ts->memcat, page);
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-//included "string.h"
-//included "stdio.h"
 #define uchar(c) ((unsigned char)(c))
 static int str_len(lua_State* L)
 {
@@ -10293,9 +10055,7 @@ static int str_gsub(lua_State* L)
  lua_pushinteger(L, n);
  return 2;
 }
-// valid flags in a format specification
 #define FLAGS "-+ #0"
-// maximum size of each formatted item (> len(format('%99.99f', -1e308)))
 #define MAX_ITEM 512
 #define MAX_FORMAT 32
 static void addquoted(lua_State* L, luaL_Buffer* b, int arg)
@@ -10488,11 +10248,8 @@ static int str_split(lua_State* L)
  lua_createtable(L, 0, 0);
  if (needleLen == 0)
  begin++;
- // impossible to be splits and would let us memcmp past the end of the
  for (const char* iter = begin; iter <= end - needleLen; iter++)
  {
- // nulls to be used in either of the haystack or the needle strings.
- // exception.
  if (memcmp(iter, needle, needleLen) == 0)
  {
  lua_pushinteger(L, ++numMatches);
@@ -10877,7 +10634,6 @@ static int str_unpack(lua_State* L)
  KOption opt = getdetails(&h, pos, &fmt, &size, &ntoalign);
  luaL_argcheck(L, (size_t)ntoalign + size <= ld - pos, 2, "data string too short");
  pos += ntoalign;
- // stack space for item + next position
  luaL_checkstack(L, 2, "too many results");
  n++;
  switch (opt)
@@ -10977,7 +10733,6 @@ int luaopen_string(lua_State* L)
  createmetatable(L);
  return 1;
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #define MAXBITS 26
 #define MAXSIZE (1 << MAXBITS)
 static_assert(offsetof(LuaNode, val) == 0, "Unexpected Node memory layout, pointer cast in gval2slot is incorrect");
@@ -11075,11 +10830,9 @@ static int findindex(lua_State* L, Table* t, StkId key)
  LuaNode* n = mainposition(t, key);
  for (;;)
  {
- // key may be dead already, but it is ok to use it in `next'
  if (luaO_rawequalKey(gkey(n), key) || (ttype(gkey(n)) == LUA_TDEADKEY && iscollectable(key) && gcvalue(gkey(n)) == gcvalue(key)))
  {
  i = cast_int(n - gnode(t, 0));
- // hash elements are numbered after array ones
  return i + t->sizearray;
  }
  if (gnext(n) == 0)
@@ -11322,7 +11075,6 @@ static void rehash(lua_State* L, Table* t, const TValue* ek)
  if (aextra != 0)
  {
  nh -= aextra;
- // this follows the general sparse array part optimization where array is allocated when 50% occupation is reached
  nasize = nadjusted + aextra;
  nasize = adjustasize(t, nasize, ek);
  }
@@ -11389,7 +11141,6 @@ static TValue* newkey(lua_State* L, Table* t, const TValue* key)
  LuaNode* othern = mainposition(t, &mk);
  if (othern != mp)
  {
- // yes; move colliding node into free position
  while (othern + gnext(othern) != mp)
  othern += gnext(othern);
  gnext(othern) = cast_int(n - othern); // redo the chain with `n' in place of `mp'
@@ -11403,7 +11154,6 @@ static TValue* newkey(lua_State* L, Table* t, const TValue* key)
  }
  else
  {
- // new node will go into free position
  if (gnext(mp) != 0)
  gnext(n) = cast_int((mp + gnext(mp)) - n);
  else
@@ -11561,7 +11311,6 @@ int luaH_getn(Table* t)
  int j = t->sizearray;
  if (j > 0 && ttisnil(&t->array[j - 1]))
  {
- // note that clang is cmov-shy on cmovs around memory operands, so it will compile this to a branchy loop.
  TValue* base = t->array;
  int rest = j;
  while (int half = rest >> 1)
@@ -11632,7 +11381,6 @@ void luaH_clear(Table* tt)
  }
  tt->tmcache = cast_byte(~0);
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 static int foreachi(lua_State* L)
 {
  luaL_checktype(L, 1, LUA_TTABLE);
@@ -11946,7 +11694,6 @@ static void sort_rec(lua_State* L, Table* t, int l, int u, int limit, SortPredic
  {
  if (limit == 0)
  return sort_heap(L, t, l, u, pred);
- // note: this simultaneously acts as a small sort and a median selector
  if (sort_less(L, t, u, l, pred))
  sort_swap(L, t, u, l); // swap a[l] - a[u]
  if (u - l == 1)
@@ -11964,7 +11711,6 @@ static void sort_rec(lua_State* L, Table* t, int l, int u, int limit, SortPredic
  int j = u - 1;
  for (;;)
  {
- // repeat ++i until a[i] >= P
  while (sort_less(L, t, ++i, p, pred))
  {
  if (i >= u)
@@ -11981,7 +11727,6 @@ static void sort_rec(lua_State* L, Table* t, int l, int u, int limit, SortPredic
  }
  sort_swap(L, t, p, i);
  limit = (limit >> 1) + (limit >> 2);
- // sort smaller half recursively; the larger half is sorted in the next loop iteration
  if (i - l < u - i)
  {
  sort_rec(L, t, l, i - 1, limit, pred);
@@ -12118,7 +11863,6 @@ int luaopen_table(lua_State* L)
  lua_setglobal(L, "unpack");
  return 1;
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 const char* const luaT_typenames[] = {
  "nil",
  "boolean",
@@ -12218,7 +11962,6 @@ const char* luaT_objtypename(lua_State* L, const TValue* o)
 {
  return getstr(luaT_objtypenamestr(L, o));
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 Udata* luaU_newudata(lua_State* L, size_t s, int tag)
 {
  if (s > INT_MAX - sizeof(Udata))
@@ -12236,7 +11979,6 @@ void luaU_freeudata(lua_State* L, Udata* u, lua_Page* page)
  if (u->tag < LUA_UTAG_LIMIT)
  {
  lua_Destructor dtor = L->global->udatagc[u->tag];
- // certain operations such as lua_getthreaddata are okay, but by and large this risks crashes on improper use
  if (dtor)
  dtor(L, u->data);
  }
@@ -12249,10 +11991,8 @@ void luaU_freeudata(lua_State* L, Udata* u, lua_Page* page)
  }
  luaM_freegco(L, u, sizeudata(u->len), u->memcat, page);
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #define MAXUNICODE 0x10FFFF
 #define iscont(p) ((*(p)&0xC0) == 0x80)
-// translate a relative string position: negative means back from end
 static int u_posrelat(int pos, size_t len)
 {
  if (pos >= 0)
@@ -12491,7 +12231,6 @@ int luaopen_utf8(lua_State* L)
  lua_setfield(L, -2, "charpattern");
  return 1;
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 LUAU_FASTFLAG(LuauUniformTopHandling)
 LUAU_FASTFLAG(LuauGetImportDirect)
 #ifdef __clang__
@@ -12499,26 +12238,7 @@ LUAU_FASTFLAG(LuauGetImportDirect)
 #pragma clang diagnostic ignored "-Wc99-designator"
 #endif
 #endif
-// 1. Many external Lua functions can fail; for them to fail and be able to generate a proper stack, we need to copy pc to L->ci->savedpc before the
-// call
-// 2. Many external Lua functions can reallocate the stack. This invalidates stack pointers in VM C stack frame, most importantly base, but also
-// ra/rb/rc!
-// 3. VM_PROTECT macro saves savedpc and restores base for you; most external calls need to be wrapped into that. However, it does NOT restore
-// ra/rb/rc!
-// 4. When copying an object to any existing object as a field, generally speaking you need to call luaC_barrier! Be careful with all setobj calls
-// 5. To make 4 easier to follow, please use setobj2s for copies to stack, setobj2t for writes to tables, and setobj for other copies.
-// 6. You can define HARDSTACKTESTS in llimits.h which will aggressively realloc stack; with address sanitizer this should be effective at finding
-// stack corruption bugs
-// 7. Many external Lua functions can call GC! GC will *not* traverse pointers to new objects that aren't reachable from Lua root. Be careful when
-// creating new Lua objects, store them to stack soon.
-// This is safe to do for complicated reasons:
-// - stack guarantees EXTRA_STACK room beyond stack_last (see luaD_reallocstack)
-// - stack reallocation copies values past stack_last
-// This makes sure that we save the pc (in case the Lua call needs to generate a backtrace) before the call,
-// and restores the stack pointer after in case stack gets reallocated
-// Should only be used on the slow paths.
 #define VM_PROTECT(x) { L->ci->savedpc = pc; { x; }; base = L->base; }
-// a cheaper version of VM_PROTECT that can be called before the external call.
 #define VM_PROTECT_PC() L->ci->savedpc = pc
 #define VM_REG(i) (LUAU_ASSERT(unsigned(i) < unsigned(L->top - base)), &base[i])
 #define VM_KV(i) (LUAU_ASSERT(unsigned(i) < unsigned(cl->l.p->sizek)), &k[i])
@@ -12553,7 +12273,6 @@ LUAU_NOINLINE void luau_callhook(lua_State* L, lua_Hook hook, void* userdata)
  L->status = 0;
  L->base = L->ci->base;
  }
- // however, for the hook to be able to continue execution from the same point, this is called with savedpc at the *current* instruction
  if (L->ci->savedpc)
  L->ci->savedpc++;
  luaD_checkstack(L, LUA_MINSTACK);
@@ -12590,7 +12309,6 @@ static void luau_execute(lua_State* L)
 #if VM_USE_CGOTO
  static const void* kDispatchTable[256] = {VM_DISPATCH_TABLE()};
 #endif
- // the hope is that these map to registers without spilling (which is not true for x86 :/)
  Closure* cl;
  StkId base;
  TValue* k;
@@ -12616,7 +12334,6 @@ reentry:
  VM_NEXT();
  {
  dispatch:
- // Therefore only ever put assertions here.
  LUAU_ASSERT(base == L->base && L->base == L->ci->base);
  LUAU_ASSERT(base <= L->top && L->top <= L->stack + L->stacksize);
  if (SingleStep)
@@ -13061,7 +12778,6 @@ reentry:
  if (LUAU_LIKELY(ttistable(rb)))
  {
  Table* h = hvalue(rb);
- // for predictive lookups
  LuaNode* n = &h->node[tsvalue(kv)->hash & (sizenode(h) - 1)];
  const TValue* mt = 0;
  const LuaNode* mtn = 0;
@@ -13156,7 +12872,6 @@ reentry:
  ci->nresults = nresults;
  L->base = ci->base;
  L->top = argtop;
- // this is because we're going to modify base/savedpc manually anyhow
  luaD_checkstack(L, ccl->stacksize);
  LUAU_ASSERT(ci->top <= L->stack_last);
  if (!ccl->isC)
@@ -13167,8 +12882,6 @@ reentry:
  while (argi < argend)
  setnilvalue(argi++);
  L->top = p->is_vararg ? argi : ci->top;
- // codeentry may point to NATIVECALL instruction when proto is compiled to native code
- // note that p->codeentry may point *outside* of p->code..p->code+p->sizecode, but that pointer never gets saved to savedpc.
  pc = SingleStep ? p->code : p->codeentry;
  cl = ccl;
  base = L->base;
@@ -13183,7 +12896,6 @@ reentry:
  goto exit;
  CallInfo* ci = L->ci;
  CallInfo* cip = ci - 1;
- // note: in MULTRET context nresults starts as -1 so i != 0 condition never activates intentionally
  StkId res = ci->func;
  StkId vali = L->top - n;
  StkId valend = L->top;
@@ -13212,7 +12924,6 @@ reentry:
  StkId valend =
  (b == LUA_MULTRET) ? L->top : ra + b;
  int nresults = ci->nresults;
- // note: in MULTRET context nresults starts as -1 so i != 0 condition never activates intentionally
  int i;
  for (i = nresults; i != 0 && vali < valend; i--)
  setobj2s(L, res++, vali++);
@@ -13346,7 +13057,6 @@ reentry:
  LUAU_ASSERT(!"Unknown value type");
  LUAU_UNREACHABLE();
  }
- // note that we don't have a fast path for userdata values without metatables, since that's very rare
  int res;
  VM_PROTECT(res = luaV_equalval(L, ra, rb));
  pc += (res == 1) ? LUAU_INSN_D(insn) : 1;
@@ -13438,7 +13148,6 @@ reentry:
  LUAU_ASSERT(!"Unknown value type");
  LUAU_UNREACHABLE();
  }
- // note that we don't have a fast path for userdata values without metatables, since that's very rare
  int res;
  VM_PROTECT(res = luaV_equalval(L, ra, rb));
  pc += (res == 0) ? LUAU_INSN_D(insn) : 1;
@@ -13458,7 +13167,6 @@ reentry:
  uint32_t aux = *pc;
  StkId ra = VM_REG(LUAU_INSN_A(insn));
  StkId rb = VM_REG(aux);
- // Note that all jumps below jump by 1 in the "false" case to skip over aux
  if (LUAU_LIKELY(ttisnumber(ra) && ttisnumber(rb)))
  {
  pc += nvalue(ra) <= nvalue(rb) ? LUAU_INSN_D(insn) : 1;
@@ -13486,7 +13194,6 @@ reentry:
  uint32_t aux = *pc;
  StkId ra = VM_REG(LUAU_INSN_A(insn));
  StkId rb = VM_REG(aux);
- // Note that all jumps below jump by 1 in the "true" case to skip over aux
  if (LUAU_LIKELY(ttisnumber(ra) && ttisnumber(rb)))
  {
  pc += !(nvalue(ra) <= nvalue(rb)) ? LUAU_INSN_D(insn) : 1;
@@ -13514,7 +13221,6 @@ reentry:
  uint32_t aux = *pc;
  StkId ra = VM_REG(LUAU_INSN_A(insn));
  StkId rb = VM_REG(aux);
- // Note that all jumps below jump by 1 in the "false" case to skip over aux
  if (LUAU_LIKELY(ttisnumber(ra) && ttisnumber(rb)))
  {
  pc += nvalue(ra) < nvalue(rb) ? LUAU_INSN_D(insn) : 1;
@@ -13542,7 +13248,6 @@ reentry:
  uint32_t aux = *pc;
  StkId ra = VM_REG(LUAU_INSN_A(insn));
  StkId rb = VM_REG(aux);
- // Note that all jumps below jump by 1 in the "true" case to skip over aux
  if (LUAU_LIKELY(ttisnumber(ra) && ttisnumber(rb)))
  {
  pc += !(nvalue(ra) < nvalue(rb)) ? LUAU_INSN_D(insn) : 1;
@@ -14114,7 +13819,6 @@ reentry:
  StkId ra = VM_REG(LUAU_INSN_A(insn));
  if (!ttisnumber(ra + 0) || !ttisnumber(ra + 1) || !ttisnumber(ra + 2))
  {
- // Note: this doesn't reallocate stack so we don't need to recompute ra/base
  VM_PROTECT_PC();
  luaV_prepareFORN(L, ra + 0, ra + 1, ra + 2);
  }
@@ -14173,7 +13877,6 @@ reentry:
  }
  else if (fasttm(L, mt, TM_CALL))
  {
- // TODO: we might be able to stop supporting this depending on whether it's used in practice
  }
  else if (ttistable(ra))
  {
@@ -14197,13 +13900,11 @@ reentry:
  Instruction insn = *pc++;
  StkId ra = VM_REG(LUAU_INSN_A(insn));
  uint32_t aux = *pc;
- // note: ra=nil guarantees ra+1=table and ra+2=userdata because of the setup by FORGPREP* opcodes
  if (ttisnil(ra) && ttistable(ra + 1))
  {
  Table* h = hvalue(ra + 1);
  int index = int(reinterpret_cast<uintptr_t>(pvalue(ra + 2)));
  int sizearray = h->sizearray;
- // note: while aux encodes ipairs bit, when set we always use 2 variables, so it's safe to check this via a signed comparison
  if (LUAU_UNLIKELY(int(aux) > 2))
  for (int i = 2; i < int(aux); ++i)
  setnilvalue(ra + 3 + i);
@@ -14349,11 +14050,8 @@ reentry:
  TValue* kv = VM_KV(LUAU_INSN_D(insn));
  Closure* kcl = clvalue(kv);
  VM_PROTECT_PC();
- // note: we save closure to stack early in case the code below wants to capture it by value
  Closure* ncl = (kcl->env == cl->env) ? kcl : luaF_newLclosure(L, kcl->nupvalues, cl->env, kcl->l.p);
  setclvalue(L, ra, ncl);
- // - if the closure was created anew, it just fills it with upvalues
- // - if the closure is reused, it checks if the reuse is safe via rawequal, and falls back to duplicating the closure
  for (int ui = 0; ui < kcl->nupvalues; ++ui)
  {
  Instruction uinsn = pc[ui];
@@ -14442,7 +14140,6 @@ reentry:
  int n = f(L, ra, ra + 1, nresults, ra + 2, nparams);
  if (n >= 0)
  {
- // instead of restoring L->top to L->ci->top if nparams is MULTRET, we do it unconditionally to skip an extra check
  L->top = (nresults == LUA_MULTRET) ? ra + n : L->ci->top;
  pc += skip + 1;
  LUAU_ASSERT(unsigned(pc - cl->l.p->code) < unsigned(cl->l.p->sizecode));
@@ -14633,7 +14330,6 @@ reentry:
  TValue* kv = VM_KV(aux & 0xffffff);
  LUAU_ASSERT(ttisnumber(kv));
 #if defined(__aarch64__)
- // is much cheaper; on some 32-bit ARM chips (Cortex A53) the performance is about the same so we prefer less branchy variant there
  if (aux >> 31)
  pc += !(ttisnumber(ra) && nvalue(ra) == nvalue(kv)) ? LUAU_INSN_D(insn) : 1;
  else
@@ -14711,7 +14407,6 @@ int luau_precall(lua_State* L, StkId func, int nresults)
  return PCRYIELD;
  CallInfo* ci = L->ci;
  CallInfo* cip = ci - 1;
- // TODO: it might be worthwhile to handle the case when nresults==b explicitly?
  StkId res = ci->func;
  StkId vali = L->top - n;
  StkId valend = L->top;
@@ -14728,10 +14423,8 @@ int luau_precall(lua_State* L, StkId func, int nresults)
 }
 void luau_poscall(lua_State* L, StkId first)
 {
- // ci is our callinfo, cip is our parent
  CallInfo* ci = L->ci;
  CallInfo* cip = ci - 1;
- // TODO: it might be worthwhile to handle the case when nresults==b explicitly?
  StkId res = ci->func;
  StkId vali = first;
  StkId valend = L->top;
@@ -14744,7 +14437,6 @@ void luau_poscall(lua_State* L, StkId first)
  L->base = cip->base;
  L->top = (ci->nresults == LUA_MULTRET) ? res : cip->top;
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 LUAU_FASTFLAGVARIABLE(LuauGetImportDirect, false)
 template<typename T>
 struct TempBuffer
@@ -14775,7 +14467,6 @@ void luaV_getimport(lua_State* L, Table* env, TValue* k, StkId res, uint32_t id,
  int id0 = int(id >> 20) & 1023;
  int id1 = int(id >> 10) & 1023;
  int id2 = int(id) & 1023;
- // we take care to not use env again and to restore res before every consecutive use
  ptrdiff_t resp = savestack(L, res);
  TValue g;
  sethvalue(L, &g, env);
@@ -14844,7 +14535,6 @@ static void resolveImportSafe(lua_State* L, Table* env, TValue* k, uint32_t id)
  static void run(lua_State* L, void* ud)
  {
  ResolveImport* self = static_cast<ResolveImport*>(ud);
- // this is technically not necessary but it reduces the number of exceptions when loading scripts that rely on getfenv/setfenv for global
  if (FFlag::LuauGetImportDirect)
  {
  luaD_checkstack(L, 1);
@@ -14891,7 +14581,6 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  lua_pushfstring(L, "%s: bytecode version mismatch (expected [%d..%d], got %d)", chunkid, LBC_VERSION_MIN, LBC_VERSION_MAX, version);
  return 1;
  }
- // TODO: if an allocation error happens mid-load, we do not unpause GC!
  size_t GCthreshold = L->global->GCthreshold;
  L->global->GCthreshold = SIZE_MAX;
  Table* envt = (env == 0) ? L->gt : hvalue(luaA_toobject(L, env));
@@ -14923,7 +14612,6 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  p->sizek = readVarInt(data, size, offset);
  p->k = luaM_newarray(L, p->sizek, TValue, p->memcat);
 #ifdef HARDMEMTESTS
- // because p->k isn't fully formed at this point, we pre-fill it with nil to make subsequent setup safe
  for (int j = 0; j < p->sizek; ++j)
  {
  setnilvalue(&p->k[j]);
@@ -15048,7 +14736,6 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  L->global->GCthreshold = GCthreshold;
  return 0;
 }
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 #define MAXTAGLOOP 100
 const TValue* luaV_tonumber(const TValue* obj, TValue* n)
 {
@@ -15086,9 +14773,6 @@ const float* luaV_tovector(const TValue* obj)
 static StkId callTMres(lua_State* L, StkId res, const TValue* f, const TValue* p1, const TValue* p2)
 {
  ptrdiff_t result = savestack(L, res);
- // * The stack guarantees EXTRA_STACK room beyond stack_last (see luaD_reallocstack) will be allocated
- // stack and checkstack may invalidate those pointers
- // * during stack reallocation all of the allocated stack is copied (even beyond stack_last) so these
  LUAU_ASSERT((L->top + 3) < (L->stack + L->stacksize));
  setobj2s(L, L->top, f);
  setobj2s(L, L->top + 1, p1); // 1st argument
@@ -15103,9 +14787,6 @@ static StkId callTMres(lua_State* L, StkId res, const TValue* f, const TValue* p
 }
 static void callTM(lua_State* L, const TValue* f, const TValue* p1, const TValue* p2, const TValue* p3)
 {
- // * The stack guarantees EXTRA_STACK room beyond stack_last (see luaD_reallocstack) will be allocated
- // stack and checkstack may invalidate those pointers
- // * during stack reallocation all of the allocated stack is copied (even beyond stack_last) so these
  LUAU_ASSERT((L->top + 4) < (L->stack + L->stacksize));
  setobj2s(L, L->top, f);
  setobj2s(L, L->top + 1, p1); // 1st argument
@@ -15503,7 +15184,6 @@ LUAU_NOINLINE void luaV_prepareFORN(lua_State* L, StkId plimit, StkId pstep, Stk
  if (!ttisnumber(pstep) && !luaV_tonumber(pstep, pstep))
  luaG_forerror(L, pstep, "step");
 }
-// the function and arguments have to already be pushed to L->top
 LUAU_NOINLINE void luaV_callTM(lua_State* L, int nparams, int res)
 {
  ++L->nCcalls;
@@ -15527,7 +15207,6 @@ LUAU_NOINLINE void luaV_callTM(lua_State* L, int nparams, int res)
  lua_CFunction func = clvalue(fun)->c.f;
  int n = func(L);
  LUAU_ASSERT(n >= 0);
- // note that we read L->ci again since it may have been reallocated by the call
  CallInfo* cip = L->ci - 1;
  if (res >= 0)
  {
@@ -15557,7 +15236,6 @@ LUAU_NOINLINE void luaV_tryfuncTM(lua_State* L, StkId func)
 }
 #ifdef LUAU_ENABLE_COMPILER
 #undef upvalue
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 namespace Luau
 {
 struct Position
@@ -15591,7 +15269,6 @@ struct Location
 }
 #include <optional>
 #include <string>
-//included "stdint.h"
 namespace Luau
 {
 struct AstName
@@ -15975,7 +15652,6 @@ public:
  LUAU_RTTI(AstExprInterpString)
  AstExprInterpString(const Location& location, const AstArray<AstArray<char>>& strings, const AstArray<AstExpr*>& expressions);
  void visit(AstVisitor* visitor) override;
- /// an array of strings for "foo" and "bar", and an array of expressions for "baz".
  AstArray<AstArray<char>> strings;
  AstArray<AstExpr*> expressions;
 };
@@ -16600,7 +16276,6 @@ struct hash<Luau::AstName>
 {
  size_t operator()(const Luau::AstName& value) const
  {
- // the hasher is the same as DenseHashPointer (DenseHash.h)
  return (uintptr_t(value.value) >> 4) ^ (uintptr_t(value.value) >> 9);
  }
 };
@@ -17440,7 +17115,6 @@ Location getLocation(const AstTypeList& typeList)
  return result;
 }
 }
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 namespace Luau
 {
 const char* findConfusable(uint32_t codepoint);
@@ -17454,7 +17128,6 @@ struct Confusable
  unsigned codepoint : 24;
  char text[5];
 };
-// clang-format off
 static const Confusable kConfusables[] =
 {
  {34, "\""}, // MA#* ( " → '' ) QUOTATION MARK → APOSTROPHE, APOSTROPHE# # Converted to a quote.
@@ -19252,9 +18925,6 @@ const char* findConfusable(uint32_t codepoint)
  return (it != std::end(kConfusables) && it->codepoint == codepoint) ? it->text : nullptr;
 }
 }
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-//included "Location.h"
-//included "DenseHash.h"
 #include <vector>
 namespace Luau
 {
@@ -19409,8 +19079,6 @@ private:
  Position position() const;
  void consume();
  Lexeme readCommentBody();
- // 1. number of equal signs (or 0 if none present) between the brackets
- // 3. -N if this is a malformed separator
  int skipLongSeparator();
  Lexeme readLongString(const Position& start, int sep, Lexeme::Type ok, Lexeme::Type broken);
  Lexeme readQuotedString();
@@ -19443,8 +19111,6 @@ inline bool isSpace(char ch)
  return ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n' || ch == '\v' || ch == '\f';
 }
 }
-//included "Confusables.h"
-//included "string"
 #include <stdarg.h>
 namespace Luau
 {
@@ -19455,7 +19121,6 @@ void vformatAppend(std::string& ret, const char* fmt, va_list args);
 std::string join(const std::vector<std::string_view>& segments, std::string_view delimiter);
 std::string join(const std::vector<std::string>& segments, std::string_view delimiter);
 std::vector<std::string_view> split(std::string_view s, char delimiter);
-// https://en.wikipedia.org/wiki/Damerau-Levenshtein_distance#Distance_with_adjacent_transpositions
 size_t editDistance(std::string_view a, std::string_view b);
 bool startsWith(std::string_view lhs, std::string_view rhs);
 bool equalsLower(std::string_view lhs, std::string_view rhs);
@@ -19463,7 +19128,6 @@ size_t hashRange(const char* data, size_t size);
 std::string escape(std::string_view s, bool escapeForInterpString = false);
 bool isIdentifier(std::string_view s);
 }
-//included "limits.h"
 namespace Luau
 {
 Allocator::Allocator()
@@ -19657,7 +19321,6 @@ std::pair<AstName, Lexeme::Type> AstNameTable::getOrAddWithType(const char* name
  const Entry& entry = data.insert(key);
  if (entry.type != Lexeme::Eof)
  return std::make_pair(entry.value, entry.type);
- // we need to correct it, *but* we need to be careful about not disturbing the hash value
  char* nameData = static_cast<char*>(allocator.allocate(length + 1));
  memcpy(nameData, name, length);
  nameData[length] = 0;
@@ -19826,10 +19489,6 @@ Lexeme Lexer::readCommentBody()
  consume();
  return Lexeme(Location(start, position()), Lexeme::Comment, &buffer[startOffset], offset - startOffset);
 }
-// 1. number of equal signs (or 0 if none present) between the brackets
-// 2. -1 if this is not a long comment/string separator
-// 3. -N if this is a malformed separator
-// Does *not* consume the closing brace.
 int Lexer::skipLongSeparator()
 {
  char start = peekch();
@@ -19967,7 +19626,6 @@ Lexeme Lexer::readInterpolatedStringSection(Position start, Lexeme::Type formatT
 Lexeme Lexer::readNumber(const Position& start, unsigned int startOffset)
 {
  LUAU_ASSERT(isDigit(peekch()));
- // It uses the same logic as Lua stock lexer; the resulting string is later converted
  do
  {
  consume();
@@ -20416,11 +20074,6 @@ void Lexer::fixupMultilineString(std::string& data)
 {
  if (data.empty())
  return;
- // - standalone \r, \r\n, \n\r and \n are all considered newlines
- // - all other newlines are normalized to \n
- // - \r\n and \n are considered newlines
- // - newlines are normalized to \n
- // tracking perspective
  const char* src = data.c_str();
  char* dst = &data[0];
  if (src[0] == '\r' && src[1] == '\n')
@@ -20554,8 +20207,6 @@ void Location::shift(const Position& start, const Position& oldEnd, const Positi
  end.shift(start, oldEnd, newEnd);
 }
 }
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 namespace Luau
 {
 enum class Mode
@@ -20571,7 +20222,6 @@ struct ParseOptions
  bool captureComments = false;
 };
 }
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 namespace Luau
 {
 class AstStatBlock;
@@ -20658,15 +20308,8 @@ private:
  Parser(const char* buffer, std::size_t bufferSize, AstNameTable& names, Allocator& allocator, const ParseOptions& options);
  bool blockFollow(const Lexeme& l);
  AstStatBlock* parseChunk();
- // block ::= chunk
  AstStatBlock* parseBlock();
  AstStatBlock* parseBlockNoScope();
- // varlist `=' explist |
- // do block end |
- // repeat block until exp |
- // for Name `=' exp `,' exp [`,' exp] do block end |
- // function funcname funcbody |
- // local namelist [`=' explist]
  AstStat* parseStat();
  AstStat* parseIf();
  AstStat* parseWhile();
@@ -20674,33 +20317,23 @@ private:
  AstStat* parseDo();
  AstStat* parseBreak();
  AstStat* parseContinue(const Location& start);
- // for namelist in explist do block end |
  AstStat* parseFor();
  AstExpr* parseFunctionName(Location start, bool& hasself, AstName& debugname);
  AstStat* parseFunctionStat();
- // local namelist [`=' explist]
  AstStat* parseLocal();
  AstStat* parseReturn();
  AstStat* parseTypeAlias(const Location& start, bool exported);
  AstDeclaredClassProp parseDeclaredClassMethod();
- // `declare function' Name`(' [parlist] `)' [`:` Type]
  AstStat* parseDeclaration(const Location& start);
  AstStat* parseAssignment(AstExpr* initial);
  AstStat* parseCompoundAssignment(AstExpr* initial, AstExprBinary::Op op);
  std::pair<AstLocal*, AstArray<AstLocal*>> prepareFunctionArguments(const Location& start, bool hasself, const TempVector<Binding>& args);
- // funcbody ::= funcbodyhead block end
  std::pair<AstExprFunction*, AstLocal*> parseFunctionBody(
  bool hasself, const Lexeme& matchFunction, const AstName& debugname, const Name* localName);
  void parseExprList(TempVector<AstExpr*>& result);
  Binding parseBinding();
- // Returns the location of the vararg ..., or std::nullopt if the function is not vararg.
  std::tuple<bool, Location, AstTypePack*> parseBindingList(TempVector<Binding>& result, bool allowDot3 = false);
  AstType* parseOptionalType();
- // ReturnType ::= Type | `(' TypeList `)'
- // TableIndexer ::= `[' Type `]' `:' Type
- // Type
- // | `nil`
- // | `(' [TypeList] `)' `->` ReturnType
  AstTypePack* parseTypeList(TempVector<AstType*>& result, TempVector<std::optional<AstArgumentName>>& resultNames);
  std::optional<AstTypeList> parseOptionalReturnType();
  std::pair<Location, AstTypeList> parseReturnType();
@@ -20724,7 +20357,6 @@ private:
  };
  std::optional<AstExprUnary::Op> checkUnaryConfusables();
  std::optional<AstExprBinary::Op> checkBinaryConfusables(const BinaryOpPriority binaryPriority[], unsigned int limit);
- // where `binop' is any binary operator with a priority higher than `limit'
  AstExpr* parseExpr(unsigned int limit = 0);
  AstExpr* parseNameExpr(const char* context = nullptr);
  AstExpr* parsePrefixExpr();
@@ -20732,8 +20364,6 @@ private:
  AstExpr* parseAssertionExpr();
  AstExpr* parseSimpleExpr();
  AstExpr* parseFunctionArgs(AstExpr* func, bool self);
- // fieldlist ::= field {fieldsep field} [fieldsep]
- // fieldsep ::= `,' | `;'
  AstExpr* parseTableConstructor();
  AstExpr* parseIfElseExpr();
  AstExpr* parseInterpString();
@@ -20781,8 +20411,6 @@ private:
  const char* format, ...) LUAU_PRINTF_ATTR(5, 6);
  AstExprError* reportExprError(const Location& location, const AstArray<AstExpr*>& expressions, const char* format, ...) LUAU_PRINTF_ATTR(4, 5);
  AstTypeError* reportTypeError(const Location& location, const AstArray<AstType*>& types, const char* format, ...) LUAU_PRINTF_ATTR(4, 5);
- // `astErrorLocation` is associated with the AstTypeError created
- // define the location (possibly of zero size) where a type annotation is expected.
  AstTypeError* reportMissingTypeError(const Location& parseErrorLocation, const Location& astErrorLocation, const char* format, ...)
  LUAU_PRINTF_ATTR(4, 5);
  AstExpr* reportFunctionArgsError(AstExpr* func, bool self);
@@ -20865,8 +20493,6 @@ private:
  std::string scratchData;
 };
 }
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-//included "stdint.h"
 LUAU_FASTFLAG(DebugLuauTimeTracing)
 namespace Luau
 {
@@ -21027,8 +20653,6 @@ LUAU_NOINLINE uint16_t createScopeData(const char* name, const char* category);
 #define LUAU_TIMETRACE_ARGUMENT(name, value) do { } while (false)
 #endif
 #include <errno.h>
-// flag so that we don't break production games by reverting syntax changes.
-// See docs/SyntaxChanges.md for an explanation.
 LUAU_FASTINTVARIABLE(LuauRecursionLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
 #define ERROR_INVALID_INTERP_DOUBLE_BRACE "Double braces are not permitted within interpolated strings. Did you mean '\\{'?"
@@ -21188,7 +20812,6 @@ AstStatBlock* Parser::parseChunk()
  expectAndConsumeFail(Lexeme::Eof, nullptr);
  return result;
 }
-// block ::= chunk
 AstStatBlock* Parser::parseBlock()
 {
  unsigned int localsBegin = saveLocals();
@@ -21222,18 +20845,6 @@ AstStatBlock* Parser::parseBlockNoScope()
  const Location location = Location(prevPosition, lexer.current().location.begin);
  return allocator.alloc<AstStatBlock>(location, copy(body));
 }
-// varlist `=' explist |
-// functioncall |
-// do block end |
-// while exp do block end |
-// repeat block until exp |
-// if exp then block {elseif exp then block} [else block] end |
-// for binding `=' exp `,' exp [`,' exp] do block end |
-// for namelist in explist do block end |
-// function funcname funcbody |
-// local function Name funcbody |
-// local namelist [`=' explist]
-// laststat ::= return [explist] | break
 AstStat* Parser::parseStat()
 {
  switch (lexer.current().type)
@@ -21377,7 +20988,6 @@ AstStat* Parser::parseContinue(const Location& start)
  return reportStatError(start, {}, copy<AstStat*>({allocator.alloc<AstStatContinue>(start)}), "continue statement must be inside a loop");
  return allocator.alloc<AstStatContinue>(start);
 }
-// for bindinglist in explist do block end |
 AstStat* Parser::parseFor()
 {
  Location start = lexer.current().location;
@@ -21476,7 +21086,6 @@ AstStat* Parser::parseFunctionStat()
  matchRecoveryStopOnToken[Lexeme::ReservedEnd]--;
  return allocator.alloc<AstStatFunction>(Location(start, body->location), expr, body);
 }
-// local bindinglist [`=' explist]
 AstStat* Parser::parseLocal()
 {
  Location start = lexer.current().location;
@@ -21485,7 +21094,6 @@ AstStat* Parser::parseLocal()
  {
  Lexeme matchFunction = lexer.current();
  nextLexeme();
- // `local function` and `end`, we patch the token to begin at the column where `local` starts
  if (matchFunction.location.begin.line == start.begin.line)
  matchFunction.location.begin.column = start.begin.column;
  Name name = parseName("variable name");
@@ -21709,7 +21317,6 @@ std::pair<AstLocal*, AstArray<AstLocal*>> Parser::prepareFunctionArguments(const
  vars.push_back(pushLocal(args[i]));
  return {self, copy(vars)};
 }
-// parlist ::= bindinglist [`,' `...'] | `...'
 std::pair<AstExprFunction*, AstLocal*> Parser::parseFunctionBody(
  bool hasself, const Lexeme& matchFunction, const AstName& debugname, const Name* localName)
 {
@@ -21839,7 +21446,6 @@ std::optional<AstTypeList> Parser::parseOptionalReturnType()
  nextLexeme();
  unsigned int oldRecursionCount = recursionCounter;
  auto [_location, result] = parseReturnType();
- // in this type annotation, but the list wasn't wrapped in parentheses.
  if (lexer.current().type == ',')
  {
  report(lexer.current().location, "Expected a statement, got ','; did you forget to wrap the list of return types in parentheses?");
@@ -21883,7 +21489,6 @@ std::pair<Location, AstTypeList> Parser::parseReturnType()
  if (result.size() == 1)
  {
  AstType* returnType = parseTypeSuffix(result[0], innerBegin);
- // type to successfully parse. We need the span of the whole annotation.
  Position endPos = result.size() == 1 ? location.end : returnType->location.end;
  return {Location{location.begin, endPos}, AstTypeList{copy(&returnType, 1), varargAnnotation}};
  }
@@ -21902,9 +21507,6 @@ AstTableIndexer* Parser::parseTableIndexer()
  AstType* result = parseType();
  return allocator.alloc<AstTableIndexer>(AstTableIndexer{index, result, Location(begin.location, result->location)});
 }
-// TablePropOrIndexer ::= TableProp | TableIndexer
-// PropList ::= TablePropOrIndexer {fieldsep TablePropOrIndexer} [fieldsep]
-// TableType ::= `{' PropList `}'
 AstType* Parser::parseTableType()
 {
  incrementRecursionCounter("type annotation");
@@ -21933,7 +21535,6 @@ AstType* Parser::parseTableType()
  {
  if (indexer)
  {
- // however, we either have { or [ to lint, not the entire table type or the bad indexer.
  AstTableIndexer* badIndexer = parseTableIndexer();
  report(badIndexer->location, "Cannot have more than one table indexer");
  }
@@ -21973,7 +21574,6 @@ AstType* Parser::parseTableType()
  end = lexer.previousLocation();
  return allocator.alloc<AstTypeTable>(Location(start, end), copy(props), indexer);
 }
-// FunctionType ::= [`<' varlist `>'] `(' [TypeList] `)' `->` ReturnType
 AstTypeOrPack Parser::parseFunctionType(bool allowPack)
 {
  incrementRecursionCounter("type annotation");
@@ -22028,11 +21628,6 @@ AstType* Parser::parseFunctionTypeTail(const Lexeme& begin, AstArray<AstGenericT
  AstTypeList paramTypes = AstTypeList{params, varargAnnotation};
  return allocator.alloc<AstTypeFunction>(Location(begin.location, endLocation), generics, genericPacks, paramTypes, paramNames, returnTypeList);
 }
-// nil |
-// Name[`.' Name] [`<' namelist `>'] |
-// `{' [PropList] `}' |
-// `(' [TypeList] `)' `->` ReturnType
-// `typeof` Type
 AstType* Parser::parseTypeSuffix(AstType* type, const Location& begin)
 {
  TempVector<AstType*> parts(scratchType);
@@ -22109,7 +21704,6 @@ AstType* Parser::parseType()
  recursionCounter = oldRecursionCount;
  return parseTypeSuffix(type, begin);
 }
-// | [`<' varlist `>'] `(' [TypeList] `)' `->` ReturnType
 AstTypeOrPack Parser::parseSimpleType(bool allowPack)
 {
  incrementRecursionCounter("type annotation");
@@ -22206,7 +21800,6 @@ AstTypeOrPack Parser::parseSimpleType(bool allowPack)
  else
  {
  Location astErrorlocation(lexer.previousLocation().end, start.begin);
- // Including the current lexeme also makes the parse error consistent with other parse errors returned by Luau.
  Location parseErrorLocation(lexer.previousLocation().end, start.end);
  return {reportMissingTypeError(parseErrorLocation, astErrorlocation, "Expected type, got %s", lexer.current().toString().c_str()), {}};
  }
@@ -22350,7 +21943,6 @@ std::optional<AstExprBinary::Op> Parser::checkBinaryConfusables(const BinaryOpPr
  }
  return std::nullopt;
 }
-// where `binop' is any binary operator with a priority higher than `limit'
 AstExpr* Parser::parseExpr(unsigned int limit)
 {
  static const BinaryOpPriority binaryPriority[] = {
@@ -22509,7 +22101,6 @@ static ConstantNumberParseResult parseInteger(double& result, const char* data, 
  result = double(value);
  if (value == ULLONG_MAX && errno == ERANGE)
  {
- // so we only reset it when we get a result that might be an out-of-range error and parse again to make sure
  errno = 0;
  value = strtoull(data, &end, base);
  if (errno == ERANGE)
@@ -22653,9 +22244,6 @@ LUAU_NOINLINE void Parser::reportAmbiguousCallError()
  report(lexer.current().location, "Ambiguous syntax: this looks like an argument list for a function call, but could also be a start of "
  "new statement; use ';' to separate statements");
 }
-// fieldlist ::= field {fieldsep field} [fieldsep]
-// field ::= `[' exp `]' `=' exp | Name `=' exp | exp
-// fieldsep ::= `,' | `;'
 AstExpr* Parser::parseTableConstructor()
 {
  TempVector<AstExprTable::Item> items(scratchItem);
@@ -23047,7 +22635,6 @@ bool Parser::expectAndConsume(Lexeme::Type type, const char* context)
  return true;
  }
 }
-// cold
 LUAU_NOINLINE void Parser::expectAndConsumeFail(Lexeme::Type type, const char* context)
 {
  std::string typeString = Lexeme(Location(Position(0, 0), 0), type).toString();
@@ -23077,7 +22664,6 @@ LUAU_NOINLINE bool Parser::expectMatchAndConsumeRecover(char value, const MatchL
  if (searchForMissing)
  {
  unsigned currentLine = lexer.previousLocation().end.line;
- // we will also stop if we hit a token that can be handled by parsing function above the current one
  Lexeme::Type lexemeType = lexer.current().type;
  while (currentLine == lexer.current().location.begin.line && lexemeType != type && matchRecoveryStopOnToken[lexemeType] == 0)
  {
@@ -23101,7 +22687,6 @@ LUAU_NOINLINE bool Parser::expectMatchAndConsumeRecover(char value, const MatchL
  }
  return false;
 }
-// cold
 LUAU_NOINLINE void Parser::expectMatchAndConsumeFail(Lexeme::Type type, const MatchLexeme& begin, const char* extra)
 {
  std::string typeString = Lexeme(Location(Position(0, 0), 0), type).toString();
@@ -23128,7 +22713,6 @@ bool Parser::expectMatchEndAndConsume(Lexeme::Type type, const MatchLexeme& begi
  }
  else
  {
- // This can be used to pinpoint the problem location for a possible future *actual* mismatch
  if (lexer.current().location.begin.line != begin.position.line && lexer.current().location.begin.column != begin.position.column &&
  endMismatchSuspect.position.line < begin.position.line)
  {
@@ -23138,7 +22722,6 @@ bool Parser::expectMatchEndAndConsume(Lexeme::Type type, const MatchLexeme& begi
  return true;
  }
 }
-// cold
 LUAU_NOINLINE void Parser::expectMatchEndAndConsumeFail(Lexeme::Type type, const MatchLexeme& begin)
 {
  if (endMismatchSuspect.type != Lexeme::Eof && endMismatchSuspect.position.line > begin.position.line)
@@ -23158,7 +22741,6 @@ AstArray<T> Parser::copy(const T* data, size_t size)
  AstArray<T> result;
  result.data = size ? static_cast<T*>(allocator.allocate(sizeof(T) * size)) : nullptr;
  result.size = size;
- // since our types don't have destructors
  for (size_t i = 0; i < size; ++i)
  new (result.data + i) T(data[i]);
  return result;
@@ -23189,7 +22771,6 @@ void Parser::incrementRecursionCounter(const char* context)
 }
 void Parser::report(const Location& location, const char* format, va_list args)
 {
- // For example, consider 'local a = (((b + ' where multiple tokens haven't been written yet
  if (!parseErrors.empty() && location == parseErrors.back().getLocation())
  return;
  std::string message = vformat(format, args);
@@ -23254,7 +22835,6 @@ void Parser::nextLexeme()
  const Lexeme& lexeme = lexer.current();
  if (options.captureComments)
  commentLocations.push_back(Comment{lexeme.type, lexeme.location});
- // The parser will turn this into a proper syntax error.
  if (lexeme.type == Lexeme::BrokenComment)
  return;
  if (lexeme.type == Lexeme::Comment && lexeme.length && lexeme.data[0] == '!')
@@ -23269,11 +22849,6 @@ void Parser::nextLexeme()
  }
 }
 }
-//included "array"
-//included "vector"
-//included "string"
-//included "string.h"
-//included "stdint.h"
 namespace Luau
 {
 void vformatAppend(std::string& ret, const char* fmt, va_list args)
@@ -23375,7 +22950,6 @@ size_t editDistance(std::string_view a, std::string_view b)
  a.remove_suffix(1);
  b.remove_suffix(1);
  }
- // it is therefore pointless to run the rest of this function to find that out. We immediately infer this size and return it.
  if (a.empty())
  return b.size();
  if (b.empty())
@@ -23416,7 +22990,6 @@ size_t editDistance(std::string_view a, std::string_view b)
  size_t substitution = distances[getPos(x, y)] + cost;
  size_t insertion = distances[getPos(x, y + 1)] + 1;
  size_t deletion = distances[getPos(x + 1, y)] + 1;
- // Until proven otherwise, please do not change this.
  distances[getPos(x + 1, y + 1)] = std::min(std::min(insertion, deletion), std::min(substitution, transposition));
  }
  unsigned char aSeenCharIndex = static_cast<unsigned char>(a[x - 1]);
@@ -23508,7 +23081,6 @@ std::string escape(std::string_view s, bool escapeForInterpString)
 }
 }
 #include <mutex>
-//included "stdlib.h"
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -23518,7 +23090,6 @@ std::string escape(std::string_view s, bool escapeForInterpString)
 #endif
 #endif
 #ifdef __APPLE__
-//included "mach_time.h"
 #endif
 LUAU_FASTFLAGVARIABLE(DebugLuauTimeTracing, false)
 namespace Luau
@@ -23581,7 +23152,6 @@ struct GlobalContext
  GlobalContext() = default;
  ~GlobalContext()
  {
- // But in VS, not all thread_local object instances are destroyed
  for (ThreadContext* context : threads)
  {
  if (!context->events.empty())
@@ -23722,7 +23292,6 @@ uint16_t createScopeData(const char* name, const char* category)
 }
 } // namespace Luau
 #endif
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 namespace Luau
 {
 class AstNameTable;
@@ -24158,7 +23727,6 @@ Constant foldBuiltin(int bfid, const Constant* args, size_t count)
 }
 }
 } // namespace Luau
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 namespace Luau
 {
 struct CompileOptions;
@@ -24195,7 +23763,6 @@ struct BuiltinInfo
 BuiltinInfo getBuiltinInfo(int bfid);
 }
 } // namespace Luau
-//included "ParseOptions.h"
 namespace Luau
 {
 class AstNameTable;
@@ -24204,11 +23771,8 @@ class BytecodeBuilder;
 class BytecodeEncoder;
 struct CompileOptions
 {
- // 1 - baseline optimization level that doesn't prevent debuggability
  int optimizationLevel = 1;
- // 1 - line info & function names only; sufficient for backtraces
  int debugLevel = 1;
- // 1 - statement coverage
  int coverageLevel = 0;
  const char* vectorLib = nullptr;
  const char* vectorCtor = nullptr;
@@ -24556,7 +24120,6 @@ BuiltinInfo getBuiltinInfo(int bfid)
 }
 }
 } // namespace Luau
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 namespace Luau
 {
 class BytecodeEncoder
@@ -24568,8 +24131,6 @@ public:
 class BytecodeBuilder
 {
 public:
- // Please be careful with the lifetime of the data that's being passed because of this.
- // Note that you must finalize() the builder before the Allocator backing the Ast is destroyed.
  struct StringRef
  {
  const char* data = nullptr;
@@ -24760,8 +24321,6 @@ private:
  unsigned int addStringTableEntry(StringRef value);
 };
 }
-//included "algorithm"
-//included "string.h"
 namespace Luau
 {
 static_assert(LBC_VERSION_TARGET >= LBC_VERSION_MIN && LBC_VERSION_TARGET <= LBC_VERSION_MAX, "Invalid bytecode version setup");
@@ -25328,7 +24887,6 @@ void BytecodeBuilder::writeFunction(std::string& ss, uint32_t id) const
 void BytecodeBuilder::writeLineInfo(std::string& ss) const
 {
  LUAU_ASSERT(!lines.empty());
- // span is always a power of two; depending on the line info input, it may need to be as low as 1
  int span = 1 << 24;
  for (size_t offset = 0; offset < lines.size(); offset += span)
  {
@@ -25344,7 +24902,6 @@ void BytecodeBuilder::writeLineInfo(std::string& ss) const
  }
  if (next < lines.size() && next - offset < size_t(span))
  {
- // next iteration will need to reprocess some lines again since span changed
  span = 1 << log2(int(next - offset));
  }
  }
@@ -25422,8 +24979,6 @@ int BytecodeBuilder::decomposeImportId(uint32_t ids, int32_t& id0, int32_t& id1,
 }
 uint32_t BytecodeBuilder::getStringHash(StringRef key)
 {
- // VM independent in terms of compilation/linking. The resulting string hashes are embedded into bytecode binary and result in a better initial
- // it doesn't really matter on long identifiers.
  const char* str = key.data;
  size_t len = key.length;
  unsigned int h = unsigned(len);
@@ -25433,14 +24988,12 @@ uint32_t BytecodeBuilder::getStringHash(StringRef key)
 }
 void BytecodeBuilder::foldJumps()
 {
- // it's safer to skip this processing
  if (hasLongJumps)
  return;
  for (Jump& jump : jumps)
  {
  uint32_t jumpLabel = jump.source;
  uint32_t jumpInsn = insns[jumpLabel];
- // we only follow forward jumps to make sure the process terminates
  uint32_t targetLabel = jumpLabel + 1 + LUAU_INSN_D(jumpInsn);
  LUAU_ASSERT(targetLabel < insns.size());
  uint32_t targetInsn = insns[targetLabel];
@@ -25468,16 +25021,10 @@ void BytecodeBuilder::expandJumps()
 {
  if (!hasLongJumps)
  return;
- // our strategy for replacing instructions is as follows: instead of
- // we will synthesize a jump trampoline before our instruction (note that jump offsets are relative to next instruction):
- // JUMPX jumpoffset
- // the idea is that during forward execution, we will jump over JUMPX into OP; if OP decides to jump, it will jump to JUMPX
- // because of this, we may need to expand jumps that previously fit into 16-bit just fine.
  const int kMaxJumpDistanceConservative = 32767 / 3;
  std::sort(jumps.begin(), jumps.end(), [](const Jump& lhs, const Jump& rhs) {
  return lhs.source < rhs.source;
  });
- // we will create new instruction buffers, with remap table keeping track of the moves: remap[oldpc] = newpc
  std::vector<uint32_t> remap(insns.size());
  std::vector<uint32_t> newinsns;
  std::vector<int> newlines;
@@ -25514,7 +25061,6 @@ void BytecodeBuilder::expandJumps()
  }
  LUAU_ASSERT(currentJump == jumps.size());
  LUAU_ASSERT(pendingTrampolines > 0);
- // instructions
  for (Jump& jump : jumps)
  {
  int offset = int(jump.target) - int(jump.source) - 1;
@@ -25524,7 +25070,6 @@ void BytecodeBuilder::expandJumps()
  uint32_t& insnt = newinsns[remap[jump.source] - 1];
  uint32_t& insnj = newinsns[remap[jump.source]];
  LUAU_ASSERT(LUAU_INSN_OP(insnt) == LOP_JUMPX);
- // relative to JUMPX
  insnt &= 0xff;
  insnt |= uint32_t(newoffset + 1) << 8;
  insnj &= 0xffff;
@@ -25871,8 +25416,6 @@ void BytecodeBuilder::validateInstructions() const
  i += getOpLength(op);
  LUAU_ASSERT(i <= insns.size());
  }
- // this doesn't guarantee safety as it doesn't perform basic block based analysis, but if this fails
- // except for loop edges
  LUAU_ASSERT(openCaptures.empty());
 #undef VREG
 #undef VREGEND
@@ -25883,10 +25426,6 @@ void BytecodeBuilder::validateInstructions() const
 }
 void BytecodeBuilder::validateVariadic() const
 {
- // we classify instructions into four groups: producers, consumers, neutral and others
- // and a consumer (that consumes more than one value); these form a variadic sequence.
- // from the execution perspective, producer adjusts L->top to point to one past the last result, neutral instructions
- // consumers invalidate all values after L->top after they execute (which we currently don't validate)
  bool variadicSeq = false;
  std::vector<uint8_t> insntargets(insns.size(), 0);
  for (size_t i = 0; i < insns.size();)
@@ -25908,7 +25447,6 @@ void BytecodeBuilder::validateVariadic() const
  LuauOpcode op = LuauOpcode(LUAU_INSN_OP(insn));
  if (variadicSeq)
  {
- // this guarantees uninterrupted L->top adjustment flow
  LUAU_ASSERT(!insntargets[i]);
  }
  if (op == LOP_CALL)
@@ -25944,19 +25482,16 @@ void BytecodeBuilder::validateVariadic() const
  LUAU_ASSERT(unsigned(callTarget) < insns.size() && LUAU_INSN_OP(insns[callTarget]) == LOP_CALL);
  if (LUAU_INSN_B(insns[callTarget]) == 0)
  {
- // during FASTCALL fallback, the instructions between this and CALL consumer are going to be executed before L->top so they must
  LUAU_ASSERT(variadicSeq);
  }
  else
  {
  LUAU_ASSERT(!variadicSeq);
  }
- // variadic sequence since they are never executed if FASTCALL does anything, so it's okay to skip their validation until CALL
  }
  else if (op == LOP_CLOSEUPVALS || op == LOP_NAMECALL || op == LOP_GETIMPORT || op == LOP_MOVE || op == LOP_GETUPVAL || op == LOP_GETGLOBAL ||
  op == LOP_GETTABLEKS || op == LOP_COVERAGE)
  {
- // while there are many neutral instructions like this, here we check that the instruction is one of the few
  }
  else
  {
@@ -26494,9 +26029,6 @@ void BytecodeBuilder::annotateInstruction(std::string& result, uint32_t fid, uin
  formatAppend(result, "%.*s", dumpinstoffs[next] - dumpinstoffs[instpos], dump.data() + dumpinstoffs[instpos]);
 }
 }
-//included "Parser.h"
-//included "BytecodeBuilder.h"
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 namespace Luau
 {
 namespace Compile
@@ -26608,7 +26140,6 @@ struct Compiler
  upvals.push_back(local);
  return uint8_t(upvals.size() - 1);
  }
- // note: because this function doesn't visit loop nodes, it (correctly) only detects break/continue that refer to the outer control flow
  bool alwaysTerminates(AstStat* node)
  {
  if (AstStatBlock* stat = node->as<AstStatBlock>())
@@ -26672,7 +26203,6 @@ struct Compiler
  AstStatBlock* stat = func->body;
  for (size_t i = 0; i < stat->body.size; ++i)
  compileStat(stat->body.data[i]);
- // we elide this if we're guaranteed to hit a RETURN statement regardless of the control flow
  if (!alwaysTerminates(stat))
  {
  setDebugLineEnd(stat);
@@ -26722,10 +26252,8 @@ struct Compiler
  return node->is<AstExprVarargs>();
  if (options.optimizationLevel <= 1)
  return true;
- // without this we may omit some optimizations eg compiling fast calls without use of FASTCALL2K
  if (isConstant(expr))
  return false;
- // note: optimizationLevel check is technically redundant but it's important that we never optimize based on builtins in O1
  if (options.optimizationLevel >= 2)
  if (int* bfid = builtins.find(expr))
  return getBuiltinInfo(*bfid).results != 1;
@@ -26735,7 +26263,6 @@ struct Compiler
  return false;
  return true;
  }
- // this is important to be able to support "multret" semantics due to Lua call frame structure
  bool compileExprTempMultRet(AstExpr* node, uint8_t target)
  {
  if (AstExprCall* expr = node->as<AstExprCall>())
@@ -26745,14 +26272,12 @@ struct Compiler
  compileExprTemp(node, target);
  return false;
  }
- // This is a crude hack but it's necessary for correctness :(
  RegScope rs(this, target);
  compileExprCall(expr, target, 0, true, true);
  return true;
  }
  else if (AstExprVarargs* expr = node->as<AstExprVarargs>())
  {
- // This is a crude hack but it's necessary for correctness :(
  RegScope rs(this, target);
  compileExprVarargs(expr, target, 0, true);
  return true;
@@ -26763,10 +26288,8 @@ struct Compiler
  return false;
  }
  }
- // this is important to be able to emit code that takes fewer registers and runs faster
  void compileExprTempTop(AstExpr* node, uint8_t target)
  {
- // This is a crude hack but it's necessary for performance :(
  RegScope rs(this, target + 1);
  compileExprTemp(node, target);
  }
@@ -26792,7 +26315,6 @@ struct Compiler
  }
  size_t fastcallLabel = bytecode.emitLabel();
  bytecode.emitABC(LOP_FASTCALL1, LBF_SELECT_VARARG, argreg, 0);
- // we can't use TempTop variant here because we need to make sure the arguments we already computed aren't overwritten
  compileExprTemp(expr->func, regs);
  if (argreg != regs + 1)
  bytecode.emitABC(LOP_MOVE, uint8_t(regs + 1), argreg, 0);
@@ -26839,7 +26361,6 @@ struct Compiler
  bytecode.emitABC(opc, uint8_t(bfid), uint8_t(args[0]), 0);
  if (opc != LOP_FASTCALL1)
  bytecode.emitAux(bfK >= 0 ? bfK : args[1]);
- // Note, as with other instructions that immediately follow FASTCALL, these are normally not executed and are used as a fallback for
  for (size_t i = 0; i < expr->args.size; ++i)
  {
  if (i > 0 && opc == LOP_FASTCALL2K)
@@ -26847,10 +26368,8 @@ struct Compiler
  else if (args[i] != regs + 1 + i)
  bytecode.emitABC(LOP_MOVE, uint8_t(regs + 1 + i), uint8_t(args[i]), 0);
  }
- // we can't use TempTop variant here because we need to make sure the arguments we already computed aren't overwritten
  compileExprTemp(expr->func, regs);
  size_t callLabel = bytecode.emitLabel();
- // sequence after FASTCALL
  if (!bytecode.patchSkipC(fastcallLabel, callLabel))
  CompileError::raise(expr->func->location, "Exceeded jump distance limit; simplify the code to compile");
  bytecode.emitABC(LOP_CALL, regs, uint8_t(expr->args.size + 1), multRet ? 0 : uint8_t(targetCount + 1));
@@ -26881,8 +26400,6 @@ struct Compiler
  bytecode.addDebugRemark("inlining failed: can't inline recursive calls");
  return false;
  }
- // - inlined return compiles to a JUMP, and we don't have an instruction that adjusts L->top arbitrarily
- // - additionally, we can't easily compile multret expressions into designated target as computed call arguments will get clobbered
  if (multRet)
  {
  bytecode.addDebugRemark("inlining failed: can't convert fixed returns to multret");
@@ -26921,7 +26438,6 @@ struct Compiler
  {
  inlineFrames.push_back({func, oldLocals, target, targetCount});
  }
- // note that compiler state (variable registers/values) does not change here - we defer that to a separate loop below to handle nested calls
  for (size_t i = 0; i < func->args.size; ++i)
  {
  AstLocal* var = func->args.data[i];
@@ -27003,7 +26519,6 @@ struct Compiler
  }
  if (FFlag::LuauCompileInlineDefer)
  {
- // note: locals use current startpc for debug info, although some of them have been computed earlier; this is similar to compileStatLocal
  for (InlineArg& arg : args)
  if (arg.value.type == Constant::Type_Unknown)
  pushLocal(arg.local, arg.reg);
@@ -27081,7 +26596,6 @@ struct Compiler
  }
  if (bfid == LBF_SELECT_VARARG)
  {
- // note: for now we restrict this to single-return expressions since our runtime code doesn't deal with general cases
  if (multRet == false && targetCount == 1)
  return compileExprSelectVararg(expr, target, targetCount, targetTop, multRet, regs);
  else
@@ -27119,7 +26633,6 @@ struct Compiler
  }
  else
  {
- // finite stack space NAMECALL will happily move object from regs to regs+1 but we need to compute it into regs so that
  selfreg = regs;
  compileExprTempTop(fi->expr, selfreg);
  }
@@ -27151,10 +26664,8 @@ struct Compiler
  {
  size_t fastcallLabel = bytecode.emitLabel();
  bytecode.emitABC(LOP_FASTCALL, uint8_t(bfid), 0, 0);
- // we can't use TempTop variant here because we need to make sure the arguments we already computed aren't overwritten
  compileExprTemp(expr->func, regs);
  size_t callLabel = bytecode.emitLabel();
- // sequence after FASTCALL
  if (!bytecode.patchSkipC(fastcallLabel, callLabel))
  CompileError::raise(expr->func->location, "Exceeded jump distance limit; simplify the code to compile");
  }
@@ -27177,8 +26688,6 @@ struct Compiler
  return false;
  if (ul->written)
  return false;
- // this is because of a runtime equality check in DUPCLOSURE.
- // instead we apply a heuristic: we share closures if they refer to top-level upvalues, or closures that refer to top-level upvalues
  if (uv->functionDepth != 0 || uv->loopDepth != 0)
  {
  AstExprFunction* uf = ul->init ? ul->init->as<AstExprFunction>() : nullptr;
@@ -27195,7 +26704,6 @@ struct Compiler
  RegScope rs(this);
  const Function* f = functions.find(expr);
  LUAU_ASSERT(f);
- // when the closure has no upvalues, we use constant closures that technically don't rely on the child function list
  int16_t pid = bytecode.addChildFunction(f->id);
  if (pid < 0)
  CompileError::raise(expr->location, "Exceeded closure limit; simplify the code to compile");
@@ -27219,12 +26727,10 @@ struct Compiler
  else
  {
  LUAU_ASSERT(uv->functionDepth < expr->functionDepth - 1);
- // note: this will add uv to the current upvalue list if necessary
  uint8_t uid = getUpval(uv);
  captures.push_back({LCT_UPVAL, uid});
  }
  }
- // objects (this breaks assumptions about function identity which can lead to setfenv not working as expected, so we disable this when it
  int16_t shared = -1;
  if (options.optimizationLevel >= 1 && shouldShareClosure(expr) && !setfenvUsed)
  {
@@ -27423,8 +26929,6 @@ struct Compiler
  CompileError::raise(node->location, "Exceeded constant limit; simplify the code to compile");
  return cid;
  }
- // if the expr (or not expr if onlyTruth is false) is truthy, jump via skipJump
- // if target is omitted, then the jump behavior is the same - skipJump or fallthrough depending on the truthiness of the expression
  void compileConditionValue(AstExpr* node, const uint8_t* target, std::vector<size_t>& skipJump, bool onlyTruth)
  {
  if (const Constant* cv = constants.find(node); cv && cv->type != Constant::Type_Unknown)
@@ -27445,14 +26949,10 @@ struct Compiler
  case AstExprBinary::And:
  case AstExprBinary::Or:
  {
- // onlyTruth = 1: a and b transforms to a ? b : dontcare
- // onlyTruth = 0: a and b transforms to !a ? a : b
  if (onlyTruth == (expr->op == AstExprBinary::And))
  {
- // onlyTruth if it's the same then the result of the expression is the right hand side because of this, we *never* care about the
  std::vector<size_t> elseJump;
  compileConditionValue(expr->left, nullptr, elseJump, !onlyTruth);
- // we use compileConditionValue again to process any extra and/or statements directly
  compileConditionValue(expr->right, target, skipJump, onlyTruth);
  size_t elseLabel = bytecode.emitLabel();
  patchJumps(expr, elseJump, elseLabel);
@@ -27460,7 +26960,6 @@ struct Compiler
  else
  {
  compileConditionValue(expr->left, target, skipJump, onlyTruth);
- // we still use compileConditionValue to recursively optimize any and/or/compare statements
  compileConditionValue(expr->right, target, skipJump, onlyTruth);
  }
  return;
@@ -27475,7 +26974,6 @@ struct Compiler
  {
  if (target)
  {
- // if the comparison is false, we'll fallthrough and target will still be 1 but target has unspecified value for falsy results
  bytecode.emitABC(LOP_LOADB, *target, onlyTruth ? 1 : 0, 0);
  }
  size_t jumpLabel = compileCompareJump(expr, !onlyTruth);
@@ -27488,7 +26986,6 @@ struct Compiler
  }
  if (AstExprUnary* expr = node->as<AstExprUnary>())
  {
- // this is possible but cumbersome; so for now we only optimize not expression when we *don't* need the value
  if (!target && expr->op == AstExprUnary::Not)
  {
  compileConditionValue(expr->expr, target, skipJump, !onlyTruth);
@@ -27567,7 +27064,6 @@ struct Compiler
  return;
  }
  }
- // If it's not a temp register, then something like `a = a > 1 or a + 2` may clobber `a` while evaluating left hand side, and `a+2` will break
  uint8_t reg = targetTemp ? target : allocReg(expr, 1);
  std::vector<size_t> skipJump;
  compileConditionValue(expr->left, &reg, skipJump, !and_);
@@ -27710,7 +27206,6 @@ struct Compiler
  formatString += "%*";
  }
  size_t formatStringSize = formatString.size();
- // pinned in memory, so when interpFormatStrings grows, these pointers will move and become invalid.
  std::unique_ptr<char[]> formatStringPtr(new char[formatStringSize]);
  memcpy(formatStringPtr.get(), formatString.data(), formatStringSize);
  AstArray<char> formatStringArray{formatStringPtr.get(), formatStringSize};
@@ -27769,7 +27264,6 @@ struct Compiler
  const Constant* ckey = constants.find(item.key);
  indexSize += (ckey && ckey->type == Constant::Type_Number && ckey->valueNumber == double(indexSize + 1));
  }
- // technically it's "safe" to do this even if we have other keys, but doing so changes iteration order and may break existing code
  if (hashSize == recordSize + indexSize)
  hashSize = recordSize;
  else
@@ -27809,7 +27303,6 @@ struct Compiler
  }
  else
  {
- // correct amount of storage
  const AstExprTable::Item* last = expr->items.size > 0 ? &expr->items.data[expr->items.size - 1] : nullptr;
  bool trailingVarargs = last && last->kind == AstExprTable::Item::List && last->value->is<AstExprVarargs>();
  LUAU_ASSERT(!trailingVarargs || arraySize > 0);
@@ -28138,10 +27631,8 @@ struct Compiler
  compileExprTemp(node, reg);
  return reg;
  }
- // if expression is a call/vararg, we assume it returns all values, otherwise we fill the rest with nil
  void compileExprTempN(AstExpr* node, uint8_t target, uint8_t targetCount, bool targetTop)
  {
- // this is what allows us to compile the last call expression - if it's a call - using targetTop=true
  LUAU_ASSERT(!targetTop || unsigned(target + targetCount) == regTop);
  if (AstExprCall* expr = node->as<AstExprCall>())
  {
@@ -28158,11 +27649,8 @@ struct Compiler
  bytecode.emitABC(LOP_LOADNIL, uint8_t(target + i), 0, 0);
  }
  }
- // if list has fewer expressions, and last expression is multret, we assume it returns the rest of the values
- // assumes target register range can be clobbered and is at the top of the register space if targetTop = true
  void compileExprListTemp(const AstArray<AstExpr*>& list, uint8_t target, uint8_t targetCount, bool targetTop)
  {
- // this is what allows us to compile the last call expression - if it's a call - using targetTop=true
  LUAU_ASSERT(!targetTop || unsigned(target + targetCount) == regTop);
  if (list.size == targetCount)
  {
@@ -28397,7 +27885,6 @@ struct Compiler
  compileStat(stat->thenbody);
  if (stat->elsebody && elseJump.size() > 0)
  {
- // this is important because, if "else" also ends with return, we may *not* have any statement to skip to!
  if (alwaysTerminates(stat->thenbody))
  {
  size_t elseLabel = bytecode.emitLabel();
@@ -28435,7 +27922,6 @@ struct Compiler
  size_t contLabel = bytecode.emitLabel();
  size_t backLabel = bytecode.emitLabel();
  setDebugLine(stat->condition);
- // instruction
  bytecode.emitAD(LOP_JUMPBACK, 0, 0);
  size_t endLabel = bytecode.emitLabel();
  patchJump(stat, backLabel, loopLabel);
@@ -28450,7 +27936,6 @@ struct Compiler
  size_t oldLocals = localStack.size();
  loops.push_back({oldLocals, stat->condition});
  size_t loopLabel = bytecode.emitLabel();
- // this is necessary because condition can access locals declared inside the repeat..until body
  AstStatBlock* body = stat->body;
  RegScope rs(this);
  for (size_t i = 0; i < body->body.size; ++i)
@@ -28467,10 +27952,8 @@ struct Compiler
  {
  std::vector<size_t> skipJump;
  compileConditionValue(stat->condition, nullptr, skipJump, true);
- // mutates them
  closeLocals(oldLocals);
  size_t backLabel = bytecode.emitLabel();
- // instruction
  bytecode.emitAD(LOP_JUMPBACK, 0, 0);
  size_t skipLabel = bytecode.emitLabel();
  closeLocals(oldLocals);
@@ -28502,7 +27985,6 @@ struct Compiler
  uint8_t temp = 0;
  bool consecutive = false;
  bool multRet = false;
- // this is very important for a single return value and occasionally effective for multiple values
  if (int reg = stat->list.size > 0 ? getExprLocalReg(stat->list.data[0]) : -1; reg >= 0)
  {
  temp = uint8_t(reg);
@@ -28639,8 +28121,6 @@ struct Compiler
  size_t oldJumps = loopJumps.size();
  loops.push_back({oldLocals, nullptr});
  uint8_t regs = allocReg(stat, 3);
- // to do that, we will copy the index into an actual local variable on each iteration
- // through)
  uint8_t varreg = regs + 2;
  if (Variable* il = variables.find(stat->var); il && il->written)
  varreg = allocReg(stat, 1);
@@ -28681,7 +28161,6 @@ struct Compiler
  uint8_t vars = allocReg(stat, std::max(unsigned(stat->vars.size), 2u));
  LUAU_ASSERT(vars == regs + 3);
  LuauOpcode skipOp = LOP_FORGPREP;
- // These instructions dynamically check if generator is equal to next/inext and bail out
  if (options.optimizationLevel >= 1 && stat->vars.size <= 2)
  {
  if (stat->values.size == 1 && stat->values.data[0]->is<AstExprCall>())
@@ -28699,7 +28178,6 @@ struct Compiler
  skipOp = LOP_FORGPREP_NEXT;
  }
  }
- // worthwhile
  size_t skipLabel = bytecode.emitLabel();
  bytecode.emitAD(skipOp, regs, 0);
  size_t loopLabel = bytecode.emitLabel();
@@ -28726,12 +28204,6 @@ struct Compiler
  uint8_t conflictReg = kInvalidReg;
  uint8_t valueReg = kInvalidReg;
  };
- // but subsequently used on the rhs, assuming assignments are performed in order. Note that it's also possible
- // When conflicts are found, Assignment::conflictReg is allocated and that's where assignment is performed instead,
- //
- //
- // during the assignment changes the value of a variable, Lua gives no guarantees about the order of that access.
- // As such, we currently don't check if an assigned local is captured, which may mean it gets reassigned during a function call.
  void resolveAssignConflicts(AstStat* stat, std::vector<Assignment>& vars, const AstArray<AstExpr*>& values)
  {
  struct Visitor : AstVisitor
@@ -28770,7 +28242,6 @@ struct Compiler
  }
  for (size_t i = vars.size(); i < values.size; ++i)
  values.data[i]->visit(&visitor);
- // this is order-independent because we evaluate all right hand side arguments into registers before doing table assignments
  for (const Assignment& var : vars)
  {
  const LValue& li = var.lvalue;
@@ -28805,20 +28276,15 @@ struct Compiler
  }
  return;
  }
- // left hand side - for example, in "a[expr] = foo" expr will get evaluated here
  std::vector<Assignment> vars(stat->vars.size);
  for (size_t i = 0; i < stat->vars.size; ++i)
  vars[i].lvalue = compileLValue(stat->vars.data[i], rs);
- // register after this, vars[i].conflictReg is set for locals that need to be assigned in the second pass
  resolveAssignConflicts(stat, vars, stat->values);
- // note that when the lhs assigment is a local, we evaluate directly into that register
- // after this, vars[i].valueReg is set to a register with the value for *all* vars, but some have already been assigned
  for (size_t i = 0; i < stat->vars.size && i < stat->values.size; ++i)
  {
  AstExpr* value = stat->values.data[i];
  if (i + 1 == stat->values.size && stat->vars.size > stat->values.size)
  {
- // note, this also handles trailing nils
  uint8_t rest = uint8_t(stat->vars.size - stat->values.size + 1);
  uint8_t temp = allocReg(stat, rest);
  compileExprTempN(value, temp, rest, true);
@@ -28844,7 +28310,6 @@ struct Compiler
  RegScope rsi(this);
  compileExprAuto(stat->values.data[i], rsi);
  }
- // separate pass to avoid conflicts
  for (const Assignment& var : vars)
  {
  LUAU_ASSERT(var.valueReg != kInvalidReg);
@@ -28854,7 +28319,6 @@ struct Compiler
  compileAssign(var.lvalue, var.valueReg);
  }
  }
- // local copies from temporary registers in multret context, since in that case we have to allocate consecutive temporaries
  for (const Assignment& var : vars)
  {
  if (var.lvalue.kind == LValue::Kind_Local && var.valueReg != var.lvalue.reg)
@@ -28950,7 +28414,6 @@ struct Compiler
  else if (node->is<AstStatBreak>())
  {
  LUAU_ASSERT(!loops.empty());
- // normally they are closed by the enclosing blocks, including the loop block, but we're skipping that here
  closeLocals(loops.back().localOffset);
  size_t label = bytecode.emitLabel();
  bytecode.emitAD(LOP_JUMP, 0, 0);
@@ -28961,7 +28424,6 @@ struct Compiler
  LUAU_ASSERT(!loops.empty());
  if (loops.back().untilCondition)
  validateContinueUntil(stat, loops.back().untilCondition);
- // normally they are closed by the enclosing blocks, including the loop block, but we're skipping that here
  closeLocals(loops.back().localOffset);
  size_t label = bytecode.emitLabel();
  bytecode.emitAD(LOP_JUMP, 0, 0);
@@ -28976,7 +28438,6 @@ struct Compiler
  }
  else if (AstStatExpr* stat = node->as<AstStatExpr>())
  {
- // moves
  if (AstExprCall* expr = stat->expr->as<AstExprCall>())
  {
  uint8_t target = uint8_t(regTop);
@@ -29018,7 +28479,6 @@ struct Compiler
  pushLocal(stat->name, var);
  compileExprFunction(stat->func, var);
  Local& l = locals[stat->name];
- // however, this means the debugpc for the local is at an instruction where the local value hasn't been computed yet
  l.debugpc = bytecode.getDebugPC();
  }
  else if (node->is<AstStatTypeAlias>())
@@ -29278,7 +28738,6 @@ struct Compiler
  , oldTop(self->regTop)
  {
  }
- // discarded
  RegScope(Compiler* self, unsigned int top)
  : self(self)
  , oldTop(self->regTop)
@@ -29392,7 +28851,6 @@ void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, c
  Compiler::FenvVisitor fenvVisitor(compiler.getfenvUsed, compiler.setfenvUsed);
  root->visit(&fenvVisitor);
  }
- // for example, function foo() return function() end end will result in two vector entries, [0] = anonymous and [1] = foo
  std::vector<AstExprFunction*> functions;
  Compiler::FunctionVisitor functionVisitor(&compiler, functions);
  root->visit(&functionVisitor);
@@ -29441,8 +28899,6 @@ std::string compile(const std::string& source, const CompileOptions& options, co
  }
 }
 }
-//included "vector"
-//included "math.h"
 namespace Luau
 {
 namespace Compile
@@ -29769,7 +29225,6 @@ struct ConstantVisitor : AstVisitor
  }
  bool visit(AstExpr* node) override
  {
- // recursive traversal is happening inside analyze() which makes it easier to get the resulting value of the subexpression
  analyze(node);
  return false;
  }
@@ -29782,7 +29237,6 @@ struct ConstantVisitor : AstVisitor
  }
  if (node->vars.size > node->values.size)
  {
- // (aka call or varargs), we either don't know anything about these vars, or we know they're nil
  AstExpr* last = node->values.size ? node->values.data[node->values.size - 1] : nullptr;
  bool multRet = last && (last->is<AstExprCall>() || last->is<AstExprVarargs>());
  if (!multRet)
@@ -29796,7 +29250,6 @@ struct ConstantVisitor : AstVisitor
  }
  else
  {
- // them
  for (size_t i = node->vars.size; i < node->values.size; ++i)
  analyze(node->values.data[i]);
  }
@@ -29879,7 +29332,6 @@ struct Cost
  {
  uint64_t newmodel = parallelAddSat(x.model, y.model);
  uint64_t newconstant = x.constant & y.constant;
- // literal)
  uint64_t extra = (newconstant == kLiteral) ? 0 : (1 | (0x0101010101010101ull & newconstant));
  Cost result;
  result.model = parallelAddSat(newmodel, extra);
@@ -29923,7 +29375,6 @@ struct CostVisitor : AstVisitor
  }
  else if (AstExprCall* expr = node->as<AstExprCall>())
  {
- // thus we use a cheaper baseline, don't account for function, and assume constant/local copy is free
  bool builtin = builtins.find(expr) != nullptr;
  bool builtinShort = builtin && expr->args.size <= 2;
  Cost cost = builtin ? 2 : 3;
@@ -29992,7 +29443,6 @@ struct CostVisitor : AstVisitor
  }
  void assign(AstExpr* expr)
  {
- // this doesn't work perfectly with backwards control flow like loops, but is good enough for a single pass
  if (AstExprLocal* lv = expr->as<AstExprLocal>())
  if (uint64_t* i = vars.find(lv->local))
  *i = 0;
@@ -30006,7 +29456,6 @@ struct CostVisitor : AstVisitor
  }
  bool visit(AstExpr* node) override
  {
- // recursive traversal is happening inside model() which makes it easier to get the resulting value of the subexpression
  result += model(node);
  return false;
  }
@@ -30104,6 +29553,23 @@ int getTripCount(double from, double to, double step)
 }
 }
 } // namespace Luau
+char* luau_compile(const char* source, size_t size, lua_CompileOptions* options, size_t* outsize)
+{
+ LUAU_ASSERT(outsize);
+ Luau::CompileOptions opts;
+ if (options)
+ {
+ static_assert(sizeof(lua_CompileOptions) == sizeof(Luau::CompileOptions), "C and C++ interface must match");
+ memcpy(static_cast<void*>(&opts), options, sizeof(opts));
+ }
+ std::string result = compile(std::string(source, size), opts);
+ char* copy = static_cast<char*>(malloc(result.size()));
+ if (!copy)
+ return nullptr;
+ memcpy(copy, result.data(), result.size());
+ *outsize = result.size();
+ return copy;
+}
 namespace Luau
 {
 namespace Compile
@@ -30304,22 +29770,4 @@ void trackValues(DenseHashMap<AstName, Global>& globals, DenseHashMap<AstLocal*,
 }
 }
 } // namespace Luau
-//included "string.h"
-char* luau_compile(const char* source, size_t size, lua_CompileOptions* options, size_t* outsize)
-{
- LUAU_ASSERT(outsize);
- Luau::CompileOptions opts;
- if (options)
- {
- static_assert(sizeof(lua_CompileOptions) == sizeof(Luau::CompileOptions), "C and C++ interface must match");
- memcpy(static_cast<void*>(&opts), options, sizeof(opts));
- }
- std::string result = compile(std::string(source, size), opts);
- char* copy = static_cast<char*>(malloc(result.size()));
- if (!copy)
- return nullptr;
- memcpy(copy, result.data(), result.size());
- *outsize = result.size();
- return copy;
-}
 #endif
