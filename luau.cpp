@@ -29553,23 +29553,6 @@ int getTripCount(double from, double to, double step)
 }
 }
 } // namespace Luau
-char* luau_compile(const char* source, size_t size, lua_CompileOptions* options, size_t* outsize)
-{
- LUAU_ASSERT(outsize);
- Luau::CompileOptions opts;
- if (options)
- {
- static_assert(sizeof(lua_CompileOptions) == sizeof(Luau::CompileOptions), "C and C++ interface must match");
- memcpy(static_cast<void*>(&opts), options, sizeof(opts));
- }
- std::string result = compile(std::string(source, size), opts);
- char* copy = static_cast<char*>(malloc(result.size()));
- if (!copy)
- return nullptr;
- memcpy(copy, result.data(), result.size());
- *outsize = result.size();
- return copy;
-}
 namespace Luau
 {
 namespace Compile
@@ -29770,4 +29753,21 @@ void trackValues(DenseHashMap<AstName, Global>& globals, DenseHashMap<AstLocal*,
 }
 }
 } // namespace Luau
+char* luau_compile(const char* source, size_t size, lua_CompileOptions* options, size_t* outsize)
+{
+ LUAU_ASSERT(outsize);
+ Luau::CompileOptions opts;
+ if (options)
+ {
+ static_assert(sizeof(lua_CompileOptions) == sizeof(Luau::CompileOptions), "C and C++ interface must match");
+ memcpy(static_cast<void*>(&opts), options, sizeof(opts));
+ }
+ std::string result = compile(std::string(source, size), opts);
+ char* copy = static_cast<char*>(malloc(result.size()));
+ if (!copy)
+ return nullptr;
+ memcpy(copy, result.data(), result.size());
+ *outsize = result.size();
+ return copy;
+}
 #endif
