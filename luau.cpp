@@ -5567,7 +5567,6 @@ const char* lua_debugtrace(lua_State* L)
 #else
 #include <stdexcept>
 #endif
-LUAU_FASTFLAGVARIABLE(LuauUniformTopHandling, false)
 #if LUA_USE_LONGJMP
 struct lua_jmpbuf
 {
@@ -5746,7 +5745,7 @@ void luaD_call(lua_State* L, StkId func, int nresults)
  if (!oldactive)
  L->isactive = false;
  }
- if (FFlag::LuauUniformTopHandling && nresults != LUA_MULTRET)
+ if (nresults != LUA_MULTRET)
  L->top = restorestack(L, old_func) + nresults;
  L->nCcalls--;
  luaC_checkGC(L);
@@ -12231,7 +12230,6 @@ int luaopen_utf8(lua_State* L)
  lua_setfield(L, -2, "charpattern");
  return 1;
 }
-LUAU_FASTFLAG(LuauUniformTopHandling)
 LUAU_FASTFLAG(LuauGetImportDirect)
 #ifdef __clang__
 #if __has_warning("-Wc99-designator")
@@ -12934,8 +12932,6 @@ reentry:
  L->top = (nresults == LUA_MULTRET) ? res : cip->top;
  if (LUAU_UNLIKELY(ci->flags & LUA_CALLINFO_RETURN))
  {
- if (!FFlag::LuauUniformTopHandling)
- L->top = res;
  goto exit;
  }
  LUAU_ASSERT(isLua(L->ci));
