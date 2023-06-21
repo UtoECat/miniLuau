@@ -118,8 +118,9 @@ enum LuauOpcode
 enum LuauBytecodeTag
 {
  LBC_VERSION_MIN = 3,
- LBC_VERSION_MAX = 3,
+ LBC_VERSION_MAX = 4,
  LBC_VERSION_TARGET = 3,
+ LBC_TYPE_VERSION = 1,
  LBC_CONSTANT_NIL = 0,
  LBC_CONSTANT_BOOLEAN,
  LBC_CONSTANT_NUMBER,
@@ -127,6 +128,21 @@ enum LuauBytecodeTag
  LBC_CONSTANT_IMPORT,
  LBC_CONSTANT_TABLE,
  LBC_CONSTANT_CLOSURE,
+};
+enum LuauBytecodeEncodedType
+{
+ LBC_TYPE_NIL = 0,
+ LBC_TYPE_BOOLEAN,
+ LBC_TYPE_NUMBER,
+ LBC_TYPE_STRING,
+ LBC_TYPE_TABLE,
+ LBC_TYPE_FUNCTION,
+ LBC_TYPE_THREAD,
+ LBC_TYPE_USERDATA,
+ LBC_TYPE_VECTOR,
+ LBC_TYPE_ANY = 15,
+ LBC_TYPE_OPTIONAL_BIT = 1 << 7,
+ LBC_TYPE_INVALID = 256,
 };
 enum LuauBuiltinFunction
 {
@@ -1387,7 +1403,6 @@ LUAI_FUNC void luaV_gettable(lua_State* L, const TValue* t, TValue* key, StkId v
 LUAI_FUNC void luaV_settable(lua_State* L, const TValue* t, TValue* key, StkId val);
 LUAI_FUNC void luaV_concat(lua_State* L, int total, int last);
 LUAI_FUNC void luaV_getimport(lua_State* L, Table* env, TValue* k, StkId res, uint32_t id, bool propagatenil);
-LUAI_FUNC void luaV_getimport_dep(lua_State* L, Table* env, TValue* k, uint32_t id, bool propagatenil);
 LUAI_FUNC void luaV_prepareFORN(lua_State* L, StkId plimit, StkId pstep, StkId pinit);
 LUAI_FUNC void luaV_callTM(lua_State* L, int nparams, int res);
 LUAI_FUNC void luaV_tryfuncTM(lua_State* L, StkId func);
@@ -12230,7 +12245,6 @@ int luaopen_utf8(lua_State* L)
  lua_setfield(L, -2, "charpattern");
  return 1;
 }
-LUAU_FASTFLAG(LuauGetImportDirect)
 #ifdef __clang__
 #if __has_warning("-Wc99-designator")
 #pragma clang diagnostic ignored "-Wc99-designator"
@@ -12489,19 +12503,8 @@ reentry:
  else
  {
  uint32_t aux = *pc++;
- if (FFlag::LuauGetImportDirect)
- {
  VM_PROTECT(luaV_getimport(L, cl->env, k, ra, aux, false));
  VM_NEXT();
- }
- else
- {
- VM_PROTECT(luaV_getimport_dep(L, cl->env, k, aux, false));
- ra = VM_REG(LUAU_INSN_A(insn));
- setobj2s(L, ra, L->top - 1);
- L->top--;
- VM_NEXT();
- }
  }
  }
  VM_CASE(LOP_GETTABLEKS)
@@ -14433,7 +14436,6 @@ void luau_poscall(lua_State* L, StkId first)
  L->base = cip->base;
  L->top = (ci->nresults == LUA_MULTRET) ? res : cip->top;
 }
-LUAU_FASTFLAGVARIABLE(LuauGetImportDirect, false)
 template<typename T>
 struct TempBuffer
 {
@@ -14478,24 +14480,6 @@ void luaV_getimport(lua_State* L, Table* env, TValue* k, StkId res, uint32_t id,
  if (!propagatenil || !ttisnil(res))
  luaV_gettable(L, res, &k[id2], res);
 }
-void luaV_getimport_dep(lua_State* L, Table* env, TValue* k, uint32_t id, bool propagatenil)
-{
- LUAU_ASSERT(!FFlag::LuauGetImportDirect);
- int count = id >> 30;
- int id0 = count > 0 ? int(id >> 20) & 1023 : -1;
- int id1 = count > 1 ? int(id >> 10) & 1023 : -1;
- int id2 = count > 2 ? int(id) & 1023 : -1;
- luaD_checkstack(L, 1);
- setnilvalue(L->top);
- L->top++;
- TValue g;
- sethvalue(L, &g, env);
- luaV_gettable(L, &g, &k[id0], L->top - 1);
- if (id1 >= 0 && (!propagatenil || !ttisnil(L->top - 1)))
- luaV_gettable(L, L->top - 1, &k[id1], L->top - 1);
- if (id2 >= 0 && (!propagatenil || !ttisnil(L->top - 1)))
- luaV_gettable(L, L->top - 1, &k[id2], L->top - 1);
-}
 template<typename T>
 static T read(const char* data, size_t size, size_t& offset)
 {
@@ -14531,15 +14515,10 @@ static void resolveImportSafe(lua_State* L, Table* env, TValue* k, uint32_t id)
  static void run(lua_State* L, void* ud)
  {
  ResolveImport* self = static_cast<ResolveImport*>(ud);
- if (FFlag::LuauGetImportDirect)
- {
  luaD_checkstack(L, 1);
  setnilvalue(L->top);
  L->top++;
  luaV_getimport(L, L->gt, self->k, L->top - 1, self->id, true);
- }
- else
- luaV_getimport_dep(L, L->gt, self->k, self->id, true);
  }
  };
  ResolveImport ri = {k, id};
@@ -14581,6 +14560,11 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  L->global->GCthreshold = SIZE_MAX;
  Table* envt = (env == 0) ? L->gt : hvalue(luaA_toobject(L, env));
  TString* source = luaS_new(L, chunkname);
+ if (version >= 4)
+ {
+ uint8_t typesversion = read<uint8_t>(data, size, offset);
+ LUAU_ASSERT(typesversion == 1);
+ }
  unsigned int stringCount = readVarInt(data, size, offset);
  TempBuffer<TString*> strings(L, stringCount);
  for (unsigned int i = 0; i < stringCount; ++i)
@@ -14600,6 +14584,20 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  p->numparams = read<uint8_t>(data, size, offset);
  p->nups = read<uint8_t>(data, size, offset);
  p->is_vararg = read<uint8_t>(data, size, offset);
+ if (version >= 4)
+ {
+ uint8_t cgflags = read<uint8_t>(data, size, offset);
+ LUAU_ASSERT(cgflags == 0);
+ uint32_t typesize = readVarInt(data, size, offset);
+ if (typesize)
+ {
+ uint8_t* types = (uint8_t*)data + offset;
+ LUAU_ASSERT(typesize == unsigned(2 + p->numparams));
+ LUAU_ASSERT(types[0] == LBC_TYPE_FUNCTION);
+ LUAU_ASSERT(types[1] == p->numparams);
+ offset += typesize;
+ }
+ }
  p->sizecode = readVarInt(data, size, offset);
  p->code = luaM_newarray(L, p->sizecode, Instruction, p->memcat);
  for (int j = 0; j < p->sizecode; ++j)
@@ -15849,15 +15847,23 @@ struct AstDeclaredClassProp
  AstType* ty = nullptr;
  bool isMethod = false;
 };
+struct AstTableIndexer
+{
+ AstType* indexType;
+ AstType* resultType;
+ Location location;
+};
 class AstStatDeclareClass : public AstStat
 {
 public:
  LUAU_RTTI(AstStatDeclareClass)
- AstStatDeclareClass(const Location& location, const AstName& name, std::optional<AstName> superName, const AstArray<AstDeclaredClassProp>& props);
+ AstStatDeclareClass(const Location& location, const AstName& name, std::optional<AstName> superName, const AstArray<AstDeclaredClassProp>& props,
+ AstTableIndexer* indexer = nullptr);
  void visit(AstVisitor* visitor) override;
  AstName name;
  std::optional<AstName> superName;
  AstArray<AstDeclaredClassProp> props;
+ AstTableIndexer* indexer;
 };
 class AstType : public AstNode
 {
@@ -15895,12 +15901,6 @@ struct AstTableProp
  AstName name;
  Location location;
  AstType* type;
-};
-struct AstTableIndexer
-{
- AstType* indexType;
- AstType* resultType;
- Location location;
 };
 class AstTypeTable : public AstType
 {
@@ -16892,12 +16892,13 @@ void AstStatDeclareFunction::visit(AstVisitor* visitor)
  visitTypeList(visitor, retTypes);
  }
 }
-AstStatDeclareClass::AstStatDeclareClass(
- const Location& location, const AstName& name, std::optional<AstName> superName, const AstArray<AstDeclaredClassProp>& props)
+AstStatDeclareClass::AstStatDeclareClass(const Location& location, const AstName& name, std::optional<AstName> superName,
+ const AstArray<AstDeclaredClassProp>& props, AstTableIndexer* indexer)
  : AstStat(ClassIndex(), location)
  , name(name)
  , superName(superName)
  , props(props)
+ , indexer(indexer)
 {
 }
 void AstStatDeclareClass::visit(AstVisitor* visitor)
@@ -20651,6 +20652,7 @@ LUAU_NOINLINE uint16_t createScopeData(const char* name, const char* category);
 #include <errno.h>
 LUAU_FASTINTVARIABLE(LuauRecursionLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
+LUAU_FASTFLAGVARIABLE(LuauParseDeclareClassIndexer, false)
 #define ERROR_INVALID_INTERP_DOUBLE_BRACE "Double braces are not permitted within interpolated strings. Did you mean '\\{'?"
 namespace Luau
 {
@@ -21227,13 +21229,15 @@ AstStat* Parser::parseDeclaration(const Location& start)
  superName = parseName("superclass name").name;
  }
  TempVector<AstDeclaredClassProp> props(scratchDeclaredClassProps);
+ AstTableIndexer* indexer = nullptr;
  while (lexer.current().type != Lexeme::ReservedEnd)
  {
  if (lexer.current().type == Lexeme::ReservedFunction)
  {
  props.push_back(parseDeclaredClassMethod());
  }
- else if (lexer.current().type == '[')
+ else if (lexer.current().type == '[' && (!FFlag::LuauParseDeclareClassIndexer || lexer.lookahead().type == Lexeme::RawString ||
+ lexer.lookahead().type == Lexeme::QuotedString))
  {
  const Lexeme begin = lexer.current();
  nextLexeme();
@@ -21247,6 +21251,18 @@ AstStat* Parser::parseDeclaration(const Location& start)
  else
  report(begin.location, "String literal contains malformed escape sequence");
  }
+ else if (lexer.current().type == '[' && FFlag::LuauParseDeclareClassIndexer)
+ {
+ if (indexer)
+ {
+ AstTableIndexer* badIndexer = parseTableIndexer();
+ report(badIndexer->location, "Cannot have more than one class indexer");
+ }
+ else
+ {
+ indexer = parseTableIndexer();
+ }
+ }
  else
  {
  Name propName = parseName("property name");
@@ -21257,7 +21273,7 @@ AstStat* Parser::parseDeclaration(const Location& start)
  }
  Location classEnd = lexer.current().location;
  nextLexeme();
- return allocator.alloc<AstStatDeclareClass>(Location(classStart, classEnd), className.name, superName, copy(props));
+ return allocator.alloc<AstStatDeclareClass>(Location(classStart, classEnd), className.name, superName, copy(props), indexer);
  }
  else if (std::optional<Name> globalName = parseNameOpt("global variable name"))
  {
@@ -24161,6 +24177,7 @@ public:
  [[nodiscard]] bool patchSkipC(size_t jumpLabel, size_t targetLabel);
  void foldJumps();
  void expandJumps();
+ void setFunctionTypeInfo(std::string value);
  void setDebugFunctionName(StringRef name);
  void setDebugFunctionLineDefined(int line);
  void setDebugLine(int line);
@@ -24196,6 +24213,7 @@ public:
  std::string dumpFunction(uint32_t id) const;
  std::string dumpEverything() const;
  std::string dumpSourceRemarks() const;
+ std::string dumpTypeInfo() const;
  void annotateInstruction(std::string& result, uint32_t fid, uint32_t instpos) const;
  static uint32_t getImportId(int32_t id0);
  static uint32_t getImportId(int32_t id0, int32_t id1);
@@ -24204,6 +24222,7 @@ public:
  static uint32_t getStringHash(StringRef key);
  static std::string getError(const std::string& message);
  static uint8_t getVersion();
+ static uint8_t getTypeEncodingVersion();
 private:
  struct Constant
  {
@@ -24249,6 +24268,7 @@ private:
  std::string dump;
  std::string dumpname;
  std::vector<int> dumpinstoffs;
+ std::string typeinfo;
  };
  struct DebugLocal
  {
@@ -24317,6 +24337,7 @@ private:
  unsigned int addStringTableEntry(StringRef value);
 };
 }
+LUAU_FASTFLAGVARIABLE(BytecodeVersion4, false)
 namespace Luau
 {
 static_assert(LBC_VERSION_TARGET >= LBC_VERSION_MIN && LBC_VERSION_TARGET <= LBC_VERSION_MAX, "Invalid bytecode version setup");
@@ -24703,6 +24724,10 @@ bool BytecodeBuilder::patchSkipC(size_t jumpLabel, size_t targetLabel)
  insns[jumpLabel] |= offset << 24;
  return true;
 }
+void BytecodeBuilder::setFunctionTypeInfo(std::string value)
+{
+ functions[currentFunction].typeinfo = std::move(value);
+}
 void BytecodeBuilder::setDebugFunctionName(StringRef name)
 {
  unsigned int index = addStringTableEntry(name);
@@ -24768,6 +24793,12 @@ void BytecodeBuilder::finalize()
  uint8_t version = getVersion();
  LUAU_ASSERT(version >= LBC_VERSION_MIN && version <= LBC_VERSION_MAX);
  bytecode = char(version);
+ if (FFlag::BytecodeVersion4)
+ {
+ uint8_t typesversion = getTypeEncodingVersion();
+ LUAU_ASSERT(typesversion == 1);
+ writeByte(bytecode, typesversion);
+ }
  writeStringTable(bytecode);
  writeVarInt(bytecode, uint32_t(functions.size()));
  for (const Function& func : functions)
@@ -24783,6 +24814,12 @@ void BytecodeBuilder::writeFunction(std::string& ss, uint32_t id) const
  writeByte(ss, func.numparams);
  writeByte(ss, func.numupvalues);
  writeByte(ss, func.isvararg);
+ if (FFlag::BytecodeVersion4)
+ {
+ writeByte(ss, 0);
+ writeVarInt(ss, uint32_t(func.typeinfo.size()));
+ ss.append(func.typeinfo);
+ }
  writeVarInt(ss, uint32_t(insns.size()));
  for (size_t i = 0; i < insns.size();)
  {
@@ -25094,7 +25131,13 @@ std::string BytecodeBuilder::getError(const std::string& message)
 }
 uint8_t BytecodeBuilder::getVersion()
 {
+ if (FFlag::BytecodeVersion4)
+ return 4;
  return LBC_VERSION_TARGET;
+}
+uint8_t BytecodeBuilder::getTypeEncodingVersion()
+{
+ return LBC_TYPE_VERSION;
 }
 #ifdef LUAU_ASSERTENABLED
 void BytecodeBuilder::validate() const
@@ -26010,6 +26053,61 @@ std::string BytecodeBuilder::dumpSourceRemarks() const
  }
  return result;
 }
+static const char* getBaseTypeString(uint8_t type)
+{
+ uint8_t tag = type & ~LBC_TYPE_OPTIONAL_BIT;
+ switch (tag)
+ {
+ case LBC_TYPE_NIL:
+ return "nil";
+ case LBC_TYPE_BOOLEAN:
+ return "boolean";
+ case LBC_TYPE_NUMBER:
+ return "number";
+ case LBC_TYPE_STRING:
+ return "string";
+ case LBC_TYPE_TABLE:
+ return "{ }";
+ case LBC_TYPE_FUNCTION:
+ return "function( )";
+ case LBC_TYPE_THREAD:
+ return "thread";
+ case LBC_TYPE_USERDATA:
+ return "userdata";
+ case LBC_TYPE_VECTOR:
+ return "vector";
+ case LBC_TYPE_ANY:
+ return "any";
+ }
+ LUAU_ASSERT(!"Unhandled type in getBaseTypeString");
+ return nullptr;
+}
+std::string BytecodeBuilder::dumpTypeInfo() const
+{
+ std::string result;
+ for (size_t i = 0; i < functions.size(); ++i)
+ {
+ const std::string& typeinfo = functions[i].typeinfo;
+ if (typeinfo.empty())
+ continue;
+ uint8_t encodedType = typeinfo[0];
+ LUAU_ASSERT(encodedType == LBC_TYPE_FUNCTION);
+ formatAppend(result, "%zu: function(", i);
+ LUAU_ASSERT(typeinfo.size() >= 2);
+ uint8_t numparams = typeinfo[1];
+ LUAU_ASSERT(size_t(1 + numparams - 1) < typeinfo.size());
+ for (uint8_t i = 0; i < numparams; ++i)
+ {
+ uint8_t et = typeinfo[2 + i];
+ const char* optional = (et & LBC_TYPE_OPTIONAL_BIT) ? "?" : "";
+ formatAppend(result, "%s%s", getBaseTypeString(et), optional);
+ if (i + 1 != numparams)
+ formatAppend(result, ", ");
+ }
+ formatAppend(result, ")\n");
+ }
+ return result;
+}
 void BytecodeBuilder::annotateInstruction(std::string& result, uint32_t fid, uint32_t instpos) const
 {
  if ((dumpFlags & Dump_Code) == 0)
@@ -26046,6 +26144,10 @@ struct TableShape
 void predictTableShapes(DenseHashMap<AstExprTable*, TableShape>& shapes, AstNode* root);
 }
 } // namespace Luau
+namespace Luau
+{
+std::string getFunctionType(const AstExprFunction* func);
+}
 #include <bitset>
 #include <memory>
 LUAU_FASTINTVARIABLE(LuauCompileLoopUnrollThreshold, 25)
@@ -26053,7 +26155,8 @@ LUAU_FASTINTVARIABLE(LuauCompileLoopUnrollThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThreshold, 25)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
-LUAU_FASTFLAGVARIABLE(LuauCompileInlineDefer, false)
+LUAU_FASTFLAGVARIABLE(CompileFunctionType, false)
+LUAU_FASTFLAG(BytecodeVersion4)
 namespace Luau
 {
 using namespace Luau::Compile;
@@ -26189,6 +26292,12 @@ struct Compiler
  bool self = func->self != 0;
  uint32_t fid = bytecode.beginFunction(uint8_t(self + func->args.size), func->vararg);
  setDebugLine(func);
+ if (FFlag::BytecodeVersion4 && FFlag::CompileFunctionType)
+ {
+ std::string funcType = getFunctionType(func);
+ if (!funcType.empty())
+ bytecode.setFunctionTypeInfo(std::move(funcType));
+ }
  if (func->vararg)
  bytecode.emitABC(LOP_PREPVARARGS, uint8_t(self + func->args.size), 0, 0);
  uint8_t args = allocReg(func, self + unsigned(func->args.size));
@@ -26426,14 +26535,7 @@ struct Compiler
  RegScope rs(this);
  size_t oldLocals = localStack.size();
  std::vector<InlineArg> args;
- if (FFlag::LuauCompileInlineDefer)
- {
  args.reserve(func->args.size);
- }
- else
- {
- inlineFrames.push_back({func, oldLocals, target, targetCount});
- }
  for (size_t i = 0; i < func->args.size; ++i)
  {
  AstLocal* var = func->args.data[i];
@@ -26448,16 +26550,8 @@ struct Compiler
  compileExprVarargs(expr, reg, tail);
  else
  LUAU_ASSERT(!"Unexpected expression type");
- if (FFlag::LuauCompileInlineDefer)
- {
  for (size_t j = i; j < func->args.size; ++j)
  args.push_back({func->args.data[j], uint8_t(reg + (j - i))});
- }
- else
- {
- for (size_t j = i; j < func->args.size; ++j)
- pushLocal(func->args.data[j], uint8_t(reg + (j - i)));
- }
  break;
  }
  else if (Variable* vv = variables.find(var); vv && vv->written)
@@ -26467,24 +26561,15 @@ struct Compiler
  compileExprTemp(arg, reg);
  else
  bytecode.emitABC(LOP_LOADNIL, reg, 0, 0);
- if (FFlag::LuauCompileInlineDefer)
  args.push_back({var, reg});
- else
- pushLocal(var, reg);
  }
  else if (arg == nullptr)
  {
- if (FFlag::LuauCompileInlineDefer)
  args.push_back({var, kInvalidReg, {Constant::Type_Nil}});
- else
- locstants[var] = {Constant::Type_Nil};
  }
  else if (const Constant* cv = constants.find(arg); cv && cv->type != Constant::Type_Unknown)
  {
- if (FFlag::LuauCompileInlineDefer)
  args.push_back({var, kInvalidReg, *cv});
- else
- locstants[var] = *cv;
  }
  else
  {
@@ -26492,19 +26577,13 @@ struct Compiler
  Variable* lv = le ? variables.find(le->local) : nullptr;
  if (int reg = le ? getExprLocalReg(le) : -1; reg >= 0 && (!lv || !lv->written))
  {
- if (FFlag::LuauCompileInlineDefer)
  args.push_back({var, uint8_t(reg)});
- else
- pushLocal(var, uint8_t(reg));
  }
  else
  {
  uint8_t temp = allocReg(arg, 1);
  compileExprTemp(arg, temp);
- if (FFlag::LuauCompileInlineDefer)
  args.push_back({var, temp});
- else
- pushLocal(var, temp);
  }
  }
  }
@@ -26513,15 +26592,12 @@ struct Compiler
  RegScope rsi(this);
  compileExprAuto(expr->args.data[i], rsi);
  }
- if (FFlag::LuauCompileInlineDefer)
- {
  for (InlineArg& arg : args)
  if (arg.value.type == Constant::Type_Unknown)
  pushLocal(arg.local, arg.reg);
  else
  locstants[arg.local] = arg.value;
  inlineFrames.push_back({func, oldLocals, target, targetCount});
- }
  foldConstants(constants, variables, locstants, builtinsFold, func->body);
  bool usedFallthrough = false;
  for (size_t i = 0; i < func->body->body.size; ++i)
@@ -29671,6 +29747,87 @@ void predictTableShapes(DenseHashMap<AstExprTable*, TableShape>& shapes, AstNode
 }
 }
 } // namespace Luau
+namespace Luau
+{
+static LuauBytecodeEncodedType getType(AstType* ty)
+{
+ if (AstTypeReference* ref = ty->as<AstTypeReference>())
+ {
+ if (ref->name == "nil")
+ return LBC_TYPE_NIL;
+ else if (ref->name == "boolean")
+ return LBC_TYPE_BOOLEAN;
+ else if (ref->name == "number")
+ return LBC_TYPE_NUMBER;
+ else if (ref->name == "string")
+ return LBC_TYPE_STRING;
+ else if (ref->name == "thread")
+ return LBC_TYPE_THREAD;
+ else if (ref->name == "any" || ref->name == "unknown")
+ return LBC_TYPE_ANY;
+ }
+ else if (AstTypeTable* table = ty->as<AstTypeTable>())
+ {
+ return LBC_TYPE_TABLE;
+ }
+ else if (AstTypeFunction* func = ty->as<AstTypeFunction>())
+ {
+ return LBC_TYPE_FUNCTION;
+ }
+ else if (AstTypeUnion* un = ty->as<AstTypeUnion>())
+ {
+ bool optional = false;
+ LuauBytecodeEncodedType type = LBC_TYPE_INVALID;
+ for (AstType* ty : un->types)
+ {
+ LuauBytecodeEncodedType et = getType(ty);
+ if (et == LBC_TYPE_NIL)
+ {
+ optional = true;
+ continue;
+ }
+ if (type == LBC_TYPE_INVALID)
+ {
+ type = et;
+ continue;
+ }
+ if (type != et)
+ return LBC_TYPE_ANY;
+ }
+ if (type == LBC_TYPE_INVALID)
+ return LBC_TYPE_ANY;
+ return LuauBytecodeEncodedType(type | (optional && (type != LBC_TYPE_ANY) ? LBC_TYPE_OPTIONAL_BIT : 0));
+ }
+ else if (AstTypeIntersection* inter = ty->as<AstTypeIntersection>())
+ {
+ return LBC_TYPE_ANY;
+ }
+ return LBC_TYPE_ANY;
+}
+std::string getFunctionType(const AstExprFunction* func)
+{
+ if (func->vararg || func->generics.size || func->genericPacks.size)
+ return {};
+ bool self = func->self != 0;
+ std::string typeInfo;
+ typeInfo.reserve(func->args.size + self + 2);
+ typeInfo.push_back(LBC_TYPE_FUNCTION);
+ typeInfo.push_back(uint8_t(self + func->args.size));
+ if (self)
+ typeInfo.push_back(LBC_TYPE_TABLE);
+ bool haveNonAnyParam = false;
+ for (AstLocal* arg : func->args)
+ {
+ LuauBytecodeEncodedType ty = arg->annotation ? getType(arg->annotation) : LBC_TYPE_ANY;
+ if (ty != LBC_TYPE_ANY)
+ haveNonAnyParam = true;
+ typeInfo.push_back(ty);
+ }
+ if (!haveNonAnyParam)
+ return {};
+ return typeInfo;
+}
+}
 namespace Luau
 {
 namespace Compile
