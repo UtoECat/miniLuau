@@ -931,6 +931,7 @@ typedef struct Proto
  const Instruction* codeentry;
  void* execdata;
  uintptr_t exectarget;
+ uint8_t* typeinfo;
  GCObject* gclist;
  int sizecode;
  int sizep;
@@ -6052,6 +6053,7 @@ Proto* luaF_newproto(lua_State* L)
  f->codeentry = NULL;
  f->execdata = NULL;
  f->exectarget = 0;
+ f->typeinfo = NULL;
  return f;
 }
 Closure* luaF_newLclosure(lua_State* L, int nelems, Table* e, Proto* p)
@@ -6156,6 +6158,8 @@ void luaF_freeproto(lua_State* L, Proto* f, lua_Page* page)
  L->global->ecb.destroy(L, f);
  }
 #endif
+ if (f->typeinfo)
+ luaM_freearray(L, f->typeinfo, f->numparams + 2, uint8_t, f->memcat);
  luaM_freegco(L, f, sizeof(Proto), f->memcat, page);
 }
 void luaF_freeclosure(lua_State* L, Closure* c, lua_Page* page)
@@ -14446,6 +14450,7 @@ void luau_poscall(lua_State* L, StkId first)
  L->base = cip->base;
  L->top = (ci->nresults == LUA_MULTRET) ? res : cip->top;
 }
+LUAU_FASTFLAGVARIABLE(LuauLoadCheckGC, false)
 template<typename T>
 struct TempBuffer
 {
@@ -14566,14 +14571,16 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  lua_pushfstring(L, "%s: bytecode version mismatch (expected [%d..%d], got %d)", chunkid, LBC_VERSION_MIN, LBC_VERSION_MAX, version);
  return 1;
  }
+ if (FFlag::LuauLoadCheckGC)
+ luaC_checkGC(L);
  size_t GCthreshold = L->global->GCthreshold;
  L->global->GCthreshold = SIZE_MAX;
  Table* envt = (env == 0) ? L->gt : hvalue(luaA_toobject(L, env));
  TString* source = luaS_new(L, chunkname);
+ uint8_t typesversion = 0;
  if (version >= 4)
  {
- uint8_t typesversion = read<uint8_t>(data, size, offset);
- LUAU_ASSERT(typesversion == 1);
+ typesversion = read<uint8_t>(data, size, offset);
  }
  unsigned int stringCount = readVarInt(data, size, offset);
  TempBuffer<TString*> strings(L, stringCount);
@@ -14599,14 +14606,16 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  uint8_t cgflags = read<uint8_t>(data, size, offset);
  LUAU_ASSERT(cgflags == 0);
  uint32_t typesize = readVarInt(data, size, offset);
- if (typesize)
+ if (typesize && typesversion == LBC_TYPE_VERSION)
  {
  uint8_t* types = (uint8_t*)data + offset;
  LUAU_ASSERT(typesize == unsigned(2 + p->numparams));
  LUAU_ASSERT(types[0] == LBC_TYPE_FUNCTION);
  LUAU_ASSERT(types[1] == p->numparams);
- offset += typesize;
+ p->typeinfo = luaM_newarray(L, typesize, uint8_t, p->memcat);
+ memcpy(p->typeinfo, types, typesize);
  }
+ offset += typesize;
  }
  p->sizecode = readVarInt(data, size, offset);
  p->code = luaM_newarray(L, p->sizecode, Instruction, p->memcat);
@@ -15240,6 +15249,7 @@ LUAU_NOINLINE void luaV_tryfuncTM(lua_State* L, StkId func)
 }
 #ifdef LUAU_ENABLE_COMPILER
 #undef upvalue
+#include <string>
 namespace Luau
 {
 struct Position
@@ -15269,10 +15279,10 @@ struct Location
  bool containsClosed(const Position& p) const;
  void extend(const Location& other);
  void shift(const Position& start, const Position& oldEnd, const Position& newEnd);
+ std::string toString(int offset = 0, bool useBegin = true) const;
 };
 }
 #include <optional>
-#include <string>
 namespace Luau
 {
 struct AstName
@@ -20213,6 +20223,13 @@ void Location::shift(const Position& start, const Position& oldEnd, const Positi
  begin.shift(start, oldEnd, newEnd);
  end.shift(start, oldEnd, newEnd);
 }
+std::string Location::toString(int offset, bool useBegin) const
+{
+ const Position& pos = useBegin ? this->begin : this->end;
+ std::string line{std::to_string(pos.line + offset)};
+ std::string column{std::to_string(pos.column + offset)};
+ return "(" + line + ", " + column + ")";
+}
 }
 namespace Luau
 {
@@ -20500,6 +20517,7 @@ private:
  std::string scratchData;
 };
 }
+#include <memory>
 LUAU_FASTFLAG(DebugLuauTimeTracing)
 namespace Luau
 {
@@ -20538,7 +20556,7 @@ struct Event
 };
 struct GlobalContext;
 struct ThreadContext;
-GlobalContext& getGlobalContext();
+std::shared_ptr<GlobalContext> getGlobalContext();
 uint16_t createToken(GlobalContext& context, const char* name, const char* category);
 uint32_t createThread(GlobalContext& context, ThreadContext* threadContext);
 void releaseThread(GlobalContext& context, ThreadContext* threadContext);
@@ -20548,19 +20566,19 @@ struct ThreadContext
  ThreadContext()
  : globalContext(getGlobalContext())
  {
- threadId = createThread(globalContext, this);
+ threadId = createThread(*globalContext, this);
  }
  ~ThreadContext()
  {
  if (!events.empty())
  flushEvents();
- releaseThread(globalContext, this);
+ releaseThread(*globalContext, this);
  }
  void flushEvents()
  {
- static uint16_t flushToken = createToken(globalContext, "flushEvents", "TimeTrace");
+ static uint16_t flushToken = createToken(*globalContext, "flushEvents", "TimeTrace");
  events.push_back({EventType::Enter, flushToken, {getClockMicroseconds()}});
- TimeTrace::flushEvents(globalContext, threadId, events, data);
+ TimeTrace::flushEvents(*globalContext, threadId, events, data);
  events.clear();
  data.clear();
  events.push_back({EventType::Leave, 0, {getClockMicroseconds()}});
@@ -20592,7 +20610,7 @@ struct ThreadContext
  data.insert(data.end(), value, value + strlen(value) + 1);
  events.push_back({EventType::ArgValue, 0, {pos}});
  }
- GlobalContext& globalContext;
+ std::shared_ptr<GlobalContext> globalContext;
  uint32_t threadId;
  std::vector<Event> events;
  std::vector<char> data;
@@ -23171,7 +23189,6 @@ namespace TimeTrace
 {
 struct GlobalContext
 {
- GlobalContext() = default;
  ~GlobalContext()
  {
  for (ThreadContext* context : threads)
@@ -23187,10 +23204,13 @@ struct GlobalContext
  uint32_t nextThreadId = 0;
  std::vector<Token> tokens;
  FILE* traceFile = nullptr;
+private:
+ friend std::shared_ptr<GlobalContext> getGlobalContext();
+ GlobalContext() = default;
 };
-GlobalContext& getGlobalContext()
+std::shared_ptr<GlobalContext> getGlobalContext()
 {
- static GlobalContext context;
+ static std::shared_ptr<GlobalContext> context = std::shared_ptr<GlobalContext>{new GlobalContext};
  return context;
 }
 uint16_t createToken(GlobalContext& context, const char* name, const char* category)
@@ -23309,7 +23329,7 @@ ThreadContext& getThreadContext()
 }
 uint16_t createScopeData(const char* name, const char* category)
 {
- return createToken(Luau::TimeTrace::getGlobalContext(), name, category);
+ return createToken(*Luau::TimeTrace::getGlobalContext(), name, category);
 }
 }
 } // namespace Luau
@@ -26077,9 +26097,9 @@ static const char* getBaseTypeString(uint8_t type)
  case LBC_TYPE_STRING:
  return "string";
  case LBC_TYPE_TABLE:
- return "{ }";
+ return "table";
  case LBC_TYPE_FUNCTION:
- return "function( )";
+ return "function";
  case LBC_TYPE_THREAD:
  return "thread";
  case LBC_TYPE_USERDATA:
@@ -26156,17 +26176,15 @@ void predictTableShapes(DenseHashMap<AstExprTable*, TableShape>& shapes, AstNode
 } // namespace Luau
 namespace Luau
 {
-std::string getFunctionType(const AstExprFunction* func);
+void buildTypeMap(DenseHashMap<AstExprFunction*, std::string>& typeMap, AstNode* root);
 }
 #include <bitset>
-#include <memory>
 LUAU_FASTINTVARIABLE(LuauCompileLoopUnrollThreshold, 25)
 LUAU_FASTINTVARIABLE(LuauCompileLoopUnrollThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThreshold, 25)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
-LUAU_FASTFLAGVARIABLE(CompileFunctionType, false)
-LUAU_FASTFLAG(BytecodeVersion4)
+LUAU_FASTFLAGVARIABLE(LuauCompileFunctionType, false)
 namespace Luau
 {
 using namespace Luau::Compile;
@@ -26226,6 +26244,7 @@ struct Compiler
  , locstants(nullptr)
  , tableShapes(nullptr)
  , builtins(nullptr)
+ , typeMap(nullptr)
  {
  localStack.reserve(16);
  upvals.reserve(16);
@@ -26302,11 +26321,10 @@ struct Compiler
  bool self = func->self != 0;
  uint32_t fid = bytecode.beginFunction(uint8_t(self + func->args.size), func->vararg);
  setDebugLine(func);
- if (FFlag::BytecodeVersion4 && FFlag::CompileFunctionType)
+ if (FFlag::LuauCompileFunctionType)
  {
- std::string funcType = getFunctionType(func);
- if (!funcType.empty())
- bytecode.setFunctionTypeInfo(std::move(funcType));
+ if (std::string* funcType = typeMap.find(func))
+ bytecode.setFunctionTypeInfo(std::move(*funcType));
  }
  if (func->vararg)
  bytecode.emitABC(LOP_PREPVARARGS, uint8_t(self + func->args.size), 0, 0);
@@ -28894,6 +28912,7 @@ struct Compiler
  DenseHashMap<AstLocal*, Constant> locstants;
  DenseHashMap<AstExprTable*, TableShape> tableShapes;
  DenseHashMap<AstExprCall*, int> builtins;
+ DenseHashMap<AstExprFunction*, std::string> typeMap;
  const DenseHashMap<AstExprCall*, int>* builtinsFold = nullptr;
  unsigned int regTop = 0;
  unsigned int stackSize = 0;
@@ -28932,6 +28951,10 @@ void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, c
  {
  Compiler::FenvVisitor fenvVisitor(compiler.getfenvUsed, compiler.setfenvUsed);
  root->visit(&fenvVisitor);
+ }
+ if (FFlag::LuauCompileFunctionType)
+ {
+ buildTypeMap(compiler.typeMap, root);
  }
  std::vector<AstExprFunction*> functions;
  Compiler::FunctionVisitor functionVisitor(&compiler, functions);
@@ -29759,22 +29782,49 @@ void predictTableShapes(DenseHashMap<AstExprTable*, TableShape>& shapes, AstNode
 } // namespace Luau
 namespace Luau
 {
-static LuauBytecodeEncodedType getType(AstType* ty)
+static bool isGeneric(AstName name, const AstArray<AstGenericType>& generics)
+{
+ for (const AstGenericType& gt : generics)
+ if (gt.name == name)
+ return true;
+ return false;
+}
+static LuauBytecodeEncodedType getPrimitiveType(AstName name)
+{
+ if (name == "nil")
+ return LBC_TYPE_NIL;
+ else if (name == "boolean")
+ return LBC_TYPE_BOOLEAN;
+ else if (name == "number")
+ return LBC_TYPE_NUMBER;
+ else if (name == "string")
+ return LBC_TYPE_STRING;
+ else if (name == "thread")
+ return LBC_TYPE_THREAD;
+ else if (name == "any" || name == "unknown")
+ return LBC_TYPE_ANY;
+ else
+ return LBC_TYPE_INVALID;
+}
+static LuauBytecodeEncodedType getType(
+ AstType* ty, const AstArray<AstGenericType>& generics, const DenseHashMap<AstName, AstStatTypeAlias*>& typeAliases, bool resolveAliases)
 {
  if (AstTypeReference* ref = ty->as<AstTypeReference>())
  {
- if (ref->name == "nil")
- return LBC_TYPE_NIL;
- else if (ref->name == "boolean")
- return LBC_TYPE_BOOLEAN;
- else if (ref->name == "number")
- return LBC_TYPE_NUMBER;
- else if (ref->name == "string")
- return LBC_TYPE_STRING;
- else if (ref->name == "thread")
- return LBC_TYPE_THREAD;
- else if (ref->name == "any" || ref->name == "unknown")
+ if (ref->prefix)
  return LBC_TYPE_ANY;
+ if (AstStatTypeAlias* const* alias = typeAliases.find(ref->name); alias && *alias)
+ {
+ if (resolveAliases)
+ return getType((*alias)->type, (*alias)->generics, typeAliases, false);
+ else
+ return LBC_TYPE_ANY;
+ }
+ if (isGeneric(ref->name, generics))
+ return LBC_TYPE_ANY;
+ if (LuauBytecodeEncodedType prim = getPrimitiveType(ref->name); prim != LBC_TYPE_INVALID)
+ return prim;
+ return LBC_TYPE_USERDATA;
  }
  else if (AstTypeTable* table = ty->as<AstTypeTable>())
  {
@@ -29790,7 +29840,7 @@ static LuauBytecodeEncodedType getType(AstType* ty)
  LuauBytecodeEncodedType type = LBC_TYPE_INVALID;
  for (AstType* ty : un->types)
  {
- LuauBytecodeEncodedType et = getType(ty);
+ LuauBytecodeEncodedType et = getType(ty, generics, typeAliases, resolveAliases);
  if (et == LBC_TYPE_NIL)
  {
  optional = true;
@@ -29814,10 +29864,8 @@ static LuauBytecodeEncodedType getType(AstType* ty)
  }
  return LBC_TYPE_ANY;
 }
-std::string getFunctionType(const AstExprFunction* func)
+static std::string getFunctionType(const AstExprFunction* func, const DenseHashMap<AstName, AstStatTypeAlias*>& typeAliases)
 {
- if (func->vararg || func->generics.size || func->genericPacks.size)
- return {};
  bool self = func->self != 0;
  std::string typeInfo;
  typeInfo.reserve(func->args.size + self + 2);
@@ -29828,7 +29876,8 @@ std::string getFunctionType(const AstExprFunction* func)
  bool haveNonAnyParam = false;
  for (AstLocal* arg : func->args)
  {
- LuauBytecodeEncodedType ty = arg->annotation ? getType(arg->annotation) : LBC_TYPE_ANY;
+ LuauBytecodeEncodedType ty =
+ arg->annotation ? getType(arg->annotation, func->generics, typeAliases, true) : LBC_TYPE_ANY;
  if (ty != LBC_TYPE_ANY)
  haveNonAnyParam = true;
  typeInfo.push_back(ty);
@@ -29836,6 +29885,67 @@ std::string getFunctionType(const AstExprFunction* func)
  if (!haveNonAnyParam)
  return {};
  return typeInfo;
+}
+struct TypeMapVisitor : AstVisitor
+{
+ DenseHashMap<AstExprFunction*, std::string>& typeMap;
+ DenseHashMap<AstName, AstStatTypeAlias*> typeAliases;
+ std::vector<std::pair<AstName, AstStatTypeAlias*>> typeAliasStack;
+ TypeMapVisitor(DenseHashMap<AstExprFunction*, std::string>& typeMap)
+ : typeMap(typeMap)
+ , typeAliases(AstName())
+ {
+ }
+ size_t pushTypeAliases(AstStatBlock* block)
+ {
+ size_t aliasStackTop = typeAliasStack.size();
+ for (AstStat* stat : block->body)
+ if (AstStatTypeAlias* alias = stat->as<AstStatTypeAlias>())
+ {
+ AstStatTypeAlias*& prevAlias = typeAliases[alias->name];
+ typeAliasStack.push_back(std::make_pair(alias->name, prevAlias));
+ prevAlias = alias;
+ }
+ return aliasStackTop;
+ }
+ void popTypeAliases(size_t aliasStackTop)
+ {
+ while (typeAliasStack.size() > aliasStackTop)
+ {
+ std::pair<AstName, AstStatTypeAlias*>& top = typeAliasStack.back();
+ typeAliases[top.first] = top.second;
+ typeAliasStack.pop_back();
+ }
+ }
+ bool visit(AstStatBlock* node) override
+ {
+ size_t aliasStackTop = pushTypeAliases(node);
+ for (AstStat* stat : node->body)
+ stat->visit(this);
+ popTypeAliases(aliasStackTop);
+ return false;
+ }
+ bool visit(AstStatRepeat* node) override
+ {
+ size_t aliasStackTop = pushTypeAliases(node->body);
+ for (AstStat* stat : node->body->body)
+ stat->visit(this);
+ node->condition->visit(this);
+ popTypeAliases(aliasStackTop);
+ return false;
+ }
+ bool visit(AstExprFunction* node) override
+ {
+ std::string type = getFunctionType(node, typeAliases);
+ if (!type.empty())
+ typeMap[node] = std::move(type);
+ return true;
+ }
+};
+void buildTypeMap(DenseHashMap<AstExprFunction*, std::string>& typeMap, AstNode* root)
+{
+ TypeMapVisitor visitor(typeMap);
+ root->visit(&visitor);
 }
 }
 namespace Luau
