@@ -129,7 +129,7 @@ enum LuauBytecodeTag
  LBC_CONSTANT_TABLE,
  LBC_CONSTANT_CLOSURE,
 };
-enum LuauBytecodeEncodedType
+enum LuauBytecodeType
 {
  LBC_TYPE_NIL = 0,
  LBC_TYPE_BOOLEAN,
@@ -918,19 +918,24 @@ typedef struct Udata
 typedef struct Proto
 {
  CommonHeader;
+ uint8_t nups;
+ uint8_t numparams;
+ uint8_t is_vararg;
+ uint8_t maxstacksize;
+ uint8_t flags;
  TValue* k;
  Instruction* code; // function bytecode
  struct Proto** p;
- uint8_t* lineinfo; // for each instruction, line number as a delta from baseline
- int* abslineinfo;
- struct LocVar* locvars; // information about local variables
- TString** upvalues;
- TString* source;
- TString* debugname;
- uint8_t* debuginsn;
  const Instruction* codeentry;
  void* execdata;
  uintptr_t exectarget;
+ uint8_t* lineinfo;
+ int* abslineinfo; // baseline line info, one entry for each 1<<linegaplog2 instructions; allocated after lineinfo
+ struct LocVar* locvars;
+ TString** upvalues; // upvalue names
+ TString* source;
+ TString* debugname;
+ uint8_t* debuginsn;
  uint8_t* typeinfo;
  GCObject* gclist;
  int sizecode;
@@ -942,10 +947,6 @@ typedef struct Proto
  int linegaplog2;
  int linedefined;
  int bytecodeid;
- uint8_t nups;
- uint8_t numparams;
- uint8_t is_vararg;
- uint8_t maxstacksize;
 } Proto;
 typedef struct LocVar
 {
@@ -1164,7 +1165,6 @@ struct lua_ExecutionCallbacks
  void (*close)(lua_State* L);
  void (*destroy)(lua_State* L, Proto* proto); // called when function is destroyed
  int (*enter)(lua_State* L, Proto* proto);
- void (*setbreakpoint)(lua_State* L, Proto* proto, int line); // called when a breakpoint is set in a function
 };
 typedef struct global_State
 {
@@ -1391,6 +1391,8 @@ LUAI_FUNC void luaC_barriertable(lua_State* L, Table* t, GCObject* v);
 LUAI_FUNC void luaC_barrierback(lua_State* L, GCObject* o, GCObject** gclist);
 LUAI_FUNC void luaC_validate(lua_State* L);
 LUAI_FUNC void luaC_dump(lua_State* L, void* file, const char* (*categoryName)(lua_State* L, uint8_t memcat));
+LUAI_FUNC void luaC_enumheap(lua_State* L, void* context, void (*node)(void* context, void* ptr, uint8_t tt, uint8_t memcat, const char* name),
+ void (*edge)(void* context, void* from, void* to, const char* name));
 LUAI_FUNC int64_t luaC_allocationrate(lua_State* L);
 LUAI_FUNC const char* luaC_statename(int state);
 #define UTAG_IDTOR LUA_UTAG_LIMIT
@@ -5159,6 +5161,8 @@ int lua_getargument(lua_State* L, int level, int n)
  if (unsigned(level) >= unsigned(L->ci - L->base_ci))
  return 0;
  CallInfo* ci = L->ci - level;
+ if (ci->flags & LUA_CALLINFO_NATIVE)
+ return 0;
  Proto* fp = getluaproto(ci);
  int res = 0;
  if (fp && n > 0)
@@ -5181,8 +5185,10 @@ int lua_getargument(lua_State* L, int level, int n)
 const char* lua_getlocal(lua_State* L, int level, int n)
 {
  if (unsigned(level) >= unsigned(L->ci - L->base_ci))
- return 0;
+ return NULL;
  CallInfo* ci = L->ci - level;
+ if (ci->flags & LUA_CALLINFO_NATIVE)
+ return NULL;
  Proto* fp = getluaproto(ci);
  const LocVar* var = fp ? luaF_getlocal(fp, n, currentpc(L, ci)) : NULL;
  if (var)
@@ -5196,8 +5202,10 @@ const char* lua_getlocal(lua_State* L, int level, int n)
 const char* lua_setlocal(lua_State* L, int level, int n)
 {
  if (unsigned(level) >= unsigned(L->ci - L->base_ci))
- return 0;
+ return NULL;
  CallInfo* ci = L->ci - level;
+ if (ci->flags & LUA_CALLINFO_NATIVE)
+ return NULL;
  Proto* fp = getluaproto(ci);
  const LocVar* var = fp ? luaF_getlocal(fp, n, currentpc(L, ci)) : NULL;
  if (var)
@@ -5412,7 +5420,7 @@ void luaG_pusherror(lua_State* L, const char* error)
 }
 void luaG_breakpoint(lua_State* L, Proto* p, int line, bool enable)
 {
- if (p->lineinfo)
+ if (p->lineinfo && !p->execdata)
  {
  for (int i = 0; i < p->sizecode; ++i)
  {
@@ -5430,10 +5438,6 @@ void luaG_breakpoint(lua_State* L, Proto* p, int line, bool enable)
  p->code[i] &= ~0xff;
  p->code[i] |= op;
  LUAU_ASSERT(LUAU_INSN_OP(p->code[i]) == op);
-#if LUA_CUSTOM_EXECUTION
- if (L->global->ecb.setbreakpoint)
- L->global->ecb.setbreakpoint(L, p, i);
-#endif
  break;
  }
  }
@@ -5509,9 +5513,7 @@ int lua_breakpoint(lua_State* L, int funcindex, int line, int enabled)
  Proto* p = clvalue(func)->l.p;
  int target = getnextline(p, line);
  if (target != -1)
- {
  luaG_breakpoint(L, p, target, bool(enabled));
- }
  return target;
 }
 static void getcoverage(Proto* p, int depth, int* buffer, size_t size, void* context, lua_Coverage callback)
@@ -6041,6 +6043,7 @@ Proto* luaF_newproto(lua_State* L)
  f->numparams = 0;
  f->is_vararg = 0;
  f->maxstacksize = 0;
+ f->flags = 0;
  f->sizelineinfo = 0;
  f->linegaplog2 = 0;
  f->lineinfo = NULL;
@@ -6151,13 +6154,8 @@ void luaF_freeproto(lua_State* L, Proto* f, lua_Page* page)
  luaM_freearray(L, f->upvalues, f->sizeupvalues, TString*, f->memcat);
  if (f->debuginsn)
  luaM_freearray(L, f->debuginsn, f->sizecode, uint8_t, f->memcat);
-#if LUA_CUSTOM_EXECUTION
  if (f->execdata)
- {
- LUAU_ASSERT(L->global->ecb.destroy);
  L->global->ecb.destroy(L, f);
- }
-#endif
  if (f->typeinfo)
  luaM_freearray(L, f->typeinfo, f->numparams + 2, uint8_t, f->memcat);
  luaM_freegco(L, f, sizeof(Proto), f->memcat, page);
@@ -7523,6 +7521,186 @@ void luaC_dump(lua_State* L, void* file, const char* (*categoryName)(lua_State* 
  fprintf(f, "\"none\":{}\n"); // to avoid issues with trailing ,
  fprintf(f, "}\n");
  fprintf(f, "}}\n");
+}
+struct EnumContext
+{
+ lua_State* L;
+ void* context;
+ void (*node)(void* context, void* ptr, uint8_t tt, uint8_t memcat, const char* name);
+ void (*edge)(void* context, void* from, void* to, const char* name);
+};
+static void* enumtopointer(GCObject* gco)
+{
+ return gco->gch.tt == LUA_TUSERDATA ? (void*)gco2u(gco)->data : (void*)gco;
+}
+static void enumnode(EnumContext* ctx, GCObject* gco, const char* objname)
+{
+ ctx->node(ctx->context, enumtopointer(gco), gco->gch.tt, gco->gch.memcat, objname);
+}
+static void enumedge(EnumContext* ctx, GCObject* from, GCObject* to, const char* edgename)
+{
+ ctx->edge(ctx->context, enumtopointer(from), enumtopointer(to), edgename);
+}
+static void enumedges(EnumContext* ctx, GCObject* from, TValue* data, size_t size, const char* edgename)
+{
+ for (size_t i = 0; i < size; ++i)
+ {
+ if (iscollectable(&data[i]))
+ enumedge(ctx, from, gcvalue(&data[i]), edgename);
+ }
+}
+static void enumstring(EnumContext* ctx, TString* ts)
+{
+ enumnode(ctx, obj2gco(ts), NULL);
+}
+static void enumtable(EnumContext* ctx, Table* h)
+{
+ enumnode(ctx, obj2gco(h), h == hvalue(registry(ctx->L)) ? "registry" : NULL);
+ if (h->node != &luaH_dummynode)
+ {
+ for (int i = 0; i < sizenode(h); ++i)
+ {
+ const LuaNode& n = h->node[i];
+ if (!ttisnil(&n.val) && (iscollectable(&n.key) || iscollectable(&n.val)))
+ {
+ if (iscollectable(&n.key))
+ enumedge(ctx, obj2gco(h), gcvalue(&n.key), "[key]");
+ if (iscollectable(&n.val))
+ {
+ if (ttisstring(&n.key))
+ {
+ enumedge(ctx, obj2gco(h), gcvalue(&n.val), svalue(&n.key));
+ }
+ else if (ttisnumber(&n.key))
+ {
+ char buf[32];
+ snprintf(buf, sizeof(buf), "%.14g", nvalue(&n.key));
+ enumedge(ctx, obj2gco(h), gcvalue(&n.val), buf);
+ }
+ else
+ {
+ enumedge(ctx, obj2gco(h), gcvalue(&n.val), NULL);
+ }
+ }
+ }
+ }
+ }
+ if (h->sizearray)
+ enumedges(ctx, obj2gco(h), h->array, h->sizearray, "array");
+ if (h->metatable)
+ enumedge(ctx, obj2gco(h), obj2gco(h->metatable), "metatable");
+}
+static void enumclosure(EnumContext* ctx, Closure* cl)
+{
+ if (cl->isC)
+ {
+ enumnode(ctx, obj2gco(cl), cl->c.debugname);
+ }
+ else
+ {
+ Proto* p = cl->l.p;
+ char buf[LUA_IDSIZE];
+ if (p->source)
+ snprintf(buf, sizeof(buf), "%s:%d %s", p->debugname ? getstr(p->debugname) : "", p->linedefined, getstr(p->source));
+ else
+ snprintf(buf, sizeof(buf), "%s:%d", p->debugname ? getstr(p->debugname) : "", p->linedefined);
+ enumnode(ctx, obj2gco(cl), buf);
+ }
+ enumedge(ctx, obj2gco(cl), obj2gco(cl->env), "env");
+ if (cl->isC)
+ {
+ if (cl->nupvalues)
+ enumedges(ctx, obj2gco(cl), cl->c.upvals, cl->nupvalues, "upvalue");
+ }
+ else
+ {
+ enumedge(ctx, obj2gco(cl), obj2gco(cl->l.p), "proto");
+ if (cl->nupvalues)
+ enumedges(ctx, obj2gco(cl), cl->l.uprefs, cl->nupvalues, "upvalue");
+ }
+}
+static void enumudata(EnumContext* ctx, Udata* u)
+{
+ enumnode(ctx, obj2gco(u), NULL);
+ if (u->metatable)
+ enumedge(ctx, obj2gco(u), obj2gco(u->metatable), "metatable");
+}
+static void enumthread(EnumContext* ctx, lua_State* th)
+{
+ Closure* tcl = NULL;
+ for (CallInfo* ci = th->base_ci; ci <= th->ci; ++ci)
+ {
+ if (ttisfunction(ci->func))
+ {
+ tcl = clvalue(ci->func);
+ break;
+ }
+ }
+ if (tcl && !tcl->isC && tcl->l.p->source)
+ {
+ Proto* p = tcl->l.p;
+ enumnode(ctx, obj2gco(th), getstr(p->source));
+ }
+ else
+ {
+ enumnode(ctx, obj2gco(th), NULL);
+ }
+ enumedge(ctx, obj2gco(th), obj2gco(th->gt), "globals");
+ if (th->top > th->stack)
+ enumedges(ctx, obj2gco(th), th->stack, th->top - th->stack, "stack");
+}
+static void enumproto(EnumContext* ctx, Proto* p)
+{
+ enumnode(ctx, obj2gco(p), p->source ? getstr(p->source) : NULL);
+ if (p->sizek)
+ enumedges(ctx, obj2gco(p), p->k, p->sizek, "constants");
+ for (int i = 0; i < p->sizep; ++i)
+ enumedge(ctx, obj2gco(p), obj2gco(p->p[i]), "protos");
+}
+static void enumupval(EnumContext* ctx, UpVal* uv)
+{
+ enumnode(ctx, obj2gco(uv), NULL);
+ if (iscollectable(uv->v))
+ enumedge(ctx, obj2gco(uv), gcvalue(uv->v), "value");
+}
+static void enumobj(EnumContext* ctx, GCObject* o)
+{
+ switch (o->gch.tt)
+ {
+ case LUA_TSTRING:
+ return enumstring(ctx, gco2ts(o));
+ case LUA_TTABLE:
+ return enumtable(ctx, gco2h(o));
+ case LUA_TFUNCTION:
+ return enumclosure(ctx, gco2cl(o));
+ case LUA_TUSERDATA:
+ return enumudata(ctx, gco2u(o));
+ case LUA_TTHREAD:
+ return enumthread(ctx, gco2th(o));
+ case LUA_TPROTO:
+ return enumproto(ctx, gco2p(o));
+ case LUA_TUPVAL:
+ return enumupval(ctx, gco2uv(o));
+ default:
+ LUAU_ASSERT(!"Unknown object tag");
+ }
+}
+static bool enumgco(void* context, lua_Page* page, GCObject* gco)
+{
+ enumobj((EnumContext*)context, gco);
+ return false;
+}
+void luaC_enumheap(lua_State* L, void* context, void (*node)(void* context, void* ptr, uint8_t tt, uint8_t memcat, const char* name),
+ void (*edge)(void* context, void* from, void* to, const char* name))
+{
+ global_State* g = L->global;
+ EnumContext ctx;
+ ctx.L = L;
+ ctx.context = context;
+ ctx.node = node;
+ ctx.edge = edge;
+ enumgco(&ctx, NULL, obj2gco(g->mainthread));
+ luaM_visitgco(L, &ctx, enumgco);
 }
 static const luaL_Reg lualibs[] = {
  {"", luaopen_base},
@@ -9037,10 +9215,8 @@ static void close_state(lua_State* L)
  LUAU_ASSERT(g->memcatbytes[0] == sizeof(LG));
  for (int i = 1; i < LUA_MEMORY_CATEGORIES; i++)
  LUAU_ASSERT(g->memcatbytes[i] == 0);
-#if LUA_CUSTOM_EXECUTION
  if (L->global->ecb.close)
  L->global->ecb.close(L);
-#endif
  (*g->frealloc)(g->ud, L, sizeof(LG), 0);
 }
 lua_State* luaE_newthread(lua_State* L)
@@ -14603,8 +14779,7 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  p->is_vararg = read<uint8_t>(data, size, offset);
  if (version >= 4)
  {
- uint8_t cgflags = read<uint8_t>(data, size, offset);
- LUAU_ASSERT(cgflags == 0);
+ p->flags = read<uint8_t>(data, size, offset);
  uint32_t typesize = readVarInt(data, size, offset);
  if (typesize && typesversion == LBC_TYPE_VERSION)
  {
@@ -15279,7 +15454,6 @@ struct Location
  bool containsClosed(const Position& p) const;
  void extend(const Location& other);
  void shift(const Position& start, const Position& oldEnd, const Position& newEnd);
- std::string toString(int offset = 0, bool useBegin = true) const;
 };
 }
 #include <optional>
@@ -20223,13 +20397,6 @@ void Location::shift(const Position& start, const Position& oldEnd, const Positi
  begin.shift(start, oldEnd, newEnd);
  end.shift(start, oldEnd, newEnd);
 }
-std::string Location::toString(int offset, bool useBegin) const
-{
- const Position& pos = useBegin ? this->begin : this->end;
- std::string line{std::to_string(pos.line + offset)};
- std::string column{std::to_string(pos.column + offset)};
- return "(" + line + ", " + column + ")";
-}
 }
 namespace Luau
 {
@@ -23191,11 +23358,6 @@ struct GlobalContext
 {
  ~GlobalContext()
  {
- for (ThreadContext* context : threads)
- {
- if (!context->events.empty())
- context->flushEvents();
- }
  if (traceFile)
  fclose(traceFile);
  }
@@ -23818,6 +23980,7 @@ struct CompileOptions
  int coverageLevel = 0;
  const char* vectorLib = nullptr;
  const char* vectorCtor = nullptr;
+ const char* vectorType = nullptr;
  const char** mutableGlobals = nullptr;
 };
 class CompileError : public std::exception
@@ -24188,7 +24351,7 @@ public:
  };
  BytecodeBuilder(BytecodeEncoder* encoder = 0);
  uint32_t beginFunction(uint8_t numparams, bool isvararg = false);
- void endFunction(uint8_t maxstacksize, uint8_t numupvalues);
+ void endFunction(uint8_t maxstacksize, uint8_t numupvalues, uint8_t flags = 0);
  void setMainFunction(uint32_t fid);
  int32_t addConstantNil();
  int32_t addConstantBoolean(bool value);
@@ -24360,7 +24523,7 @@ private:
  std::string dumpCurrentFunction(std::vector<int>& dumpinstoffs) const;
  void dumpConstant(std::string& result, int k) const;
  void dumpInstruction(const uint32_t* opcode, std::string& output, int targetLabel) const;
- void writeFunction(std::string& ss, uint32_t id) const;
+ void writeFunction(std::string& ss, uint32_t id, uint8_t flags) const;
  void writeLineInfo(std::string& ss) const;
  void writeStringTable(std::string& ss) const;
  int32_t addConstant(const ConstantKey& key, const Constant& value);
@@ -24564,7 +24727,7 @@ uint32_t BytecodeBuilder::beginFunction(uint8_t numparams, bool isvararg)
  debugLine = 0;
  return id;
 }
-void BytecodeBuilder::endFunction(uint8_t maxstacksize, uint8_t numupvalues)
+void BytecodeBuilder::endFunction(uint8_t maxstacksize, uint8_t numupvalues, uint8_t flags)
 {
  LUAU_ASSERT(currentFunction != ~0u);
  Function& func = functions[currentFunction];
@@ -24574,7 +24737,7 @@ void BytecodeBuilder::endFunction(uint8_t maxstacksize, uint8_t numupvalues)
  validate();
 #endif
  func.data.reserve(32 + insns.size() * 7);
- writeFunction(func.data, currentFunction);
+ writeFunction(func.data, currentFunction, flags);
  currentFunction = ~0u;
  if (dumpFunctionPtr)
  func.dump = (this->*dumpFunctionPtr)(func.dumpinstoffs);
@@ -24836,7 +24999,7 @@ void BytecodeBuilder::finalize()
  LUAU_ASSERT(mainFunction < functions.size());
  writeVarInt(bytecode, mainFunction);
 }
-void BytecodeBuilder::writeFunction(std::string& ss, uint32_t id) const
+void BytecodeBuilder::writeFunction(std::string& ss, uint32_t id, uint8_t flags) const
 {
  LUAU_ASSERT(id < functions.size());
  const Function& func = functions[id];
@@ -24846,7 +25009,7 @@ void BytecodeBuilder::writeFunction(std::string& ss, uint32_t id) const
  writeByte(ss, func.isvararg);
  if (FFlag::BytecodeVersion4)
  {
- writeByte(ss, 0);
+ writeByte(ss, flags);
  writeVarInt(ss, uint32_t(func.typeinfo.size()));
  ss.append(func.typeinfo);
  }
@@ -25236,8 +25399,14 @@ void BytecodeBuilder::validateInstructions() const
  openCaptures.pop_back();
  break;
  case LOP_GETIMPORT:
+ {
  VREG(LUAU_INSN_A(insn));
  VCONST(LUAU_INSN_D(insn), Import);
+ uint32_t id = insns[i + 1];
+ LUAU_ASSERT((id >> 30) != 0);
+ for (unsigned int j = 0; j < (id >> 30); ++j)
+ VCONST((id >> (20 - 10 * j)) & 1023, String);
+ }
  break;
  case LOP_GETTABLE:
  case LOP_SETTABLE:
@@ -26176,7 +26345,7 @@ void predictTableShapes(DenseHashMap<AstExprTable*, TableShape>& shapes, AstNode
 } // namespace Luau
 namespace Luau
 {
-void buildTypeMap(DenseHashMap<AstExprFunction*, std::string>& typeMap, AstNode* root);
+void buildTypeMap(DenseHashMap<AstExprFunction*, std::string>& typeMap, AstNode* root, const char* vectorType);
 }
 #include <bitset>
 LUAU_FASTINTVARIABLE(LuauCompileLoopUnrollThreshold, 25)
@@ -28954,7 +29123,7 @@ void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, c
  }
  if (FFlag::LuauCompileFunctionType)
  {
- buildTypeMap(compiler.typeMap, root);
+ buildTypeMap(compiler.typeMap, root, options.vectorType);
  }
  std::vector<AstExprFunction*> functions;
  Compiler::FunctionVisitor functionVisitor(&compiler, functions);
@@ -29789,7 +29958,7 @@ static bool isGeneric(AstName name, const AstArray<AstGenericType>& generics)
  return true;
  return false;
 }
-static LuauBytecodeEncodedType getPrimitiveType(AstName name)
+static LuauBytecodeType getPrimitiveType(AstName name)
 {
  if (name == "nil")
  return LBC_TYPE_NIL;
@@ -29806,8 +29975,8 @@ static LuauBytecodeEncodedType getPrimitiveType(AstName name)
  else
  return LBC_TYPE_INVALID;
 }
-static LuauBytecodeEncodedType getType(
- AstType* ty, const AstArray<AstGenericType>& generics, const DenseHashMap<AstName, AstStatTypeAlias*>& typeAliases, bool resolveAliases)
+static LuauBytecodeType getType(AstType* ty, const AstArray<AstGenericType>& generics, const DenseHashMap<AstName, AstStatTypeAlias*>& typeAliases,
+ bool resolveAliases, const char* vectorType)
 {
  if (AstTypeReference* ref = ty->as<AstTypeReference>())
  {
@@ -29816,13 +29985,15 @@ static LuauBytecodeEncodedType getType(
  if (AstStatTypeAlias* const* alias = typeAliases.find(ref->name); alias && *alias)
  {
  if (resolveAliases)
- return getType((*alias)->type, (*alias)->generics, typeAliases, false);
+ return getType((*alias)->type, (*alias)->generics, typeAliases, false, vectorType);
  else
  return LBC_TYPE_ANY;
  }
  if (isGeneric(ref->name, generics))
  return LBC_TYPE_ANY;
- if (LuauBytecodeEncodedType prim = getPrimitiveType(ref->name); prim != LBC_TYPE_INVALID)
+ if (vectorType && ref->name == vectorType)
+ return LBC_TYPE_VECTOR;
+ if (LuauBytecodeType prim = getPrimitiveType(ref->name); prim != LBC_TYPE_INVALID)
  return prim;
  return LBC_TYPE_USERDATA;
  }
@@ -29837,10 +30008,10 @@ static LuauBytecodeEncodedType getType(
  else if (AstTypeUnion* un = ty->as<AstTypeUnion>())
  {
  bool optional = false;
- LuauBytecodeEncodedType type = LBC_TYPE_INVALID;
+ LuauBytecodeType type = LBC_TYPE_INVALID;
  for (AstType* ty : un->types)
  {
- LuauBytecodeEncodedType et = getType(ty, generics, typeAliases, resolveAliases);
+ LuauBytecodeType et = getType(ty, generics, typeAliases, resolveAliases, vectorType);
  if (et == LBC_TYPE_NIL)
  {
  optional = true;
@@ -29856,7 +30027,7 @@ static LuauBytecodeEncodedType getType(
  }
  if (type == LBC_TYPE_INVALID)
  return LBC_TYPE_ANY;
- return LuauBytecodeEncodedType(type | (optional && (type != LBC_TYPE_ANY) ? LBC_TYPE_OPTIONAL_BIT : 0));
+ return LuauBytecodeType(type | (optional && (type != LBC_TYPE_ANY) ? LBC_TYPE_OPTIONAL_BIT : 0));
  }
  else if (AstTypeIntersection* inter = ty->as<AstTypeIntersection>())
  {
@@ -29864,7 +30035,7 @@ static LuauBytecodeEncodedType getType(
  }
  return LBC_TYPE_ANY;
 }
-static std::string getFunctionType(const AstExprFunction* func, const DenseHashMap<AstName, AstStatTypeAlias*>& typeAliases)
+static std::string getFunctionType(const AstExprFunction* func, const DenseHashMap<AstName, AstStatTypeAlias*>& typeAliases, const char* vectorType)
 {
  bool self = func->self != 0;
  std::string typeInfo;
@@ -29876,8 +30047,8 @@ static std::string getFunctionType(const AstExprFunction* func, const DenseHashM
  bool haveNonAnyParam = false;
  for (AstLocal* arg : func->args)
  {
- LuauBytecodeEncodedType ty =
- arg->annotation ? getType(arg->annotation, func->generics, typeAliases, true) : LBC_TYPE_ANY;
+ LuauBytecodeType ty =
+ arg->annotation ? getType(arg->annotation, func->generics, typeAliases, true, vectorType) : LBC_TYPE_ANY;
  if (ty != LBC_TYPE_ANY)
  haveNonAnyParam = true;
  typeInfo.push_back(ty);
@@ -29889,10 +30060,12 @@ static std::string getFunctionType(const AstExprFunction* func, const DenseHashM
 struct TypeMapVisitor : AstVisitor
 {
  DenseHashMap<AstExprFunction*, std::string>& typeMap;
+ const char* vectorType;
  DenseHashMap<AstName, AstStatTypeAlias*> typeAliases;
  std::vector<std::pair<AstName, AstStatTypeAlias*>> typeAliasStack;
- TypeMapVisitor(DenseHashMap<AstExprFunction*, std::string>& typeMap)
+ TypeMapVisitor(DenseHashMap<AstExprFunction*, std::string>& typeMap, const char* vectorType)
  : typeMap(typeMap)
+ , vectorType(vectorType)
  , typeAliases(AstName())
  {
  }
@@ -29936,15 +30109,15 @@ struct TypeMapVisitor : AstVisitor
  }
  bool visit(AstExprFunction* node) override
  {
- std::string type = getFunctionType(node, typeAliases);
+ std::string type = getFunctionType(node, typeAliases, vectorType);
  if (!type.empty())
  typeMap[node] = std::move(type);
  return true;
  }
 };
-void buildTypeMap(DenseHashMap<AstExprFunction*, std::string>& typeMap, AstNode* root)
+void buildTypeMap(DenseHashMap<AstExprFunction*, std::string>& typeMap, AstNode* root, const char* vectorType)
 {
- TypeMapVisitor visitor(typeMap);
+ TypeMapVisitor visitor(typeMap, vectorType);
  root->visit(&visitor);
 }
 }

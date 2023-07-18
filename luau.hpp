@@ -443,6 +443,7 @@ struct lua_CompileOptions
  int coverageLevel; // default=0
  const char* vectorLib;
  const char* vectorCtor;
+ const char* vectorType;
  const char** mutableGlobals;
 };
 LUACODE_API char* luau_compile(const char* source, size_t size, lua_CompileOptions* options, size_t* outsize);
