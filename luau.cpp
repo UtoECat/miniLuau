@@ -797,7 +797,6 @@ inline bool isFlagExperimental(const char* flag)
 {
  static const char* const kList[] = {
  "LuauInstantiateInSubtyping", // requires some fixes to lua-apps code
- "LuauTypecheckTypeguards", // requires some fixes to lua-apps code (CLI-67030)
  "LuauTinyControlFlowAnalysis", // waiting for updates to packages depended by internal builtin plugins
  nullptr,
  };
@@ -1326,6 +1325,7 @@ LUAI_FUNC void luaG_pusherror(lua_State* L, const char* error);
 LUAI_FUNC void luaG_breakpoint(lua_State* L, Proto* p, int line, bool enable);
 LUAI_FUNC bool luaG_onbreak(lua_State* L);
 LUAI_FUNC int luaG_getline(Proto* p, int pc);
+LUAI_FUNC int luaG_isnative(lua_State* L, int level);
 #define luaD_checkstack(L, n) if ((char*)L->stack_last - (char*)L->top <= (n) * (int)sizeof(TValue)) luaD_growstack(L, n); else condhardstacktests(luaD_reallocstack(L, L->stacksize - EXTRA_STACK));
 #define incr_top(L) { luaD_checkstack(L, 1); L->top++; }
 #define savestack(L, p) ((char*)(p) - (char*)L->stack)
@@ -2666,6 +2666,7 @@ size_t lua_totalbytes(lua_State* L, int category)
  api_check(L, category < LUA_MEMORY_CATEGORIES);
  return category < 0 ? L->global->totalbytes : L->global->memcatbytes[category];
 }
+LUAU_FASTFLAG(LuauFasterInterp)
 #define abs_index(L, i) ((i) > 0 || (i) <= LUA_REGISTRYINDEX ? (i) : lua_gettop(L) + (i) + 1)
 static const char* currfuncname(lua_State* L)
 {
@@ -3013,6 +3014,49 @@ void luaL_addvalue(luaL_Buffer* B)
  lua_pop(L, 1);
  }
 }
+void luaL_addvalueany(luaL_Buffer* B, int idx)
+{
+ lua_State* L = B->L;
+ switch (lua_type(L, idx))
+ {
+ case LUA_TNONE:
+ {
+ LUAU_ASSERT(!"expected value");
+ break;
+ }
+ case LUA_TNIL:
+ luaL_addstring(B, "nil");
+ break;
+ case LUA_TBOOLEAN:
+ if (lua_toboolean(L, idx))
+ luaL_addstring(B, "true");
+ else
+ luaL_addstring(B, "false");
+ break;
+ case LUA_TNUMBER:
+ {
+ double n = lua_tonumber(L, idx);
+ char s[LUAI_MAXNUM2STR];
+ char* e = luai_num2str(s, n);
+ luaL_addlstring(B, s, e - s, -1);
+ break;
+ }
+ case LUA_TSTRING:
+ {
+ size_t len;
+ const char* s = lua_tolstring(L, idx, &len);
+ luaL_addlstring(B, s, len, -1);
+ break;
+ }
+ default:
+ {
+ size_t len;
+ const char* s = luaL_tolstring(L, idx, &len);
+ luaL_addlstring(B, s, len, -2);
+ lua_pop(L, 1);
+ }
+ }
+}
 void luaL_pushresult(luaL_Buffer* B)
 {
  lua_State* L = B->L;
@@ -3042,12 +3086,28 @@ const char* luaL_tolstring(lua_State* L, int idx, size_t* len)
 {
  if (luaL_callmeta(L, idx, "__tostring")) // is there a metafield?
  {
+ if (FFlag::LuauFasterInterp)
+ {
+ const char* s = lua_tolstring(L, -1, len);
+ if (!s)
+ luaL_error(L, "'__tostring' must return a string");
+ return s;
+ }
+ else
+ {
  if (!lua_isstring(L, -1))
  luaL_error(L, "'__tostring' must return a string");
  return lua_tolstring(L, -1, len);
  }
+ }
  switch (lua_type(L, idx))
  {
+ case LUA_TNIL:
+ lua_pushliteral(L, "nil");
+ break;
+ case LUA_TBOOLEAN:
+ lua_pushstring(L, (lua_toboolean(L, idx) ? "true" : "false"));
+ break;
  case LUA_TNUMBER:
  {
  double n = lua_tonumber(L, idx);
@@ -3056,15 +3116,6 @@ const char* luaL_tolstring(lua_State* L, int idx, size_t* len)
  lua_pushlstring(L, s, e - s);
  break;
  }
- case LUA_TSTRING:
- lua_pushvalue(L, idx);
- break;
- case LUA_TBOOLEAN:
- lua_pushstring(L, (lua_toboolean(L, idx) ? "true" : "false"));
- break;
- case LUA_TNIL:
- lua_pushliteral(L, "nil");
- break;
  case LUA_TVECTOR:
  {
  const float* v = lua_tovector(L, idx);
@@ -3082,6 +3133,9 @@ const char* luaL_tolstring(lua_State* L, int idx, size_t* len)
  lua_pushlstring(L, s, e - s);
  break;
  }
+ case LUA_TSTRING:
+ lua_pushvalue(L, idx);
+ break;
  default:
  {
  const void* ptr = lua_topointer(L, idx);
@@ -5535,6 +5589,13 @@ int luaG_getline(Proto* p, int pc)
  return 0;
  return p->abslineinfo[pc >> p->linegaplog2] + p->lineinfo[pc];
 }
+int luaG_isnative(lua_State* L, int level)
+{
+ if (unsigned(level) >= unsigned(L->ci - L->base_ci))
+ return 0;
+ CallInfo* ci = L->ci - level;
+ return (ci->flags & LUA_CALLINFO_NATIVE) != 0 ? 1 : 0;
+}
 void lua_singlestep(lua_State* L, int enabled)
 {
  L->singlestep = bool(enabled);
@@ -7633,14 +7694,24 @@ static void enumtable(EnumContext* ctx, Table* h)
  enumnode(ctx, obj2gco(h), h == hvalue(registry(ctx->L)) ? "registry" : NULL);
  if (h->node != &luaH_dummynode)
  {
+ bool weakkey = false;
+ bool weakvalue = false;
+ if (const TValue* mode = gfasttm(ctx->L->global, h->metatable, TM_MODE))
+ {
+ if (ttisstring(mode))
+ {
+ weakkey = strchr(svalue(mode), 'k') != NULL;
+ weakvalue = strchr(svalue(mode), 'v') != NULL;
+ }
+ }
  for (int i = 0; i < sizenode(h); ++i)
  {
  const LuaNode& n = h->node[i];
  if (!ttisnil(&n.val) && (iscollectable(&n.key) || iscollectable(&n.val)))
  {
- if (iscollectable(&n.key))
+ if (!weakkey && iscollectable(&n.key))
  enumedge(ctx, obj2gco(h), gcvalue(&n.key), "[key]");
- if (iscollectable(&n.val))
+ if (!weakvalue && iscollectable(&n.val))
  {
  if (ttisstring(&n.key))
  {
@@ -7654,7 +7725,9 @@ static void enumtable(EnumContext* ctx, Table* h)
  }
  else
  {
- enumedge(ctx, obj2gco(h), gcvalue(&n.val), NULL);
+ char buf[32];
+ snprintf(buf, sizeof(buf), "[%s]", getstr(ctx->L->global->ttname[n.key.tt]));
+ enumedge(ctx, obj2gco(h), gcvalue(&n.val), buf);
  }
  }
  }
@@ -7714,7 +7787,12 @@ static void enumthread(EnumContext* ctx, lua_State* th)
  if (tcl && !tcl->isC && tcl->l.p->source)
  {
  Proto* p = tcl->l.p;
- enumnode(ctx, obj2gco(th), getstr(p->source));
+ char buf[LUA_IDSIZE];
+ if (p->source)
+ snprintf(buf, sizeof(buf), "%s:%d %s", p->debugname ? getstr(p->debugname) : "", p->linedefined, getstr(p->source));
+ else
+ snprintf(buf, sizeof(buf), "%s:%d", p->debugname ? getstr(p->debugname) : "", p->linedefined);
+ enumnode(ctx, obj2gco(th), buf);
  }
  else
  {
@@ -9618,6 +9696,7 @@ void luaS_free(lua_State* L, TString* ts, lua_Page* page)
  LUAU_ASSERT(ts->next == NULL);
  luaM_freegco(L, ts, sizestring(ts->len), ts->memcat, page);
 }
+LUAU_FASTFLAGVARIABLE(LuauFasterInterp, false)
 #define uchar(c) ((unsigned char)(c))
 static int str_len(lua_State* L)
 {
@@ -10492,6 +10571,13 @@ static int str_format(lua_State* L)
  luaL_addchar(&b, *strfrmt++);
  else if (*++strfrmt == L_ESC)
  luaL_addchar(&b, *strfrmt++);
+ else if (FFlag::LuauFasterInterp && *strfrmt == '*')
+ {
+ strfrmt++;
+ if (++arg > top)
+ luaL_error(L, "missing argument #%d", arg);
+ luaL_addvalueany(&b, arg);
+ }
  else
  {
  char form[MAX_FORMAT]; // to store the format (`%...')
@@ -10558,7 +10644,7 @@ static int str_format(lua_State* L)
  }
  case '*':
  {
- if (formatItemSize != 1)
+ if (FFlag::LuauFasterInterp || formatItemSize != 1)
  luaL_error(L, "'%%*' does not take a form");
  size_t length;
  const char* string = luaL_tolstring(L, arg, &length);
@@ -23699,7 +23785,7 @@ struct Constant
  }
 };
 void foldConstants(DenseHashMap<AstExpr*, Constant>& constants, DenseHashMap<AstLocal*, Variable>& variables,
- DenseHashMap<AstLocal*, Constant>& locals, const DenseHashMap<AstExprCall*, int>* builtins, AstNode* root);
+ DenseHashMap<AstLocal*, Constant>& locals, const DenseHashMap<AstExprCall*, int>* builtins, bool foldMathK, AstNode* root);
 }
 } // namespace Luau
 namespace Luau
@@ -23707,13 +23793,15 @@ namespace Luau
 namespace Compile
 {
 Constant foldBuiltin(int bfid, const Constant* args, size_t count);
+Constant foldBuiltinMath(AstName index);
 }
 } // namespace Luau
 namespace Luau
 {
 namespace Compile
 {
-const double kRadDeg = 3.14159265358979323846 / 180.0;
+const double kPi = 3.14159265358979323846;
+const double kRadDeg = kPi / 180.0;
 static Constant cvar()
 {
  return Constant();
@@ -24067,6 +24155,14 @@ Constant foldBuiltin(int bfid, const Constant* args, size_t count)
  return cnum(round(args[0].valueNumber));
  break;
  }
+ return cvar();
+}
+Constant foldBuiltinMath(AstName index)
+{
+ if (index == "pi")
+ return cnum(kPi);
+ if (index == "huge")
+ return cnum(HUGE_VAL);
  return cvar();
 }
 }
@@ -26511,6 +26607,7 @@ LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
 LUAU_FASTFLAGVARIABLE(LuauCompileFunctionType, false)
 LUAU_FASTFLAGVARIABLE(LuauCompileNativeComment, false)
 LUAU_FASTFLAGVARIABLE(LuauCompileFixBuiltinArity, false)
+LUAU_FASTFLAGVARIABLE(LuauCompileFoldMathK, false)
 namespace Luau
 {
 using namespace Luau::Compile;
@@ -26952,7 +27049,7 @@ struct Compiler
  else
  locstants[arg.local] = arg.value;
  inlineFrames.push_back({func, oldLocals, target, targetCount});
- foldConstants(constants, variables, locstants, builtinsFold, func->body);
+ foldConstants(constants, variables, locstants, builtinsFold, builtinsFoldMathK, func->body);
  bool usedFallthrough = false;
  for (size_t i = 0; i < func->body->body.size; ++i)
  {
@@ -26979,7 +27076,7 @@ struct Compiler
  for (size_t i = 0; i < func->args.size; ++i)
  if (Constant* var = locstants.find(func->args.data[i]))
  var->type = Constant::Type_Unknown;
- foldConstants(constants, variables, locstants, builtinsFold, func->body);
+ foldConstants(constants, variables, locstants, builtinsFold, builtinsFoldMathK, func->body);
  }
  void compileExprCall(AstExprCall* expr, uint8_t target, uint8_t targetCount, bool targetTop = false, bool multRet = false)
  {
@@ -28529,7 +28626,7 @@ struct Compiler
  {
  locstants[var].type = Constant::Type_Number;
  locstants[var].valueNumber = from + iv * step;
- foldConstants(constants, variables, locstants, builtinsFold, stat);
+ foldConstants(constants, variables, locstants, builtinsFold, builtinsFoldMathK, stat);
  size_t iterJumps = loopJumps.size();
  compileStat(stat->body);
  size_t contLabel = bytecode.emitLabel();
@@ -28544,7 +28641,7 @@ struct Compiler
  loopJumps.resize(oldJumps);
  loops.pop_back();
  locstants[var].type = Constant::Type_Unknown;
- foldConstants(constants, variables, locstants, builtinsFold, stat);
+ foldConstants(constants, variables, locstants, builtinsFold, builtinsFoldMathK, stat);
  }
  void compileStatFor(AstStatFor* stat)
  {
@@ -29080,6 +29177,7 @@ struct Compiler
  {
  Compiler* self;
  std::vector<AstExprFunction*>& functions;
+ bool hasTypes = false;
  FunctionVisitor(Compiler* self, std::vector<AstExprFunction*>& functions)
  : self(self)
  , functions(functions)
@@ -29089,6 +29187,9 @@ struct Compiler
  bool visit(AstExprFunction* node) override
  {
  node->body->visit(this);
+ if (FFlag::LuauCompileFunctionType)
+ for (AstLocal* arg : node->args)
+ hasTypes |= arg->annotation != nullptr;
  functions.push_back(node);
  return false;
  }
@@ -29249,6 +29350,7 @@ struct Compiler
  DenseHashMap<AstExprCall*, int> builtins;
  DenseHashMap<AstExprFunction*, std::string> typeMap;
  const DenseHashMap<AstExprCall*, int>* builtinsFold = nullptr;
+ bool builtinsFoldMathK = false;
  unsigned int regTop = 0;
  unsigned int stackSize = 0;
  bool getfenvUsed = false;
@@ -29283,11 +29385,16 @@ void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, c
  assignMutable(compiler.globals, names, options.mutableGlobals);
  trackValues(compiler.globals, compiler.variables, root);
  if (options.optimizationLevel >= 2)
+ {
  compiler.builtinsFold = &compiler.builtins;
+ if (FFlag::LuauCompileFoldMathK)
+ if (AstName math = names.get("math"); math.value && getGlobalState(compiler.globals, math) == Global::Default)
+ compiler.builtinsFoldMathK = true;
+ }
  if (options.optimizationLevel >= 1)
  {
  analyzeBuiltins(compiler.builtins, compiler.globals, compiler.variables, options, root);
- foldConstants(compiler.constants, compiler.variables, compiler.locstants, compiler.builtinsFold, root);
+ foldConstants(compiler.constants, compiler.variables, compiler.locstants, compiler.builtinsFold, compiler.builtinsFoldMathK, root);
  predictTableShapes(compiler.tableShapes, root);
  }
  if (options.optimizationLevel >= 1 && (names.get("getfenv").value || names.get("setfenv").value))
@@ -29295,13 +29402,11 @@ void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, c
  Compiler::FenvVisitor fenvVisitor(compiler.getfenvUsed, compiler.setfenvUsed);
  root->visit(&fenvVisitor);
  }
- if (FFlag::LuauCompileFunctionType)
- {
- buildTypeMap(compiler.typeMap, root, options.vectorType);
- }
  std::vector<AstExprFunction*> functions;
  Compiler::FunctionVisitor functionVisitor(&compiler, functions);
  root->visit(&functionVisitor);
+ if (FFlag::LuauCompileFunctionType && functionVisitor.hasTypes)
+ buildTypeMap(compiler.typeMap, root, options.vectorType);
  for (AstExprFunction* expr : functions)
  compiler.compileFunction(expr, 0);
  AstExprFunction main(root->location, AstArray<AstGenericType>(), AstArray<AstGenericTypePack>(),
@@ -29510,14 +29615,16 @@ struct ConstantVisitor : AstVisitor
  DenseHashMap<AstLocal*, Variable>& variables;
  DenseHashMap<AstLocal*, Constant>& locals;
  const DenseHashMap<AstExprCall*, int>* builtins;
+ bool foldMathK = false;
  bool wasEmpty = false;
  std::vector<Constant> builtinArgs;
  ConstantVisitor(DenseHashMap<AstExpr*, Constant>& constants, DenseHashMap<AstLocal*, Variable>& variables,
- DenseHashMap<AstLocal*, Constant>& locals, const DenseHashMap<AstExprCall*, int>* builtins)
+ DenseHashMap<AstLocal*, Constant>& locals, const DenseHashMap<AstExprCall*, int>* builtins, bool foldMathK)
  : constants(constants)
  , variables(variables)
  , locals(locals)
  , builtins(builtins)
+ , foldMathK(foldMathK)
  {
  wasEmpty = constants.empty() && locals.empty();
  }
@@ -29593,6 +29700,13 @@ struct ConstantVisitor : AstVisitor
  else if (AstExprIndexName* expr = node->as<AstExprIndexName>())
  {
  analyze(expr->expr);
+ if (foldMathK)
+ {
+ if (AstExprGlobal* eg = expr->expr->as<AstExprGlobal>(); eg && eg->name == "math")
+ {
+ result = foldBuiltinMath(expr->index);
+ }
+ }
  }
  else if (AstExprIndexExpr* expr = node->as<AstExprIndexExpr>())
  {
@@ -29705,9 +29819,9 @@ struct ConstantVisitor : AstVisitor
  }
 };
 void foldConstants(DenseHashMap<AstExpr*, Constant>& constants, DenseHashMap<AstLocal*, Variable>& variables,
- DenseHashMap<AstLocal*, Constant>& locals, const DenseHashMap<AstExprCall*, int>* builtins, AstNode* root)
+ DenseHashMap<AstLocal*, Constant>& locals, const DenseHashMap<AstExprCall*, int>* builtins, bool foldMathK, AstNode* root)
 {
- ConstantVisitor visitor{constants, variables, locals, builtins};
+ ConstantVisitor visitor{constants, variables, locals, builtins, foldMathK};
  root->visit(&visitor);
 }
 }
