@@ -445,6 +445,6 @@ struct lua_CompileOptions
  const char* vectorLib;
  const char* vectorCtor;
  const char* vectorType;
- const char** mutableGlobals;
+ const char* const* mutableGlobals;
 };
 LUACODE_API char* luau_compile(const char* source, size_t size, lua_CompileOptions* options, size_t* outsize);

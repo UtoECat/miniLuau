@@ -7921,7 +7921,6 @@ lua_State* luaL_newstate(void)
  return lua_newstate(l_alloc, NULL);
 }
 #include <time.h>
-LUAU_FASTFLAGVARIABLE(LuauFasterNoise, false)
 #undef PI
 #define PI (3.14159265358979323846)
 #define RADIANS_PER_DEGREE (PI / 180.0)
@@ -8153,24 +8152,6 @@ static int math_randomseed(lua_State* L)
  pcg32_seed(&L->global->rngstate, seed);
  return 0;
 }
-static const unsigned char kPerlin[512] = {151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140, 36, 103, 30, 69, 142, 8, 99,
- 37, 240, 21, 10, 23, 190, 6, 148, 247, 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177, 33, 88, 237, 149, 56, 87, 174,
- 20, 125, 136, 171, 168, 68, 175, 74, 165, 71, 134, 139, 48, 27, 166, 77, 146, 158, 231, 83, 111, 229, 122, 60, 211, 133, 230, 220, 105, 92, 41,
- 55, 46, 245, 40, 244, 102, 143, 54, 65, 25, 63, 161, 1, 216, 80, 73, 209, 76, 132, 187, 208, 89, 18, 169, 200, 196, 135, 130, 116, 188, 159, 86,
- 164, 100, 109, 198, 173, 186, 3, 64, 52, 217, 226, 250, 124, 123, 5, 202, 38, 147, 118, 126, 255, 82, 85, 212, 207, 206, 59, 227, 47, 16, 58, 17,
- 182, 189, 28, 42, 223, 183, 170, 213, 119, 248, 152, 2, 44, 154, 163, 70, 221, 153, 101, 155, 167, 43, 172, 9, 129, 22, 39, 253, 19, 98, 108, 110,
- 79, 113, 224, 232, 178, 185, 112, 104, 218, 246, 97, 228, 251, 34, 242, 193, 238, 210, 144, 12, 191, 179, 162, 241, 81, 51, 145, 235, 249, 14,
- 239, 107, 49, 192, 214, 31, 181, 199, 106, 157, 184, 84, 204, 176, 115, 121, 50, 45, 127, 4, 150, 254, 138, 236, 205, 93, 222, 114, 67, 29, 24,
- 72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180,
- 151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23, 190, 6, 148, 247,
- 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177, 33, 88, 237, 149, 56, 87, 174, 20, 125, 136, 171, 168, 68, 175, 74,
- 165, 71, 134, 139, 48, 27, 166, 77, 146, 158, 231, 83, 111, 229, 122, 60, 211, 133, 230, 220, 105, 92, 41, 55, 46, 245, 40, 244, 102, 143, 54, 65,
- 25, 63, 161, 1, 216, 80, 73, 209, 76, 132, 187, 208, 89, 18, 169, 200, 196, 135, 130, 116, 188, 159, 86, 164, 100, 109, 198, 173, 186, 3, 64, 52,
- 217, 226, 250, 124, 123, 5, 202, 38, 147, 118, 126, 255, 82, 85, 212, 207, 206, 59, 227, 47, 16, 58, 17, 182, 189, 28, 42, 223, 183, 170, 213,
- 119, 248, 152, 2, 44, 154, 163, 70, 221, 153, 101, 155, 167, 43, 172, 9, 129, 22, 39, 253, 19, 98, 108, 110, 79, 113, 224, 232, 178, 185, 112,
- 104, 218, 246, 97, 228, 251, 34, 242, 193, 238, 210, 144, 12, 191, 179, 162, 241, 81, 51, 145, 235, 249, 14, 239, 107, 49, 192, 214, 31, 181, 199,
- 106, 157, 184, 84, 204, 176, 115, 121, 50, 45, 127, 4, 150, 254, 138, 236, 205, 93, 222, 114, 67, 29, 24, 72, 243, 141, 128, 195, 78, 66, 215, 61,
- 156, 180};
 static const unsigned char kPerlinHash[257] = {151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140, 36, 103, 30, 69, 142, 8, 99,
  37, 240, 21, 10, 23, 190, 6, 148, 247, 120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177, 33, 88, 237, 149, 56, 87, 174,
  20, 125, 136, 171, 168, 68, 175, 74, 165, 71, 134, 139, 48, 27, 166, 77, 146, 158, 231, 83, 111, 229, 122, 60, 211, 133, 230, 220, 105, 92, 41,
@@ -8190,50 +8171,13 @@ static float perlin_lerp(float t, float a, float b)
 {
  return a + t * (b - a);
 }
-static float grad(unsigned char hash, float x, float y, float z)
-{
- LUAU_ASSERT(!FFlag::LuauFasterNoise);
- unsigned char h = hash & 15;
- float u = (h < 8) ? x : y;
- float v = (h < 4) ? y : (h == 12 || h == 14) ? x : z;
- return (h & 1 ? -u : u) + (h & 2 ? -v : v);
-}
 static float perlin_grad(int hash, float x, float y, float z)
 {
  const float* g = kPerlinGrad[hash & 15];
  return g[0] * x + g[1] * y + g[2] * z;
 }
-static float perlin_dep(float x, float y, float z)
-{
- LUAU_ASSERT(!FFlag::LuauFasterNoise);
- float xflr = floorf(x);
- float yflr = floorf(y);
- float zflr = floorf(z);
- int xi = int(xflr) & 255;
- int yi = int(yflr) & 255;
- int zi = int(zflr) & 255;
- float xf = x - xflr;
- float yf = y - yflr;
- float zf = z - zflr;
- float u = perlin_fade(xf);
- float v = perlin_fade(yf);
- float w = perlin_fade(zf);
- const unsigned char* p = kPerlin;
- int a = p[xi] + yi;
- int aa = p[a] + zi;
- int ab = p[a + 1] + zi;
- int b = p[xi + 1] + yi;
- int ba = p[b] + zi;
- int bb = p[b + 1] + zi;
- return perlin_lerp(w,
- perlin_lerp(v, perlin_lerp(u, grad(p[aa], xf, yf, zf), grad(p[ba], xf - 1, yf, zf)),
- perlin_lerp(u, grad(p[ab], xf, yf - 1, zf), grad(p[bb], xf - 1, yf - 1, zf))),
- perlin_lerp(v, perlin_lerp(u, grad(p[aa + 1], xf, yf, zf - 1), grad(p[ba + 1], xf - 1, yf, zf - 1)),
- perlin_lerp(u, grad(p[ab + 1], xf, yf - 1, zf - 1), grad(p[bb + 1], xf - 1, yf - 1, zf - 1))));
-}
 static float perlin(float x, float y, float z)
 {
- LUAU_ASSERT(FFlag::LuauFasterNoise);
  float xflr = floorf(x);
  float yflr = floorf(y);
  float zflr = floorf(z);
@@ -8261,8 +8205,6 @@ static float perlin(float x, float y, float z)
 }
 static int math_noise(lua_State* L)
 {
- if (FFlag::LuauFasterNoise)
- {
  int nx, ny, nz;
  double x = lua_tonumberx(L, 1, &nx);
  double y = lua_tonumberx(L, 2, &ny);
@@ -8273,16 +8215,6 @@ static int math_noise(lua_State* L)
  double r = perlin((float)x, (float)y, (float)z);
  lua_pushnumber(L, r);
  return 1;
- }
- else
- {
- double x = luaL_checknumber(L, 1);
- double y = luaL_optnumber(L, 2, 0.0);
- double z = luaL_optnumber(L, 3, 0.0);
- double r = perlin_dep((float)x, (float)y, (float)z);
- lua_pushnumber(L, r);
- return 1;
- }
 }
 static int math_clamp(lua_State* L)
 {
@@ -9697,6 +9629,7 @@ void luaS_free(lua_State* L, TString* ts, lua_Page* page)
  luaM_freegco(L, ts, sizestring(ts->len), ts->memcat, page);
 }
 LUAU_FASTFLAGVARIABLE(LuauFasterInterp, false)
+LUAU_FASTFLAGVARIABLE(LuauFasterFormatS, false)
 #define uchar(c) ((unsigned char)(c))
 static int str_len(lua_State* L)
 {
@@ -10630,6 +10563,21 @@ static int str_format(lua_State* L)
  {
  size_t l;
  const char* s = luaL_checklstring(L, arg, &l);
+ if (FFlag::LuauFasterFormatS)
+ {
+ if (form[2] == '\0' || (!strchr(form, '.') && l >= 100))
+ {
+ luaL_addlstring(&b, s, l, -1);
+ continue;
+ }
+ else
+ {
+ snprintf(buff, sizeof(buff), form, s);
+ break;
+ }
+ }
+ else
+ {
  if (!strchr(form, '.') && l >= 100)
  {
  lua_pushvalue(L, arg);
@@ -10640,6 +10588,7 @@ static int str_format(lua_State* L)
  {
  snprintf(buff, sizeof(buff), form, s);
  break;
+ }
  }
  }
  case '*':
@@ -11809,7 +11758,6 @@ void luaH_clear(Table* tt)
  }
  tt->tmcache = cast_byte(~0);
 }
-LUAU_FASTFLAGVARIABLE(LuauFasterTableConcat, false)
 static int foreachi(lua_State* L)
 {
  luaL_checktype(L, 1, LUA_TTABLE);
@@ -11991,7 +11939,7 @@ static int tmove(lua_State* L)
 static void addfield(lua_State* L, luaL_Buffer* b, int i)
 {
  int tt = lua_rawgeti(L, 1, i);
- if (FFlag::LuauFasterTableConcat ? (tt != LUA_TSTRING && tt != LUA_TNUMBER) : !lua_isstring(L, -1))
+ if (tt != LUA_TSTRING && tt != LUA_TNUMBER)
  luaL_error(L, "invalid value (%s) at index %d in table for 'concat'", luaL_typename(L, -1), i);
  luaL_addvalue(b);
 }
@@ -14852,7 +14800,6 @@ void luau_poscall(lua_State* L, StkId first)
  L->base = cip->base;
  L->top = (ci->nresults == LUA_MULTRET) ? res : cip->top;
 }
-LUAU_FASTFLAGVARIABLE(LuauLoadCheckGC, false)
 template<typename T>
 struct TempBuffer
 {
@@ -14973,7 +14920,6 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  lua_pushfstring(L, "%s: bytecode version mismatch (expected [%d..%d], got %d)", chunkid, LBC_VERSION_MIN, LBC_VERSION_MAX, version);
  return 1;
  }
- if (FFlag::LuauLoadCheckGC)
  luaC_checkGC(L);
  size_t GCthreshold = L->global->GCthreshold;
  L->global->GCthreshold = SIZE_MAX;
@@ -23742,7 +23688,7 @@ struct Variable
  bool written = false; // is the variable ever assigned to? filled by trackValues
  bool constant = false;
 };
-void assignMutable(DenseHashMap<AstName, Global>& globals, const AstNameTable& names, const char** mutableGlobals);
+void assignMutable(DenseHashMap<AstName, Global>& globals, const AstNameTable& names, const char* const* mutableGlobals);
 void trackValues(DenseHashMap<AstName, Global>& globals, DenseHashMap<AstLocal*, Variable>& variables, AstNode* root);
 inline Global getGlobalState(const DenseHashMap<AstName, Global>& globals, AstName name)
 {
@@ -24222,7 +24168,7 @@ struct CompileOptions
  const char* vectorLib = nullptr;
  const char* vectorCtor = nullptr;
  const char* vectorType = nullptr;
- const char** mutableGlobals = nullptr;
+ const char* const* mutableGlobals = nullptr;
 };
 class CompileError : public std::exception
 {
@@ -26604,8 +26550,6 @@ LUAU_FASTINTVARIABLE(LuauCompileLoopUnrollThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThreshold, 25)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
-LUAU_FASTFLAGVARIABLE(LuauCompileFunctionType, false)
-LUAU_FASTFLAGVARIABLE(LuauCompileNativeComment, false)
 LUAU_FASTFLAGVARIABLE(LuauCompileFixBuiltinArity, false)
 LUAU_FASTFLAGVARIABLE(LuauCompileFoldMathK, false)
 namespace Luau
@@ -26744,11 +26688,8 @@ struct Compiler
  bool self = func->self != 0;
  uint32_t fid = bytecode.beginFunction(uint8_t(self + func->args.size), func->vararg);
  setDebugLine(func);
- if (FFlag::LuauCompileFunctionType)
- {
  if (std::string* funcType = typeMap.find(func))
  bytecode.setFunctionTypeInfo(std::move(*funcType));
- }
  if (func->vararg)
  bytecode.emitABC(LOP_PREPVARARGS, uint8_t(self + func->args.size), 0, 0);
  uint8_t args = allocReg(func, self + unsigned(func->args.size));
@@ -29187,7 +29128,6 @@ struct Compiler
  bool visit(AstExprFunction* node) override
  {
  node->body->visit(this);
- if (FFlag::LuauCompileFunctionType)
  for (AstLocal* arg : node->args)
  hasTypes |= arg->annotation != nullptr;
  functions.push_back(node);
@@ -29374,7 +29314,7 @@ void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, c
  {
  if (hc.header && hc.content.compare(0, 9, "optimize ") == 0)
  options.optimizationLevel = std::max(0, std::min(2, atoi(hc.content.c_str() + 9)));
- if (FFlag::LuauCompileNativeComment && hc.header && hc.content == "native")
+ if (hc.header && hc.content == "native")
  {
  mainFlags |= LPF_NATIVE_MODULE;
  options.optimizationLevel = 2;
@@ -29405,7 +29345,7 @@ void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, c
  std::vector<AstExprFunction*> functions;
  Compiler::FunctionVisitor functionVisitor(&compiler, functions);
  root->visit(&functionVisitor);
- if (FFlag::LuauCompileFunctionType && functionVisitor.hasTypes)
+ if (functionVisitor.hasTypes)
  buildTypeMap(compiler.typeMap, root, options.vectorType);
  for (AstExprFunction* expr : functions)
  compiler.compileFunction(expr, 0);
@@ -30493,12 +30433,12 @@ struct ValueVisitor : AstVisitor
  return false;
  }
 };
-void assignMutable(DenseHashMap<AstName, Global>& globals, const AstNameTable& names, const char** mutableGlobals)
+void assignMutable(DenseHashMap<AstName, Global>& globals, const AstNameTable& names, const char* const* mutableGlobals)
 {
  if (AstName name = names.get("_G"); name.value)
  globals[name] = Global::Mutable;
  if (mutableGlobals)
- for (const char** ptr = mutableGlobals; *ptr; ++ptr)
+ for (const char* const* ptr = mutableGlobals; *ptr; ++ptr)
  if (AstName name = names.get(*ptr); name.value)
  globals[name] = Global::Mutable;
 }
