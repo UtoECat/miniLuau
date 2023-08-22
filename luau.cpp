@@ -221,6 +221,40 @@ enum LuauProtoFlag
 {
  LPF_NATIVE_MODULE = 1 << 0,
 };
+namespace Luau
+{
+inline int getOpLength(LuauOpcode op)
+{
+ switch (op)
+ {
+ case LOP_GETGLOBAL:
+ case LOP_SETGLOBAL:
+ case LOP_GETIMPORT:
+ case LOP_GETTABLEKS:
+ case LOP_SETTABLEKS:
+ case LOP_NAMECALL:
+ case LOP_JUMPIFEQ:
+ case LOP_JUMPIFLE:
+ case LOP_JUMPIFLT:
+ case LOP_JUMPIFNOTEQ:
+ case LOP_JUMPIFNOTLE:
+ case LOP_JUMPIFNOTLT:
+ case LOP_NEWTABLE:
+ case LOP_SETLIST:
+ case LOP_FORGLOOP:
+ case LOP_LOADKX:
+ case LOP_FASTCALL2:
+ case LOP_FASTCALL2K:
+ case LOP_JUMPXEQKNIL:
+ case LOP_JUMPXEQKB:
+ case LOP_JUMPXEQKN:
+ case LOP_JUMPXEQKS:
+ return 2;
+ default:
+ return 1;
+ }
+}
+}
 #ifdef _MSC_VER
 #define LUAU_NORETURN __declspec(noreturn)
 #define LUAU_NOINLINE __declspec(noinline)
@@ -5730,6 +5764,7 @@ const char* lua_debugtrace(lua_State* L)
 #else
 #include <stdexcept>
 #endif
+LUAU_FASTFLAGVARIABLE(LuauPCallDebuggerFix, false)
 #if LUA_USE_LONGJMP
 struct lua_jmpbuf
 {
@@ -6146,8 +6181,9 @@ int luaD_pcall(lua_State* L, Pfunc func, void* u, ptrdiff_t old_top, ptrdiff_t e
  }
  if (!oldactive)
  L->isactive = false;
+ bool yieldable = L->nCcalls <= L->baseCcalls;
  L->nCcalls = oldnCcalls;
- if (L->global->cb.debugprotectederror)
+ if ((!FFlag::LuauPCallDebuggerFix || yieldable) && L->global->cb.debugprotectederror)
  {
  L->global->cb.debugprotectederror(L);
  if (L->status == LUA_BREAK)
@@ -8163,15 +8199,15 @@ static const unsigned char kPerlinHash[257] = {151, 160, 137, 91, 90, 15, 131, 1
  72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180, 151};
 const float kPerlinGrad[16][3] = {{1, 1, 0}, {-1, 1, 0}, {1, -1, 0}, {-1, -1, 0}, {1, 0, 1}, {-1, 0, 1}, {1, 0, -1}, {-1, 0, -1}, {0, 1, 1},
  {0, -1, 1}, {0, 1, -1}, {0, -1, -1}, {1, 1, 0}, {0, -1, 1}, {-1, 1, 0}, {0, -1, -1}};
-static float perlin_fade(float t)
+inline float perlin_fade(float t)
 {
  return t * t * t * (t * (t * 6 - 15) + 10);
 }
-static float perlin_lerp(float t, float a, float b)
+inline float perlin_lerp(float t, float a, float b)
 {
  return a + t * (b - a);
 }
-static float perlin_grad(int hash, float x, float y, float z)
+inline float perlin_grad(int hash, float x, float y, float z)
 {
  const float* g = kPerlinGrad[hash & 15];
  return g[0] * x + g[1] * y + g[2] * z;
@@ -24529,6 +24565,7 @@ class BytecodeEncoder
 public:
  virtual ~BytecodeEncoder() {}
  virtual uint8_t encodeOp(uint8_t op) = 0;
+ virtual void encode(uint32_t* data, size_t count) = 0;
 };
 class BytecodeBuilder
 {
@@ -24728,6 +24765,7 @@ private:
 };
 }
 LUAU_FASTFLAGVARIABLE(BytecodeVersion4, false)
+LUAU_FASTFLAGVARIABLE(BytecodeEnc, false)
 namespace Luau
 {
 static_assert(LBC_VERSION_TARGET >= LBC_VERSION_MIN && LBC_VERSION_TARGET <= LBC_VERSION_MAX, "Invalid bytecode version setup");
@@ -24762,37 +24800,6 @@ static void writeVarInt(std::string& ss, unsigned int value)
  writeByte(ss, (value & 127) | ((value > 127) << 7));
  value >>= 7;
  } while (value);
-}
-static int getOpLength(LuauOpcode op)
-{
- switch (op)
- {
- case LOP_GETGLOBAL:
- case LOP_SETGLOBAL:
- case LOP_GETIMPORT:
- case LOP_GETTABLEKS:
- case LOP_SETTABLEKS:
- case LOP_NAMECALL:
- case LOP_JUMPIFEQ:
- case LOP_JUMPIFLE:
- case LOP_JUMPIFLT:
- case LOP_JUMPIFNOTEQ:
- case LOP_JUMPIFNOTLE:
- case LOP_JUMPIFNOTLT:
- case LOP_NEWTABLE:
- case LOP_SETLIST:
- case LOP_FORGLOOP:
- case LOP_LOADKX:
- case LOP_FASTCALL2:
- case LOP_FASTCALL2K:
- case LOP_JUMPXEQKNIL:
- case LOP_JUMPXEQKB:
- case LOP_JUMPXEQKN:
- case LOP_JUMPXEQKS:
- return 2;
- default:
- return 1;
- }
 }
 inline bool isJumpD(LuauOpcode op)
 {
@@ -24933,11 +24940,13 @@ void BytecodeBuilder::endFunction(uint8_t maxstacksize, uint8_t numupvalues, uin
 #ifdef LUAU_ASSERTENABLED
  validate();
 #endif
- func.data.reserve(32 + insns.size() * 7);
- writeFunction(func.data, currentFunction, flags);
- currentFunction = ~0u;
  if (dumpFunctionPtr)
  func.dump = (this->*dumpFunctionPtr)(func.dumpinstoffs);
+ func.data.reserve(32 + insns.size() * 7);
+ if (FFlag::BytecodeEnc && encoder)
+ encoder->encode(insns.data(), insns.size());
+ writeFunction(func.data, currentFunction, flags);
+ currentFunction = ~0u;
  insns.clear();
  lines.clear();
  constants.clear();
@@ -25211,16 +25220,24 @@ void BytecodeBuilder::writeFunction(std::string& ss, uint32_t id, uint8_t flags)
  ss.append(func.typeinfo);
  }
  writeVarInt(ss, uint32_t(insns.size()));
+ if (encoder && !FFlag::BytecodeEnc)
+ {
  for (size_t i = 0; i < insns.size();)
  {
  uint8_t op = LUAU_INSN_OP(insns[i]);
  LUAU_ASSERT(op < LOP__COUNT);
  int oplen = getOpLength(LuauOpcode(op));
- uint8_t openc = encoder ? encoder->encodeOp(op) : op;
+ uint8_t openc = encoder->encodeOp(op);
  writeInt(ss, openc | (insns[i] & ~0xff));
  for (int j = 1; j < oplen; ++j)
  writeInt(ss, insns[i + j]);
  i += oplen;
+ }
+ }
+ else
+ {
+ for (uint32_t insn : insns)
+ writeInt(ss, insn);
  }
  writeVarInt(ss, uint32_t(constants.size()));
  for (const Constant& c : constants)
@@ -26550,7 +26567,6 @@ LUAU_FASTINTVARIABLE(LuauCompileLoopUnrollThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThreshold, 25)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
-LUAU_FASTFLAGVARIABLE(LuauCompileFixBuiltinArity, false)
 LUAU_FASTFLAGVARIABLE(LuauCompileFoldMathK, false)
 namespace Luau
 {
@@ -27086,13 +27102,8 @@ struct Compiler
  return compileExprFastcallN(expr, target, targetCount, targetTop, multRet, regs, bfid);
  else if (options.optimizationLevel >= 2)
  {
- if (FFlag::LuauCompileFixBuiltinArity)
- {
  BuiltinInfo info = getBuiltinInfo(bfid);
  if (int(expr->args.size) == info.params && (info.flags & BuiltinInfo::Flag_NoneSafe) != 0)
- return compileExprFastcallN(expr, target, targetCount, targetTop, multRet, regs, bfid);
- }
- else if (int(expr->args.size) == getBuiltinInfo(bfid).params)
  return compileExprFastcallN(expr, target, targetCount, targetTop, multRet, regs, bfid);
  }
  }
@@ -29766,7 +29777,6 @@ void foldConstants(DenseHashMap<AstExpr*, Constant>& constants, DenseHashMap<Ast
 }
 }
 } // namespace Luau
-LUAU_FASTFLAGVARIABLE(LuauAssignmentHasCost, false)
 namespace Luau
 {
 namespace Compile
@@ -29996,9 +30006,6 @@ struct CostVisitor : AstVisitor
  }
  bool visit(AstStatIf* node) override
  {
- if (!FFlag::LuauAssignmentHasCost)
- result += 2;
- else
  result += 1 + (node->elsebody && !node->elsebody->is<AstStatIf>());
  return true;
  }
@@ -30017,8 +30024,6 @@ struct CostVisitor : AstVisitor
  {
  for (size_t i = 0; i < node->vars.size; ++i)
  assign(node->vars.data[i]);
- if (!FFlag::LuauAssignmentHasCost)
- return true;
  for (size_t i = 0; i < node->vars.size || i < node->values.size; ++i)
  {
  Cost ac;
