@@ -547,6 +547,12 @@ public:
  class const_iterator
  {
  public:
+ using value_type = Item;
+ using reference = Item&;
+ using pointer = Item*;
+ using iterator = pointer;
+ using difference_type = size_t;
+ using iterator_category = std::input_iterator_tag;
  const_iterator()
  : set(0)
  , index(0)
@@ -2700,7 +2706,6 @@ size_t lua_totalbytes(lua_State* L, int category)
  api_check(L, category < LUA_MEMORY_CATEGORIES);
  return category < 0 ? L->global->totalbytes : L->global->memcatbytes[category];
 }
-LUAU_FASTFLAG(LuauFasterInterp)
 #define abs_index(L, i) ((i) > 0 || (i) <= LUA_REGISTRYINDEX ? (i) : lua_gettop(L) + (i) + 1)
 static const char* currfuncname(lua_State* L)
 {
@@ -3120,19 +3125,10 @@ const char* luaL_tolstring(lua_State* L, int idx, size_t* len)
 {
  if (luaL_callmeta(L, idx, "__tostring")) // is there a metafield?
  {
- if (FFlag::LuauFasterInterp)
- {
  const char* s = lua_tolstring(L, -1, len);
  if (!s)
  luaL_error(L, "'__tostring' must return a string");
  return s;
- }
- else
- {
- if (!lua_isstring(L, -1))
- luaL_error(L, "'__tostring' must return a string");
- return lua_tolstring(L, -1, len);
- }
  }
  switch (lua_type(L, idx))
  {
@@ -3776,7 +3772,6 @@ extern const luau_FastFunction luauF_table[256];
 #include <cpuid.h>
 #endif
 #endif
-LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauFastcallGC, false)
 static int luauF_assert(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
 {
  if (nparams >= 1 && nresults == 0 && !l_isfalse(arg0))
@@ -4413,7 +4408,7 @@ static int luauF_char(lua_State* L, StkId res, TValue* arg0, int nresults, StkId
  char buffer[8];
  if (nparams < int(sizeof(buffer)) && nresults <= 1)
  {
- if (DFFlag::LuauFastcallGC && luaC_needsGC(L))
+ if (luaC_needsGC(L))
  return -1;
  if (nparams >= 1)
  {
@@ -4466,7 +4461,7 @@ static int luauF_sub(lua_State* L, StkId res, TValue* arg0, int nresults, StkId 
  TString* ts = tsvalue(arg0);
  int i = int(nvalue(args));
  int j = int(nvalue(args + 1));
- if (DFFlag::LuauFastcallGC && luaC_needsGC(L))
+ if (luaC_needsGC(L))
  return -1;
  if (i >= 1 && j >= i && unsigned(j - 1) < unsigned(ts->len))
  {
@@ -4795,7 +4790,7 @@ static int luauF_tostring(lua_State* L, StkId res, TValue* arg0, int nresults, S
  }
  case LUA_TNUMBER:
  {
- if (DFFlag::LuauFastcallGC && luaC_needsGC(L))
+ if (luaC_needsGC(L))
  return -1;
  char s[LUAI_MAXNUM2STR];
  char* e = luai_num2str(s, nvalue(arg0));
@@ -9664,8 +9659,6 @@ void luaS_free(lua_State* L, TString* ts, lua_Page* page)
  LUAU_ASSERT(ts->next == NULL);
  luaM_freegco(L, ts, sizestring(ts->len), ts->memcat, page);
 }
-LUAU_FASTFLAGVARIABLE(LuauFasterInterp, false)
-LUAU_FASTFLAGVARIABLE(LuauFasterFormatS, false)
 #define uchar(c) ((unsigned char)(c))
 static int str_len(lua_State* L)
 {
@@ -10540,7 +10533,7 @@ static int str_format(lua_State* L)
  luaL_addchar(&b, *strfrmt++);
  else if (*++strfrmt == L_ESC)
  luaL_addchar(&b, *strfrmt++);
- else if (FFlag::LuauFasterInterp && *strfrmt == '*')
+ else if (*strfrmt == '*')
  {
  strfrmt++;
  if (++arg > top)
@@ -10599,8 +10592,6 @@ static int str_format(lua_State* L)
  {
  size_t l;
  const char* s = luaL_checklstring(L, arg, &l);
- if (FFlag::LuauFasterFormatS)
- {
  if (form[2] == '\0' || (!strchr(form, '.') && l >= 100))
  {
  luaL_addlstring(&b, s, l, -1);
@@ -10612,30 +10603,9 @@ static int str_format(lua_State* L)
  break;
  }
  }
- else
- {
- if (!strchr(form, '.') && l >= 100)
- {
- lua_pushvalue(L, arg);
- luaL_addvalue(&b);
- continue;
- }
- else
- {
- snprintf(buff, sizeof(buff), form, s);
- break;
- }
- }
- }
  case '*':
  {
- if (FFlag::LuauFasterInterp || formatItemSize != 1)
  luaL_error(L, "'%%*' does not take a form");
- size_t length;
- const char* string = luaL_tolstring(L, arg, &length);
- luaL_addlstring(&b, string, length, -2);
- lua_pop(L, 1);
- continue;
  }
  default:
  {
@@ -12673,7 +12643,7 @@ int luaopen_utf8(lua_State* L)
 #define VM_NEXT() goto dispatch
 #define VM_CONTINUE(op) dispatchOp = uint8_t(op); goto dispatchContinue
 #endif
-#define VM_HAS_NATIVE LUA_CUSTOM_EXECUTION
+#define VM_HAS_NATIVE 1
 LUAU_NOINLINE void luau_callhook(lua_State* L, lua_Hook hook, void* userdata)
 {
  ptrdiff_t base = savestack(L, L->base);
@@ -14414,7 +14384,7 @@ reentry:
  else
  goto exit;
 #else
- LUAU_ASSERT(!"Opcode is only valid when LUA_CUSTOM_EXECUTION is defined");
+ LUAU_ASSERT(!"Opcode is only valid when VM_HAS_NATIVE is defined");
  LUAU_UNREACHABLE();
 #endif
  }
@@ -15872,9 +15842,15 @@ class AstExprConstantString : public AstExpr
 {
 public:
  LUAU_RTTI(AstExprConstantString)
- AstExprConstantString(const Location& location, const AstArray<char>& value);
+ enum QuoteStyle
+ {
+ Quoted,
+ Unquoted
+ };
+ AstExprConstantString(const Location& location, const AstArray<char>& value, QuoteStyle quoteStyle = Quoted);
  void visit(AstVisitor* visitor) override;
  AstArray<char> value;
+ QuoteStyle quoteStyle = Quoted;
 };
 class AstExprLocal : public AstExpr
 {
@@ -16725,9 +16701,10 @@ void AstExprConstantNumber::visit(AstVisitor* visitor)
 {
  visitor->visit(this);
 }
-AstExprConstantString::AstExprConstantString(const Location& location, const AstArray<char>& value)
+AstExprConstantString::AstExprConstantString(const Location& location, const AstArray<char>& value, QuoteStyle quoteStyle)
  : AstExpr(ClassIndex(), location)
  , value(value)
+ , quoteStyle(quoteStyle)
 {
 }
 void AstExprConstantString::visit(AstVisitor* visitor)
@@ -19477,6 +19454,7 @@ private:
  char peekch(unsigned int lookahead) const;
  Position position() const;
  void consume();
+ void consumeAny();
  Lexeme readCommentBody();
  int skipLongSeparator();
  Lexeme readLongString(const Position& start, int sep, Lexeme::Type ok, Lexeme::Type broken);
@@ -19527,6 +19505,7 @@ size_t hashRange(const char* data, size_t size);
 std::string escape(std::string_view s, bool escapeForInterpString = false);
 bool isIdentifier(std::string_view s);
 }
+LUAU_FASTFLAGVARIABLE(LuauLexerConsumeFast, false)
 namespace Luau
 {
 Allocator::Allocator()
@@ -19810,7 +19789,7 @@ const Lexeme& Lexer::next(bool skipComments, bool updatePrevLocation)
  do
  {
  while (isSpace(peekch()))
- consume();
+ consumeAny();
  if (updatePrevLocation)
  prevLocation = lexeme.location;
  lexeme = readNext();
@@ -19860,7 +19839,25 @@ Position Lexer::position() const
 {
  return Position(line, offset - lineOffset);
 }
+LUAU_FORCEINLINE
 void Lexer::consume()
+{
+ if (isNewline(buffer[offset]))
+ {
+ if (FFlag::LuauLexerConsumeFast)
+ {
+ LUAU_ASSERT(!isNewline(buffer[offset]));
+ }
+ else
+ {
+ line++;
+ lineOffset = offset + 1;
+ }
+ }
+ offset++;
+}
+LUAU_FORCEINLINE
+void Lexer::consumeAny()
 {
  if (isNewline(buffer[offset]))
  {
@@ -19921,7 +19918,7 @@ Lexeme Lexer::readLongString(const Position& start, int sep, Lexeme::Type ok, Le
  }
  else
  {
- consume();
+ consumeAny();
  }
  }
  return Lexeme(Location(start, position()), broken);
@@ -19935,17 +19932,17 @@ void Lexer::readBackslashInString()
  case '\r':
  consume();
  if (peekch() == '\n')
- consume();
+ consumeAny();
  break;
  case 0:
  break;
  case 'z':
  consume();
  while (isSpace(peekch()))
- consume();
+ consumeAny();
  break;
  default:
- consume();
+ consumeAny();
  }
 }
 Lexeme Lexer::readQuotedString()
@@ -20256,6 +20253,9 @@ Lexeme Lexer::readNext()
  case ';':
  case ',':
  case '#':
+ case '?':
+ case '&':
+ case '|':
  {
  char ch = peekch();
  consume();
@@ -21056,7 +21056,6 @@ LUAU_NOINLINE uint16_t createScopeData(const char* name, const char* category);
 LUAU_FASTINTVARIABLE(LuauRecursionLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
 LUAU_FASTFLAGVARIABLE(LuauParseDeclareClassIndexer, false)
-#define ERROR_INVALID_INTERP_DOUBLE_BRACE "Double braces are not permitted within interpolated strings. Did you mean '\\{'?"
 namespace Luau
 {
 ParseError::ParseError(const Location& location, const std::string& message)
@@ -21652,7 +21651,7 @@ AstStat* Parser::parseDeclaration(const Location& start)
  if (chars && !containsNull)
  props.push_back(AstDeclaredClassProp{AstName(chars->data), type, false});
  else
- report(begin.location, "String literal contains malformed escape sequence");
+ report(begin.location, "String literal contains malformed escape sequence or \\0");
  }
  else if (lexer.current().type == '[' && FFlag::LuauParseDeclareClassIndexer)
  {
@@ -21944,7 +21943,7 @@ AstType* Parser::parseTableType()
  if (chars && !containsNull)
  props.push_back({AstName(chars->data), begin.location, type});
  else
- report(begin.location, "String literal contains malformed escape sequence");
+ report(begin.location, "String literal contains malformed escape sequence or \\0");
  }
  else if (lexer.current().type == '[')
  {
@@ -22156,7 +22155,7 @@ AstTypeOrPack Parser::parseSimpleType(bool allowPack)
  else if (lexer.current().type == Lexeme::BrokenString)
  {
  nextLexeme();
- return {reportTypeError(start, {}, "Malformed string")};
+ return {reportTypeError(start, {}, "Malformed string; did you forget to finish it?")};
  }
  else if (lexer.current().type == Lexeme::Name)
  {
@@ -22250,6 +22249,7 @@ AstTypePack* Parser::parseTypePack()
  expectAndConsume(Lexeme::Dot3, "generic type pack annotation");
  return allocator.alloc<AstTypePackGeneric>(Location(name.location, end), name.name);
  }
+ LUAU_ASSERT(!"parseTypePack can't be called if shouldParseTypePack() returned false");
  return nullptr;
 }
 std::optional<AstExprUnary::Op> Parser::parseUnaryOp(const Lexeme& l)
@@ -22325,7 +22325,7 @@ std::optional<AstExprUnary::Op> Parser::checkUnaryConfusables()
  Location start = curr.location;
  if (curr.type == '!')
  {
- report(start, "Unexpected '!', did you mean 'not'?");
+ report(start, "Unexpected '!'; did you mean 'not'?");
  return AstExprUnary::Not;
  }
  return {};
@@ -22340,20 +22340,20 @@ std::optional<AstExprBinary::Op> Parser::checkBinaryConfusables(const BinaryOpPr
  if (curr.type == '&' && next.type == '&' && curr.location.end == next.location.begin && binaryPriority[AstExprBinary::And].left > limit)
  {
  nextLexeme();
- report(Location(start, next.location), "Unexpected '&&', did you mean 'and'?");
+ report(Location(start, next.location), "Unexpected '&&'; did you mean 'and'?");
  return AstExprBinary::And;
  }
  else if (curr.type == '|' && next.type == '|' && curr.location.end == next.location.begin && binaryPriority[AstExprBinary::Or].left > limit)
  {
  nextLexeme();
- report(Location(start, next.location), "Unexpected '||', did you mean 'or'?");
+ report(Location(start, next.location), "Unexpected '||'; did you mean 'or'?");
  return AstExprBinary::Or;
  }
  else if (curr.type == '!' && next.type == '=' && curr.location.end == next.location.begin &&
  binaryPriority[AstExprBinary::CompareNe].left > limit)
  {
  nextLexeme();
- report(Location(start, next.location), "Unexpected '!=', did you mean '~='?");
+ report(Location(start, next.location), "Unexpected '!='; did you mean '~='?");
  return AstExprBinary::CompareNe;
  }
  return std::nullopt;
@@ -22574,12 +22574,12 @@ AstExpr* Parser::parseSimpleExpr()
  else if (lexer.current().type == Lexeme::BrokenString)
  {
  nextLexeme();
- return reportExprError(start, {}, "Malformed string");
+ return reportExprError(start, {}, "Malformed string; did you forget to finish it?");
  }
  else if (lexer.current().type == Lexeme::BrokenInterpDoubleBrace)
  {
  nextLexeme();
- return reportExprError(start, {}, ERROR_INVALID_INTERP_DOUBLE_BRACE);
+ return reportExprError(start, {}, "Double braces are not permitted within interpolated strings; did you mean '\\{'?");
  }
  else if (lexer.current().type == Lexeme::Dot3)
  {
@@ -22686,7 +22686,7 @@ AstExpr* Parser::parseTableConstructor()
  AstArray<char> nameString;
  nameString.data = const_cast<char*>(name.name.value);
  nameString.size = strlen(name.name.value);
- AstExpr* key = allocator.alloc<AstExprConstantString>(name.location, nameString);
+ AstExpr* key = allocator.alloc<AstExprConstantString>(name.location, nameString, AstExprConstantString::Unquoted);
  AstExpr* value = parseExpr();
  if (AstExprFunction* func = value->as<AstExprFunction>())
  func->debugname = name.name;
@@ -22961,7 +22961,7 @@ AstExpr* Parser::parseInterpString()
  {
  errorWhileChecking = true;
  nextLexeme();
- expressions.push_back(reportExprError(endLocation, {}, "Malformed interpolated string, did you forget to add a '`'?"));
+ expressions.push_back(reportExprError(endLocation, {}, "Malformed interpolated string; did you forget to add a '`'?"));
  break;
  }
  default:
@@ -22979,10 +22979,10 @@ AstExpr* Parser::parseInterpString()
  break;
  case Lexeme::BrokenInterpDoubleBrace:
  nextLexeme();
- return reportExprError(endLocation, {}, ERROR_INVALID_INTERP_DOUBLE_BRACE);
+ return reportExprError(endLocation, {}, "Double braces are not permitted within interpolated strings; did you mean '\\{'?");
  case Lexeme::BrokenString:
  nextLexeme();
- return reportExprError(endLocation, {}, "Malformed interpolated string, did you forget to add a '}'?");
+ return reportExprError(endLocation, {}, "Malformed interpolated string; did you forget to add a '}'?");
  default:
  return reportExprError(endLocation, {}, "Malformed interpolated string, got %s", lexer.current().toString().c_str());
  }
@@ -24223,8 +24223,6 @@ void compileOrThrow(BytecodeBuilder& bytecode, const std::string& source, const 
 std::string compile(
  const std::string& source, const CompileOptions& options = {}, const ParseOptions& parseOptions = {}, BytecodeEncoder* encoder = nullptr);
 }
-LUAU_FASTFLAGVARIABLE(LuauCompileBuiltinTonumber, false)
-LUAU_FASTFLAGVARIABLE(LuauCompileBuiltinTostring, false)
 namespace Luau
 {
 namespace Compile
@@ -24280,9 +24278,9 @@ static int getBuiltinFunctionId(const Builtin& builtin, const CompileOptions& op
  return LBF_GETMETATABLE;
  if (builtin.isGlobal("setmetatable"))
  return LBF_SETMETATABLE;
- if (FFlag::LuauCompileBuiltinTonumber && builtin.isGlobal("tonumber"))
+ if (builtin.isGlobal("tonumber"))
  return LBF_TONUMBER;
- if (FFlag::LuauCompileBuiltinTostring && builtin.isGlobal("tostring"))
+ if (builtin.isGlobal("tostring"))
  return LBF_TOSTRING;
  if (builtin.object == "math")
  {
@@ -26567,7 +26565,6 @@ LUAU_FASTINTVARIABLE(LuauCompileLoopUnrollThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThreshold, 25)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
-LUAU_FASTFLAGVARIABLE(LuauCompileFoldMathK, false)
 namespace Luau
 {
 using namespace Luau::Compile;
@@ -29338,7 +29335,6 @@ void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, c
  if (options.optimizationLevel >= 2)
  {
  compiler.builtinsFold = &compiler.builtins;
- if (FFlag::LuauCompileFoldMathK)
  if (AstName math = names.get("math"); math.value && getGlobalState(compiler.globals, math) == Global::Default)
  compiler.builtinsFoldMathK = true;
  }

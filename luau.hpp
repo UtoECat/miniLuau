@@ -101,9 +101,6 @@ SOFTWARE. */
 #ifndef LUA_MAXCAPTURES
 #define LUA_MAXCAPTURES 32
 #endif
-#ifndef LUA_CUSTOM_EXECUTION
-#define LUA_CUSTOM_EXECUTION 1
-#endif
 #define LUAI_USER_ALIGNMENT_T union { double u; void* s; long l; }
 #ifndef LUA_VECTOR_SIZE
 #define LUA_VECTOR_SIZE 3
