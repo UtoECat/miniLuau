@@ -107,6 +107,8 @@ enum LuauOpcode
  LOP_JUMPXEQKB,
  LOP_JUMPXEQKN,
  LOP_JUMPXEQKS,
+ LOP_IDIV,
+ LOP_IDIVK,
  LOP__COUNT
 };
 #define LUAU_INSN_OP(insn) ((insn) & 0xff)
@@ -1107,6 +1109,7 @@ typedef enum
  TM_SUB,
  TM_MUL,
  TM_DIV,
+ TM_IDIV,
  TM_MOD,
  TM_POW,
  TM_UNM,
@@ -1504,6 +1507,12 @@ inline double luai_nummod(double a, double b)
  return a - floor(a / b) * b;
 }
 LUAU_FASTMATH_END
+LUAU_FASTMATH_BEGIN
+inline double luai_numidiv(double a, double b)
+{
+ return floor(a / b);
+}
+LUAU_FASTMATH_END
 #define luai_num2int(i, d) ((i) = (int)(d))
 #if defined(_MSC_VER) && defined(_M_IX86)
 #define luai_num2unsigned(i, n) { __int64 l; __asm { __asm fld n __asm fistp l} ; i = (unsigned int)l; }
@@ -1516,7 +1525,7 @@ LUAI_FUNC char* luai_num2str(char* buf, double n);
 const char* lua_ident = "$Lua: Lua 5.1.4 Copyright (C) 1994-2008 Lua.org, PUC-Rio $\n"
  "$Authors: R. Ierusalimschy, L. H. de Figueiredo & W. Celes $\n"
  "$URL: www.lua.org $\n";
-const char* luau_ident = "$Luau: Copyright (C) 2019-2022 Roblox Corporation $\n"
+const char* luau_ident = "$Luau: Copyright (C) 2019-2023 Roblox Corporation $\n"
  "$URL: luau-lang.org $\n";
 #define api_checknelems(L, n) api_check(L, (n) <= (L->top - L->base))
 #define api_checkvalidindex(L, i) api_check(L, (i) != luaO_nilobject)
@@ -12271,6 +12280,7 @@ const char* const luaT_eventname[] = {
  "__sub",
  "__mul",
  "__div",
+ "__idiv",
  "__mod",
  "__pow",
  "__unm",
@@ -12628,7 +12638,7 @@ int luaopen_utf8(lua_State* L)
 #define VM_PATCH_E(pc, slot) *const_cast<Instruction*>(pc) = ((uint32_t(slot) << 8) | (0x000000ffu & *(pc)))
 #define VM_INTERRUPT() { void (*interrupt)(lua_State*, int) = L->global->cb.interrupt; if (LUAU_UNLIKELY(!!interrupt)) { VM_PROTECT(L->ci->savedpc++; interrupt(L, -1)); if (L->status != 0) { L->ci->savedpc--; goto exit; } } }
 #define VM_DISPATCH_OP(op) &&CASE_##op
-#define VM_DISPATCH_TABLE() VM_DISPATCH_OP(LOP_NOP), VM_DISPATCH_OP(LOP_BREAK), VM_DISPATCH_OP(LOP_LOADNIL), VM_DISPATCH_OP(LOP_LOADB), VM_DISPATCH_OP(LOP_LOADN), VM_DISPATCH_OP(LOP_LOADK), VM_DISPATCH_OP(LOP_MOVE), VM_DISPATCH_OP(LOP_GETGLOBAL), VM_DISPATCH_OP(LOP_SETGLOBAL), VM_DISPATCH_OP(LOP_GETUPVAL), VM_DISPATCH_OP(LOP_SETUPVAL), VM_DISPATCH_OP(LOP_CLOSEUPVALS), VM_DISPATCH_OP(LOP_GETIMPORT), VM_DISPATCH_OP(LOP_GETTABLE), VM_DISPATCH_OP(LOP_SETTABLE), VM_DISPATCH_OP(LOP_GETTABLEKS), VM_DISPATCH_OP(LOP_SETTABLEKS), VM_DISPATCH_OP(LOP_GETTABLEN), VM_DISPATCH_OP(LOP_SETTABLEN), VM_DISPATCH_OP(LOP_NEWCLOSURE), VM_DISPATCH_OP(LOP_NAMECALL), VM_DISPATCH_OP(LOP_CALL), VM_DISPATCH_OP(LOP_RETURN), VM_DISPATCH_OP(LOP_JUMP), VM_DISPATCH_OP(LOP_JUMPBACK), VM_DISPATCH_OP(LOP_JUMPIF), VM_DISPATCH_OP(LOP_JUMPIFNOT), VM_DISPATCH_OP(LOP_JUMPIFEQ), VM_DISPATCH_OP(LOP_JUMPIFLE), VM_DISPATCH_OP(LOP_JUMPIFLT), VM_DISPATCH_OP(LOP_JUMPIFNOTEQ), VM_DISPATCH_OP(LOP_JUMPIFNOTLE), VM_DISPATCH_OP(LOP_JUMPIFNOTLT), VM_DISPATCH_OP(LOP_ADD), VM_DISPATCH_OP(LOP_SUB), VM_DISPATCH_OP(LOP_MUL), VM_DISPATCH_OP(LOP_DIV), VM_DISPATCH_OP(LOP_MOD), VM_DISPATCH_OP(LOP_POW), VM_DISPATCH_OP(LOP_ADDK), VM_DISPATCH_OP(LOP_SUBK), VM_DISPATCH_OP(LOP_MULK), VM_DISPATCH_OP(LOP_DIVK), VM_DISPATCH_OP(LOP_MODK), VM_DISPATCH_OP(LOP_POWK), VM_DISPATCH_OP(LOP_AND), VM_DISPATCH_OP(LOP_OR), VM_DISPATCH_OP(LOP_ANDK), VM_DISPATCH_OP(LOP_ORK), VM_DISPATCH_OP(LOP_CONCAT), VM_DISPATCH_OP(LOP_NOT), VM_DISPATCH_OP(LOP_MINUS), VM_DISPATCH_OP(LOP_LENGTH), VM_DISPATCH_OP(LOP_NEWTABLE), VM_DISPATCH_OP(LOP_DUPTABLE), VM_DISPATCH_OP(LOP_SETLIST), VM_DISPATCH_OP(LOP_FORNPREP), VM_DISPATCH_OP(LOP_FORNLOOP), VM_DISPATCH_OP(LOP_FORGLOOP), VM_DISPATCH_OP(LOP_FORGPREP_INEXT), VM_DISPATCH_OP(LOP_DEP_FORGLOOP_INEXT), VM_DISPATCH_OP(LOP_FORGPREP_NEXT), VM_DISPATCH_OP(LOP_NATIVECALL), VM_DISPATCH_OP(LOP_GETVARARGS), VM_DISPATCH_OP(LOP_DUPCLOSURE), VM_DISPATCH_OP(LOP_PREPVARARGS), VM_DISPATCH_OP(LOP_LOADKX), VM_DISPATCH_OP(LOP_JUMPX), VM_DISPATCH_OP(LOP_FASTCALL), VM_DISPATCH_OP(LOP_COVERAGE), VM_DISPATCH_OP(LOP_CAPTURE), VM_DISPATCH_OP(LOP_DEP_JUMPIFEQK), VM_DISPATCH_OP(LOP_DEP_JUMPIFNOTEQK), VM_DISPATCH_OP(LOP_FASTCALL1), VM_DISPATCH_OP(LOP_FASTCALL2), VM_DISPATCH_OP(LOP_FASTCALL2K), VM_DISPATCH_OP(LOP_FORGPREP), VM_DISPATCH_OP(LOP_JUMPXEQKNIL), VM_DISPATCH_OP(LOP_JUMPXEQKB), VM_DISPATCH_OP(LOP_JUMPXEQKN), VM_DISPATCH_OP(LOP_JUMPXEQKS),
+#define VM_DISPATCH_TABLE() VM_DISPATCH_OP(LOP_NOP), VM_DISPATCH_OP(LOP_BREAK), VM_DISPATCH_OP(LOP_LOADNIL), VM_DISPATCH_OP(LOP_LOADB), VM_DISPATCH_OP(LOP_LOADN), VM_DISPATCH_OP(LOP_LOADK), VM_DISPATCH_OP(LOP_MOVE), VM_DISPATCH_OP(LOP_GETGLOBAL), VM_DISPATCH_OP(LOP_SETGLOBAL), VM_DISPATCH_OP(LOP_GETUPVAL), VM_DISPATCH_OP(LOP_SETUPVAL), VM_DISPATCH_OP(LOP_CLOSEUPVALS), VM_DISPATCH_OP(LOP_GETIMPORT), VM_DISPATCH_OP(LOP_GETTABLE), VM_DISPATCH_OP(LOP_SETTABLE), VM_DISPATCH_OP(LOP_GETTABLEKS), VM_DISPATCH_OP(LOP_SETTABLEKS), VM_DISPATCH_OP(LOP_GETTABLEN), VM_DISPATCH_OP(LOP_SETTABLEN), VM_DISPATCH_OP(LOP_NEWCLOSURE), VM_DISPATCH_OP(LOP_NAMECALL), VM_DISPATCH_OP(LOP_CALL), VM_DISPATCH_OP(LOP_RETURN), VM_DISPATCH_OP(LOP_JUMP), VM_DISPATCH_OP(LOP_JUMPBACK), VM_DISPATCH_OP(LOP_JUMPIF), VM_DISPATCH_OP(LOP_JUMPIFNOT), VM_DISPATCH_OP(LOP_JUMPIFEQ), VM_DISPATCH_OP(LOP_JUMPIFLE), VM_DISPATCH_OP(LOP_JUMPIFLT), VM_DISPATCH_OP(LOP_JUMPIFNOTEQ), VM_DISPATCH_OP(LOP_JUMPIFNOTLE), VM_DISPATCH_OP(LOP_JUMPIFNOTLT), VM_DISPATCH_OP(LOP_ADD), VM_DISPATCH_OP(LOP_SUB), VM_DISPATCH_OP(LOP_MUL), VM_DISPATCH_OP(LOP_DIV), VM_DISPATCH_OP(LOP_MOD), VM_DISPATCH_OP(LOP_POW), VM_DISPATCH_OP(LOP_ADDK), VM_DISPATCH_OP(LOP_SUBK), VM_DISPATCH_OP(LOP_MULK), VM_DISPATCH_OP(LOP_DIVK), VM_DISPATCH_OP(LOP_MODK), VM_DISPATCH_OP(LOP_POWK), VM_DISPATCH_OP(LOP_AND), VM_DISPATCH_OP(LOP_OR), VM_DISPATCH_OP(LOP_ANDK), VM_DISPATCH_OP(LOP_ORK), VM_DISPATCH_OP(LOP_CONCAT), VM_DISPATCH_OP(LOP_NOT), VM_DISPATCH_OP(LOP_MINUS), VM_DISPATCH_OP(LOP_LENGTH), VM_DISPATCH_OP(LOP_NEWTABLE), VM_DISPATCH_OP(LOP_DUPTABLE), VM_DISPATCH_OP(LOP_SETLIST), VM_DISPATCH_OP(LOP_FORNPREP), VM_DISPATCH_OP(LOP_FORNLOOP), VM_DISPATCH_OP(LOP_FORGLOOP), VM_DISPATCH_OP(LOP_FORGPREP_INEXT), VM_DISPATCH_OP(LOP_DEP_FORGLOOP_INEXT), VM_DISPATCH_OP(LOP_FORGPREP_NEXT), VM_DISPATCH_OP(LOP_NATIVECALL), VM_DISPATCH_OP(LOP_GETVARARGS), VM_DISPATCH_OP(LOP_DUPCLOSURE), VM_DISPATCH_OP(LOP_PREPVARARGS), VM_DISPATCH_OP(LOP_LOADKX), VM_DISPATCH_OP(LOP_JUMPX), VM_DISPATCH_OP(LOP_FASTCALL), VM_DISPATCH_OP(LOP_COVERAGE), VM_DISPATCH_OP(LOP_CAPTURE), VM_DISPATCH_OP(LOP_DEP_JUMPIFEQK), VM_DISPATCH_OP(LOP_DEP_JUMPIFNOTEQK), VM_DISPATCH_OP(LOP_FASTCALL1), VM_DISPATCH_OP(LOP_FASTCALL2), VM_DISPATCH_OP(LOP_FASTCALL2K), VM_DISPATCH_OP(LOP_FORGPREP), VM_DISPATCH_OP(LOP_JUMPXEQKNIL), VM_DISPATCH_OP(LOP_JUMPXEQKB), VM_DISPATCH_OP(LOP_JUMPXEQKN), VM_DISPATCH_OP(LOP_JUMPXEQKS), VM_DISPATCH_OP(LOP_IDIV), VM_DISPATCH_OP(LOP_IDIVK),
 #if defined(__GNUC__) || defined(__clang__)
 #define VM_USE_CGOTO 1
 #else
@@ -13824,6 +13834,47 @@ reentry:
  }
  }
  }
+ VM_CASE(LOP_IDIV)
+ {
+ Instruction insn = *pc++;
+ StkId ra = VM_REG(LUAU_INSN_A(insn));
+ StkId rb = VM_REG(LUAU_INSN_B(insn));
+ StkId rc = VM_REG(LUAU_INSN_C(insn));
+ if (LUAU_LIKELY(ttisnumber(rb) && ttisnumber(rc)))
+ {
+ setnvalue(ra, luai_numidiv(nvalue(rb), nvalue(rc)));
+ VM_NEXT();
+ }
+ else if (ttisvector(rb) && ttisnumber(rc))
+ {
+ const float* vb = vvalue(rb);
+ float vc = cast_to(float, nvalue(rc));
+ setvvalue(ra, float(luai_numidiv(vb[0], vc)), float(luai_numidiv(vb[1], vc)), float(luai_numidiv(vb[2], vc)),
+ float(luai_numidiv(vb[3], vc)));
+ VM_NEXT();
+ }
+ else
+ {
+ StkId rbc = ttisnumber(rb) ? rc : rb;
+ const TValue* fn = 0;
+ if (ttisuserdata(rbc) && (fn = luaT_gettmbyobj(L, rbc, TM_IDIV)) && ttisfunction(fn) && clvalue(fn)->isC)
+ {
+ LUAU_ASSERT(L->top + 3 < L->stack + L->stacksize);
+ StkId top = L->top;
+ setobj2s(L, top + 0, fn);
+ setobj2s(L, top + 1, rb);
+ setobj2s(L, top + 2, rc);
+ L->top = top + 3;
+ VM_PROTECT(luaV_callTM(L, 2, LUAU_INSN_A(insn)));
+ VM_NEXT();
+ }
+ else
+ {
+ VM_PROTECT(luaV_doarith(L, ra, rb, rc, TM_IDIV));
+ VM_NEXT();
+ }
+ }
+ }
  VM_CASE(LOP_MOD)
  {
  Instruction insn = *pc++;
@@ -13968,6 +14019,46 @@ reentry:
  else
  {
  VM_PROTECT(luaV_doarith(L, ra, rb, kv, TM_DIV));
+ VM_NEXT();
+ }
+ }
+ }
+ VM_CASE(LOP_IDIVK)
+ {
+ Instruction insn = *pc++;
+ StkId ra = VM_REG(LUAU_INSN_A(insn));
+ StkId rb = VM_REG(LUAU_INSN_B(insn));
+ TValue* kv = VM_KV(LUAU_INSN_C(insn));
+ if (LUAU_LIKELY(ttisnumber(rb)))
+ {
+ setnvalue(ra, luai_numidiv(nvalue(rb), nvalue(kv)));
+ VM_NEXT();
+ }
+ else if (ttisvector(rb))
+ {
+ const float* vb = vvalue(rb);
+ float vc = cast_to(float, nvalue(kv));
+ setvvalue(ra, float(luai_numidiv(vb[0], vc)), float(luai_numidiv(vb[1], vc)), float(luai_numidiv(vb[2], vc)),
+ float(luai_numidiv(vb[3], vc)));
+ VM_NEXT();
+ }
+ else
+ {
+ const TValue* fn = 0;
+ if (ttisuserdata(rb) && (fn = luaT_gettmbyobj(L, rb, TM_IDIV)) && ttisfunction(fn) && clvalue(fn)->isC)
+ {
+ LUAU_ASSERT(L->top + 3 < L->stack + L->stacksize);
+ StkId top = L->top;
+ setobj2s(L, top + 0, fn);
+ setobj2s(L, top + 1, rb);
+ setobj2s(L, top + 2, kv);
+ L->top = top + 3;
+ VM_PROTECT(luaV_callTM(L, 2, LUAU_INSN_A(insn)));
+ VM_NEXT();
+ }
+ else
+ {
+ VM_PROTECT(luaV_doarith(L, ra, rb, kv, TM_IDIV));
  VM_NEXT();
  }
  }
@@ -15426,6 +15517,9 @@ void luaV_doarith(lua_State* L, StkId ra, const TValue* rb, const TValue* rc, TM
  case TM_DIV:
  setnvalue(ra, luai_numdiv(nb, nc));
  break;
+ case TM_IDIV:
+ setnvalue(ra, luai_numidiv(nb, nc));
+ break;
  case TM_MOD:
  setnvalue(ra, luai_nummod(nb, nc));
  break;
@@ -15460,6 +15554,10 @@ void luaV_doarith(lua_State* L, StkId ra, const TValue* rb, const TValue* rc, TM
  case TM_DIV:
  setvvalue(ra, vb[0] / vc[0], vb[1] / vc[1], vb[2] / vc[2], vb[3] / vc[3]);
  return;
+ case TM_IDIV:
+ setvvalue(ra, float(luai_numidiv(vb[0], vc[0])), float(luai_numidiv(vb[1], vc[1])), float(luai_numidiv(vb[2], vc[2])),
+ float(luai_numidiv(vb[3], vc[3])));
+ return;
  case TM_UNM:
  setvvalue(ra, -vb[0], -vb[1], -vb[2], -vb[3]);
  return;
@@ -15481,6 +15579,10 @@ void luaV_doarith(lua_State* L, StkId ra, const TValue* rb, const TValue* rc, TM
  case TM_DIV:
  setvvalue(ra, vb[0] / nc, vb[1] / nc, vb[2] / nc, vb[3] / nc);
  return;
+ case TM_IDIV:
+ setvvalue(ra, float(luai_numidiv(vb[0], nc)), float(luai_numidiv(vb[1], nc)), float(luai_numidiv(vb[2], nc)),
+ float(luai_numidiv(vb[3], nc)));
+ return;
  default:
  break;
  }
@@ -15499,6 +15601,10 @@ void luaV_doarith(lua_State* L, StkId ra, const TValue* rb, const TValue* rc, TM
  return;
  case TM_DIV:
  setvvalue(ra, nb / vc[0], nb / vc[1], nb / vc[2], nb / vc[3]);
+ return;
+ case TM_IDIV:
+ setvvalue(ra, float(luai_numidiv(nb, vc[0])), float(luai_numidiv(nb, vc[1])), float(luai_numidiv(nb, vc[2])),
+ float(luai_numidiv(nb, vc[3])));
  return;
  default:
  break;
@@ -15978,6 +16084,7 @@ public:
  Sub,
  Mul,
  Div,
+ FloorDiv,
  Mod,
  Pow,
  Concat,
@@ -15988,7 +16095,8 @@ public:
  CompareGt,
  CompareGe,
  And,
- Or
+ Or,
+ Op__Count
  };
  AstExprBinary(const Location& location, Op op, AstExpr* left, AstExpr* right);
  void visit(AstVisitor* visitor) override;
@@ -16031,9 +16139,10 @@ class AstStatBlock : public AstStat
 {
 public:
  LUAU_RTTI(AstStatBlock)
- AstStatBlock(const Location& location, const AstArray<AstStat*>& body);
+ AstStatBlock(const Location& location, const AstArray<AstStat*>& body, bool hasEnd=true);
  void visit(AstVisitor* visitor) override;
  AstArray<AstStat*> body;
+ bool hasEnd = false;
 };
 class AstStatIf : public AstStat
 {
@@ -16654,6 +16763,7 @@ struct hash<Luau::AstName>
  }
 };
 }
+LUAU_FASTFLAG(LuauFloorDivision)
 namespace Luau
 {
 static void visitTypeList(AstVisitor* visitor, const AstTypeList& list)
@@ -16890,6 +17000,9 @@ std::string toString(AstExprBinary::Op op)
  return "*";
  case AstExprBinary::Div:
  return "/";
+ case AstExprBinary::FloorDiv:
+ LUAU_ASSERT(FFlag::LuauFloorDivision);
+ return "//";
  case AstExprBinary::Mod:
  return "%";
  case AstExprBinary::Pow:
@@ -16977,9 +17090,10 @@ void AstExprError::visit(AstVisitor* visitor)
  expression->visit(visitor);
  }
 }
-AstStatBlock::AstStatBlock(const Location& location, const AstArray<AstStat*>& body)
+AstStatBlock::AstStatBlock(const Location& location, const AstArray<AstStat*>& body, bool hasEnd)
  : AstStat(ClassIndex(), location)
  , body(body)
+ , hasEnd(hasEnd)
 {
 }
 void AstStatBlock::visit(AstVisitor* visitor)
@@ -19343,6 +19457,7 @@ struct Lexeme
  Dot3,
  SkinnyArrow,
  DoubleColon,
+ FloorDiv,
  InterpStringBegin,
  InterpStringMid,
  InterpStringEnd,
@@ -19351,6 +19466,7 @@ struct Lexeme
  SubAssign,
  MulAssign,
  DivAssign,
+ FloorDivAssign,
  ModAssign,
  PowAssign,
  ConcatAssign,
@@ -19505,7 +19621,9 @@ size_t hashRange(const char* data, size_t size);
 std::string escape(std::string_view s, bool escapeForInterpString = false);
 bool isIdentifier(std::string_view s);
 }
+LUAU_FASTFLAGVARIABLE(LuauFloorDivision, false)
 LUAU_FASTFLAGVARIABLE(LuauLexerConsumeFast, false)
+LUAU_FASTFLAGVARIABLE(LuauLexerLookaheadRemembersBraceType, false)
 namespace Luau
 {
 Allocator::Allocator()
@@ -19607,6 +19725,8 @@ std::string Lexeme::toString() const
  return "'->'";
  case DoubleColon:
  return "'::'";
+ case FloorDiv:
+ return FFlag::LuauFloorDivision ? "'//'" : "<unknown>";
  case AddAssign:
  return "'+='";
  case SubAssign:
@@ -19615,6 +19735,8 @@ std::string Lexeme::toString() const
  return "'*='";
  case DivAssign:
  return "'/='";
+ case FloorDivAssign:
+ return FFlag::LuauFloorDivision ? "'//='" : "<unknown>";
  case ModAssign:
  return "'%='";
  case PowAssign:
@@ -19810,12 +19932,21 @@ Lexeme Lexer::lookahead()
  unsigned int currentLineOffset = lineOffset;
  Lexeme currentLexeme = lexeme;
  Location currentPrevLocation = prevLocation;
+ size_t currentBraceStackSize = braceStack.size();
+ BraceType currentBraceType = braceStack.empty() ? BraceType::Normal : braceStack.back();
  Lexeme result = next();
  offset = currentOffset;
  line = currentLine;
  lineOffset = currentLineOffset;
  lexeme = currentLexeme;
  prevLocation = currentPrevLocation;
+ if (FFlag::LuauLexerLookaheadRemembersBraceType)
+ {
+ if (braceStack.size() < currentBraceStackSize)
+ braceStack.push_back(currentBraceType);
+ else if (braceStack.size() > currentBraceStackSize)
+ braceStack.pop_back();
+ }
  return result;
 }
 bool Lexer::isReserved(const std::string& word)
@@ -20201,6 +20332,32 @@ Lexeme Lexer::readNext()
  else
  return Lexeme(Location(start, 1), '+');
  case '/':
+ {
+ if (FFlag::LuauFloorDivision)
+ {
+ consume();
+ char ch = peekch();
+ if (ch == '=')
+ {
+ consume();
+ return Lexeme(Location(start, 2), Lexeme::DivAssign);
+ }
+ else if (ch == '/')
+ {
+ consume();
+ if (peekch() == '=')
+ {
+ consume();
+ return Lexeme(Location(start, 3), Lexeme::FloorDivAssign);
+ }
+ else
+ return Lexeme(Location(start, 2), Lexeme::FloorDiv);
+ }
+ else
+ return Lexeme(Location(start, 1), '/');
+ }
+ else
+ {
  consume();
  if (peekch() == '=')
  {
@@ -20209,6 +20366,8 @@ Lexeme Lexer::readNext()
  }
  else
  return Lexeme(Location(start, 1), '/');
+ }
+ }
  case '*':
  consume();
  if (peekch() == '=')
@@ -21056,6 +21215,7 @@ LUAU_NOINLINE uint16_t createScopeData(const char* name, const char* category);
 LUAU_FASTINTVARIABLE(LuauRecursionLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
 LUAU_FASTFLAGVARIABLE(LuauParseDeclareClassIndexer, false)
+LUAU_FASTFLAG(LuauFloorDivision)
 namespace Luau
 {
 ParseError::ParseError(const Location& location, const std::string& message)
@@ -21369,9 +21529,9 @@ AstStat* Parser::parseDo()
  Location start = lexer.current().location;
  Lexeme matchDo = lexer.current();
  nextLexeme();
- AstStat* body = parseBlock();
+ AstStatBlock* body = parseBlock();
  body->location.begin = start.begin;
- expectMatchEndAndConsume(Lexeme::ReservedEnd, matchDo);
+ body->hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchDo);
  return body;
 }
 AstStat* Parser::parseBreak()
@@ -22273,6 +22433,11 @@ std::optional<AstExprBinary::Op> Parser::parseBinaryOp(const Lexeme& l)
  return AstExprBinary::Mul;
  else if (l.type == '/')
  return AstExprBinary::Div;
+ else if (l.type == Lexeme::FloorDiv)
+ {
+ LUAU_ASSERT(FFlag::LuauFloorDivision);
+ return AstExprBinary::FloorDiv;
+ }
  else if (l.type == '%')
  return AstExprBinary::Mod;
  else if (l.type == '^')
@@ -22308,6 +22473,11 @@ std::optional<AstExprBinary::Op> Parser::parseCompoundOp(const Lexeme& l)
  return AstExprBinary::Mul;
  else if (l.type == Lexeme::DivAssign)
  return AstExprBinary::Div;
+ else if (l.type == Lexeme::FloorDivAssign)
+ {
+ LUAU_ASSERT(FFlag::LuauFloorDivision);
+ return AstExprBinary::FloorDiv;
+ }
  else if (l.type == Lexeme::ModAssign)
  return AstExprBinary::Mod;
  else if (l.type == Lexeme::PowAssign)
@@ -22361,12 +22531,13 @@ std::optional<AstExprBinary::Op> Parser::checkBinaryConfusables(const BinaryOpPr
 AstExpr* Parser::parseExpr(unsigned int limit)
 {
  static const BinaryOpPriority binaryPriority[] = {
- {6, 6}, {6, 6}, {7, 7}, {7, 7}, {7, 7},
+ {6, 6}, {6, 6}, {7, 7}, {7, 7}, {7, 7}, {7, 7},
  {10, 9}, {5, 4}, // power and concat (right associative)
  {3, 3}, {3, 3},
  {3, 3}, {3, 3}, {3, 3}, {3, 3}, // order
  {2, 2}, {1, 1}
  };
+ static_assert(sizeof(binaryPriority) / sizeof(binaryPriority[0]) == size_t(AstExprBinary::Op__Count), "binaryPriority needs an entry per op");
  unsigned int recursionCounterOld = recursionCounter;
  incrementRecursionCounter("expression");
  const unsigned int unaryPriority = 8;
@@ -24562,7 +24733,6 @@ class BytecodeEncoder
 {
 public:
  virtual ~BytecodeEncoder() {}
- virtual uint8_t encodeOp(uint8_t op) = 0;
  virtual void encode(uint32_t* data, size_t count) = 0;
 };
 class BytecodeBuilder
@@ -24763,7 +24933,7 @@ private:
 };
 }
 LUAU_FASTFLAGVARIABLE(BytecodeVersion4, false)
-LUAU_FASTFLAGVARIABLE(BytecodeEnc, false)
+LUAU_FASTFLAG(LuauFloorDivision)
 namespace Luau
 {
 static_assert(LBC_VERSION_TARGET >= LBC_VERSION_MIN && LBC_VERSION_TARGET <= LBC_VERSION_MAX, "Invalid bytecode version setup");
@@ -24941,7 +25111,7 @@ void BytecodeBuilder::endFunction(uint8_t maxstacksize, uint8_t numupvalues, uin
  if (dumpFunctionPtr)
  func.dump = (this->*dumpFunctionPtr)(func.dumpinstoffs);
  func.data.reserve(32 + insns.size() * 7);
- if (FFlag::BytecodeEnc && encoder)
+ if (encoder)
  encoder->encode(insns.data(), insns.size());
  writeFunction(func.data, currentFunction, flags);
  currentFunction = ~0u;
@@ -25218,25 +25388,8 @@ void BytecodeBuilder::writeFunction(std::string& ss, uint32_t id, uint8_t flags)
  ss.append(func.typeinfo);
  }
  writeVarInt(ss, uint32_t(insns.size()));
- if (encoder && !FFlag::BytecodeEnc)
- {
- for (size_t i = 0; i < insns.size();)
- {
- uint8_t op = LUAU_INSN_OP(insns[i]);
- LUAU_ASSERT(op < LOP__COUNT);
- int oplen = getOpLength(LuauOpcode(op));
- uint8_t openc = encoder->encodeOp(op);
- writeInt(ss, openc | (insns[i] & ~0xff));
- for (int j = 1; j < oplen; ++j)
- writeInt(ss, insns[i + j]);
- i += oplen;
- }
- }
- else
- {
  for (uint32_t insn : insns)
  writeInt(ss, insn);
- }
  writeVarInt(ss, uint32_t(constants.size()));
  for (const Constant& c : constants)
  {
@@ -25709,8 +25862,10 @@ void BytecodeBuilder::validateInstructions() const
  case LOP_SUB:
  case LOP_MUL:
  case LOP_DIV:
+ case LOP_IDIV:
  case LOP_MOD:
  case LOP_POW:
+ LUAU_ASSERT(FFlag::LuauFloorDivision || op != LOP_IDIV);
  VREG(LUAU_INSN_A(insn));
  VREG(LUAU_INSN_B(insn));
  VREG(LUAU_INSN_C(insn));
@@ -25719,8 +25874,10 @@ void BytecodeBuilder::validateInstructions() const
  case LOP_SUBK:
  case LOP_MULK:
  case LOP_DIVK:
+ case LOP_IDIVK:
  case LOP_MODK:
  case LOP_POWK:
+ LUAU_ASSERT(FFlag::LuauFloorDivision || op != LOP_IDIVK);
  VREG(LUAU_INSN_A(insn));
  VREG(LUAU_INSN_B(insn));
  VCONST(LUAU_INSN_C(insn), Number);
@@ -26159,6 +26316,10 @@ void BytecodeBuilder::dumpInstruction(const uint32_t* code, std::string& result,
  case LOP_DIV:
  formatAppend(result, "DIV R%d R%d R%d\n", LUAU_INSN_A(insn), LUAU_INSN_B(insn), LUAU_INSN_C(insn));
  break;
+ case LOP_IDIV:
+ LUAU_ASSERT(FFlag::LuauFloorDivision);
+ formatAppend(result, "IDIV R%d R%d R%d\n", LUAU_INSN_A(insn), LUAU_INSN_B(insn), LUAU_INSN_C(insn));
+ break;
  case LOP_MOD:
  formatAppend(result, "MOD R%d R%d R%d\n", LUAU_INSN_A(insn), LUAU_INSN_B(insn), LUAU_INSN_C(insn));
  break;
@@ -26182,6 +26343,12 @@ void BytecodeBuilder::dumpInstruction(const uint32_t* code, std::string& result,
  break;
  case LOP_DIVK:
  formatAppend(result, "DIVK R%d R%d K%d [", LUAU_INSN_A(insn), LUAU_INSN_B(insn), LUAU_INSN_C(insn));
+ dumpConstant(result, LUAU_INSN_C(insn));
+ result.append("]\n");
+ break;
+ case LOP_IDIVK:
+ LUAU_ASSERT(FFlag::LuauFloorDivision);
+ formatAppend(result, "IDIVK R%d R%d K%d [", LUAU_INSN_A(insn), LUAU_INSN_B(insn), LUAU_INSN_C(insn));
  dumpConstant(result, LUAU_INSN_C(insn));
  result.append("]\n");
  break;
@@ -26565,6 +26732,7 @@ LUAU_FASTINTVARIABLE(LuauCompileLoopUnrollThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThreshold, 25)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
+LUAU_FASTFLAG(LuauFloorDivision)
 namespace Luau
 {
 using namespace Luau::Compile;
@@ -27255,6 +27423,9 @@ struct Compiler
  return k ? LOP_MULK : LOP_MUL;
  case AstExprBinary::Div:
  return k ? LOP_DIVK : LOP_DIV;
+ case AstExprBinary::FloorDiv:
+ LUAU_ASSERT(FFlag::LuauFloorDivision);
+ return k ? LOP_IDIVK : LOP_IDIV;
  case AstExprBinary::Mod:
  return k ? LOP_MODK : LOP_MOD;
  case AstExprBinary::Pow:
@@ -27580,9 +27751,11 @@ struct Compiler
  case AstExprBinary::Sub:
  case AstExprBinary::Mul:
  case AstExprBinary::Div:
+ case AstExprBinary::FloorDiv:
  case AstExprBinary::Mod:
  case AstExprBinary::Pow:
  {
+ LUAU_ASSERT(FFlag::LuauFloorDivision || expr->op != AstExprBinary::FloorDiv);
  int32_t rc = getConstantNumber(expr->right);
  if (rc >= 0 && rc <= 255)
  {
@@ -28817,9 +28990,11 @@ struct Compiler
  case AstExprBinary::Sub:
  case AstExprBinary::Mul:
  case AstExprBinary::Div:
+ case AstExprBinary::FloorDiv:
  case AstExprBinary::Mod:
  case AstExprBinary::Pow:
  {
+ LUAU_ASSERT(FFlag::LuauFloorDivision || stat->op != AstExprBinary::FloorDiv);
  if (var.kind != LValue::Kind_Local)
  compileLValueUse(var, target, false);
  int32_t rc = getConstantNumber(stat->value);
@@ -29480,6 +29655,13 @@ static void foldBinary(Constant& result, AstExprBinary::Op op, const Constant& l
  {
  result.type = Constant::Type_Number;
  result.valueNumber = la.valueNumber / ra.valueNumber;
+ }
+ break;
+ case AstExprBinary::FloorDiv:
+ if (la.type == Constant::Type_Number && ra.type == Constant::Type_Number)
+ {
+ result.type = Constant::Type_Number;
+ result.valueNumber = floor(la.valueNumber / ra.valueNumber);
  }
  break;
  case AstExprBinary::Mod:
