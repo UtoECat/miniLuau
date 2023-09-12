@@ -8339,6 +8339,8 @@ int luaopen_math(lua_State* L)
 #endif
 #if defined(__APPLE__)
 #define ABISWITCH(x64, ms32, gcc32) (sizeof(void*) == 8 ? x64 : gcc32)
+#elif defined(__i386__) && defined(__MINGW32__) && !defined(__MINGW64__)
+#define ABISWITCH(x64, ms32, gcc32) (ms32)
 #elif defined(__i386__) && !defined(_MSC_VER)
 #define ABISWITCH(x64, ms32, gcc32) (gcc32)
 #else
@@ -12654,6 +12656,7 @@ int luaopen_utf8(lua_State* L)
 #define VM_CONTINUE(op) dispatchOp = uint8_t(op); goto dispatchContinue
 #endif
 #define VM_HAS_NATIVE 1
+void (*lua_iter_call_telemetry)(lua_State* L, int gtt, int stt, int itt) = NULL;
 LUAU_NOINLINE void luau_callhook(lua_State* L, lua_Hook hook, void* userdata)
 {
  ptrdiff_t base = savestack(L, L->base);
@@ -14337,6 +14340,9 @@ reentry:
  }
  else if (fasttm(L, mt, TM_CALL))
  {
+ void (*telemetrycb)(lua_State* L, int gtt, int stt, int itt) = lua_iter_call_telemetry;
+ if (telemetrycb)
+ telemetrycb(L, ttype(ra), ttype(ra + 1), ttype(ra + 2));
  }
  else if (ttistable(ra))
  {
@@ -19622,7 +19628,6 @@ std::string escape(std::string_view s, bool escapeForInterpString = false);
 bool isIdentifier(std::string_view s);
 }
 LUAU_FASTFLAGVARIABLE(LuauFloorDivision, false)
-LUAU_FASTFLAGVARIABLE(LuauLexerConsumeFast, false)
 LUAU_FASTFLAGVARIABLE(LuauLexerLookaheadRemembersBraceType, false)
 namespace Luau
 {
@@ -19973,18 +19978,7 @@ Position Lexer::position() const
 LUAU_FORCEINLINE
 void Lexer::consume()
 {
- if (isNewline(buffer[offset]))
- {
- if (FFlag::LuauLexerConsumeFast)
- {
  LUAU_ASSERT(!isNewline(buffer[offset]));
- }
- else
- {
- line++;
- lineOffset = offset + 1;
- }
- }
  offset++;
 }
 LUAU_FORCEINLINE
