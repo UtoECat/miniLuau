@@ -5769,7 +5769,6 @@ const char* lua_debugtrace(lua_State* L)
 #else
 #include <stdexcept>
 #endif
-LUAU_FASTFLAGVARIABLE(LuauPCallDebuggerFix, false)
 #if LUA_USE_LONGJMP
 struct lua_jmpbuf
 {
@@ -6188,7 +6187,7 @@ int luaD_pcall(lua_State* L, Pfunc func, void* u, ptrdiff_t old_top, ptrdiff_t e
  L->isactive = false;
  bool yieldable = L->nCcalls <= L->baseCcalls;
  L->nCcalls = oldnCcalls;
- if ((!FFlag::LuauPCallDebuggerFix || yieldable) && L->global->cb.debugprotectederror)
+ if (yieldable && L->global->cb.debugprotectederror)
  {
  L->global->cb.debugprotectederror(L);
  if (L->status == LUA_BREAK)
@@ -9121,19 +9120,6 @@ static tm* localtime_r(const time_t* timep, tm* result)
 static time_t timegm(struct tm* timep)
 {
  return _mkgmtime(timep);
-}
-#elif defined(__FreeBSD__)
-static tm* gmtime_r(const time_t* timep, tm* result)
-{
- return gmtime_s(timep, result) == 0 ? result : NULL;
-}
-static tm* localtime_r(const time_t* timep, tm* result)
-{
- return localtime_s(timep, result) == 0 ? result : NULL;
-}
-static time_t timegm(struct tm* timep)
-{
- return mktime(timep);
 }
 #endif
 static int os_clock(lua_State* L)
