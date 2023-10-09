@@ -121,7 +121,7 @@ enum LuauBytecodeTag
 {
  LBC_VERSION_MIN = 3,
  LBC_VERSION_MAX = 4,
- LBC_VERSION_TARGET = 3,
+ LBC_VERSION_TARGET = 4,
  LBC_TYPE_VERSION = 1,
  LBC_CONSTANT_NIL = 0,
  LBC_CONSTANT_BOOLEAN,
@@ -222,6 +222,7 @@ enum LuauCaptureType
 enum LuauProtoFlag
 {
  LPF_NATIVE_MODULE = 1 << 0,
+ LPF_NATIVE_COLD = 1 << 1,
 };
 namespace Luau
 {
@@ -9108,6 +9109,7 @@ const char* luaO_chunkid(char* buf, size_t buflen, const char* source, size_t sr
  return buf;
 }
 #define LUA_STRFTIMEOPTIONS "aAbBcdHIjmMpSUwWxXyYzZ%"
+LUAU_FASTFLAGVARIABLE(LuauOsTimegm, false)
 #if defined(_WIN32)
 static tm* gmtime_r(const time_t* timep, tm* result)
 {
@@ -9119,9 +9121,32 @@ static tm* localtime_r(const time_t* timep, tm* result)
 }
 static time_t timegm(struct tm* timep)
 {
+ LUAU_ASSERT(!FFlag::LuauOsTimegm);
  return _mkgmtime(timep);
 }
 #endif
+static time_t os_timegm(struct tm* timep)
+{
+ LUAU_ASSERT(FFlag::LuauOsTimegm);
+ int day = timep->tm_mday;
+ int month = timep->tm_mon + 1;
+ int year = timep->tm_year + 1900;
+ int a = timep->tm_mon % 12 < 2 ? 1 : 0;
+ a -= timep->tm_mon / 12;
+ int y = year + 4800 - a;
+ int m = month + (12 * a) - 3;
+ int julianday = day + ((153 * m + 2) / 5) + (365 * y) + (y / 4) - (y / 100) + (y / 400) - 32045;
+ const int utcstartasjulianday = 2440588;
+ const int64_t utcstartasjuliansecond = utcstartasjulianday * 86400ll; // same in seconds
+ if (julianday < utcstartasjulianday)
+ return time_t(-1);
+ int64_t daysecond = timep->tm_hour * 3600ll + timep->tm_min * 60ll + timep->tm_sec;
+ int64_t julianseconds = int64_t(julianday) * 86400ull + daysecond;
+ if (julianseconds < utcstartasjuliansecond)
+ return time_t(-1);
+ int64_t utc = julianseconds - utcstartasjuliansecond;
+ return time_t(utc);
+}
 static int os_clock(lua_State* L)
 {
  lua_pushnumber(L, lua_clock());
@@ -9241,6 +9266,9 @@ static int os_time(lua_State* L)
  ts.tm_mon = getfield(L, "month", -1) - 1;
  ts.tm_year = getfield(L, "year", -1) - 1900;
  ts.tm_isdst = getboolfield(L, "isdst");
+ if (FFlag::LuauOsTimegm)
+ t = os_timegm(&ts);
+ else
  t = timegm(&ts);
  }
  if (t == (time_t)(-1))
@@ -9273,7 +9301,7 @@ int luaopen_os(lua_State* L)
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
-#include <Windows.h>
+#include <windows.h>
 #endif
 #ifdef __APPLE__
 #include <mach/mach.h>
@@ -16313,6 +16341,9 @@ public:
  AstStatDeclareFunction(const Location& location, const AstName& name, const AstArray<AstGenericType>& generics,
  const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& params, const AstArray<AstArgumentName>& paramNames,
  const AstTypeList& retTypes);
+ AstStatDeclareFunction(const Location& location, const AstName& name, const AstArray<AstGenericType>& generics,
+ const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& params, const AstArray<AstArgumentName>& paramNames,
+ const AstTypeList& retTypes, bool checkedFunction);
  void visit(AstVisitor* visitor) override;
  AstName name;
  AstArray<AstGenericType> generics;
@@ -16320,6 +16351,7 @@ public:
  AstTypeList params;
  AstArray<AstArgumentName> paramNames;
  AstTypeList retTypes;
+ bool checkedFunction;
 };
 struct AstDeclaredClassProp
 {
@@ -16397,12 +16429,15 @@ public:
  LUAU_RTTI(AstTypeFunction)
  AstTypeFunction(const Location& location, const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks,
  const AstTypeList& argTypes, const AstArray<std::optional<AstArgumentName>>& argNames, const AstTypeList& returnTypes);
+ AstTypeFunction(const Location& location, const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks,
+ const AstTypeList& argTypes, const AstArray<std::optional<AstArgumentName>>& argNames, const AstTypeList& returnTypes, bool checkedFunction);
  void visit(AstVisitor* visitor) override;
  AstArray<AstGenericType> generics;
  AstArray<AstGenericTypePack> genericPacks;
  AstTypeList argTypes;
  AstArray<std::optional<AstArgumentName>> argNames;
  AstTypeList returnTypes;
+ bool checkedFunction;
 };
 class AstTypeTypeof : public AstType
 {
@@ -17368,6 +17403,20 @@ AstStatDeclareFunction::AstStatDeclareFunction(const Location& location, const A
  , params(params)
  , paramNames(paramNames)
  , retTypes(retTypes)
+ , checkedFunction(false)
+{
+}
+AstStatDeclareFunction::AstStatDeclareFunction(const Location& location, const AstName& name, const AstArray<AstGenericType>& generics,
+ const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& params, const AstArray<AstArgumentName>& paramNames,
+ const AstTypeList& retTypes, bool checkedFunction)
+ : AstStat(ClassIndex(), location)
+ , name(name)
+ , generics(generics)
+ , genericPacks(genericPacks)
+ , params(params)
+ , paramNames(paramNames)
+ , retTypes(retTypes)
+ , checkedFunction(checkedFunction)
 {
 }
 void AstStatDeclareFunction::visit(AstVisitor* visitor)
@@ -17464,6 +17513,19 @@ AstTypeFunction::AstTypeFunction(const Location& location, const AstArray<AstGen
  , argTypes(argTypes)
  , argNames(argNames)
  , returnTypes(returnTypes)
+ , checkedFunction(false)
+{
+ LUAU_ASSERT(argNames.size == 0 || argNames.size == argTypes.types.size);
+}
+AstTypeFunction::AstTypeFunction(const Location& location, const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks,
+ const AstTypeList& argTypes, const AstArray<std::optional<AstArgumentName>>& argNames, const AstTypeList& returnTypes, bool checkedFunction)
+ : AstType(ClassIndex(), location)
+ , generics(generics)
+ , genericPacks(genericPacks)
+ , argTypes(argTypes)
+ , argNames(argNames)
+ , returnTypes(returnTypes)
+ , checkedFunction(checkedFunction)
 {
  LUAU_ASSERT(argNames.size == 0 || argNames.size == argTypes.types.size);
 }
@@ -19496,6 +19558,7 @@ struct Lexeme
  ReservedTrue,
  ReservedUntil,
  ReservedWhile,
+ ReservedChecked,
  Reserved_END
  };
  Type type;
@@ -19616,6 +19679,7 @@ bool isIdentifier(std::string_view s);
 }
 LUAU_FASTFLAGVARIABLE(LuauFloorDivision, false)
 LUAU_FASTFLAGVARIABLE(LuauLexerLookaheadRemembersBraceType, false)
+LUAU_FASTFLAGVARIABLE(LuauCheckedFunctionSyntax, false)
 namespace Luau
 {
 Allocator::Allocator()
@@ -19694,7 +19758,7 @@ Lexeme::Lexeme(const Location& location, Type type, const char* name)
  LUAU_ASSERT(type == Name || (type >= Reserved_BEGIN && type < Lexeme::Reserved_END));
 }
 static const char* kReserved[] = {"and", "break", "do", "else", "elseif", "end", "false", "for", "function", "if", "in", "local", "nil", "not", "or",
- "repeat", "return", "then", "true", "until", "while"};
+ "repeat", "return", "then", "true", "until", "while", "@checked"};
 std::string Lexeme::toString() const
 {
  switch (type)
@@ -20150,7 +20214,7 @@ Lexeme Lexer::readNumber(const Position& start, unsigned int startOffset)
 }
 std::pair<AstName, Lexeme::Type> Lexer::readName()
 {
- LUAU_ASSERT(isAlpha(peekch()) || peekch() == '_');
+ LUAU_ASSERT(isAlpha(peekch()) || peekch() == '_' || peekch() == '@');
  unsigned int startOffset = offset;
  do
  consume();
@@ -20400,6 +20464,17 @@ Lexeme Lexer::readNext()
  char ch = peekch();
  consume();
  return Lexeme(Location(start, 1), ch);
+ }
+ case '@':
+ {
+ if (FFlag::LuauCheckedFunctionSyntax)
+ {
+ LUAU_ASSERT(peekch() == '@');
+ std::pair<AstName, Lexeme::Type> maybeChecked = readName();
+ if (maybeChecked.second != Lexeme::ReservedChecked)
+ return Lexeme(Location(start, position()), Lexeme::Error);
+ return Lexeme(Location(start, position()), maybeChecked.second, maybeChecked.first.value);
+ }
  }
  default:
  if (isDigit(peekch()))
@@ -20877,13 +20952,14 @@ private:
  std::optional<AstTypeList> parseOptionalReturnType();
  std::pair<Location, AstTypeList> parseReturnType();
  AstTableIndexer* parseTableIndexer();
- AstTypeOrPack parseFunctionType(bool allowPack);
+ AstTypeOrPack parseFunctionType(bool allowPack, bool isCheckedFunction = false);
  AstType* parseFunctionTypeTail(const Lexeme& begin, AstArray<AstGenericType> generics, AstArray<AstGenericTypePack> genericPacks,
- AstArray<AstType*> params, AstArray<std::optional<AstArgumentName>> paramNames, AstTypePack* varargAnnotation);
- AstType* parseTableType();
- AstTypeOrPack parseSimpleType(bool allowPack);
+ AstArray<AstType*> params, AstArray<std::optional<AstArgumentName>> paramNames, AstTypePack* varargAnnotation,
+ bool isCheckedFunction = false);
+ AstType* parseTableType(bool inDeclarationContext = false);
+ AstTypeOrPack parseSimpleType(bool allowPack, bool inDeclarationContext = false);
  AstTypeOrPack parseTypeOrPack();
- AstType* parseType();
+ AstType* parseType(bool inDeclarationContext = false);
  AstTypePack* parseTypePack();
  AstTypePack* parseVariadicArgumentTypePack();
  AstType* parseTypeSuffix(AstType* type, const Location& begin);
@@ -21197,6 +21273,7 @@ LUAU_FASTINTVARIABLE(LuauRecursionLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
 LUAU_FASTFLAGVARIABLE(LuauParseDeclareClassIndexer, false)
 LUAU_FASTFLAG(LuauFloorDivision)
+LUAU_FASTFLAG(LuauCheckedFunctionSyntax)
 namespace Luau
 {
 ParseError::ParseError(const Location& location, const std::string& message)
@@ -21733,6 +21810,12 @@ AstStat* Parser::parseDeclaration(const Location& start)
  if (lexer.current().type == Lexeme::ReservedFunction)
  {
  nextLexeme();
+ bool checkedFunction = false;
+ if (FFlag::LuauCheckedFunctionSyntax && lexer.current().type == Lexeme::ReservedChecked)
+ {
+ checkedFunction = true;
+ nextLexeme();
+ }
  Name globalName = parseName("global function name");
  auto [generics, genericPacks] = parseGenericTypeList( false);
  MatchLexeme matchParen = lexer.current();
@@ -21757,8 +21840,8 @@ AstStat* Parser::parseDeclaration(const Location& start)
  }
  if (vararg && !varargAnnotation)
  return reportStatError(Location(start, end), {}, {}, "All declaration parameters must be annotated");
- return allocator.alloc<AstStatDeclareFunction>(
- Location(start, end), globalName.name, generics, genericPacks, AstTypeList{copy(vars), varargAnnotation}, copy(varNames), retTypes);
+ return allocator.alloc<AstStatDeclareFunction>(Location(start, end), globalName.name, generics, genericPacks,
+ AstTypeList{copy(vars), varargAnnotation}, copy(varNames), retTypes, checkedFunction);
  }
  else if (AstName(lexer.current().name) == "class")
  {
@@ -21821,7 +21904,7 @@ AstStat* Parser::parseDeclaration(const Location& start)
  else if (std::optional<Name> globalName = parseNameOpt("global variable name"))
  {
  expectAndConsume(':', "global variable declaration");
- AstType* type = parseType();
+ AstType* type = parseType( true);
  return allocator.alloc<AstStatDeclareGlobal>(Location(start, type->location), globalName->name, type);
  }
  else
@@ -22062,7 +22145,7 @@ AstTableIndexer* Parser::parseTableIndexer()
  AstType* result = parseType();
  return allocator.alloc<AstTableIndexer>(AstTableIndexer{index, result, Location(begin.location, result->location)});
 }
-AstType* Parser::parseTableType()
+AstType* Parser::parseTableType(bool inDeclarationContext)
 {
  incrementRecursionCounter("type annotation");
  TempVector<AstTableProp> props(scratchTableTypeProps);
@@ -22111,7 +22194,7 @@ AstType* Parser::parseTableType()
  if (!name)
  break;
  expectAndConsume(':', "table field");
- AstType* type = parseType();
+ AstType* type = parseType(inDeclarationContext);
  props.push_back({name->name, name->location, type});
  }
  if (lexer.current().type == ',' || lexer.current().type == ';')
@@ -22129,7 +22212,7 @@ AstType* Parser::parseTableType()
  end = lexer.previousLocation();
  return allocator.alloc<AstTypeTable>(Location(start, end), copy(props), indexer);
 }
-AstTypeOrPack Parser::parseFunctionType(bool allowPack)
+AstTypeOrPack Parser::parseFunctionType(bool allowPack, bool isCheckedFunction)
 {
  incrementRecursionCounter("type annotation");
  bool forceFunctionType = lexer.current().type == '<';
@@ -22159,10 +22242,10 @@ AstTypeOrPack Parser::parseFunctionType(bool allowPack)
  if (!forceFunctionType && !returnTypeIntroducer && allowPack)
  return {{}, allocator.alloc<AstTypePackExplicit>(begin.location, AstTypeList{paramTypes, varargAnnotation})};
  AstArray<std::optional<AstArgumentName>> paramNames = copy(names);
- return {parseFunctionTypeTail(begin, generics, genericPacks, paramTypes, paramNames, varargAnnotation), {}};
+ return {parseFunctionTypeTail(begin, generics, genericPacks, paramTypes, paramNames, varargAnnotation, isCheckedFunction), {}};
 }
 AstType* Parser::parseFunctionTypeTail(const Lexeme& begin, AstArray<AstGenericType> generics, AstArray<AstGenericTypePack> genericPacks,
- AstArray<AstType*> params, AstArray<std::optional<AstArgumentName>> paramNames, AstTypePack* varargAnnotation)
+ AstArray<AstType*> params, AstArray<std::optional<AstArgumentName>> paramNames, AstTypePack* varargAnnotation, bool isCheckedFunction)
 {
  incrementRecursionCounter("type annotation");
  if (lexer.current().type == ':')
@@ -22181,7 +22264,8 @@ AstType* Parser::parseFunctionTypeTail(const Lexeme& begin, AstArray<AstGenericT
  }
  auto [endLocation, returnTypeList] = parseReturnType();
  AstTypeList paramTypes = AstTypeList{params, varargAnnotation};
- return allocator.alloc<AstTypeFunction>(Location(begin.location, endLocation), generics, genericPacks, paramTypes, paramNames, returnTypeList);
+ return allocator.alloc<AstTypeFunction>(
+ Location(begin.location, endLocation), generics, genericPacks, paramTypes, paramNames, returnTypeList, isCheckedFunction);
 }
 AstType* Parser::parseTypeSuffix(AstType* type, const Location& begin)
 {
@@ -22250,16 +22334,16 @@ AstTypeOrPack Parser::parseTypeOrPack()
  recursionCounter = oldRecursionCount;
  return {parseTypeSuffix(type, begin), {}};
 }
-AstType* Parser::parseType()
+AstType* Parser::parseType(bool inDeclarationContext)
 {
  unsigned int oldRecursionCount = recursionCounter;
  incrementRecursionCounter("type annotation");
  Location begin = lexer.current().location;
- AstType* type = parseSimpleType( false).type;
+ AstType* type = parseSimpleType( false, inDeclarationContext).type;
  recursionCounter = oldRecursionCount;
  return parseTypeSuffix(type, begin);
 }
-AstTypeOrPack Parser::parseSimpleType(bool allowPack)
+AstTypeOrPack Parser::parseSimpleType(bool allowPack, bool inDeclarationContext)
 {
  incrementRecursionCounter("type annotation");
  Location start = lexer.current().location;
@@ -22338,7 +22422,13 @@ AstTypeOrPack Parser::parseSimpleType(bool allowPack)
  }
  else if (lexer.current().type == '{')
  {
- return {parseTableType(), {}};
+ return {parseTableType( inDeclarationContext), {}};
+ }
+ else if (FFlag::LuauCheckedFunctionSyntax && inDeclarationContext && lexer.current().type == Lexeme::ReservedChecked)
+ {
+ LUAU_ASSERT(FFlag::LuauCheckedFunctionSyntax);
+ nextLexeme();
+ return parseFunctionType(allowPack, true);
  }
  else if (lexer.current().type == '(' || lexer.current().type == '<')
  {
@@ -24913,7 +25003,6 @@ private:
  unsigned int addStringTableEntry(StringRef value);
 };
 }
-LUAU_FASTFLAGVARIABLE(BytecodeVersion4, false)
 LUAU_FASTFLAG(LuauFloorDivision)
 namespace Luau
 {
@@ -25341,12 +25430,9 @@ void BytecodeBuilder::finalize()
  uint8_t version = getVersion();
  LUAU_ASSERT(version >= LBC_VERSION_MIN && version <= LBC_VERSION_MAX);
  bytecode = char(version);
- if (FFlag::BytecodeVersion4)
- {
  uint8_t typesversion = getTypeEncodingVersion();
  LUAU_ASSERT(typesversion == 1);
  writeByte(bytecode, typesversion);
- }
  writeStringTable(bytecode);
  writeVarInt(bytecode, uint32_t(functions.size()));
  for (const Function& func : functions)
@@ -25362,12 +25448,9 @@ void BytecodeBuilder::writeFunction(std::string& ss, uint32_t id, uint8_t flags)
  writeByte(ss, func.numparams);
  writeByte(ss, func.numupvalues);
  writeByte(ss, func.isvararg);
- if (FFlag::BytecodeVersion4)
- {
  writeByte(ss, flags);
  writeVarInt(ss, uint32_t(func.typeinfo.size()));
  ss.append(func.typeinfo);
- }
  writeVarInt(ss, uint32_t(insns.size()));
  for (uint32_t insn : insns)
  writeInt(ss, insn);
@@ -25670,8 +25753,6 @@ std::string BytecodeBuilder::getError(const std::string& message)
 }
 uint8_t BytecodeBuilder::getVersion()
 {
- if (FFlag::BytecodeVersion4)
- return 4;
  return LBC_VERSION_TARGET;
 }
 uint8_t BytecodeBuilder::getTypeEncodingVersion()
@@ -26713,7 +26794,11 @@ LUAU_FASTINTVARIABLE(LuauCompileLoopUnrollThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThreshold, 25)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
+LUAU_FASTFLAGVARIABLE(LuauCompileFenvNoBuiltinFold, false)
+LUAU_FASTFLAGVARIABLE(LuauCompileTopCold, false)
 LUAU_FASTFLAG(LuauFloorDivision)
+LUAU_FASTFLAGVARIABLE(LuauCompileFixContinueValidation, false)
+LUAU_FASTFLAGVARIABLE(LuauCompileContinueCloseUpvals, false)
 namespace Luau
 {
 using namespace Luau::Compile;
@@ -26884,6 +26969,8 @@ struct Compiler
  popLocals(0);
  if (bytecode.getInstructionCount() > kMaxInstructionCount)
  CompileError::raise(func->location, "Exceeded function instruction limit; split the function into parts to compile");
+ if (FFlag::LuauCompileTopCold && func->functionDepth == 0 && !hasLoops)
+ protoflags |= LPF_NATIVE_COLD;
  bytecode.endFunction(uint8_t(stackSize), uint8_t(upvals.size()), protoflags);
  Function& f = functions[func];
  f.id = fid;
@@ -26902,6 +26989,7 @@ struct Compiler
  }
  upvals.clear();
  stackSize = 0;
+ hasLoops = false;
  return fid;
  }
  bool isExprMultRet(AstExpr* node)
@@ -27147,10 +27235,22 @@ struct Compiler
  compileExprAuto(expr->args.data[i], rsi);
  }
  for (InlineArg& arg : args)
+ {
  if (arg.value.type == Constant::Type_Unknown)
+ {
  pushLocal(arg.local, arg.reg);
+ }
  else
+ {
  locstants[arg.local] = arg.value;
+ if (FFlag::LuauCompileFixContinueValidation)
+ {
+ Local& l = locals[arg.local];
+ LUAU_ASSERT(!l.skipped);
+ l.skipped = true;
+ }
+ }
+ }
  inlineFrames.push_back({func, oldLocals, target, targetCount});
  foldConstants(constants, variables, locstants, builtinsFold, builtinsFoldMathK, func->body);
  bool usedFallthrough = false;
@@ -27177,8 +27277,24 @@ struct Compiler
  patchJumps(expr, inlineFrames.back().returnJumps, returnLabel);
  inlineFrames.pop_back();
  for (size_t i = 0; i < func->args.size; ++i)
- if (Constant* var = locstants.find(func->args.data[i]))
+ {
+ AstLocal* local = func->args.data[i];
+ if (FFlag::LuauCompileFixContinueValidation)
+ {
+ if (Constant* var = locstants.find(local); var && var->type != Constant::Type_Unknown)
+ {
  var->type = Constant::Type_Unknown;
+ Local& l = locals[local];
+ LUAU_ASSERT(l.skipped);
+ l.skipped = false;
+ }
+ }
+ else
+ {
+ if (Constant* var = locstants.find(local))
+ var->type = Constant::Type_Unknown;
+ }
+ }
  foldConstants(constants, variables, locstants, builtinsFold, builtinsFoldMathK, func->body);
  }
  void compileExprCall(AstExprCall* expr, uint8_t target, uint8_t targetCount, bool targetTop = false, bool multRet = false)
@@ -28505,7 +28621,7 @@ struct Compiler
  return;
  }
  AstStat* continueStatement = extractStatContinue(stat->thenbody);
- if (!stat->elsebody && continueStatement != nullptr && !areLocalsCaptured(loops.back().localOffset))
+ if (!stat->elsebody && continueStatement != nullptr && !areLocalsCaptured(loops.back().localOffsetContinue))
  {
  if (loops.back().untilCondition)
  validateContinueUntil(continueStatement, loops.back().untilCondition);
@@ -28549,7 +28665,8 @@ struct Compiler
  return;
  size_t oldJumps = loopJumps.size();
  size_t oldLocals = localStack.size();
- loops.push_back({oldLocals, nullptr});
+ loops.push_back({oldLocals, oldLocals, nullptr});
+ hasLoops = true;
  size_t loopLabel = bytecode.emitLabel();
  std::vector<size_t> elseJump;
  compileConditionValue(stat->condition, nullptr, elseJump, false);
@@ -28569,12 +28686,17 @@ struct Compiler
  {
  size_t oldJumps = loopJumps.size();
  size_t oldLocals = localStack.size();
- loops.push_back({oldLocals, stat->condition});
+ loops.push_back({oldLocals, oldLocals, stat->condition});
+ hasLoops = true;
  size_t loopLabel = bytecode.emitLabel();
  AstStatBlock* body = stat->body;
  RegScope rs(this);
  for (size_t i = 0; i < body->body.size; ++i)
+ {
  compileStat(body->body.data[i]);
+ if (FFlag::LuauCompileContinueCloseUpvals)
+ loops.back().localOffsetContinue = localStack.size();
+ }
  size_t contLabel = bytecode.emitLabel();
  size_t endLabel;
  setDebugLine(stat->condition);
@@ -28658,7 +28780,17 @@ struct Compiler
  void compileStatLocal(AstStatLocal* stat)
  {
  if (options.optimizationLevel >= 1 && options.debugLevel <= 1 && areLocalsRedundant(stat))
+ {
+ if (FFlag::LuauCompileFixContinueValidation)
+ {
+ for (AstLocal* local : stat->vars)
+ {
+ Local& l = locals[local];
+ l.skipped = true;
+ }
+ }
  return;
+ }
  if (options.optimizationLevel >= 1 && stat->vars.size == 1 && stat->values.size == 1)
  {
  if (AstExprLocal* re = getExprLocal(stat->values.data[0]))
@@ -28724,7 +28856,7 @@ struct Compiler
  AstLocal* var = stat->var;
  size_t oldLocals = localStack.size();
  size_t oldJumps = loopJumps.size();
- loops.push_back({oldLocals, nullptr});
+ loops.push_back({oldLocals, oldLocals, nullptr});
  for (int iv = 0; iv < tripCount; ++iv)
  {
  locstants[var].type = Constant::Type_Number;
@@ -28754,7 +28886,8 @@ struct Compiler
  return;
  size_t oldLocals = localStack.size();
  size_t oldJumps = loopJumps.size();
- loops.push_back({oldLocals, nullptr});
+ loops.push_back({oldLocals, oldLocals, nullptr});
+ hasLoops = true;
  uint8_t regs = allocReg(stat, 3);
  uint8_t varreg = regs + 2;
  if (Variable* il = variables.find(stat->var); il && il->written)
@@ -28790,7 +28923,8 @@ struct Compiler
  RegScope rs(this);
  size_t oldLocals = localStack.size();
  size_t oldJumps = loopJumps.size();
- loops.push_back({oldLocals, nullptr});
+ loops.push_back({oldLocals, oldLocals, nullptr});
+ hasLoops = true;
  uint8_t regs = allocReg(stat, 3);
  compileExprListTemp(stat->values, regs, 3, true);
  uint8_t vars = allocReg(stat, std::max(unsigned(stat->vars.size), 2u));
@@ -29061,7 +29195,7 @@ struct Compiler
  LUAU_ASSERT(!loops.empty());
  if (loops.back().untilCondition)
  validateContinueUntil(stat, loops.back().untilCondition);
- closeLocals(loops.back().localOffset);
+ closeLocals(loops.back().localOffsetContinue);
  size_t label = bytecode.emitLabel();
  bytecode.emitAD(LOP_JUMP, 0, 0);
  loopJumps.push_back({LoopJump::Continue, label});
@@ -29308,6 +29442,8 @@ struct Compiler
  void check(AstLocal* local)
  {
  Local& l = self->locals[local];
+ if (FFlag::LuauCompileFixContinueValidation && l.skipped)
+ return;
  if (!l.allocated && !undef)
  undef = local;
  }
@@ -29406,6 +29542,7 @@ struct Compiler
  uint8_t reg = 0;
  bool allocated = false;
  bool captured = false;
+ bool skipped = false;
  uint32_t debugpc = 0;
  };
  struct LoopJump
@@ -29421,6 +29558,7 @@ struct Compiler
  struct Loop
  {
  size_t localOffset;
+ size_t localOffsetContinue;
  AstExpr* untilCondition;
  };
  struct InlineArg
@@ -29457,6 +29595,7 @@ struct Compiler
  bool builtinsFoldMathK = false;
  unsigned int regTop = 0;
  unsigned int stackSize = 0;
+ bool hasLoops = false;
  bool getfenvUsed = false;
  bool setfenvUsed = false;
  std::vector<AstLocal*> localStack;
@@ -29488,7 +29627,12 @@ void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, c
  Compiler compiler(bytecode, options);
  assignMutable(compiler.globals, names, options.mutableGlobals);
  trackValues(compiler.globals, compiler.variables, root);
- if (options.optimizationLevel >= 2)
+ if (options.optimizationLevel >= 1 && (names.get("getfenv").value || names.get("setfenv").value))
+ {
+ Compiler::FenvVisitor fenvVisitor(compiler.getfenvUsed, compiler.setfenvUsed);
+ root->visit(&fenvVisitor);
+ }
+ if (options.optimizationLevel >= 2 && (!FFlag::LuauCompileFenvNoBuiltinFold || (!compiler.getfenvUsed && !compiler.setfenvUsed)))
  {
  compiler.builtinsFold = &compiler.builtins;
  if (AstName math = names.get("math"); math.value && getGlobalState(compiler.globals, math) == Global::Default)
@@ -29499,11 +29643,6 @@ void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, c
  analyzeBuiltins(compiler.builtins, compiler.globals, compiler.variables, options, root);
  foldConstants(compiler.constants, compiler.variables, compiler.locstants, compiler.builtinsFold, compiler.builtinsFoldMathK, root);
  predictTableShapes(compiler.tableShapes, root);
- }
- if (options.optimizationLevel >= 1 && (names.get("getfenv").value || names.get("setfenv").value))
- {
- Compiler::FenvVisitor fenvVisitor(compiler.getfenvUsed, compiler.setfenvUsed);
- root->visit(&fenvVisitor);
  }
  std::vector<AstExprFunction*> functions;
  Compiler::FunctionVisitor functionVisitor(&compiler, functions);
