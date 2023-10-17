@@ -276,6 +276,7 @@ LUA_API void lua_setuserdatadtor(lua_State* L, int tag, lua_Destructor dtor);
 LUA_API lua_Destructor lua_getuserdatadtor(lua_State* L, int tag);
 LUA_API void lua_clonefunction(lua_State* L, int idx);
 LUA_API void lua_cleartable(lua_State* L, int idx);
+LUA_API lua_Alloc lua_getallocf(lua_State* L, void** ud);
 #define LUA_NOREF -1
 #define LUA_REFNIL 0
 LUA_API int lua_ref(lua_State* L, int idx);

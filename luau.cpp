@@ -2717,6 +2717,13 @@ size_t lua_totalbytes(lua_State* L, int category)
  api_check(L, category < LUA_MEMORY_CATEGORIES);
  return category < 0 ? L->global->totalbytes : L->global->memcatbytes[category];
 }
+lua_Alloc lua_getallocf(lua_State* L, void** ud)
+{
+ lua_Alloc f = L->global->frealloc;
+ if (ud)
+ *ud = L->global->ud;
+ return f;
+}
 #define abs_index(L, i) ((i) > 0 || (i) <= LUA_REGISTRYINDEX ? (i) : lua_gettop(L) + (i) + 1)
 static const char* currfuncname(lua_State* L)
 {
@@ -16043,7 +16050,7 @@ public:
  AstExprFunction(const Location& location, const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks,
  AstLocal* self, const AstArray<AstLocal*>& args, bool vararg, const Location& varargLocation, AstStatBlock* body, size_t functionDepth,
  const AstName& debugname, const std::optional<AstTypeList>& returnAnnotation = {}, AstTypePack* varargAnnotation = nullptr,
- bool hasEnd = false, const std::optional<Location>& argLocation = std::nullopt);
+ bool DEPRECATED_hasEnd = false, const std::optional<Location>& argLocation = std::nullopt);
  void visit(AstVisitor* visitor) override;
  AstArray<AstGenericType> generics;
  AstArray<AstGenericTypePack> genericPacks;
@@ -16056,7 +16063,7 @@ public:
  AstStatBlock* body;
  size_t functionDepth;
  AstName debugname;
- bool hasEnd = false;
+ bool DEPRECATED_hasEnd = false;
  std::optional<Location> argLocation;
 };
 class AstExprTable : public AstExpr
@@ -16170,36 +16177,36 @@ class AstStatIf : public AstStat
 public:
  LUAU_RTTI(AstStatIf)
  AstStatIf(const Location& location, AstExpr* condition, AstStatBlock* thenbody, AstStat* elsebody, const std::optional<Location>& thenLocation,
- const std::optional<Location>& elseLocation, bool hasEnd);
+ const std::optional<Location>& elseLocation, bool DEPRECATED_hasEnd);
  void visit(AstVisitor* visitor) override;
  AstExpr* condition;
  AstStatBlock* thenbody;
  AstStat* elsebody;
  std::optional<Location> thenLocation;
  std::optional<Location> elseLocation;
- bool hasEnd = false;
+ bool DEPRECATED_hasEnd = false;
 };
 class AstStatWhile : public AstStat
 {
 public:
  LUAU_RTTI(AstStatWhile)
- AstStatWhile(const Location& location, AstExpr* condition, AstStatBlock* body, bool hasDo, const Location& doLocation, bool hasEnd);
+ AstStatWhile(const Location& location, AstExpr* condition, AstStatBlock* body, bool hasDo, const Location& doLocation, bool DEPRECATED_hasEnd);
  void visit(AstVisitor* visitor) override;
  AstExpr* condition;
  AstStatBlock* body;
  bool hasDo = false;
  Location doLocation;
- bool hasEnd = false;
+ bool DEPRECATED_hasEnd = false;
 };
 class AstStatRepeat : public AstStat
 {
 public:
  LUAU_RTTI(AstStatRepeat)
- AstStatRepeat(const Location& location, AstExpr* condition, AstStatBlock* body, bool hasUntil);
+ AstStatRepeat(const Location& location, AstExpr* condition, AstStatBlock* body, bool DEPRECATED_hasUntil);
  void visit(AstVisitor* visitor) override;
  AstExpr* condition;
  AstStatBlock* body;
- bool hasUntil = false;
+ bool DEPRECATED_hasUntil = false;
 };
 class AstStatBreak : public AstStat
 {
@@ -16247,7 +16254,7 @@ class AstStatFor : public AstStat
 public:
  LUAU_RTTI(AstStatFor)
  AstStatFor(const Location& location, AstLocal* var, AstExpr* from, AstExpr* to, AstExpr* step, AstStatBlock* body, bool hasDo,
- const Location& doLocation, bool hasEnd);
+ const Location& doLocation, bool DEPRECATED_hasEnd);
  void visit(AstVisitor* visitor) override;
  AstLocal* var;
  AstExpr* from;
@@ -16256,14 +16263,14 @@ public:
  AstStatBlock* body;
  bool hasDo = false;
  Location doLocation;
- bool hasEnd = false;
+ bool DEPRECATED_hasEnd = false;
 };
 class AstStatForIn : public AstStat
 {
 public:
  LUAU_RTTI(AstStatForIn)
  AstStatForIn(const Location& location, const AstArray<AstLocal*>& vars, const AstArray<AstExpr*>& values, AstStatBlock* body, bool hasIn,
- const Location& inLocation, bool hasDo, const Location& doLocation, bool hasEnd);
+ const Location& inLocation, bool hasDo, const Location& doLocation, bool DEPRECATED_hasEnd);
  void visit(AstVisitor* visitor) override;
  AstArray<AstLocal*> vars;
  AstArray<AstExpr*> values;
@@ -16272,7 +16279,7 @@ public:
  Location inLocation;
  bool hasDo = false;
  Location doLocation;
- bool hasEnd = false;
+ bool DEPRECATED_hasEnd = false;
 };
 class AstStatAssign : public AstStat
 {
@@ -16791,7 +16798,7 @@ struct hash<Luau::AstName>
  }
 };
 }
-LUAU_FASTFLAG(LuauFloorDivision)
+LUAU_FASTFLAG(LuauFloorDivision);
 namespace Luau
 {
 static void visitTypeList(AstVisitor* visitor, const AstTypeList& list)
@@ -16924,7 +16931,7 @@ void AstExprIndexExpr::visit(AstVisitor* visitor)
 }
 AstExprFunction::AstExprFunction(const Location& location, const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks,
  AstLocal* self, const AstArray<AstLocal*>& args, bool vararg, const Location& varargLocation, AstStatBlock* body, size_t functionDepth,
- const AstName& debugname, const std::optional<AstTypeList>& returnAnnotation, AstTypePack* varargAnnotation, bool hasEnd,
+ const AstName& debugname, const std::optional<AstTypeList>& returnAnnotation, AstTypePack* varargAnnotation, bool DEPRECATED_hasEnd,
  const std::optional<Location>& argLocation)
  : AstExpr(ClassIndex(), location)
  , generics(generics)
@@ -16938,7 +16945,7 @@ AstExprFunction::AstExprFunction(const Location& location, const AstArray<AstGen
  , body(body)
  , functionDepth(functionDepth)
  , debugname(debugname)
- , hasEnd(hasEnd)
+ , DEPRECATED_hasEnd(DEPRECATED_hasEnd)
  , argLocation(argLocation)
 {
 }
@@ -17133,14 +17140,14 @@ void AstStatBlock::visit(AstVisitor* visitor)
  }
 }
 AstStatIf::AstStatIf(const Location& location, AstExpr* condition, AstStatBlock* thenbody, AstStat* elsebody,
- const std::optional<Location>& thenLocation, const std::optional<Location>& elseLocation, bool hasEnd)
+ const std::optional<Location>& thenLocation, const std::optional<Location>& elseLocation, bool DEPRECATED_hasEnd)
  : AstStat(ClassIndex(), location)
  , condition(condition)
  , thenbody(thenbody)
  , elsebody(elsebody)
  , thenLocation(thenLocation)
  , elseLocation(elseLocation)
- , hasEnd(hasEnd)
+ , DEPRECATED_hasEnd(DEPRECATED_hasEnd)
 {
 }
 void AstStatIf::visit(AstVisitor* visitor)
@@ -17153,13 +17160,13 @@ void AstStatIf::visit(AstVisitor* visitor)
  elsebody->visit(visitor);
  }
 }
-AstStatWhile::AstStatWhile(const Location& location, AstExpr* condition, AstStatBlock* body, bool hasDo, const Location& doLocation, bool hasEnd)
+AstStatWhile::AstStatWhile(const Location& location, AstExpr* condition, AstStatBlock* body, bool hasDo, const Location& doLocation, bool DEPRECATED_hasEnd)
  : AstStat(ClassIndex(), location)
  , condition(condition)
  , body(body)
  , hasDo(hasDo)
  , doLocation(doLocation)
- , hasEnd(hasEnd)
+ , DEPRECATED_hasEnd(DEPRECATED_hasEnd)
 {
 }
 void AstStatWhile::visit(AstVisitor* visitor)
@@ -17170,11 +17177,11 @@ void AstStatWhile::visit(AstVisitor* visitor)
  body->visit(visitor);
  }
 }
-AstStatRepeat::AstStatRepeat(const Location& location, AstExpr* condition, AstStatBlock* body, bool hasUntil)
+AstStatRepeat::AstStatRepeat(const Location& location, AstExpr* condition, AstStatBlock* body, bool DEPRECATED_hasUntil)
  : AstStat(ClassIndex(), location)
  , condition(condition)
  , body(body)
- , hasUntil(hasUntil)
+ , DEPRECATED_hasUntil(DEPRECATED_hasUntil)
 {
 }
 void AstStatRepeat::visit(AstVisitor* visitor)
@@ -17246,7 +17253,7 @@ void AstStatLocal::visit(AstVisitor* visitor)
  }
 }
 AstStatFor::AstStatFor(const Location& location, AstLocal* var, AstExpr* from, AstExpr* to, AstExpr* step, AstStatBlock* body, bool hasDo,
- const Location& doLocation, bool hasEnd)
+ const Location& doLocation, bool DEPRECATED_hasEnd)
  : AstStat(ClassIndex(), location)
  , var(var)
  , from(from)
@@ -17255,7 +17262,7 @@ AstStatFor::AstStatFor(const Location& location, AstLocal* var, AstExpr* from, A
  , body(body)
  , hasDo(hasDo)
  , doLocation(doLocation)
- , hasEnd(hasEnd)
+ , DEPRECATED_hasEnd(DEPRECATED_hasEnd)
 {
 }
 void AstStatFor::visit(AstVisitor* visitor)
@@ -17272,7 +17279,7 @@ void AstStatFor::visit(AstVisitor* visitor)
  }
 }
 AstStatForIn::AstStatForIn(const Location& location, const AstArray<AstLocal*>& vars, const AstArray<AstExpr*>& values, AstStatBlock* body,
- bool hasIn, const Location& inLocation, bool hasDo, const Location& doLocation, bool hasEnd)
+ bool hasIn, const Location& inLocation, bool hasDo, const Location& doLocation, bool DEPRECATED_hasEnd)
  : AstStat(ClassIndex(), location)
  , vars(vars)
  , values(values)
@@ -17281,7 +17288,7 @@ AstStatForIn::AstStatForIn(const Location& location, const AstArray<AstLocal*>& 
  , inLocation(inLocation)
  , hasDo(hasDo)
  , doLocation(doLocation)
- , hasEnd(hasEnd)
+ , DEPRECATED_hasEnd(DEPRECATED_hasEnd)
 {
 }
 void AstStatForIn::visit(AstVisitor* visitor)
@@ -21272,6 +21279,7 @@ LUAU_NOINLINE uint16_t createScopeData(const char* name, const char* category);
 LUAU_FASTINTVARIABLE(LuauRecursionLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
 LUAU_FASTFLAGVARIABLE(LuauParseDeclareClassIndexer, false)
+LUAU_FASTFLAGVARIABLE(LuauClipExtraHasEndProps, false)
 LUAU_FASTFLAG(LuauFloorDivision)
 LUAU_FASTFLAG(LuauCheckedFunctionSyntax)
 namespace Luau
@@ -21527,15 +21535,17 @@ AstStat* Parser::parseIf()
  AstStat* elsebody = nullptr;
  Location end = start;
  std::optional<Location> elseLocation;
- bool hasEnd = false;
+ bool DEPRECATED_hasEnd = false;
  if (lexer.current().type == Lexeme::ReservedElseif)
  {
+ if (FFlag::LuauClipExtraHasEndProps)
+ thenbody->hasEnd = true;
  unsigned int recursionCounterOld = recursionCounter;
  incrementRecursionCounter("elseif");
  elseLocation = lexer.current().location;
  elsebody = parseIf();
  end = elsebody->location;
- hasEnd = elsebody->as<AstStatIf>()->hasEnd;
+ DEPRECATED_hasEnd = elsebody->as<AstStatIf>()->DEPRECATED_hasEnd;
  recursionCounter = recursionCounterOld;
  }
  else
@@ -21543,6 +21553,8 @@ AstStat* Parser::parseIf()
  Lexeme matchThenElse = matchThen;
  if (lexer.current().type == Lexeme::ReservedElse)
  {
+ if (FFlag::LuauClipExtraHasEndProps)
+ thenbody->hasEnd = true;
  elseLocation = lexer.current().location;
  matchThenElse = lexer.current();
  nextLexeme();
@@ -21550,9 +21562,20 @@ AstStat* Parser::parseIf()
  elsebody->location.begin = matchThenElse.location.end;
  }
  end = lexer.current().location;
- hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchThenElse);
+ bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchThenElse);
+ DEPRECATED_hasEnd = hasEnd;
+ if (FFlag::LuauClipExtraHasEndProps)
+ {
+ if (elsebody)
+ {
+ if (AstStatBlock* elseBlock = elsebody->as<AstStatBlock>())
+ elseBlock->hasEnd = hasEnd;
  }
- return allocator.alloc<AstStatIf>(Location(start, end), cond, thenbody, elsebody, thenLocation, elseLocation, hasEnd);
+ else
+ thenbody->hasEnd = hasEnd;
+ }
+ }
+ return allocator.alloc<AstStatIf>(Location(start, end), cond, thenbody, elsebody, thenLocation, elseLocation, DEPRECATED_hasEnd);
 }
 AstStat* Parser::parseWhile()
 {
@@ -21566,6 +21589,8 @@ AstStat* Parser::parseWhile()
  functionStack.back().loopDepth--;
  Location end = lexer.current().location;
  bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchDo);
+ if (FFlag::LuauClipExtraHasEndProps)
+ body->hasEnd = hasEnd;
  return allocator.alloc<AstStatWhile>(Location(start, end), cond, body, hasDo, matchDo.location, hasEnd);
 }
 AstStat* Parser::parseRepeat()
@@ -21578,6 +21603,8 @@ AstStat* Parser::parseRepeat()
  AstStatBlock* body = parseBlockNoScope();
  functionStack.back().loopDepth--;
  bool hasUntil = expectMatchEndAndConsume(Lexeme::ReservedUntil, matchRepeat);
+ if (FFlag::LuauClipExtraHasEndProps)
+ body->hasEnd = hasUntil;
  AstExpr* cond = parseExpr();
  restoreLocals(localsBegin);
  return allocator.alloc<AstStatRepeat>(Location(start, cond->location), cond, body, hasUntil);
@@ -21633,6 +21660,8 @@ AstStat* Parser::parseFor()
  restoreLocals(localsBegin);
  Location end = lexer.current().location;
  bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchDo);
+ if (FFlag::LuauClipExtraHasEndProps)
+ body->hasEnd = hasEnd;
  return allocator.alloc<AstStatFor>(Location(start, end), var, from, to, step, body, hasDo, matchDo.location, hasEnd);
  }
  else
@@ -21660,6 +21689,8 @@ AstStat* Parser::parseFor()
  restoreLocals(localsBegin);
  Location end = lexer.current().location;
  bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchDo);
+ if (FFlag::LuauClipExtraHasEndProps)
+ body->hasEnd = hasEnd;
  return allocator.alloc<AstStatForIn>(
  Location(start, end), copy(vars), copy(values), body, hasIn, inLocation, hasDo, matchDo.location, hasEnd);
  }
@@ -21986,6 +22017,8 @@ std::pair<AstExprFunction*, AstLocal*> Parser::parseFunctionBody(
  restoreLocals(localsBegin);
  Location end = lexer.current().location;
  bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchFunction);
+ if (FFlag::LuauClipExtraHasEndProps)
+ body->hasEnd = hasEnd;
  return {allocator.alloc<AstExprFunction>(Location(start, end), generics, genericPacks, self, vars, vararg, varargLocation, body,
  functionStack.size(), debugname, typelist, varargAnnotation, hasEnd, argLocation),
  funLocal};
@@ -26797,7 +26830,7 @@ LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
 LUAU_FASTFLAGVARIABLE(LuauCompileFenvNoBuiltinFold, false)
 LUAU_FASTFLAGVARIABLE(LuauCompileTopCold, false)
 LUAU_FASTFLAG(LuauFloorDivision)
-LUAU_FASTFLAGVARIABLE(LuauCompileFixContinueValidation, false)
+LUAU_FASTFLAGVARIABLE(LuauCompileFixContinueValidation2, false)
 LUAU_FASTFLAGVARIABLE(LuauCompileContinueCloseUpvals, false)
 namespace Luau
 {
@@ -26975,7 +27008,7 @@ struct Compiler
  Function& f = functions[func];
  f.id = fid;
  f.upvals = upvals;
- if (options.optimizationLevel >= 2 && !func->vararg && !getfenvUsed && !setfenvUsed)
+ if (options.optimizationLevel >= 2 && !func->vararg && !func->self && !getfenvUsed && !setfenvUsed)
  {
  f.canInline = true;
  f.stackSize = stackSize;
@@ -27243,12 +27276,6 @@ struct Compiler
  else
  {
  locstants[arg.local] = arg.value;
- if (FFlag::LuauCompileFixContinueValidation)
- {
- Local& l = locals[arg.local];
- LUAU_ASSERT(!l.skipped);
- l.skipped = true;
- }
  }
  }
  inlineFrames.push_back({func, oldLocals, target, targetCount});
@@ -27279,21 +27306,8 @@ struct Compiler
  for (size_t i = 0; i < func->args.size; ++i)
  {
  AstLocal* local = func->args.data[i];
- if (FFlag::LuauCompileFixContinueValidation)
- {
- if (Constant* var = locstants.find(local); var && var->type != Constant::Type_Unknown)
- {
- var->type = Constant::Type_Unknown;
- Local& l = locals[local];
- LUAU_ASSERT(l.skipped);
- l.skipped = false;
- }
- }
- else
- {
  if (Constant* var = locstants.find(local))
  var->type = Constant::Type_Unknown;
- }
  }
  foldConstants(constants, variables, locstants, builtinsFold, builtinsFoldMathK, func->body);
  }
@@ -28620,10 +28634,15 @@ struct Compiler
  loopJumps.push_back({LoopJump::Break, jump});
  return;
  }
- AstStat* continueStatement = extractStatContinue(stat->thenbody);
+ AstStatContinue* continueStatement = extractStatContinue(stat->thenbody);
  if (!stat->elsebody && continueStatement != nullptr && !areLocalsCaptured(loops.back().localOffsetContinue))
  {
- if (loops.back().untilCondition)
+ if (FFlag::LuauCompileFixContinueValidation2)
+ {
+ if (!loops.back().continueUsed)
+ loops.back().continueUsed = continueStatement;
+ }
+ else if (loops.back().untilCondition)
  validateContinueUntil(continueStatement, loops.back().untilCondition);
  std::vector<size_t> elseJump;
  compileConditionValue(stat->condition, nullptr, elseJump, true);
@@ -28665,7 +28684,7 @@ struct Compiler
  return;
  size_t oldJumps = loopJumps.size();
  size_t oldLocals = localStack.size();
- loops.push_back({oldLocals, oldLocals, nullptr});
+ loops.push_back({oldLocals, oldLocals, nullptr, nullptr});
  hasLoops = true;
  size_t loopLabel = bytecode.emitLabel();
  std::vector<size_t> elseJump;
@@ -28686,16 +28705,22 @@ struct Compiler
  {
  size_t oldJumps = loopJumps.size();
  size_t oldLocals = localStack.size();
- loops.push_back({oldLocals, oldLocals, stat->condition});
+ loops.push_back({oldLocals, oldLocals, stat->condition, nullptr});
  hasLoops = true;
  size_t loopLabel = bytecode.emitLabel();
  AstStatBlock* body = stat->body;
  RegScope rs(this);
+ bool continueValidated = false;
  for (size_t i = 0; i < body->body.size; ++i)
  {
  compileStat(body->body.data[i]);
  if (FFlag::LuauCompileContinueCloseUpvals)
  loops.back().localOffsetContinue = localStack.size();
+ if (FFlag::LuauCompileFixContinueValidation2 && loops.back().continueUsed && !continueValidated)
+ {
+ validateContinueUntil(loops.back().continueUsed, stat->condition, body, i + 1);
+ continueValidated = true;
+ }
  }
  size_t contLabel = bytecode.emitLabel();
  size_t endLabel;
@@ -28780,17 +28805,7 @@ struct Compiler
  void compileStatLocal(AstStatLocal* stat)
  {
  if (options.optimizationLevel >= 1 && options.debugLevel <= 1 && areLocalsRedundant(stat))
- {
- if (FFlag::LuauCompileFixContinueValidation)
- {
- for (AstLocal* local : stat->vars)
- {
- Local& l = locals[local];
- l.skipped = true;
- }
- }
  return;
- }
  if (options.optimizationLevel >= 1 && stat->vars.size == 1 && stat->values.size == 1)
  {
  if (AstExprLocal* re = getExprLocal(stat->values.data[0]))
@@ -28856,7 +28871,7 @@ struct Compiler
  AstLocal* var = stat->var;
  size_t oldLocals = localStack.size();
  size_t oldJumps = loopJumps.size();
- loops.push_back({oldLocals, oldLocals, nullptr});
+ loops.push_back({oldLocals, oldLocals, nullptr, nullptr});
  for (int iv = 0; iv < tripCount; ++iv)
  {
  locstants[var].type = Constant::Type_Number;
@@ -28886,7 +28901,7 @@ struct Compiler
  return;
  size_t oldLocals = localStack.size();
  size_t oldJumps = loopJumps.size();
- loops.push_back({oldLocals, oldLocals, nullptr});
+ loops.push_back({oldLocals, oldLocals, nullptr, nullptr});
  hasLoops = true;
  uint8_t regs = allocReg(stat, 3);
  uint8_t varreg = regs + 2;
@@ -28923,7 +28938,7 @@ struct Compiler
  RegScope rs(this);
  size_t oldLocals = localStack.size();
  size_t oldJumps = loopJumps.size();
- loops.push_back({oldLocals, oldLocals, nullptr});
+ loops.push_back({oldLocals, oldLocals, nullptr, nullptr});
  hasLoops = true;
  uint8_t regs = allocReg(stat, 3);
  compileExprListTemp(stat->values, regs, 3, true);
@@ -29193,7 +29208,12 @@ struct Compiler
  else if (AstStatContinue* stat = node->as<AstStatContinue>())
  {
  LUAU_ASSERT(!loops.empty());
- if (loops.back().untilCondition)
+ if (FFlag::LuauCompileFixContinueValidation2)
+ {
+ if (!loops.back().continueUsed)
+ loops.back().continueUsed = stat;
+ }
+ else if (loops.back().untilCondition)
  validateContinueUntil(stat, loops.back().untilCondition);
  closeLocals(loops.back().localOffsetContinue);
  size_t label = bytecode.emitLabel();
@@ -29262,7 +29282,30 @@ struct Compiler
  }
  void validateContinueUntil(AstStat* cont, AstExpr* condition)
  {
+ LUAU_ASSERT(!FFlag::LuauCompileFixContinueValidation2);
  UndefinedLocalVisitor visitor(this);
+ condition->visit(&visitor);
+ if (visitor.undef)
+ CompileError::raise(condition->location,
+ "Local %s used in the repeat..until condition is undefined because continue statement on line %d jumps over it",
+ visitor.undef->name.value, cont->location.begin.line + 1);
+ }
+ void validateContinueUntil(AstStat* cont, AstExpr* condition, AstStatBlock* body, size_t start)
+ {
+ LUAU_ASSERT(FFlag::LuauCompileFixContinueValidation2);
+ UndefinedLocalVisitor visitor(this);
+ for (size_t i = start; i < body->body.size; ++i)
+ {
+ if (AstStatLocal* stat = body->body.data[i]->as<AstStatLocal>())
+ {
+ for (AstLocal* local : stat->vars)
+ visitor.locals.insert(local);
+ }
+ else if (AstStatLocalFunction* stat = body->body.data[i]->as<AstStatLocalFunction>())
+ {
+ visitor.locals.insert(stat->name);
+ }
+ }
  condition->visit(&visitor);
  if (visitor.undef)
  CompileError::raise(condition->location,
@@ -29437,15 +29480,22 @@ struct Compiler
  UndefinedLocalVisitor(Compiler* self)
  : self(self)
  , undef(nullptr)
+ , locals(nullptr)
  {
  }
  void check(AstLocal* local)
  {
+ if (FFlag::LuauCompileFixContinueValidation2)
+ {
+ if (!undef && locals.contains(local))
+ undef = local;
+ }
+ else
+ {
  Local& l = self->locals[local];
- if (FFlag::LuauCompileFixContinueValidation && l.skipped)
- return;
  if (!l.allocated && !undef)
  undef = local;
+ }
  }
  bool visit(AstExprLocal* node) override
  {
@@ -29467,6 +29517,7 @@ struct Compiler
  }
  Compiler* self;
  AstLocal* undef;
+ DenseHashSet<AstLocal*> locals;
  };
  struct ConstUpvalueVisitor : AstVisitor
  {
@@ -29542,7 +29593,6 @@ struct Compiler
  uint8_t reg = 0;
  bool allocated = false;
  bool captured = false;
- bool skipped = false;
  uint32_t debugpc = 0;
  };
  struct LoopJump
@@ -29560,6 +29610,7 @@ struct Compiler
  size_t localOffset;
  size_t localOffsetContinue;
  AstExpr* untilCondition;
+ AstStatContinue* continueUsed;
  };
  struct InlineArg
  {
