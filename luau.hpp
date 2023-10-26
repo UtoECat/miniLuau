@@ -148,6 +148,7 @@ enum lua_Type
  LUA_TFUNCTION,
  LUA_TUSERDATA,
  LUA_TTHREAD,
+ LUA_TBUFFER,
  LUA_TPROTO,
  LUA_TUPVAL,
  LUA_TDEADKEY,
@@ -198,6 +199,7 @@ LUA_API void* lua_touserdata(lua_State* L, int idx);
 LUA_API void* lua_touserdatatagged(lua_State* L, int idx, int tag);
 LUA_API int lua_userdatatag(lua_State* L, int idx);
 LUA_API lua_State* lua_tothread(lua_State* L, int idx);
+LUA_API void* lua_tobuffer(lua_State* L, int idx, size_t* len);
 LUA_API const void* lua_topointer(lua_State* L, int idx);
 LUA_API void lua_pushnil(lua_State* L);
 LUA_API void lua_pushnumber(lua_State* L, double n);
@@ -218,6 +220,7 @@ LUA_API int lua_pushthread(lua_State* L);
 LUA_API void lua_pushlightuserdata(lua_State* L, void* p);
 LUA_API void* lua_newuserdatatagged(lua_State* L, size_t sz, int tag);
 LUA_API void* lua_newuserdatadtor(lua_State* L, size_t sz, void (*dtor)(void*));
+LUA_API void* lua_newbuffer(lua_State* L, size_t sz);
 LUA_API int lua_gettable(lua_State* L, int idx);
 LUA_API int lua_getfield(lua_State* L, int idx, const char* k);
 LUA_API int lua_rawgetfield(lua_State* L, int idx, const char* k);
@@ -296,6 +299,7 @@ LUA_API void lua_unref(lua_State* L, int ref);
 #define lua_isboolean(L, n) (lua_type(L, (n)) == LUA_TBOOLEAN)
 #define lua_isvector(L, n) (lua_type(L, (n)) == LUA_TVECTOR)
 #define lua_isthread(L, n) (lua_type(L, (n)) == LUA_TTHREAD)
+#define lua_isbuffer(L, n) (lua_type(L, (n)) == LUA_TBUFFER)
 #define lua_isnone(L, n) (lua_type(L, (n)) == LUA_TNONE)
 #define lua_isnoneornil(L, n) (lua_type(L, (n)) <= LUA_TNIL)
 #define lua_pushliteral(L, s) lua_pushlstring(L, "" s, (sizeof(s) / sizeof(char)) - 1)
@@ -378,6 +382,7 @@ LUALIB_API void luaL_checktype(lua_State* L, int narg, int t);
 LUALIB_API void luaL_checkany(lua_State* L, int narg);
 LUALIB_API int luaL_newmetatable(lua_State* L, const char* tname);
 LUALIB_API void* luaL_checkudata(lua_State* L, int ud, const char* tname);
+LUALIB_API void* luaL_checkbuffer(lua_State* L, int narg, size_t* len);
 LUALIB_API void luaL_where(lua_State* L, int lvl);
 LUALIB_API LUA_PRINTF_ATTR(2, 3) l_noret luaL_errorL(lua_State* L, const char* fmt, ...);
 LUALIB_API int luaL_checkoption(lua_State* L, int narg, const char* def, const char* const lst[]);
@@ -391,7 +396,7 @@ LUALIB_API const char* luaL_typename(lua_State* L, int idx);
 #define luaL_optstring(L, n, d) (luaL_optlstring(L, (n), (d), NULL))
 #define luaL_getmetatable(L, n) (lua_getfield(L, LUA_REGISTRYINDEX, (n)))
 #define luaL_opt(L, f, n, d) (lua_isnoneornil(L, (n)) ? (d) : f(L, (n)))
-struct luaL_Buffer
+struct luaL_Strbuf
 {
  char* p;
  char* end; // end of the current buffer
@@ -399,18 +404,18 @@ struct luaL_Buffer
  struct TString* storage;
  char buffer[LUA_BUFFERSIZE];
 };
-typedef struct luaL_Buffer luaL_Buffer;
-#define luaL_addchar(B, c) ((void)((B)->p < (B)->end || luaL_extendbuffer(B, 1, -1)), (*(B)->p++ = (char)(c)))
-#define luaL_addstring(B, s) luaL_addlstring(B, s, strlen(s), -1)
-LUALIB_API void luaL_buffinit(lua_State* L, luaL_Buffer* B);
-LUALIB_API char* luaL_buffinitsize(lua_State* L, luaL_Buffer* B, size_t size);
-LUALIB_API char* luaL_extendbuffer(luaL_Buffer* B, size_t additionalsize, int boxloc);
-LUALIB_API void luaL_reservebuffer(luaL_Buffer* B, size_t size, int boxloc);
-LUALIB_API void luaL_addlstring(luaL_Buffer* B, const char* s, size_t l, int boxloc);
-LUALIB_API void luaL_addvalue(luaL_Buffer* B);
-LUALIB_API void luaL_addvalueany(luaL_Buffer* B, int idx);
-LUALIB_API void luaL_pushresult(luaL_Buffer* B);
-LUALIB_API void luaL_pushresultsize(luaL_Buffer* B, size_t size);
+typedef struct luaL_Strbuf luaL_Strbuf;
+typedef struct luaL_Strbuf luaL_Buffer;
+#define luaL_addchar(B, c) ((void)((B)->p < (B)->end || luaL_prepbuffsize(B, 1)), (*(B)->p++ = (char)(c)))
+#define luaL_addstring(B, s) luaL_addlstring(B, s, strlen(s))
+LUALIB_API void luaL_buffinit(lua_State* L, luaL_Strbuf* B);
+LUALIB_API char* luaL_buffinitsize(lua_State* L, luaL_Strbuf* B, size_t size);
+LUALIB_API char* luaL_prepbuffsize(luaL_Buffer* B, size_t size);
+LUALIB_API void luaL_addlstring(luaL_Strbuf* B, const char* s, size_t l);
+LUALIB_API void luaL_addvalue(luaL_Strbuf* B);
+LUALIB_API void luaL_addvalueany(luaL_Strbuf* B, int idx);
+LUALIB_API void luaL_pushresult(luaL_Strbuf* B);
+LUALIB_API void luaL_pushresultsize(luaL_Strbuf* B, size_t size);
 LUALIB_API int luaopen_base(lua_State* L);
 #define LUA_COLIBNAME "coroutine"
 LUALIB_API int luaopen_coroutine(lua_State* L);
