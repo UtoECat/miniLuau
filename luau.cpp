@@ -142,6 +142,7 @@ enum LuauBytecodeType
  LBC_TYPE_THREAD,
  LBC_TYPE_USERDATA,
  LBC_TYPE_VECTOR,
+ LBC_TYPE_BUFFER,
  LBC_TYPE_ANY = 15,
  LBC_TYPE_OPTIONAL_BIT = 1 << 7,
  LBC_TYPE_INVALID = 256,
@@ -212,6 +213,20 @@ enum LuauBuiltinFunction
  LBF_SETMETATABLE,
  LBF_TONUMBER,
  LBF_TOSTRING,
+ LBF_BIT32_BYTESWAP,
+ LBF_BUFFER_READI8,
+ LBF_BUFFER_READU8,
+ LBF_BUFFER_WRITEU8,
+ LBF_BUFFER_READI16,
+ LBF_BUFFER_READU16,
+ LBF_BUFFER_WRITEU16,
+ LBF_BUFFER_READI32,
+ LBF_BUFFER_READU32,
+ LBF_BUFFER_WRITEU32,
+ LBF_BUFFER_READF32,
+ LBF_BUFFER_WRITEF32,
+ LBF_BUFFER_READF64,
+ LBF_BUFFER_WRITEF64,
 };
 enum LuauCaptureType
 {
@@ -3625,6 +3640,7 @@ int luaopen_base(lua_State* L)
  lua_setfield(L, -2, "xpcall");
  return 1;
 }
+LUAU_FASTFLAGVARIABLE(LuauBit32Byteswap, false)
 #define ALLONES ~0u
 #define NBITS int(8 * sizeof(unsigned))
 #define trim(x) ((x)&ALLONES)
@@ -3796,6 +3812,15 @@ static int b_countrz(lua_State* L)
  lua_pushunsigned(L, r);
  return 1;
 }
+static int b_swap(lua_State* L)
+{
+ if (!FFlag::LuauBit32Byteswap)
+ luaL_error(L, "bit32.byteswap isn't enabled");
+ b_uint n = luaL_checkunsigned(L, 1);
+ n = (n << 24) | ((n << 8) & 0xff0000) | ((n >> 8) & 0xff00) | (n >> 24);
+ lua_pushunsigned(L, n);
+ return 1;
+}
 static const luaL_Reg bitlib[] = {
  {"arshift", b_arshift},
  {"band", b_and},
@@ -3811,6 +3836,7 @@ static const luaL_Reg bitlib[] = {
  {"rshift", b_rshift},
  {"countlz", b_countlz},
  {"countrz", b_countrz},
+ {"byteswap", b_swap},
  {NULL, NULL},
 };
 int luaopen_bit32(lua_State* L)
@@ -3849,6 +3875,223 @@ Buffer* luaB_newbuffer(lua_State* L, size_t s)
 void luaB_freebuffer(lua_State* L, Buffer* b, lua_Page* page)
 {
  luaM_freegco(L, b, sizebuffer(b->len), b->memcat, page);
+}
+#if defined(LUAU_BIG_ENDIAN)
+#include <endian.h>
+#endif
+#define isoutofbounds(offset, len, accessize) (uint64_t(unsigned(offset)) + (accessize) > uint64_t(len))
+static_assert(MAX_BUFFER_SIZE <= INT_MAX, "current implementation can't handle a larger limit");
+#if defined(LUAU_BIG_ENDIAN)
+template<typename T>
+inline T buffer_swapbe(T v)
+{
+ if (sizeof(T) == 8)
+ return htole64(v);
+ else if (sizeof(T) == 4)
+ return htole32(v);
+ else if (sizeof(T) == 2)
+ return htole16(v);
+ else
+ return v;
+}
+#endif
+static int buffer_create(lua_State* L)
+{
+ int size = luaL_checkinteger(L, 1);
+ if (size < 0)
+ luaL_error(L, "size cannot be negative");
+ lua_newbuffer(L, size);
+ return 1;
+}
+static int buffer_fromstring(lua_State* L)
+{
+ size_t len = 0;
+ const char* val = luaL_checklstring(L, 1, &len);
+ void* data = lua_newbuffer(L, len);
+ memcpy(data, val, len);
+ return 1;
+}
+static int buffer_tostring(lua_State* L)
+{
+ size_t len = 0;
+ void* data = luaL_checkbuffer(L, 1, &len);
+ lua_pushlstring(L, (char*)data, len);
+ return 1;
+}
+template<typename T>
+static int buffer_readinteger(lua_State* L)
+{
+ size_t len = 0;
+ void* buf = luaL_checkbuffer(L, 1, &len);
+ int offset = luaL_checkinteger(L, 2);
+ if (isoutofbounds(offset, len, sizeof(T)))
+ luaL_error(L, "buffer access out of bounds");
+ T val;
+ memcpy(&val, (char*)buf + offset, sizeof(T));
+#if defined(LUAU_BIG_ENDIAN)
+ val = buffer_swapbe(val);
+#endif
+ lua_pushnumber(L, double(val));
+ return 1;
+}
+template<typename T>
+static int buffer_writeinteger(lua_State* L)
+{
+ size_t len = 0;
+ void* buf = luaL_checkbuffer(L, 1, &len);
+ int offset = luaL_checkinteger(L, 2);
+ int value = luaL_checkunsigned(L, 3);
+ if (isoutofbounds(offset, len, sizeof(T)))
+ luaL_error(L, "buffer access out of bounds");
+ T val = T(value);
+#if defined(LUAU_BIG_ENDIAN)
+ val = buffer_swapbe(val);
+#endif
+ memcpy((char*)buf + offset, &val, sizeof(T));
+ return 0;
+}
+template<typename T, typename StorageType>
+static int buffer_readfp(lua_State* L)
+{
+ size_t len = 0;
+ void* buf = luaL_checkbuffer(L, 1, &len);
+ int offset = luaL_checkinteger(L, 2);
+ if (isoutofbounds(offset, len, sizeof(T)))
+ luaL_error(L, "buffer access out of bounds");
+ T val;
+#if defined(LUAU_BIG_ENDIAN)
+ static_assert(sizeof(T) == sizeof(StorageType), "type size must match to reinterpret data");
+ StorageType tmp;
+ memcpy(&tmp, (char*)buf + offset, sizeof(tmp));
+ tmp = buffer_swapbe(tmp);
+ memcpy(&val, &tmp, sizeof(tmp));
+#else
+ memcpy(&val, (char*)buf + offset, sizeof(T));
+#endif
+ lua_pushnumber(L, double(val));
+ return 1;
+}
+template<typename T, typename StorageType>
+static int buffer_writefp(lua_State* L)
+{
+ size_t len = 0;
+ void* buf = luaL_checkbuffer(L, 1, &len);
+ int offset = luaL_checkinteger(L, 2);
+ double value = luaL_checknumber(L, 3);
+ if (isoutofbounds(offset, len, sizeof(T)))
+ luaL_error(L, "buffer access out of bounds");
+ T val = T(value);
+#if defined(LUAU_BIG_ENDIAN)
+ static_assert(sizeof(T) == sizeof(StorageType), "type size must match to reinterpret data");
+ StorageType tmp;
+ memcpy(&tmp, &val, sizeof(tmp));
+ tmp = buffer_swapbe(tmp);
+ memcpy((char*)buf + offset, &tmp, sizeof(tmp));
+#else
+ memcpy((char*)buf + offset, &val, sizeof(T));
+#endif
+ return 0;
+}
+static int buffer_readstring(lua_State* L)
+{
+ size_t len = 0;
+ void* buf = luaL_checkbuffer(L, 1, &len);
+ int offset = luaL_checkinteger(L, 2);
+ int size = luaL_checkinteger(L, 3);
+ if (size < 0)
+ luaL_error(L, "size cannot be negative");
+ if (isoutofbounds(offset, len, unsigned(size)))
+ luaL_error(L, "buffer access out of bounds");
+ lua_pushlstring(L, (char*)buf + offset, size);
+ return 1;
+}
+static int buffer_writestring(lua_State* L)
+{
+ size_t len = 0;
+ void* buf = luaL_checkbuffer(L, 1, &len);
+ int offset = luaL_checkinteger(L, 2);
+ size_t size = 0;
+ const char* val = luaL_checklstring(L, 3, &size);
+ int count = luaL_optinteger(L, 4, int(size));
+ if (count < 0)
+ luaL_error(L, "count cannot be negative");
+ if (size_t(count) > size)
+ luaL_error(L, "string length overflow");
+ if (isoutofbounds(offset, len, unsigned(count)))
+ luaL_error(L, "buffer access out of bounds");
+ memcpy((char*)buf + offset, val, count);
+ return 0;
+}
+static int buffer_len(lua_State* L)
+{
+ size_t len = 0;
+ luaL_checkbuffer(L, 1, &len);
+ lua_pushnumber(L, double(unsigned(len)));
+ return 1;
+}
+static int buffer_copy(lua_State* L)
+{
+ size_t tlen = 0;
+ void* tbuf = luaL_checkbuffer(L, 1, &tlen);
+ int toffset = luaL_checkinteger(L, 2);
+ size_t slen = 0;
+ void* sbuf = luaL_checkbuffer(L, 3, &slen);
+ int soffset = luaL_optinteger(L, 4, 0);
+ int size = luaL_optinteger(L, 5, int(slen) - soffset);
+ if (size < 0)
+ luaL_error(L, "buffer access out of bounds");
+ if (isoutofbounds(soffset, slen, unsigned(size)))
+ luaL_error(L, "buffer access out of bounds");
+ if (isoutofbounds(toffset, tlen, unsigned(size)))
+ luaL_error(L, "buffer access out of bounds");
+ memmove((char*)tbuf + toffset, (char*)sbuf + soffset, size);
+ return 0;
+}
+static int buffer_fill(lua_State* L)
+{
+ size_t len = 0;
+ void* buf = luaL_checkbuffer(L, 1, &len);
+ int offset = luaL_checkinteger(L, 2);
+ unsigned value = luaL_checkunsigned(L, 3);
+ int size = luaL_optinteger(L, 4, int(len) - offset);
+ if (size < 0)
+ luaL_error(L, "buffer access out of bounds");
+ if (isoutofbounds(offset, len, unsigned(size)))
+ luaL_error(L, "buffer access out of bounds");
+ memset((char*)buf + offset, value & 0xff, size);
+ return 0;
+}
+static const luaL_Reg bufferlib[] = {
+ {"create", buffer_create},
+ {"fromstring", buffer_fromstring},
+ {"tostring", buffer_tostring},
+ {"readi8", buffer_readinteger<int8_t>},
+ {"readu8", buffer_readinteger<uint8_t>},
+ {"readi16", buffer_readinteger<int16_t>},
+ {"readu16", buffer_readinteger<uint16_t>},
+ {"readi32", buffer_readinteger<int32_t>},
+ {"readu32", buffer_readinteger<uint32_t>},
+ {"readf32", buffer_readfp<float, uint32_t>},
+ {"readf64", buffer_readfp<double, uint64_t>},
+ {"writei8", buffer_writeinteger<int8_t>},
+ {"writeu8", buffer_writeinteger<uint8_t>},
+ {"writei16", buffer_writeinteger<int16_t>},
+ {"writeu16", buffer_writeinteger<uint16_t>},
+ {"writei32", buffer_writeinteger<int32_t>},
+ {"writeu32", buffer_writeinteger<uint32_t>},
+ {"writef32", buffer_writefp<float, uint32_t>},
+ {"writef64", buffer_writefp<double, uint64_t>},
+ {"readstring", buffer_readstring},
+ {"writestring", buffer_writestring},
+ {"len", buffer_len},
+ {"copy", buffer_copy},
+ {"fill", buffer_fill},
+ {NULL, NULL},
+};
+int luaopen_buffer(lua_State* L)
+{
+ luaL_register(L, LUA_BUFFERLIBNAME, bufferlib);
+ return 1;
 }
 typedef int (*luau_FastFunction)(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams);
 extern const luau_FastFunction luauF_table[256];
@@ -4895,6 +5138,93 @@ static int luauF_tostring(lua_State* L, StkId res, TValue* arg0, int nresults, S
  }
  return -1;
 }
+static int luauF_byteswap(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
+{
+ if (nparams >= 1 && nresults <= 1 && ttisnumber(arg0))
+ {
+ double a1 = nvalue(arg0);
+ unsigned n;
+ luai_num2unsigned(n, a1);
+ n = (n << 24) | ((n << 8) & 0xff0000) | ((n >> 8) & 0xff00) | (n >> 24);
+ setnvalue(res, double(n));
+ return 1;
+ }
+ return -1;
+}
+#define checkoutofbounds(offset, len, accessize) (uint64_t(unsigned(offset)) + (accessize - 1) >= uint64_t(len))
+template<typename T>
+static int luauF_readinteger(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
+{
+#if !defined(LUAU_BIG_ENDIAN)
+ if (nparams >= 2 && nresults <= 1 && ttisbuffer(arg0) && ttisnumber(args))
+ {
+ int offset;
+ luai_num2int(offset, nvalue(args));
+ if (checkoutofbounds(offset, bufvalue(arg0)->len, sizeof(T)))
+ return -1;
+ T val;
+ memcpy(&val, (char*)bufvalue(arg0)->data + offset, sizeof(T));
+ setnvalue(res, double(val));
+ return 1;
+ }
+#endif
+ return -1;
+}
+template<typename T>
+static int luauF_writeinteger(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
+{
+#if !defined(LUAU_BIG_ENDIAN)
+ if (nparams >= 3 && nresults <= 0 && ttisbuffer(arg0) && ttisnumber(args) && ttisnumber(args + 1))
+ {
+ int offset;
+ luai_num2int(offset, nvalue(args));
+ if (checkoutofbounds(offset, bufvalue(arg0)->len, sizeof(T)))
+ return -1;
+ unsigned value;
+ double incoming = nvalue(args + 1);
+ luai_num2unsigned(value, incoming);
+ T val = T(value);
+ memcpy((char*)bufvalue(arg0)->data + offset, &val, sizeof(T));
+ return 0;
+ }
+#endif
+ return -1;
+}
+template<typename T>
+static int luauF_readfp(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
+{
+#if !defined(LUAU_BIG_ENDIAN)
+ if (nparams >= 2 && nresults <= 1 && ttisbuffer(arg0) && ttisnumber(args))
+ {
+ int offset;
+ luai_num2int(offset, nvalue(args));
+ if (checkoutofbounds(offset, bufvalue(arg0)->len, sizeof(T)))
+ return -1;
+ T val;
+ memcpy(&val, (char*)bufvalue(arg0)->data + offset, sizeof(T));
+ setnvalue(res, double(val));
+ return 1;
+ }
+#endif
+ return -1;
+}
+template<typename T>
+static int luauF_writefp(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
+{
+#if !defined(LUAU_BIG_ENDIAN)
+ if (nparams >= 3 && nresults <= 0 && ttisbuffer(arg0) && ttisnumber(args) && ttisnumber(args + 1))
+ {
+ int offset;
+ luai_num2int(offset, nvalue(args));
+ if (checkoutofbounds(offset, bufvalue(arg0)->len, sizeof(T)))
+ return -1;
+ T val = T(nvalue(args + 1));
+ memcpy((char*)bufvalue(arg0)->data + offset, &val, sizeof(T));
+ return 0;
+ }
+#endif
+ return -1;
+}
 static int luauF_missing(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
 {
  return -1;
@@ -5026,6 +5356,20 @@ const luau_FastFunction luauF_table[256] = {
  luauF_setmetatable,
  luauF_tonumber,
  luauF_tostring,
+ luauF_byteswap,
+ luauF_readinteger<int8_t>,
+ luauF_readinteger<uint8_t>,
+ luauF_writeinteger<uint8_t>,
+ luauF_readinteger<int16_t>,
+ luauF_readinteger<uint16_t>,
+ luauF_writeinteger<uint16_t>,
+ luauF_readinteger<int32_t>,
+ luauF_readinteger<uint32_t>,
+ luauF_writeinteger<uint32_t>,
+ luauF_readfp<float>,
+ luauF_writefp<float>,
+ luauF_readfp<double>,
+ luauF_writefp<double>,
 #define MISSING8 luauF_missing, luauF_missing, luauF_missing, luauF_missing, luauF_missing, luauF_missing, luauF_missing, luauF_missing
  MISSING8,
  MISSING8,
@@ -8009,6 +8353,7 @@ static const luaL_Reg lualibs[] = {
  {LUA_DBLIBNAME, luaopen_debug},
  {LUA_UTF8LIBNAME, luaopen_utf8},
  {LUA_BITLIBNAME, luaopen_bit32},
+ {LUA_BUFFERLIBNAME, luaopen_buffer},
  {NULL, NULL},
 };
 void luaL_openlibs(lua_State* L)
@@ -21377,11 +21722,14 @@ LUAU_NOINLINE uint16_t createScopeData(const char* name, const char* category);
 #endif
 #include <errno.h>
 LUAU_FASTINTVARIABLE(LuauRecursionLimit, 1000)
+LUAU_FASTINTVARIABLE(LuauTypeLengthLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
 LUAU_FASTFLAGVARIABLE(LuauParseDeclareClassIndexer, false)
 LUAU_FASTFLAGVARIABLE(LuauClipExtraHasEndProps, false)
 LUAU_FASTFLAG(LuauFloorDivision)
 LUAU_FASTFLAG(LuauCheckedFunctionSyntax)
+LUAU_FASTFLAGVARIABLE(LuauBetterTypeUnionLimits, false)
+LUAU_FASTFLAGVARIABLE(LuauBetterTypeRecLimits, false)
 namespace Luau
 {
 ParseError::ParseError(const Location& location, const std::string& message)
@@ -21555,10 +21903,10 @@ AstStatBlock* Parser::parseBlockNoScope()
  const Position prevPosition = lexer.previousLocation().end;
  while (!blockFollow(lexer.current()))
  {
- unsigned int recursionCounterOld = recursionCounter;
+ unsigned int oldRecursionCount = recursionCounter;
  incrementRecursionCounter("block");
  AstStat* stat = parseStat();
- recursionCounter = recursionCounterOld;
+ recursionCounter = oldRecursionCount;
  if (lexer.current().type == ';')
  {
  nextLexeme();
@@ -21640,13 +21988,13 @@ AstStat* Parser::parseIf()
  {
  if (FFlag::LuauClipExtraHasEndProps)
  thenbody->hasEnd = true;
- unsigned int recursionCounterOld = recursionCounter;
+ unsigned int oldRecursionCount = recursionCounter;
  incrementRecursionCounter("elseif");
  elseLocation = lexer.current().location;
  elsebody = parseIf();
  end = elsebody->location;
  DEPRECATED_hasEnd = elsebody->as<AstStatIf>()->DEPRECATED_hasEnd;
- recursionCounter = recursionCounterOld;
+ recursionCounter = oldRecursionCount;
  }
  else
  {
@@ -21800,7 +22148,7 @@ AstExpr* Parser::parseFunctionName(Location start, bool& hasself, AstName& debug
  if (lexer.current().type == Lexeme::Name)
  debugname = AstName(lexer.current().name);
  AstExpr* expr = parseNameExpr("function name");
- unsigned int recursionCounterOld = recursionCounter;
+ unsigned int oldRecursionCount = recursionCounter;
  while (lexer.current().type == '.')
  {
  Position opPosition = lexer.current().location.begin;
@@ -21810,7 +22158,7 @@ AstExpr* Parser::parseFunctionName(Location start, bool& hasself, AstName& debug
  expr = allocator.alloc<AstExprIndexName>(Location(start, name.location), expr, name.name, name.location, opPosition, '.');
  incrementRecursionCounter("function name");
  }
- recursionCounter = recursionCounterOld;
+ recursionCounter = oldRecursionCount;
  if (lexer.current().type == ':')
  {
  Position opPosition = lexer.current().location.begin;
@@ -22407,6 +22755,7 @@ AstType* Parser::parseTypeSuffix(AstType* type, const Location& begin)
  incrementRecursionCounter("type annotation");
  bool isUnion = false;
  bool isIntersection = false;
+ bool hasOptional = false;
  Location location = begin;
  while (true)
  {
@@ -22414,20 +22763,28 @@ AstType* Parser::parseTypeSuffix(AstType* type, const Location& begin)
  if (c == '|')
  {
  nextLexeme();
+ unsigned int oldRecursionCount = recursionCounter;
  parts.push_back(parseSimpleType( false).type);
+ if (FFlag::LuauBetterTypeUnionLimits)
+ recursionCounter = oldRecursionCount;
  isUnion = true;
  }
  else if (c == '?')
  {
  Location loc = lexer.current().location;
  nextLexeme();
+ if (!FFlag::LuauBetterTypeUnionLimits || !hasOptional)
  parts.push_back(allocator.alloc<AstTypeReference>(loc, std::nullopt, nameNil, std::nullopt, loc));
  isUnion = true;
+ hasOptional = true;
  }
  else if (c == '&')
  {
  nextLexeme();
+ unsigned int oldRecursionCount = recursionCounter;
  parts.push_back(parseSimpleType( false).type);
+ if (FFlag::LuauBetterTypeUnionLimits)
+ recursionCounter = oldRecursionCount;
  isIntersection = true;
  }
  else if (c == Lexeme::Dot3)
@@ -22437,6 +22794,8 @@ AstType* Parser::parseTypeSuffix(AstType* type, const Location& begin)
  }
  else
  break;
+ if (FFlag::LuauBetterTypeUnionLimits && parts.size() > unsigned(FInt::LuauTypeLengthLimit) + hasOptional)
+ ParseError::raise(parts.back()->location, "Exceeded allowed type length; simplify your type annotation to make the code compile");
  }
  if (parts.size() == 1)
  return type;
@@ -22456,6 +22815,7 @@ AstType* Parser::parseTypeSuffix(AstType* type, const Location& begin)
 AstTypeOrPack Parser::parseTypeOrPack()
 {
  unsigned int oldRecursionCount = recursionCounter;
+ if (!FFlag::LuauBetterTypeRecLimits)
  incrementRecursionCounter("type annotation");
  Location begin = lexer.current().location;
  auto [type, typePack] = parseSimpleType( true);
@@ -22470,6 +22830,7 @@ AstTypeOrPack Parser::parseTypeOrPack()
 AstType* Parser::parseType(bool inDeclarationContext)
 {
  unsigned int oldRecursionCount = recursionCounter;
+ if (!FFlag::LuauBetterTypeRecLimits)
  incrementRecursionCounter("type annotation");
  Location begin = lexer.current().location;
  AstType* type = parseSimpleType( false, inDeclarationContext).type;
@@ -22742,7 +23103,7 @@ AstExpr* Parser::parseExpr(unsigned int limit)
  {2, 2}, {1, 1}
  };
  static_assert(sizeof(binaryPriority) / sizeof(binaryPriority[0]) == size_t(AstExprBinary::Op__Count), "binaryPriority needs an entry per op");
- unsigned int recursionCounterOld = recursionCounter;
+ unsigned int oldRecursionCount = recursionCounter;
  incrementRecursionCounter("expression");
  const unsigned int unaryPriority = 8;
  Location start = lexer.current().location;
@@ -22773,7 +23134,7 @@ AstExpr* Parser::parseExpr(unsigned int limit)
  op = checkBinaryConfusables(binaryPriority, limit);
  incrementRecursionCounter("expression");
  }
- recursionCounter = recursionCounterOld;
+ recursionCounter = oldRecursionCount;
  return expr;
 }
 AstExpr* Parser::parseNameExpr(const char* context)
@@ -22819,7 +23180,7 @@ AstExpr* Parser::parsePrimaryExpr(bool asStatement)
 {
  Position start = lexer.current().location.begin;
  AstExpr* expr = parsePrefixExpr();
- unsigned int recursionCounterOld = recursionCounter;
+ unsigned int oldRecursionCount = recursionCounter;
  while (true)
  {
  if (lexer.current().type == '.')
@@ -22865,7 +23226,7 @@ AstExpr* Parser::parsePrimaryExpr(bool asStatement)
  }
  incrementRecursionCounter("expression");
  }
- recursionCounter = recursionCounterOld;
+ recursionCounter = oldRecursionCount;
  return expr;
 }
 AstExpr* Parser::parseAssertionExpr()
@@ -24598,6 +24959,8 @@ void compileOrThrow(BytecodeBuilder& bytecode, const std::string& source, const 
 std::string compile(
  const std::string& source, const CompileOptions& options = {}, const ParseOptions& parseOptions = {}, BytecodeEncoder* encoder = nullptr);
 }
+LUAU_FASTFLAGVARIABLE(LuauBit32ByteswapBuiltin, false)
+LUAU_FASTFLAGVARIABLE(LuauBufferBuiltins, false)
 namespace Luau
 {
 namespace Compile
@@ -24748,6 +25111,8 @@ static int getBuiltinFunctionId(const Builtin& builtin, const CompileOptions& op
  return LBF_BIT32_COUNTLZ;
  if (builtin.method == "countrz")
  return LBF_BIT32_COUNTRZ;
+ if (FFlag::LuauBit32ByteswapBuiltin && builtin.method == "byteswap")
+ return LBF_BIT32_BYTESWAP;
  }
  if (builtin.object == "string")
  {
@@ -24766,6 +25131,35 @@ static int getBuiltinFunctionId(const Builtin& builtin, const CompileOptions& op
  return LBF_TABLE_INSERT;
  if (builtin.method == "unpack")
  return LBF_TABLE_UNPACK;
+ }
+ if (FFlag::LuauBufferBuiltins && builtin.object == "buffer")
+ {
+ if (builtin.method == "readi8")
+ return LBF_BUFFER_READI8;
+ if (builtin.method == "readu8")
+ return LBF_BUFFER_READU8;
+ if (builtin.method == "writei8" || builtin.method == "writeu8")
+ return LBF_BUFFER_WRITEU8;
+ if (builtin.method == "readi16")
+ return LBF_BUFFER_READI16;
+ if (builtin.method == "readu16")
+ return LBF_BUFFER_READU16;
+ if (builtin.method == "writei16" || builtin.method == "writeu16")
+ return LBF_BUFFER_WRITEU16;
+ if (builtin.method == "readi32")
+ return LBF_BUFFER_READI32;
+ if (builtin.method == "readu32")
+ return LBF_BUFFER_READU32;
+ if (builtin.method == "writei32" || builtin.method == "writeu32")
+ return LBF_BUFFER_WRITEU32;
+ if (builtin.method == "readf32")
+ return LBF_BUFFER_READF32;
+ if (builtin.method == "writef32")
+ return LBF_BUFFER_WRITEF32;
+ if (builtin.method == "readf64")
+ return LBF_BUFFER_READF64;
+ if (builtin.method == "writef64")
+ return LBF_BUFFER_WRITEF64;
  }
  if (options.vectorCtor)
  {
@@ -24926,6 +25320,23 @@ BuiltinInfo getBuiltinInfo(int bfid)
  return {-1, 1};
  case LBF_TOSTRING:
  return {1, 1};
+ case LBF_BIT32_BYTESWAP:
+ return {1, 1, BuiltinInfo::Flag_NoneSafe};
+ case LBF_BUFFER_READI8:
+ case LBF_BUFFER_READU8:
+ case LBF_BUFFER_READI16:
+ case LBF_BUFFER_READU16:
+ case LBF_BUFFER_READI32:
+ case LBF_BUFFER_READU32:
+ case LBF_BUFFER_READF32:
+ case LBF_BUFFER_READF64:
+ return {2, 1, BuiltinInfo::Flag_NoneSafe};
+ case LBF_BUFFER_WRITEU8:
+ case LBF_BUFFER_WRITEU16:
+ case LBF_BUFFER_WRITEU32:
+ case LBF_BUFFER_WRITEF32:
+ case LBF_BUFFER_WRITEF64:
+ return {3, 0, BuiltinInfo::Flag_NoneSafe};
  };
  LUAU_UNREACHABLE();
 }
@@ -26849,6 +27260,8 @@ static const char* getBaseTypeString(uint8_t type)
  return "userdata";
  case LBC_TYPE_VECTOR:
  return "vector";
+ case LBC_TYPE_BUFFER:
+ return "buffer";
  case LBC_TYPE_ANY:
  return "any";
  }
@@ -26927,11 +27340,8 @@ LUAU_FASTINTVARIABLE(LuauCompileLoopUnrollThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThreshold, 25)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
-LUAU_FASTFLAGVARIABLE(LuauCompileFenvNoBuiltinFold, false)
-LUAU_FASTFLAGVARIABLE(LuauCompileTopCold, false)
 LUAU_FASTFLAG(LuauFloorDivision)
 LUAU_FASTFLAGVARIABLE(LuauCompileFixContinueValidation2, false)
-LUAU_FASTFLAGVARIABLE(LuauCompileContinueCloseUpvals, false)
 LUAU_FASTFLAGVARIABLE(LuauCompileIfElseAndOr, false)
 namespace Luau
 {
@@ -27103,7 +27513,7 @@ struct Compiler
  popLocals(0);
  if (bytecode.getInstructionCount() > kMaxInstructionCount)
  CompileError::raise(func->location, "Exceeded function instruction limit; split the function into parts to compile");
- if (FFlag::LuauCompileTopCold && func->functionDepth == 0 && !hasLoops)
+ if (func->functionDepth == 0 && !hasLoops)
  protoflags |= LPF_NATIVE_COLD;
  bytecode.endFunction(uint8_t(stackSize), uint8_t(upvals.size()), protoflags);
  Function& f = functions[func];
@@ -28839,7 +29249,6 @@ struct Compiler
  for (size_t i = 0; i < body->body.size; ++i)
  {
  compileStat(body->body.data[i]);
- if (FFlag::LuauCompileContinueCloseUpvals)
  loops.back().localOffsetContinue = localStack.size();
  if (FFlag::LuauCompileFixContinueValidation2 && loops.back().continueUsed && !continueValidated)
  {
@@ -29808,7 +30217,7 @@ void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, c
  Compiler::FenvVisitor fenvVisitor(compiler.getfenvUsed, compiler.setfenvUsed);
  root->visit(&fenvVisitor);
  }
- if (options.optimizationLevel >= 2 && (!FFlag::LuauCompileFenvNoBuiltinFold || (!compiler.getfenvUsed && !compiler.setfenvUsed)))
+ if (options.optimizationLevel >= 2 && (!compiler.getfenvUsed && !compiler.setfenvUsed))
  {
  compiler.builtinsFold = &compiler.builtins;
  if (AstName math = names.get("math"); math.value && getGlobalState(compiler.globals, math) == Global::Default)
@@ -30678,6 +31087,7 @@ void predictTableShapes(DenseHashMap<AstExprTable*, TableShape>& shapes, AstNode
 }
 }
 } // namespace Luau
+LUAU_FASTFLAGVARIABLE(LuauCompileBufferAnnotation, false)
 namespace Luau
 {
 static bool isGeneric(AstName name, const AstArray<AstGenericType>& generics)
@@ -30699,6 +31109,8 @@ static LuauBytecodeType getPrimitiveType(AstName name)
  return LBC_TYPE_STRING;
  else if (name == "thread")
  return LBC_TYPE_THREAD;
+ else if (FFlag::LuauCompileBufferAnnotation && name == "buffer")
+ return LBC_TYPE_BUFFER;
  else if (name == "any" || name == "unknown")
  return LBC_TYPE_ANY;
  else
