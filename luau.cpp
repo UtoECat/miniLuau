@@ -5163,7 +5163,7 @@ static int luauF_readinteger(lua_State* L, StkId res, TValue* arg0, int nresults
  if (checkoutofbounds(offset, bufvalue(arg0)->len, sizeof(T)))
  return -1;
  T val;
- memcpy(&val, (char*)bufvalue(arg0)->data + offset, sizeof(T));
+ memcpy(&val, (char*)bufvalue(arg0)->data + unsigned(offset), sizeof(T));
  setnvalue(res, double(val));
  return 1;
  }
@@ -5184,7 +5184,7 @@ static int luauF_writeinteger(lua_State* L, StkId res, TValue* arg0, int nresult
  double incoming = nvalue(args + 1);
  luai_num2unsigned(value, incoming);
  T val = T(value);
- memcpy((char*)bufvalue(arg0)->data + offset, &val, sizeof(T));
+ memcpy((char*)bufvalue(arg0)->data + unsigned(offset), &val, sizeof(T));
  return 0;
  }
 #endif
@@ -5201,7 +5201,11 @@ static int luauF_readfp(lua_State* L, StkId res, TValue* arg0, int nresults, Stk
  if (checkoutofbounds(offset, bufvalue(arg0)->len, sizeof(T)))
  return -1;
  T val;
- memcpy(&val, (char*)bufvalue(arg0)->data + offset, sizeof(T));
+#ifdef _MSC_VER
+ val = *(T*)((char*)bufvalue(arg0)->data + unsigned(offset));
+#else
+ memcpy(&val, (char*)bufvalue(arg0)->data + unsigned(offset), sizeof(T));
+#endif
  setnvalue(res, double(val));
  return 1;
  }
@@ -5219,7 +5223,11 @@ static int luauF_writefp(lua_State* L, StkId res, TValue* arg0, int nresults, St
  if (checkoutofbounds(offset, bufvalue(arg0)->len, sizeof(T)))
  return -1;
  T val = T(nvalue(args + 1));
- memcpy((char*)bufvalue(arg0)->data + offset, &val, sizeof(T));
+#ifdef _MSC_VER
+ *(T*)((char*)bufvalue(arg0)->data + unsigned(offset)) = val;
+#else
+ memcpy((char*)bufvalue(arg0)->data + unsigned(offset), &val, sizeof(T));
+#endif
  return 0;
  }
 #endif
@@ -6174,7 +6182,6 @@ const char* lua_debugtrace(lua_State* L)
 #else
 #include <stdexcept>
 #endif
-LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauHandlerClose, false)
 #if LUA_USE_LONGJMP
 struct lua_jmpbuf
 {
@@ -6461,7 +6468,7 @@ static void resume_handle(lua_State* L, void* ud)
  ptrdiff_t old_ci = saveci(L, ci);
  int n = cl->c.cont(L, status);
  L->ci = restoreci(L, old_ci);
- luaF_close(L, DFFlag::LuauHandlerClose ? L->ci->base : L->base);
+ luaF_close(L, L->ci->base);
  luau_poscall(L, L->top - n);
  resume_continue(L);
 }
@@ -16181,13 +16188,16 @@ LUAU_NOINLINE void luaV_tryfuncTM(lua_State* L, StkId func)
 }
 #ifdef LUAU_ENABLE_COMPILER
 #undef upvalue
-#include <string>
 namespace Luau
 {
 struct Position
 {
  unsigned int line, column;
- Position(unsigned int line, unsigned int column);
+ Position(unsigned int line, unsigned int column)
+ : line(line)
+ , column(column)
+ {
+ }
  bool operator==(const Position& rhs) const;
  bool operator!=(const Position& rhs) const;
  bool operator<(const Position& rhs) const;
@@ -16199,10 +16209,26 @@ struct Position
 struct Location
 {
  Position begin, end;
- Location();
- Location(const Position& begin, const Position& end);
- Location(const Position& begin, unsigned int length);
- Location(const Location& begin, const Location& end);
+ Location()
+ : begin(0, 0)
+ , end(0, 0)
+ {
+ }
+ Location(const Position& begin, const Position& end)
+ : begin(begin)
+ , end(end)
+ {
+ }
+ Location(const Position& begin, unsigned int length)
+ : begin(begin)
+ , end(begin.line, begin.column + length)
+ {
+ }
+ Location(const Location& begin, const Location& end)
+ : begin(begin.begin)
+ , end(end.end)
+ {
+ }
  bool operator==(const Location& rhs) const;
  bool operator!=(const Location& rhs) const;
  bool encloses(const Location& l) const;
@@ -16214,6 +16240,7 @@ struct Location
 };
 }
 #include <optional>
+#include <string>
 namespace Luau
 {
 struct AstName
@@ -16404,6 +16431,7 @@ public:
 enum class ConstantNumberParseResult
 {
  Ok,
+ Imprecise,
  Malformed,
  BinOverflow,
  HexOverflow,
@@ -21168,11 +21196,6 @@ void Lexer::fixupMultilineString(std::string& data)
 }
 namespace Luau
 {
-Position::Position(unsigned int line, unsigned int column)
- : line(line)
- , column(column)
-{
-}
 bool Position::operator==(const Position& rhs) const
 {
  return this->column == rhs.column && this->line == rhs.line;
@@ -21215,26 +21238,6 @@ void Position::shift(const Position& start, const Position& oldEnd, const Positi
  this->column += (newEnd.column - oldEnd.column);
  }
  }
-}
-Location::Location()
- : begin(0, 0)
- , end(0, 0)
-{
-}
-Location::Location(const Position& begin, const Position& end)
- : begin(begin)
- , end(end)
-{
-}
-Location::Location(const Position& begin, unsigned int length)
- : begin(begin)
- , end(begin.line, begin.column + length)
-{
-}
-Location::Location(const Location& begin, const Location& end)
- : begin(begin.begin)
- , end(end.end)
-{
 }
 bool Location::operator==(const Location& rhs) const
 {
@@ -21730,6 +21733,7 @@ LUAU_FASTFLAG(LuauFloorDivision)
 LUAU_FASTFLAG(LuauCheckedFunctionSyntax)
 LUAU_FASTFLAGVARIABLE(LuauBetterTypeUnionLimits, false)
 LUAU_FASTFLAGVARIABLE(LuauBetterTypeRecLimits, false)
+LUAU_FASTFLAGVARIABLE(LuauParseImpreciseNumber, false)
 namespace Luau
 {
 ParseError::ParseError(const Location& location, const std::string& message)
@@ -23257,6 +23261,11 @@ static ConstantNumberParseResult parseInteger(double& result, const char* data, 
  if (errno == ERANGE)
  return base == 2 ? ConstantNumberParseResult::BinOverflow : ConstantNumberParseResult::HexOverflow;
  }
+ if (FFlag::LuauParseImpreciseNumber)
+ {
+ if (value >= (1ull << 53) && static_cast<unsigned long long>(result) != value)
+ return ConstantNumberParseResult::Imprecise;
+ }
  return ConstantNumberParseResult::Ok;
 }
 static ConstantNumberParseResult parseDouble(double& result, const char* data)
@@ -23267,8 +23276,25 @@ static ConstantNumberParseResult parseDouble(double& result, const char* data)
  return parseInteger(result, data, 16);
  char* end = nullptr;
  double value = strtod(data, &end);
+ if (FFlag::LuauParseImpreciseNumber)
+ {
+ if (*end != 0)
+ return ConstantNumberParseResult::Malformed;
+ result = value;
+ if (value >= double(1ull << 53) && strspn(data, "0123456789") == strlen(data))
+ {
+ char repr[512];
+ snprintf(repr, sizeof(repr), "%.0f", value);
+ if (strcmp(repr, data) != 0)
+ return ConstantNumberParseResult::Imprecise;
+ }
+ return ConstantNumberParseResult::Ok;
+ }
+ else
+ {
  result = value;
  return *end == 0 ? ConstantNumberParseResult::Ok : ConstantNumberParseResult::Malformed;
+ }
 }
 AstExpr* Parser::parseSimpleExpr()
 {
@@ -25394,6 +25420,7 @@ public:
  void pushDebugLocal(StringRef name, uint8_t reg, uint32_t startpc, uint32_t endpc);
  void pushDebugUpval(StringRef name);
  size_t getInstructionCount() const;
+ size_t getTotalInstructionCount() const;
  uint32_t getDebugPC() const;
  void addDebugRemark(const char* format, ...) LUAU_PRINTF_ATTR(2, 3);
  void finalize();
@@ -25511,6 +25538,7 @@ private:
  std::vector<Function> functions;
  uint32_t currentFunction = ~0u;
  uint32_t mainFunction = ~0u;
+ size_t totalInstructionCount = 0;
  std::vector<uint32_t> insns;
  std::vector<int> lines;
  std::vector<Constant> constants;
@@ -25729,6 +25757,7 @@ void BytecodeBuilder::endFunction(uint8_t maxstacksize, uint8_t numupvalues, uin
  encoder->encode(insns.data(), insns.size());
  writeFunction(func.data, currentFunction, flags);
  currentFunction = ~0u;
+ totalInstructionCount += insns.size();
  insns.clear();
  lines.clear();
  constants.clear();
@@ -25944,6 +25973,10 @@ void BytecodeBuilder::pushDebugUpval(StringRef name)
 size_t BytecodeBuilder::getInstructionCount() const
 {
  return insns.size();
+}
+size_t BytecodeBuilder::getTotalInstructionCount() const
+{
+ return totalInstructionCount;
 }
 uint32_t BytecodeBuilder::getDebugPC() const
 {
@@ -27341,7 +27374,6 @@ LUAU_FASTINTVARIABLE(LuauCompileInlineThreshold, 25)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
 LUAU_FASTFLAG(LuauFloorDivision)
-LUAU_FASTFLAGVARIABLE(LuauCompileFixContinueValidation2, false)
 LUAU_FASTFLAGVARIABLE(LuauCompileIfElseAndOr, false)
 namespace Luau
 {
@@ -29172,13 +29204,8 @@ struct Compiler
  AstStatContinue* continueStatement = extractStatContinue(stat->thenbody);
  if (!stat->elsebody && continueStatement != nullptr && !areLocalsCaptured(loops.back().localOffsetContinue))
  {
- if (FFlag::LuauCompileFixContinueValidation2)
- {
  if (!loops.back().continueUsed)
  loops.back().continueUsed = continueStatement;
- }
- else if (loops.back().untilCondition)
- validateContinueUntil(continueStatement, loops.back().untilCondition);
  std::vector<size_t> elseJump;
  compileConditionValue(stat->condition, nullptr, elseJump, true);
  for (size_t jump : elseJump)
@@ -29219,7 +29246,7 @@ struct Compiler
  return;
  size_t oldJumps = loopJumps.size();
  size_t oldLocals = localStack.size();
- loops.push_back({oldLocals, oldLocals, nullptr, nullptr});
+ loops.push_back({oldLocals, oldLocals, nullptr});
  hasLoops = true;
  size_t loopLabel = bytecode.emitLabel();
  std::vector<size_t> elseJump;
@@ -29240,7 +29267,7 @@ struct Compiler
  {
  size_t oldJumps = loopJumps.size();
  size_t oldLocals = localStack.size();
- loops.push_back({oldLocals, oldLocals, stat->condition, nullptr});
+ loops.push_back({oldLocals, oldLocals, nullptr});
  hasLoops = true;
  size_t loopLabel = bytecode.emitLabel();
  AstStatBlock* body = stat->body;
@@ -29250,7 +29277,7 @@ struct Compiler
  {
  compileStat(body->body.data[i]);
  loops.back().localOffsetContinue = localStack.size();
- if (FFlag::LuauCompileFixContinueValidation2 && loops.back().continueUsed && !continueValidated)
+ if (loops.back().continueUsed && !continueValidated)
  {
  validateContinueUntil(loops.back().continueUsed, stat->condition, body, i + 1);
  continueValidated = true;
@@ -29405,7 +29432,7 @@ struct Compiler
  AstLocal* var = stat->var;
  size_t oldLocals = localStack.size();
  size_t oldJumps = loopJumps.size();
- loops.push_back({oldLocals, oldLocals, nullptr, nullptr});
+ loops.push_back({oldLocals, oldLocals, nullptr});
  for (int iv = 0; iv < tripCount; ++iv)
  {
  locstants[var].type = Constant::Type_Number;
@@ -29435,7 +29462,7 @@ struct Compiler
  return;
  size_t oldLocals = localStack.size();
  size_t oldJumps = loopJumps.size();
- loops.push_back({oldLocals, oldLocals, nullptr, nullptr});
+ loops.push_back({oldLocals, oldLocals, nullptr});
  hasLoops = true;
  uint8_t regs = allocReg(stat, 3);
  uint8_t varreg = regs + 2;
@@ -29472,7 +29499,7 @@ struct Compiler
  RegScope rs(this);
  size_t oldLocals = localStack.size();
  size_t oldJumps = loopJumps.size();
- loops.push_back({oldLocals, oldLocals, nullptr, nullptr});
+ loops.push_back({oldLocals, oldLocals, nullptr});
  hasLoops = true;
  uint8_t regs = allocReg(stat, 3);
  compileExprListTemp(stat->values, regs, 3, true);
@@ -29742,13 +29769,8 @@ struct Compiler
  else if (AstStatContinue* stat = node->as<AstStatContinue>())
  {
  LUAU_ASSERT(!loops.empty());
- if (FFlag::LuauCompileFixContinueValidation2)
- {
  if (!loops.back().continueUsed)
  loops.back().continueUsed = stat;
- }
- else if (loops.back().untilCondition)
- validateContinueUntil(stat, loops.back().untilCondition);
  closeLocals(loops.back().localOffsetContinue);
  size_t label = bytecode.emitLabel();
  bytecode.emitAD(LOP_JUMP, 0, 0);
@@ -29814,19 +29836,8 @@ struct Compiler
  LUAU_ASSERT(!"Unknown statement type");
  }
  }
- void validateContinueUntil(AstStat* cont, AstExpr* condition)
- {
- LUAU_ASSERT(!FFlag::LuauCompileFixContinueValidation2);
- UndefinedLocalVisitor visitor(this);
- condition->visit(&visitor);
- if (visitor.undef)
- CompileError::raise(condition->location,
- "Local %s used in the repeat..until condition is undefined because continue statement on line %d jumps over it",
- visitor.undef->name.value, cont->location.begin.line + 1);
- }
  void validateContinueUntil(AstStat* cont, AstExpr* condition, AstStatBlock* body, size_t start)
  {
- LUAU_ASSERT(FFlag::LuauCompileFixContinueValidation2);
  UndefinedLocalVisitor visitor(this);
  for (size_t i = start; i < body->body.size; ++i)
  {
@@ -30019,17 +30030,8 @@ struct Compiler
  }
  void check(AstLocal* local)
  {
- if (FFlag::LuauCompileFixContinueValidation2)
- {
  if (!undef && locals.contains(local))
  undef = local;
- }
- else
- {
- Local& l = self->locals[local];
- if (!l.allocated && !undef)
- undef = local;
- }
  }
  bool visit(AstExprLocal* node) override
  {
@@ -30143,7 +30145,6 @@ struct Compiler
  {
  size_t localOffset;
  size_t localOffsetContinue;
- AstExpr* untilCondition;
  AstStatContinue* continueUsed;
  };
  struct InlineArg
