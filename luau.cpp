@@ -776,6 +776,21 @@ public:
  {
  return impl.end();
  }
+ bool operator==(const DenseHashSet<Key, Hash, Eq>& other)
+ {
+ if (size() != other.size())
+ return false;
+ for (const Key& k : *this)
+ {
+ if (!other.contains(k))
+ return false;
+ }
+ return true;
+ }
+ bool operator!=(const DenseHashSet<Key, Hash, Eq>& other)
+ {
+ return !(*this == other);
+ }
 };
 template<typename Key, typename Value, typename Hash = detail::DenseHashDefault<Key>, typename Eq = std::equal_to<Key>>
 class DenseHashMap
@@ -3879,6 +3894,7 @@ void luaB_freebuffer(lua_State* L, Buffer* b, lua_Page* page)
 #if defined(LUAU_BIG_ENDIAN)
 #include <endian.h>
 #endif
+LUAU_FASTFLAGVARIABLE(LuauBufferBetterMsg, false)
 #define isoutofbounds(offset, len, accessize) (uint64_t(unsigned(offset)) + (accessize) > uint64_t(len))
 static_assert(MAX_BUFFER_SIZE <= INT_MAX, "current implementation can't handle a larger limit");
 #if defined(LUAU_BIG_ENDIAN)
@@ -3898,8 +3914,15 @@ inline T buffer_swapbe(T v)
 static int buffer_create(lua_State* L)
 {
  int size = luaL_checkinteger(L, 1);
+ if (FFlag::LuauBufferBetterMsg)
+ {
+ luaL_argcheck(L, size >= 0, 1, "size");
+ }
+ else
+ {
  if (size < 0)
- luaL_error(L, "size cannot be negative");
+ luaL_error(L, "invalid size");
+ }
  lua_newbuffer(L, size);
  return 1;
 }
@@ -3998,8 +4021,15 @@ static int buffer_readstring(lua_State* L)
  void* buf = luaL_checkbuffer(L, 1, &len);
  int offset = luaL_checkinteger(L, 2);
  int size = luaL_checkinteger(L, 3);
+ if (FFlag::LuauBufferBetterMsg)
+ {
+ luaL_argcheck(L, size >= 0, 3, "size");
+ }
+ else
+ {
  if (size < 0)
- luaL_error(L, "size cannot be negative");
+ luaL_error(L, "invalid size");
+ }
  if (isoutofbounds(offset, len, unsigned(size)))
  luaL_error(L, "buffer access out of bounds");
  lua_pushlstring(L, (char*)buf + offset, size);
@@ -4013,8 +4043,15 @@ static int buffer_writestring(lua_State* L)
  size_t size = 0;
  const char* val = luaL_checklstring(L, 3, &size);
  int count = luaL_optinteger(L, 4, int(size));
+ if (FFlag::LuauBufferBetterMsg)
+ {
+ luaL_argcheck(L, count >= 0, 4, "count");
+ }
+ else
+ {
  if (count < 0)
- luaL_error(L, "count cannot be negative");
+ luaL_error(L, "invalid count");
+ }
  if (size_t(count) > size)
  luaL_error(L, "string length overflow");
  if (isoutofbounds(offset, len, unsigned(count)))
@@ -9565,7 +9602,6 @@ const char* luaO_chunkid(char* buf, size_t buflen, const char* source, size_t sr
  return buf;
 }
 #define LUA_STRFTIMEOPTIONS "aAbBcdHIjmMpSUwWxXyYzZ%"
-LUAU_FASTFLAGVARIABLE(LuauOsTimegm, false)
 #if defined(_WIN32)
 static tm* gmtime_r(const time_t* timep, tm* result)
 {
@@ -9575,15 +9611,9 @@ static tm* localtime_r(const time_t* timep, tm* result)
 {
  return localtime_s(result, timep) == 0 ? result : NULL;
 }
-static time_t timegm(struct tm* timep)
-{
- LUAU_ASSERT(!FFlag::LuauOsTimegm);
- return _mkgmtime(timep);
-}
 #endif
 static time_t os_timegm(struct tm* timep)
 {
- LUAU_ASSERT(FFlag::LuauOsTimegm);
  int day = timep->tm_mday;
  int month = timep->tm_mon + 1;
  int year = timep->tm_year + 1900;
@@ -9722,10 +9752,7 @@ static int os_time(lua_State* L)
  ts.tm_mon = getfield(L, "month", -1) - 1;
  ts.tm_year = getfield(L, "year", -1) - 1900;
  ts.tm_isdst = getboolfield(L, "isdst");
- if (FFlag::LuauOsTimegm)
  t = os_timegm(&ts);
- else
- t = timegm(&ts);
  }
  if (t == (time_t)(-1))
  lua_pushnil(L);
@@ -12860,6 +12887,7 @@ void luaU_freeudata(lua_State* L, Udata* u, lua_Page* page)
 }
 #define MAXUNICODE 0x10FFFF
 #define iscont(p) ((*(p)&0xC0) == 0x80)
+LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauStricterUtf8, false)
 static int u_posrelat(int pos, size_t len)
 {
  if (pos >= 0)
@@ -12890,6 +12918,8 @@ static const char* utf8_decode(const char* o, int* val)
  }
  res |= ((c & 0x7F) << (count * 5));
  if (count > 3 || res > MAXUNICODE || res <= limits[count])
+ return NULL;
+ if (DFFlag::LuauStricterUtf8 && unsigned(res - 0xD800) < 0x800)
  return NULL;
  s += count; // skip continuation bytes read
  }
@@ -13128,7 +13158,6 @@ int luaopen_utf8(lua_State* L)
 #define VM_CONTINUE(op) dispatchOp = uint8_t(op); goto dispatchContinue
 #endif
 #define VM_HAS_NATIVE 1
-void (*lua_iter_call_telemetry)(lua_State* L, int gtt, int stt, int itt) = NULL;
 LUAU_NOINLINE void luau_callhook(lua_State* L, lua_Hook hook, void* userdata)
 {
  ptrdiff_t base = savestack(L, L->base);
@@ -14814,9 +14843,6 @@ reentry:
  }
  else if (fasttm(L, mt, TM_CALL))
  {
- void (*telemetrycb)(lua_State * L, int gtt, int stt, int itt) = lua_iter_call_telemetry;
- if (telemetrycb)
- telemetrycb(L, ttype(ra), ttype(ra + 1), ttype(ra + 2));
  }
  else if (ttistable(ra))
  {
@@ -17271,7 +17297,6 @@ struct hash<Luau::AstName>
  }
 };
 }
-LUAU_FASTFLAG(LuauFloorDivision);
 namespace Luau
 {
 static void visitTypeList(AstVisitor* visitor, const AstTypeList& list)
@@ -17509,7 +17534,6 @@ std::string toString(AstExprBinary::Op op)
  case AstExprBinary::Div:
  return "/";
  case AstExprBinary::FloorDiv:
- LUAU_ASSERT(FFlag::LuauFloorDivision);
  return "//";
  case AstExprBinary::Mod:
  return "%";
@@ -20157,7 +20181,6 @@ size_t hashRange(const char* data, size_t size);
 std::string escape(std::string_view s, bool escapeForInterpString = false);
 bool isIdentifier(std::string_view s);
 }
-LUAU_FASTFLAGVARIABLE(LuauFloorDivision, false)
 LUAU_FASTFLAGVARIABLE(LuauLexerLookaheadRemembersBraceType, false)
 LUAU_FASTFLAGVARIABLE(LuauCheckedFunctionSyntax, false)
 namespace Luau
@@ -20262,7 +20285,7 @@ std::string Lexeme::toString() const
  case DoubleColon:
  return "'::'";
  case FloorDiv:
- return FFlag::LuauFloorDivision ? "'//'" : "<unknown>";
+ return "'//'";
  case AddAssign:
  return "'+='";
  case SubAssign:
@@ -20272,7 +20295,7 @@ std::string Lexeme::toString() const
  case DivAssign:
  return "'/='";
  case FloorDivAssign:
- return FFlag::LuauFloorDivision ? "'//='" : "<unknown>";
+ return "'//='";
  case ModAssign:
  return "'%='";
  case PowAssign:
@@ -20858,8 +20881,6 @@ Lexeme Lexer::readNext()
  return Lexeme(Location(start, 1), '+');
  case '/':
  {
- if (FFlag::LuauFloorDivision)
- {
  consume();
  char ch = peekch();
  if (ch == '=')
@@ -20880,18 +20901,6 @@ Lexeme Lexer::readNext()
  }
  else
  return Lexeme(Location(start, 1), '/');
- }
- else
- {
- consume();
- if (peekch() == '=')
- {
- consume();
- return Lexeme(Location(start, 2), Lexeme::DivAssign);
- }
- else
- return Lexeme(Location(start, 1), '/');
- }
  }
  case '*':
  consume();
@@ -21727,12 +21736,8 @@ LUAU_NOINLINE uint16_t createScopeData(const char* name, const char* category);
 LUAU_FASTINTVARIABLE(LuauRecursionLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauTypeLengthLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
-LUAU_FASTFLAGVARIABLE(LuauParseDeclareClassIndexer, false)
 LUAU_FASTFLAGVARIABLE(LuauClipExtraHasEndProps, false)
-LUAU_FASTFLAG(LuauFloorDivision)
 LUAU_FASTFLAG(LuauCheckedFunctionSyntax)
-LUAU_FASTFLAGVARIABLE(LuauBetterTypeUnionLimits, false)
-LUAU_FASTFLAGVARIABLE(LuauBetterTypeRecLimits, false)
 LUAU_FASTFLAGVARIABLE(LuauParseImpreciseNumber, false)
 namespace Luau
 {
@@ -22345,7 +22350,7 @@ AstStat* Parser::parseDeclaration(const Location& start)
  {
  props.push_back(parseDeclaredClassMethod());
  }
- else if (lexer.current().type == '[' && (!FFlag::LuauParseDeclareClassIndexer || lexer.lookahead().type == Lexeme::RawString ||
+ else if (lexer.current().type == '[' && (lexer.lookahead().type == Lexeme::RawString ||
  lexer.lookahead().type == Lexeme::QuotedString))
  {
  const Lexeme begin = lexer.current();
@@ -22360,7 +22365,7 @@ AstStat* Parser::parseDeclaration(const Location& start)
  else
  report(begin.location, "String literal contains malformed escape sequence or \\0");
  }
- else if (lexer.current().type == '[' && FFlag::LuauParseDeclareClassIndexer)
+ else if (lexer.current().type == '[')
  {
  if (indexer)
  {
@@ -22769,7 +22774,6 @@ AstType* Parser::parseTypeSuffix(AstType* type, const Location& begin)
  nextLexeme();
  unsigned int oldRecursionCount = recursionCounter;
  parts.push_back(parseSimpleType( false).type);
- if (FFlag::LuauBetterTypeUnionLimits)
  recursionCounter = oldRecursionCount;
  isUnion = true;
  }
@@ -22777,7 +22781,7 @@ AstType* Parser::parseTypeSuffix(AstType* type, const Location& begin)
  {
  Location loc = lexer.current().location;
  nextLexeme();
- if (!FFlag::LuauBetterTypeUnionLimits || !hasOptional)
+ if (!hasOptional)
  parts.push_back(allocator.alloc<AstTypeReference>(loc, std::nullopt, nameNil, std::nullopt, loc));
  isUnion = true;
  hasOptional = true;
@@ -22787,7 +22791,6 @@ AstType* Parser::parseTypeSuffix(AstType* type, const Location& begin)
  nextLexeme();
  unsigned int oldRecursionCount = recursionCounter;
  parts.push_back(parseSimpleType( false).type);
- if (FFlag::LuauBetterTypeUnionLimits)
  recursionCounter = oldRecursionCount;
  isIntersection = true;
  }
@@ -22798,7 +22801,7 @@ AstType* Parser::parseTypeSuffix(AstType* type, const Location& begin)
  }
  else
  break;
- if (FFlag::LuauBetterTypeUnionLimits && parts.size() > unsigned(FInt::LuauTypeLengthLimit) + hasOptional)
+ if (parts.size() > unsigned(FInt::LuauTypeLengthLimit) + hasOptional)
  ParseError::raise(parts.back()->location, "Exceeded allowed type length; simplify your type annotation to make the code compile");
  }
  if (parts.size() == 1)
@@ -22819,8 +22822,6 @@ AstType* Parser::parseTypeSuffix(AstType* type, const Location& begin)
 AstTypeOrPack Parser::parseTypeOrPack()
 {
  unsigned int oldRecursionCount = recursionCounter;
- if (!FFlag::LuauBetterTypeRecLimits)
- incrementRecursionCounter("type annotation");
  Location begin = lexer.current().location;
  auto [type, typePack] = parseSimpleType( true);
  if (typePack)
@@ -22834,8 +22835,6 @@ AstTypeOrPack Parser::parseTypeOrPack()
 AstType* Parser::parseType(bool inDeclarationContext)
 {
  unsigned int oldRecursionCount = recursionCounter;
- if (!FFlag::LuauBetterTypeRecLimits)
- incrementRecursionCounter("type annotation");
  Location begin = lexer.current().location;
  AstType* type = parseSimpleType( false, inDeclarationContext).type;
  recursionCounter = oldRecursionCount;
@@ -23003,10 +23002,7 @@ std::optional<AstExprBinary::Op> Parser::parseBinaryOp(const Lexeme& l)
  else if (l.type == '/')
  return AstExprBinary::Div;
  else if (l.type == Lexeme::FloorDiv)
- {
- LUAU_ASSERT(FFlag::LuauFloorDivision);
  return AstExprBinary::FloorDiv;
- }
  else if (l.type == '%')
  return AstExprBinary::Mod;
  else if (l.type == '^')
@@ -23043,10 +23039,7 @@ std::optional<AstExprBinary::Op> Parser::parseCompoundOp(const Lexeme& l)
  else if (l.type == Lexeme::DivAssign)
  return AstExprBinary::Div;
  else if (l.type == Lexeme::FloorDivAssign)
- {
- LUAU_ASSERT(FFlag::LuauFloorDivision);
  return AstExprBinary::FloorDiv;
- }
  else if (l.type == Lexeme::ModAssign)
  return AstExprBinary::Mod;
  else if (l.type == Lexeme::PowAssign)
@@ -25575,7 +25568,6 @@ private:
  unsigned int addStringTableEntry(StringRef value);
 };
 }
-LUAU_FASTFLAG(LuauFloorDivision)
 namespace Luau
 {
 static_assert(LBC_VERSION_TARGET >= LBC_VERSION_MIN && LBC_VERSION_TARGET <= LBC_VERSION_MAX, "Invalid bytecode version setup");
@@ -26504,7 +26496,6 @@ void BytecodeBuilder::validateInstructions() const
  case LOP_IDIV:
  case LOP_MOD:
  case LOP_POW:
- LUAU_ASSERT(FFlag::LuauFloorDivision || op != LOP_IDIV);
  VREG(LUAU_INSN_A(insn));
  VREG(LUAU_INSN_B(insn));
  VREG(LUAU_INSN_C(insn));
@@ -26516,7 +26507,6 @@ void BytecodeBuilder::validateInstructions() const
  case LOP_IDIVK:
  case LOP_MODK:
  case LOP_POWK:
- LUAU_ASSERT(FFlag::LuauFloorDivision || op != LOP_IDIVK);
  VREG(LUAU_INSN_A(insn));
  VREG(LUAU_INSN_B(insn));
  VCONST(LUAU_INSN_C(insn), Number);
@@ -26956,7 +26946,6 @@ void BytecodeBuilder::dumpInstruction(const uint32_t* code, std::string& result,
  formatAppend(result, "DIV R%d R%d R%d\n", LUAU_INSN_A(insn), LUAU_INSN_B(insn), LUAU_INSN_C(insn));
  break;
  case LOP_IDIV:
- LUAU_ASSERT(FFlag::LuauFloorDivision);
  formatAppend(result, "IDIV R%d R%d R%d\n", LUAU_INSN_A(insn), LUAU_INSN_B(insn), LUAU_INSN_C(insn));
  break;
  case LOP_MOD:
@@ -26986,7 +26975,6 @@ void BytecodeBuilder::dumpInstruction(const uint32_t* code, std::string& result,
  result.append("]\n");
  break;
  case LOP_IDIVK:
- LUAU_ASSERT(FFlag::LuauFloorDivision);
  formatAppend(result, "IDIVK R%d R%d K%d [", LUAU_INSN_A(insn), LUAU_INSN_B(insn), LUAU_INSN_C(insn));
  dumpConstant(result, LUAU_INSN_C(insn));
  result.append("]\n");
@@ -27373,8 +27361,8 @@ LUAU_FASTINTVARIABLE(LuauCompileLoopUnrollThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThreshold, 25)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
-LUAU_FASTFLAG(LuauFloorDivision)
-LUAU_FASTFLAGVARIABLE(LuauCompileIfElseAndOr, false)
+LUAU_FASTFLAGVARIABLE(LuauCompileSideEffects, false)
+LUAU_FASTFLAGVARIABLE(LuauCompileDeadIf, false)
 namespace Luau
 {
 using namespace Luau::Compile;
@@ -27806,10 +27794,7 @@ struct Compiler
  }
  }
  for (size_t i = func->args.size; i < expr->args.size; ++i)
- {
- RegScope rsi(this);
- compileExprAuto(expr->args.data[i], rsi);
- }
+ compileExprSide(expr->args.data[i]);
  for (InlineArg& arg : args)
  {
  if (arg.value.type == Constant::Type_Unknown)
@@ -28078,7 +28063,6 @@ struct Compiler
  case AstExprBinary::Div:
  return k ? LOP_DIVK : LOP_DIV;
  case AstExprBinary::FloorDiv:
- LUAU_ASSERT(FFlag::LuauFloorDivision);
  return k ? LOP_IDIVK : LOP_IDIV;
  case AstExprBinary::Mod:
  return k ? LOP_MODK : LOP_MOD;
@@ -28409,7 +28393,6 @@ struct Compiler
  case AstExprBinary::Mod:
  case AstExprBinary::Pow:
  {
- LUAU_ASSERT(FFlag::LuauFloorDivision || expr->op != AstExprBinary::FloorDiv);
  int32_t rc = getConstantNumber(expr->right);
  if (rc >= 0 && rc <= 255)
  {
@@ -28487,15 +28470,12 @@ struct Compiler
  }
  else
  {
- if (FFlag::LuauCompileIfElseAndOr)
- {
  if (int creg = getExprLocalReg(expr->condition); creg >= 0)
  {
  if (creg == getExprLocalReg(expr->trueExpr) && (getExprLocalReg(expr->falseExpr) >= 0 || isConstant(expr->falseExpr)))
  return compileExprIfElseAndOr( false, uint8_t(creg), expr->falseExpr, target);
  else if (creg == getExprLocalReg(expr->falseExpr) && (getExprLocalReg(expr->trueExpr) >= 0 || isConstant(expr->trueExpr)))
  return compileExprIfElseAndOr( true, uint8_t(creg), expr->trueExpr, target);
- }
  }
  std::vector<size_t> elseJump;
  compileConditionValue(expr->condition, nullptr, elseJump, false);
@@ -28963,6 +28943,18 @@ struct Compiler
  compileExprTemp(node, reg);
  return reg;
  }
+ void compileExprSide(AstExpr* node)
+ {
+ if (FFlag::LuauCompileSideEffects)
+ {
+ if (node->is<AstExprLocal>() || node->is<AstExprGlobal>() || node->is<AstExprVarargs>() || node->is<AstExprFunction>() || isConstant(node))
+ return;
+ if (!node->is<AstExprCall>())
+ bytecode.addDebugRemark("expression only compiled for side effects");
+ }
+ RegScope rsi(this);
+ compileExprAuto(node, rsi);
+ }
  void compileExprTempN(AstExpr* node, uint8_t target, uint8_t targetCount, bool targetTop)
  {
  LUAU_ASSERT(!targetTop || unsigned(target + targetCount) == regTop);
@@ -28994,10 +28986,7 @@ struct Compiler
  for (size_t i = 0; i < targetCount; ++i)
  compileExprTemp(list.data[i], uint8_t(target + i));
  for (size_t i = targetCount; i < list.size; ++i)
- {
- RegScope rsi(this);
- compileExprAuto(list.data[i], rsi);
- }
+ compileExprSide(list.data[i]);
  }
  else if (list.size > 0)
  {
@@ -29192,6 +29181,16 @@ struct Compiler
  if (stat->elsebody)
  compileStat(stat->elsebody);
  return;
+ }
+ if (FFlag::LuauCompileDeadIf)
+ {
+ if (AstExprBinary* cand = stat->condition->as<AstExprBinary>(); cand && cand->op == AstExprBinary::And && isConstantFalse(cand->right))
+ {
+ compileExprSide(cand->left);
+ if (stat->elsebody)
+ compileStat(stat->elsebody);
+ return;
+ }
  }
  if (!stat->elsebody && isStatBreak(stat->thenbody) && !areLocalsCaptured(loops.back().localOffset))
  {
@@ -29651,10 +29650,7 @@ struct Compiler
  }
  }
  for (size_t i = stat->vars.size; i < stat->values.size; ++i)
- {
- RegScope rsi(this);
- compileExprAuto(stat->values.data[i], rsi);
- }
+ compileExprSide(stat->values.data[i]);
  for (const Assignment& var : vars)
  {
  LUAU_ASSERT(var.valueReg != kInvalidReg);
@@ -29685,7 +29681,6 @@ struct Compiler
  case AstExprBinary::Mod:
  case AstExprBinary::Pow:
  {
- LUAU_ASSERT(FFlag::LuauFloorDivision || stat->op != AstExprBinary::FloorDiv);
  if (var.kind != LValue::Kind_Local)
  compileLValueUse(var, target, false);
  int32_t rc = getConstantNumber(stat->value);
@@ -29792,8 +29787,7 @@ struct Compiler
  }
  else
  {
- RegScope rs(this);
- compileExprAuto(stat->expr, rs);
+ compileExprSide(stat->expr);
  }
  }
  else if (AstStatLocal* stat = node->as<AstStatLocal>())
