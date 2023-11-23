@@ -120,7 +120,7 @@ enum LuauOpcode
 enum LuauBytecodeTag
 {
  LBC_VERSION_MIN = 3,
- LBC_VERSION_MAX = 4,
+ LBC_VERSION_MAX = 5,
  LBC_VERSION_TARGET = 4,
  LBC_TYPE_VERSION = 1,
  LBC_CONSTANT_NIL = 0,
@@ -130,6 +130,7 @@ enum LuauBytecodeTag
  LBC_CONSTANT_IMPORT,
  LBC_CONSTANT_TABLE,
  LBC_CONSTANT_CLOSURE,
+ LBC_CONSTANT_VECTOR,
 };
 enum LuauBytecodeType
 {
@@ -776,7 +777,7 @@ public:
  {
  return impl.end();
  }
- bool operator==(const DenseHashSet<Key, Hash, Eq>& other)
+ bool operator==(const DenseHashSet<Key, Hash, Eq>& other) const
  {
  if (size() != other.size())
  return false;
@@ -787,7 +788,7 @@ public:
  }
  return true;
  }
- bool operator!=(const DenseHashSet<Key, Hash, Eq>& other)
+ bool operator!=(const DenseHashSet<Key, Hash, Eq>& other) const
  {
  return !(*this == other);
  }
@@ -15599,6 +15600,16 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  setnvalue(&p->k[j], v);
  break;
  }
+ case LBC_CONSTANT_VECTOR:
+ {
+ float x = read<float>(data, size, offset);
+ float y = read<float>(data, size, offset);
+ float z = read<float>(data, size, offset);
+ float w = read<float>(data, size, offset);
+ (void)w;
+ setvvalue(&p->k[j], x, y, z, w);
+ break;
+ }
  case LBC_CONSTANT_STRING:
  {
  TString* v = readString(strings, data, size, offset);
@@ -24500,6 +24511,7 @@ struct Constant
  Type_Nil,
  Type_Boolean,
  Type_Number,
+ Type_Vector,
  Type_String,
  };
  Type type = Type_Unknown;
@@ -24508,6 +24520,7 @@ struct Constant
  {
  bool valueBoolean;
  double valueNumber;
+ float valueVector[4];
  const char* valueString = nullptr;
  };
  bool isTruthful() const
@@ -24533,6 +24546,7 @@ Constant foldBuiltin(int bfid, const Constant* args, size_t count);
 Constant foldBuiltinMath(AstName index);
 }
 } // namespace Luau
+LUAU_FASTFLAGVARIABLE(LuauVectorLiterals, false)
 namespace Luau
 {
 namespace Compile
@@ -24555,6 +24569,15 @@ static Constant cnum(double v)
  res.valueNumber = v;
  return res;
 }
+static Constant cvector(double x, double y, double z, double w)
+{
+ Constant res = {Constant::Type_Vector};
+ res.valueVector[0] = (float)x;
+ res.valueVector[1] = (float)y;
+ res.valueVector[2] = (float)z;
+ res.valueVector[3] = (float)w;
+ return res;
+}
 static Constant cstring(const char* v)
 {
  Constant res = {Constant::Type_String};
@@ -24573,6 +24596,8 @@ static Constant ctype(const Constant& c)
  return cstring("boolean");
  case Constant::Type_Number:
  return cstring("number");
+ case Constant::Type_Vector:
+ return cstring("vector");
  case Constant::Type_String:
  return cstring("string");
  default:
@@ -24890,6 +24915,18 @@ Constant foldBuiltin(int bfid, const Constant* args, size_t count)
  case LBF_MATH_ROUND:
  if (count == 1 && args[0].type == Constant::Type_Number)
  return cnum(round(args[0].valueNumber));
+ break;
+ case LBF_VECTOR:
+ if (FFlag::LuauVectorLiterals && count >= 3 &&
+ args[0].type == Constant::Type_Number &&
+ args[1].type == Constant::Type_Number &&
+ args[2].type == Constant::Type_Number)
+ {
+ if (count == 3)
+ return cvector(args[0].valueNumber, args[1].valueNumber, args[2].valueNumber, 0.0);
+ else if (count == 4 && args[3].type == Constant::Type_Number)
+ return cvector(args[0].valueNumber, args[1].valueNumber, args[2].valueNumber, args[3].valueNumber);
+ }
  break;
  }
  return cvar();
@@ -25392,6 +25429,7 @@ public:
  int32_t addConstantNil();
  int32_t addConstantBoolean(bool value);
  int32_t addConstantNumber(double value);
+ int32_t addConstantVector(float x, float y, float z, float w);
  int32_t addConstantString(StringRef value);
  int32_t addImport(uint32_t iid);
  int32_t addConstantTable(const TableShape& shape);
@@ -25461,6 +25499,7 @@ private:
  Type_Nil,
  Type_Boolean,
  Type_Number,
+ Type_Vector,
  Type_String,
  Type_Import,
  Type_Table,
@@ -25471,6 +25510,7 @@ private:
  {
  bool valueBoolean;
  double valueNumber;
+ float valueVector[4];
  unsigned int valueString;
  uint32_t valueImport; // 10-10-10-2 encoded import id
  uint32_t valueTable;
@@ -25481,9 +25521,10 @@ private:
  {
  Constant::Type type;
  uint64_t value;
+ uint64_t extra = 0;
  bool operator==(const ConstantKey& key) const
  {
- return type == key.type && value == key.value;
+ return type == key.type && value == key.value && extra == key.extra;
  }
  };
  struct Function
@@ -25568,6 +25609,7 @@ private:
  unsigned int addStringTableEntry(StringRef value);
 };
 }
+LUAU_FASTFLAG(LuauVectorLiterals)
 namespace Luau
 {
 static_assert(LBC_VERSION_TARGET >= LBC_VERSION_MIN && LBC_VERSION_TARGET <= LBC_VERSION_MAX, "Invalid bytecode version setup");
@@ -25588,6 +25630,10 @@ static void writeByte(std::string& ss, unsigned char value)
  ss.append(reinterpret_cast<const char*>(&value), sizeof(value));
 }
 static void writeInt(std::string& ss, int value)
+{
+ ss.append(reinterpret_cast<const char*>(&value), sizeof(value));
+}
+static void writeFloat(std::string& ss, float value)
 {
  ss.append(reinterpret_cast<const char*>(&value), sizeof(value));
 }
@@ -25683,6 +25729,20 @@ size_t BytecodeBuilder::StringRefHash::operator()(const StringRef& v) const
 }
 size_t BytecodeBuilder::ConstantKeyHash::operator()(const ConstantKey& key) const
 {
+ if (key.type == Constant::Type_Vector)
+ {
+ uint32_t i[4];
+ static_assert(sizeof(key.value) + sizeof(key.extra) == sizeof(i), "Expecting vector to have four 32-bit components");
+ memcpy(i, &key.value, sizeof(i));
+ i[0] ^= i[0] >> 17;
+ i[1] ^= i[1] >> 17;
+ i[2] ^= i[2] >> 17;
+ i[3] ^= i[3] >> 17;
+ uint32_t h = (i[0] * 73856093) ^ (i[1] * 19349663) ^ (i[2] * 83492791) ^ (i[3] * 39916801);
+ return size_t(h);
+ }
+ else
+ {
  const uint32_t m = 0x5bd1e995;
  uint32_t h1 = uint32_t(key.value);
  uint32_t h2 = uint32_t(key.value >> 32) ^ (key.type * m);
@@ -25695,6 +25755,7 @@ size_t BytecodeBuilder::ConstantKeyHash::operator()(const ConstantKey& key) cons
  h2 ^= h1 >> 19;
  h2 *= m;
  return size_t(h2);
+ }
 }
 size_t BytecodeBuilder::TableShapeHash::operator()(const TableShape& v) const
 {
@@ -25811,6 +25872,21 @@ int32_t BytecodeBuilder::addConstantNumber(double value)
  ConstantKey k = {Constant::Type_Number};
  static_assert(sizeof(k.value) == sizeof(value), "Expecting double to be 64-bit");
  memcpy(&k.value, &value, sizeof(value));
+ return addConstant(k, c);
+}
+int32_t BytecodeBuilder::addConstantVector(float x, float y, float z, float w)
+{
+ Constant c = {Constant::Type_Vector};
+ c.valueVector[0] = x;
+ c.valueVector[1] = y;
+ c.valueVector[2] = z;
+ c.valueVector[3] = w;
+ ConstantKey k = {Constant::Type_Vector};
+ static_assert(sizeof(k.value) == sizeof(x) + sizeof(y) && sizeof(k.extra) == sizeof(z) + sizeof(w), "Expecting vector to have four 32-bit components");
+ memcpy(&k.value, &x, sizeof(x));
+ memcpy((char*)&k.value + sizeof(x), &y, sizeof(y));
+ memcpy(&k.extra, &z, sizeof(z));
+ memcpy((char*)&k.extra + sizeof(z), &w, sizeof(w));
  return addConstant(k, c);
 }
 int32_t BytecodeBuilder::addConstantString(StringRef value)
@@ -26038,6 +26114,13 @@ void BytecodeBuilder::writeFunction(std::string& ss, uint32_t id, uint8_t flags)
  case Constant::Type_Number:
  writeByte(ss, LBC_CONSTANT_NUMBER);
  writeDouble(ss, c.valueNumber);
+ break;
+ case Constant::Type_Vector:
+ writeByte(ss, LBC_CONSTANT_VECTOR);
+ writeFloat(ss, c.valueVector[0]);
+ writeFloat(ss, c.valueVector[1]);
+ writeFloat(ss, c.valueVector[2]);
+ writeFloat(ss, c.valueVector[3]);
  break;
  case Constant::Type_String:
  writeByte(ss, LBC_CONSTANT_STRING);
@@ -26322,7 +26405,7 @@ std::string BytecodeBuilder::getError(const std::string& message)
 }
 uint8_t BytecodeBuilder::getVersion()
 {
- return LBC_VERSION_TARGET;
+ return (FFlag::LuauVectorLiterals ? 5 : LBC_VERSION_TARGET);
 }
 uint8_t BytecodeBuilder::getTypeEncodingVersion()
 {
@@ -26762,6 +26845,12 @@ void BytecodeBuilder::dumpConstant(std::string& result, int k) const
  break;
  case Constant::Type_Number:
  formatAppend(result, "%.17g", data.valueNumber);
+ break;
+ case Constant::Type_Vector:
+ if (data.valueVector[3] == 0.0)
+ formatAppend(result, "%.9g, %.9g, %.9g", data.valueVector[0], data.valueVector[1], data.valueVector[2]);
+ else
+ formatAppend(result, "%.9g, %.9g, %.9g, %.9g", data.valueVector[0], data.valueVector[1], data.valueVector[2], data.valueVector[3]);
  break;
  case Constant::Type_String:
  {
@@ -28107,6 +28196,11 @@ struct Compiler
  const Constant* cv = constants.find(node);
  return cv && cv->type != Constant::Type_Unknown && !cv->isTruthful();
  }
+ bool isConstantVector(AstExpr* node)
+ {
+ const Constant* cv = constants.find(node);
+ return cv && cv->type == Constant::Type_Vector;
+ }
  Constant getConstant(AstExpr* node)
  {
  const Constant* cv = constants.find(node);
@@ -28125,6 +28219,8 @@ struct Compiler
  if (operandIsConstant)
  std::swap(left, right);
  }
+ if (operandIsConstant && isConstantVector(right))
+ operandIsConstant = false;
  uint8_t rl = compileExprAuto(left, rs);
  if (isEq && operandIsConstant)
  {
@@ -28207,6 +28303,9 @@ struct Compiler
  break;
  case Constant::Type_Number:
  cid = bytecode.addConstantNumber(c->valueNumber);
+ break;
+ case Constant::Type_Vector:
+ cid = bytecode.addConstantVector(c->valueVector[0], c->valueVector[1], c->valueVector[2], c->valueVector[3]);
  break;
  case Constant::Type_String:
  cid = bytecode.addConstantString(sref(c->getString()));
@@ -28809,6 +28908,12 @@ struct Compiler
  CompileError::raise(node->location, "Exceeded constant limit; simplify the code to compile");
  emitLoadK(target, cid);
  }
+ }
+ break;
+ case Constant::Type_Vector:
+ {
+ int32_t cid = bytecode.addConstantVector(cv->valueVector[0], cv->valueVector[1], cv->valueVector[2], cv->valueVector[3]);
+ emitLoadK(target, cid);
  }
  break;
  case Constant::Type_String:
@@ -30289,6 +30394,12 @@ static bool constantsEqual(const Constant& la, const Constant& ra)
  return ra.type == Constant::Type_Boolean && la.valueBoolean == ra.valueBoolean;
  case Constant::Type_Number:
  return ra.type == Constant::Type_Number && la.valueNumber == ra.valueNumber;
+ case Constant::Type_Vector:
+ return ra.type == Constant::Type_Vector &&
+ la.valueVector[0] == ra.valueVector[0] &&
+ la.valueVector[1] == ra.valueVector[1] &&
+ la.valueVector[2] == ra.valueVector[2] &&
+ la.valueVector[3] == ra.valueVector[3];
  case Constant::Type_String:
  return ra.type == Constant::Type_String && la.stringLength == ra.stringLength && memcmp(la.valueString, ra.valueString, la.stringLength) == 0;
  default:
