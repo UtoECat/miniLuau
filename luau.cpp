@@ -97,8 +97,8 @@ enum LuauOpcode
  LOP_FASTCALL,
  LOP_COVERAGE,
  LOP_CAPTURE,
- LOP_DEP_JUMPIFEQK,
- LOP_DEP_JUMPIFNOTEQK,
+ LOP_SUBRK,
+ LOP_DIVRK,
  LOP_FASTCALL1,
  LOP_FASTCALL2,
  LOP_FASTCALL2K,
@@ -13143,7 +13143,7 @@ int luaopen_utf8(lua_State* L)
 #define VM_PATCH_E(pc, slot) *const_cast<Instruction*>(pc) = ((uint32_t(slot) << 8) | (0x000000ffu & *(pc)))
 #define VM_INTERRUPT() { void (*interrupt)(lua_State*, int) = L->global->cb.interrupt; if (LUAU_UNLIKELY(!!interrupt)) { VM_PROTECT(L->ci->savedpc++; interrupt(L, -1)); if (L->status != 0) { L->ci->savedpc--; goto exit; } } }
 #define VM_DISPATCH_OP(op) &&CASE_##op
-#define VM_DISPATCH_TABLE() VM_DISPATCH_OP(LOP_NOP), VM_DISPATCH_OP(LOP_BREAK), VM_DISPATCH_OP(LOP_LOADNIL), VM_DISPATCH_OP(LOP_LOADB), VM_DISPATCH_OP(LOP_LOADN), VM_DISPATCH_OP(LOP_LOADK), VM_DISPATCH_OP(LOP_MOVE), VM_DISPATCH_OP(LOP_GETGLOBAL), VM_DISPATCH_OP(LOP_SETGLOBAL), VM_DISPATCH_OP(LOP_GETUPVAL), VM_DISPATCH_OP(LOP_SETUPVAL), VM_DISPATCH_OP(LOP_CLOSEUPVALS), VM_DISPATCH_OP(LOP_GETIMPORT), VM_DISPATCH_OP(LOP_GETTABLE), VM_DISPATCH_OP(LOP_SETTABLE), VM_DISPATCH_OP(LOP_GETTABLEKS), VM_DISPATCH_OP(LOP_SETTABLEKS), VM_DISPATCH_OP(LOP_GETTABLEN), VM_DISPATCH_OP(LOP_SETTABLEN), VM_DISPATCH_OP(LOP_NEWCLOSURE), VM_DISPATCH_OP(LOP_NAMECALL), VM_DISPATCH_OP(LOP_CALL), VM_DISPATCH_OP(LOP_RETURN), VM_DISPATCH_OP(LOP_JUMP), VM_DISPATCH_OP(LOP_JUMPBACK), VM_DISPATCH_OP(LOP_JUMPIF), VM_DISPATCH_OP(LOP_JUMPIFNOT), VM_DISPATCH_OP(LOP_JUMPIFEQ), VM_DISPATCH_OP(LOP_JUMPIFLE), VM_DISPATCH_OP(LOP_JUMPIFLT), VM_DISPATCH_OP(LOP_JUMPIFNOTEQ), VM_DISPATCH_OP(LOP_JUMPIFNOTLE), VM_DISPATCH_OP(LOP_JUMPIFNOTLT), VM_DISPATCH_OP(LOP_ADD), VM_DISPATCH_OP(LOP_SUB), VM_DISPATCH_OP(LOP_MUL), VM_DISPATCH_OP(LOP_DIV), VM_DISPATCH_OP(LOP_MOD), VM_DISPATCH_OP(LOP_POW), VM_DISPATCH_OP(LOP_ADDK), VM_DISPATCH_OP(LOP_SUBK), VM_DISPATCH_OP(LOP_MULK), VM_DISPATCH_OP(LOP_DIVK), VM_DISPATCH_OP(LOP_MODK), VM_DISPATCH_OP(LOP_POWK), VM_DISPATCH_OP(LOP_AND), VM_DISPATCH_OP(LOP_OR), VM_DISPATCH_OP(LOP_ANDK), VM_DISPATCH_OP(LOP_ORK), VM_DISPATCH_OP(LOP_CONCAT), VM_DISPATCH_OP(LOP_NOT), VM_DISPATCH_OP(LOP_MINUS), VM_DISPATCH_OP(LOP_LENGTH), VM_DISPATCH_OP(LOP_NEWTABLE), VM_DISPATCH_OP(LOP_DUPTABLE), VM_DISPATCH_OP(LOP_SETLIST), VM_DISPATCH_OP(LOP_FORNPREP), VM_DISPATCH_OP(LOP_FORNLOOP), VM_DISPATCH_OP(LOP_FORGLOOP), VM_DISPATCH_OP(LOP_FORGPREP_INEXT), VM_DISPATCH_OP(LOP_DEP_FORGLOOP_INEXT), VM_DISPATCH_OP(LOP_FORGPREP_NEXT), VM_DISPATCH_OP(LOP_NATIVECALL), VM_DISPATCH_OP(LOP_GETVARARGS), VM_DISPATCH_OP(LOP_DUPCLOSURE), VM_DISPATCH_OP(LOP_PREPVARARGS), VM_DISPATCH_OP(LOP_LOADKX), VM_DISPATCH_OP(LOP_JUMPX), VM_DISPATCH_OP(LOP_FASTCALL), VM_DISPATCH_OP(LOP_COVERAGE), VM_DISPATCH_OP(LOP_CAPTURE), VM_DISPATCH_OP(LOP_DEP_JUMPIFEQK), VM_DISPATCH_OP(LOP_DEP_JUMPIFNOTEQK), VM_DISPATCH_OP(LOP_FASTCALL1), VM_DISPATCH_OP(LOP_FASTCALL2), VM_DISPATCH_OP(LOP_FASTCALL2K), VM_DISPATCH_OP(LOP_FORGPREP), VM_DISPATCH_OP(LOP_JUMPXEQKNIL), VM_DISPATCH_OP(LOP_JUMPXEQKB), VM_DISPATCH_OP(LOP_JUMPXEQKN), VM_DISPATCH_OP(LOP_JUMPXEQKS), VM_DISPATCH_OP(LOP_IDIV), VM_DISPATCH_OP(LOP_IDIVK),
+#define VM_DISPATCH_TABLE() VM_DISPATCH_OP(LOP_NOP), VM_DISPATCH_OP(LOP_BREAK), VM_DISPATCH_OP(LOP_LOADNIL), VM_DISPATCH_OP(LOP_LOADB), VM_DISPATCH_OP(LOP_LOADN), VM_DISPATCH_OP(LOP_LOADK), VM_DISPATCH_OP(LOP_MOVE), VM_DISPATCH_OP(LOP_GETGLOBAL), VM_DISPATCH_OP(LOP_SETGLOBAL), VM_DISPATCH_OP(LOP_GETUPVAL), VM_DISPATCH_OP(LOP_SETUPVAL), VM_DISPATCH_OP(LOP_CLOSEUPVALS), VM_DISPATCH_OP(LOP_GETIMPORT), VM_DISPATCH_OP(LOP_GETTABLE), VM_DISPATCH_OP(LOP_SETTABLE), VM_DISPATCH_OP(LOP_GETTABLEKS), VM_DISPATCH_OP(LOP_SETTABLEKS), VM_DISPATCH_OP(LOP_GETTABLEN), VM_DISPATCH_OP(LOP_SETTABLEN), VM_DISPATCH_OP(LOP_NEWCLOSURE), VM_DISPATCH_OP(LOP_NAMECALL), VM_DISPATCH_OP(LOP_CALL), VM_DISPATCH_OP(LOP_RETURN), VM_DISPATCH_OP(LOP_JUMP), VM_DISPATCH_OP(LOP_JUMPBACK), VM_DISPATCH_OP(LOP_JUMPIF), VM_DISPATCH_OP(LOP_JUMPIFNOT), VM_DISPATCH_OP(LOP_JUMPIFEQ), VM_DISPATCH_OP(LOP_JUMPIFLE), VM_DISPATCH_OP(LOP_JUMPIFLT), VM_DISPATCH_OP(LOP_JUMPIFNOTEQ), VM_DISPATCH_OP(LOP_JUMPIFNOTLE), VM_DISPATCH_OP(LOP_JUMPIFNOTLT), VM_DISPATCH_OP(LOP_ADD), VM_DISPATCH_OP(LOP_SUB), VM_DISPATCH_OP(LOP_MUL), VM_DISPATCH_OP(LOP_DIV), VM_DISPATCH_OP(LOP_MOD), VM_DISPATCH_OP(LOP_POW), VM_DISPATCH_OP(LOP_ADDK), VM_DISPATCH_OP(LOP_SUBK), VM_DISPATCH_OP(LOP_MULK), VM_DISPATCH_OP(LOP_DIVK), VM_DISPATCH_OP(LOP_MODK), VM_DISPATCH_OP(LOP_POWK), VM_DISPATCH_OP(LOP_AND), VM_DISPATCH_OP(LOP_OR), VM_DISPATCH_OP(LOP_ANDK), VM_DISPATCH_OP(LOP_ORK), VM_DISPATCH_OP(LOP_CONCAT), VM_DISPATCH_OP(LOP_NOT), VM_DISPATCH_OP(LOP_MINUS), VM_DISPATCH_OP(LOP_LENGTH), VM_DISPATCH_OP(LOP_NEWTABLE), VM_DISPATCH_OP(LOP_DUPTABLE), VM_DISPATCH_OP(LOP_SETLIST), VM_DISPATCH_OP(LOP_FORNPREP), VM_DISPATCH_OP(LOP_FORNLOOP), VM_DISPATCH_OP(LOP_FORGLOOP), VM_DISPATCH_OP(LOP_FORGPREP_INEXT), VM_DISPATCH_OP(LOP_DEP_FORGLOOP_INEXT), VM_DISPATCH_OP(LOP_FORGPREP_NEXT), VM_DISPATCH_OP(LOP_NATIVECALL), VM_DISPATCH_OP(LOP_GETVARARGS), VM_DISPATCH_OP(LOP_DUPCLOSURE), VM_DISPATCH_OP(LOP_PREPVARARGS), VM_DISPATCH_OP(LOP_LOADKX), VM_DISPATCH_OP(LOP_JUMPX), VM_DISPATCH_OP(LOP_FASTCALL), VM_DISPATCH_OP(LOP_COVERAGE), VM_DISPATCH_OP(LOP_CAPTURE), VM_DISPATCH_OP(LOP_SUBRK), VM_DISPATCH_OP(LOP_DIVRK), VM_DISPATCH_OP(LOP_FASTCALL1), VM_DISPATCH_OP(LOP_FASTCALL2), VM_DISPATCH_OP(LOP_FASTCALL2K), VM_DISPATCH_OP(LOP_FORGPREP), VM_DISPATCH_OP(LOP_JUMPXEQKNIL), VM_DISPATCH_OP(LOP_JUMPXEQKB), VM_DISPATCH_OP(LOP_JUMPXEQKN), VM_DISPATCH_OP(LOP_JUMPXEQKS), VM_DISPATCH_OP(LOP_IDIV), VM_DISPATCH_OP(LOP_IDIVK),
 #if defined(__GNUC__) || defined(__clang__)
 #define VM_USE_CGOTO 1
 #else
@@ -13455,7 +13455,7 @@ reentry:
 #endif
  if (unsigned(ic) < LUA_VECTOR_SIZE && name[1] == '\0')
  {
- const float* v = rb->value.v;
+ const float* v = vvalue(rb);
  setnvalue(ra, v[ic]);
  VM_NEXT();
  }
@@ -14168,8 +14168,8 @@ reentry:
  }
  else if (ttisvector(rb) && ttisvector(rc))
  {
- const float* vb = rb->value.v;
- const float* vc = rc->value.v;
+ const float* vb = vvalue(rb);
+ const float* vc = vvalue(rc);
  setvvalue(ra, vb[0] + vc[0], vb[1] + vc[1], vb[2] + vc[2], vb[3] + vc[3]);
  VM_NEXT();
  }
@@ -14207,8 +14207,8 @@ reentry:
  }
  else if (ttisvector(rb) && ttisvector(rc))
  {
- const float* vb = rb->value.v;
- const float* vc = rc->value.v;
+ const float* vb = vvalue(rb);
+ const float* vc = vvalue(rc);
  setvvalue(ra, vb[0] - vc[0], vb[1] - vc[1], vb[2] - vc[2], vb[3] - vc[3]);
  VM_NEXT();
  }
@@ -14246,22 +14246,22 @@ reentry:
  }
  else if (ttisvector(rb) && ttisnumber(rc))
  {
- const float* vb = rb->value.v;
+ const float* vb = vvalue(rb);
  float vc = cast_to(float, nvalue(rc));
  setvvalue(ra, vb[0] * vc, vb[1] * vc, vb[2] * vc, vb[3] * vc);
  VM_NEXT();
  }
  else if (ttisvector(rb) && ttisvector(rc))
  {
- const float* vb = rb->value.v;
- const float* vc = rc->value.v;
+ const float* vb = vvalue(rb);
+ const float* vc = vvalue(rc);
  setvvalue(ra, vb[0] * vc[0], vb[1] * vc[1], vb[2] * vc[2], vb[3] * vc[3]);
  VM_NEXT();
  }
  else if (ttisnumber(rb) && ttisvector(rc))
  {
  float vb = cast_to(float, nvalue(rb));
- const float* vc = rc->value.v;
+ const float* vc = vvalue(rc);
  setvvalue(ra, vb * vc[0], vb * vc[1], vb * vc[2], vb * vc[3]);
  VM_NEXT();
  }
@@ -14300,22 +14300,22 @@ reentry:
  }
  else if (ttisvector(rb) && ttisnumber(rc))
  {
- const float* vb = rb->value.v;
+ const float* vb = vvalue(rb);
  float vc = cast_to(float, nvalue(rc));
  setvvalue(ra, vb[0] / vc, vb[1] / vc, vb[2] / vc, vb[3] / vc);
  VM_NEXT();
  }
  else if (ttisvector(rb) && ttisvector(rc))
  {
- const float* vb = rb->value.v;
- const float* vc = rc->value.v;
+ const float* vb = vvalue(rb);
+ const float* vc = vvalue(rc);
  setvvalue(ra, vb[0] / vc[0], vb[1] / vc[1], vb[2] / vc[2], vb[3] / vc[3]);
  VM_NEXT();
  }
  else if (ttisnumber(rb) && ttisvector(rc))
  {
  float vb = cast_to(float, nvalue(rb));
- const float* vc = rc->value.v;
+ const float* vc = vvalue(rc);
  setvvalue(ra, vb / vc[0], vb / vc[1], vb / vc[2], vb / vc[3]);
  VM_NEXT();
  }
@@ -14465,7 +14465,7 @@ reentry:
  }
  else if (ttisvector(rb))
  {
- const float* vb = rb->value.v;
+ const float* vb = vvalue(rb);
  float vc = cast_to(float, nvalue(kv));
  setvvalue(ra, vb[0] * vc, vb[1] * vc, vb[2] * vc, vb[3] * vc);
  VM_NEXT();
@@ -14504,9 +14504,9 @@ reentry:
  }
  else if (ttisvector(rb))
  {
- const float* vb = rb->value.v;
- float vc = cast_to(float, nvalue(kv));
- setvvalue(ra, vb[0] / vc, vb[1] / vc, vb[2] / vc, vb[3] / vc);
+ const float* vb = vvalue(rb);
+ float nc = cast_to(float, nvalue(kv));
+ setvvalue(ra, vb[0] / nc, vb[1] / nc, vb[2] / nc, vb[3] / nc);
  VM_NEXT();
  }
  else
@@ -14677,7 +14677,7 @@ reentry:
  }
  else if (ttisvector(rb))
  {
- const float* vb = rb->value.v;
+ const float* vb = vvalue(rb);
  setvvalue(ra, -vb[0], -vb[1], -vb[2], -vb[3]);
  VM_NEXT();
  }
@@ -15135,15 +15135,46 @@ reentry:
  LUAU_ASSERT(!"CAPTURE is a pseudo-opcode and must be executed as part of NEWCLOSURE");
  LUAU_UNREACHABLE();
  }
- VM_CASE(LOP_DEP_JUMPIFEQK)
+ VM_CASE(LOP_SUBRK)
  {
- LUAU_ASSERT(!"Unsupported deprecated opcode");
- LUAU_UNREACHABLE();
+ Instruction insn = *pc++;
+ StkId ra = VM_REG(LUAU_INSN_A(insn));
+ TValue* kv = VM_KV(LUAU_INSN_B(insn));
+ StkId rc = VM_REG(LUAU_INSN_C(insn));
+ if (ttisnumber(rc))
+ {
+ setnvalue(ra, nvalue(kv) - nvalue(rc));
+ VM_NEXT();
  }
- VM_CASE(LOP_DEP_JUMPIFNOTEQK)
+ else
  {
- LUAU_ASSERT(!"Unsupported deprecated opcode");
- LUAU_UNREACHABLE();
+ VM_PROTECT(luaV_doarith(L, ra, kv, rc, TM_SUB));
+ VM_NEXT();
+ }
+ }
+ VM_CASE(LOP_DIVRK)
+ {
+ Instruction insn = *pc++;
+ StkId ra = VM_REG(LUAU_INSN_A(insn));
+ TValue* kv = VM_KV(LUAU_INSN_B(insn));
+ StkId rc = VM_REG(LUAU_INSN_C(insn));
+ if (LUAU_LIKELY(ttisnumber(rc)))
+ {
+ setnvalue(ra, nvalue(kv) / nvalue(rc));
+ VM_NEXT();
+ }
+ else if (ttisvector(rc))
+ {
+ float nb = cast_to(float, nvalue(kv));
+ const float* vc = vvalue(rc);
+ setvvalue(ra, nb / vc[0], nb / vc[1], nb / vc[2], nb / vc[3]);
+ VM_NEXT();
+ }
+ else
+ {
+ VM_PROTECT(luaV_doarith(L, ra, kv, rc, TM_DIV));
+ VM_NEXT();
+ }
  }
  VM_CASE(LOP_FASTCALL1)
  {
@@ -15741,7 +15772,7 @@ int luaV_tostring(lua_State* L, StkId obj)
 const float* luaV_tovector(const TValue* obj)
 {
  if (ttisvector(obj))
- return obj->value.v;
+ return vvalue(obj);
  return nullptr;
 }
 static StkId callTMres(lua_State* L, StkId res, const TValue* f, const TValue* p1, const TValue* p2)
@@ -16276,6 +16307,7 @@ struct Location
  void shift(const Position& start, const Position& oldEnd, const Position& newEnd);
 };
 }
+#include <iterator>
 #include <optional>
 #include <string>
 namespace Luau
@@ -16348,6 +16380,14 @@ struct AstArray
  const T* end() const
  {
  return data + size;
+ }
+ std::reverse_iterator<const T*> rbegin() const
+ {
+ return std::make_reverse_iterator(end());
+ }
+ std::reverse_iterator<const T*> rend() const
+ {
+ return std::make_reverse_iterator(begin());
  }
 };
 struct AstTypeList
@@ -21749,7 +21789,6 @@ LUAU_FASTINTVARIABLE(LuauTypeLengthLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
 LUAU_FASTFLAGVARIABLE(LuauClipExtraHasEndProps, false)
 LUAU_FASTFLAG(LuauCheckedFunctionSyntax)
-LUAU_FASTFLAGVARIABLE(LuauParseImpreciseNumber, false)
 namespace Luau
 {
 ParseError::ParseError(const Location& location, const std::string& message)
@@ -23265,11 +23304,8 @@ static ConstantNumberParseResult parseInteger(double& result, const char* data, 
  if (errno == ERANGE)
  return base == 2 ? ConstantNumberParseResult::BinOverflow : ConstantNumberParseResult::HexOverflow;
  }
- if (FFlag::LuauParseImpreciseNumber)
- {
  if (value >= (1ull << 53) && static_cast<unsigned long long>(result) != value)
  return ConstantNumberParseResult::Imprecise;
- }
  return ConstantNumberParseResult::Ok;
 }
 static ConstantNumberParseResult parseDouble(double& result, const char* data)
@@ -23280,8 +23316,6 @@ static ConstantNumberParseResult parseDouble(double& result, const char* data)
  return parseInteger(result, data, 16);
  char* end = nullptr;
  double value = strtod(data, &end);
- if (FFlag::LuauParseImpreciseNumber)
- {
  if (*end != 0)
  return ConstantNumberParseResult::Malformed;
  result = value;
@@ -23293,12 +23327,6 @@ static ConstantNumberParseResult parseDouble(double& result, const char* data)
  return ConstantNumberParseResult::Imprecise;
  }
  return ConstantNumberParseResult::Ok;
- }
- else
- {
- result = value;
- return *end == 0 ? ConstantNumberParseResult::Ok : ConstantNumberParseResult::Malformed;
- }
 }
 AstExpr* Parser::parseSimpleExpr()
 {
@@ -24917,9 +24945,7 @@ Constant foldBuiltin(int bfid, const Constant* args, size_t count)
  return cnum(round(args[0].valueNumber));
  break;
  case LBF_VECTOR:
- if (FFlag::LuauVectorLiterals && count >= 3 &&
- args[0].type == Constant::Type_Number &&
- args[1].type == Constant::Type_Number &&
+ if (FFlag::LuauVectorLiterals && count >= 3 && args[0].type == Constant::Type_Number && args[1].type == Constant::Type_Number &&
  args[2].type == Constant::Type_Number)
  {
  if (count == 3)
@@ -25610,6 +25636,7 @@ private:
 };
 }
 LUAU_FASTFLAG(LuauVectorLiterals)
+LUAU_FASTFLAG(LuauCompileRevK)
 namespace Luau
 {
 static_assert(LBC_VERSION_TARGET >= LBC_VERSION_MIN && LBC_VERSION_TARGET <= LBC_VERSION_MAX, "Invalid bytecode version setup");
@@ -25882,7 +25909,8 @@ int32_t BytecodeBuilder::addConstantVector(float x, float y, float z, float w)
  c.valueVector[2] = z;
  c.valueVector[3] = w;
  ConstantKey k = {Constant::Type_Vector};
- static_assert(sizeof(k.value) == sizeof(x) + sizeof(y) && sizeof(k.extra) == sizeof(z) + sizeof(w), "Expecting vector to have four 32-bit components");
+ static_assert(
+ sizeof(k.value) == sizeof(x) + sizeof(y) && sizeof(k.extra) == sizeof(z) + sizeof(w), "Expecting vector to have four 32-bit components");
  memcpy(&k.value, &x, sizeof(x));
  memcpy((char*)&k.value + sizeof(x), &y, sizeof(y));
  memcpy(&k.extra, &z, sizeof(z));
@@ -26405,7 +26433,7 @@ std::string BytecodeBuilder::getError(const std::string& message)
 }
 uint8_t BytecodeBuilder::getVersion()
 {
- return (FFlag::LuauVectorLiterals ? 5 : LBC_VERSION_TARGET);
+ return (FFlag::LuauVectorLiterals || FFlag::LuauCompileRevK) ? 5 : LBC_VERSION_TARGET;
 }
 uint8_t BytecodeBuilder::getTypeEncodingVersion()
 {
@@ -26593,6 +26621,12 @@ void BytecodeBuilder::validateInstructions() const
  VREG(LUAU_INSN_A(insn));
  VREG(LUAU_INSN_B(insn));
  VCONST(LUAU_INSN_C(insn), Number);
+ break;
+ case LOP_SUBRK:
+ case LOP_DIVRK:
+ VREG(LUAU_INSN_A(insn));
+ VCONST(LUAU_INSN_B(insn), Number);
+ VREG(LUAU_INSN_C(insn));
  break;
  case LOP_AND:
  case LOP_OR:
@@ -27078,6 +27112,16 @@ void BytecodeBuilder::dumpInstruction(const uint32_t* code, std::string& result,
  dumpConstant(result, LUAU_INSN_C(insn));
  result.append("]\n");
  break;
+ case LOP_SUBRK:
+ formatAppend(result, "SUBRK R%d K%d [", LUAU_INSN_A(insn), LUAU_INSN_B(insn));
+ dumpConstant(result, LUAU_INSN_B(insn));
+ formatAppend(result, "] R%d\n", LUAU_INSN_C(insn));
+ break;
+ case LOP_DIVRK:
+ formatAppend(result, "DIVRK R%d K%d [", LUAU_INSN_A(insn), LUAU_INSN_B(insn));
+ dumpConstant(result, LUAU_INSN_B(insn));
+ formatAppend(result, "] R%d\n", LUAU_INSN_C(insn));
+ break;
  case LOP_AND:
  formatAppend(result, "AND R%d R%d R%d\n", LUAU_INSN_A(insn), LUAU_INSN_B(insn), LUAU_INSN_C(insn));
  break;
@@ -27450,8 +27494,7 @@ LUAU_FASTINTVARIABLE(LuauCompileLoopUnrollThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThreshold, 25)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
-LUAU_FASTFLAGVARIABLE(LuauCompileSideEffects, false)
-LUAU_FASTFLAGVARIABLE(LuauCompileDeadIf, false)
+LUAU_FASTFLAGVARIABLE(LuauCompileRevK, false)
 namespace Luau
 {
 using namespace Luau::Compile;
@@ -28500,6 +28543,17 @@ struct Compiler
  }
  else
  {
+ if (FFlag::LuauCompileRevK && (expr->op == AstExprBinary::Sub || expr->op == AstExprBinary::Div))
+ {
+ int32_t lc = getConstantNumber(expr->left);
+ if (lc >= 0 && lc <= 255)
+ {
+ uint8_t rr = compileExprAuto(expr->right, rs);
+ LuauOpcode op = (expr->op == AstExprBinary::Sub) ? LOP_SUBRK : LOP_DIVRK;
+ bytecode.emitABC(op, target, uint8_t(lc), uint8_t(rr));
+ return;
+ }
+ }
  uint8_t rl = compileExprAuto(expr->left, rs);
  uint8_t rr = compileExprAuto(expr->right, rs);
  bytecode.emitABC(getBinaryOpArith(expr->op), target, rl, rr);
@@ -29050,13 +29104,10 @@ struct Compiler
  }
  void compileExprSide(AstExpr* node)
  {
- if (FFlag::LuauCompileSideEffects)
- {
  if (node->is<AstExprLocal>() || node->is<AstExprGlobal>() || node->is<AstExprVarargs>() || node->is<AstExprFunction>() || isConstant(node))
  return;
  if (!node->is<AstExprCall>())
  bytecode.addDebugRemark("expression only compiled for side effects");
- }
  RegScope rsi(this);
  compileExprAuto(node, rsi);
  }
@@ -29287,15 +29338,12 @@ struct Compiler
  compileStat(stat->elsebody);
  return;
  }
- if (FFlag::LuauCompileDeadIf)
- {
  if (AstExprBinary* cand = stat->condition->as<AstExprBinary>(); cand && cand->op == AstExprBinary::And && isConstantFalse(cand->right))
  {
  compileExprSide(cand->left);
  if (stat->elsebody)
  compileStat(stat->elsebody);
  return;
- }
  }
  if (!stat->elsebody && isStatBreak(stat->thenbody) && !areLocalsCaptured(loops.back().localOffset))
  {
@@ -30395,11 +30443,8 @@ static bool constantsEqual(const Constant& la, const Constant& ra)
  case Constant::Type_Number:
  return ra.type == Constant::Type_Number && la.valueNumber == ra.valueNumber;
  case Constant::Type_Vector:
- return ra.type == Constant::Type_Vector &&
- la.valueVector[0] == ra.valueVector[0] &&
- la.valueVector[1] == ra.valueVector[1] &&
- la.valueVector[2] == ra.valueVector[2] &&
- la.valueVector[3] == ra.valueVector[3];
+ return ra.type == Constant::Type_Vector && la.valueVector[0] == ra.valueVector[0] && la.valueVector[1] == ra.valueVector[1] &&
+ la.valueVector[2] == ra.valueVector[2] && la.valueVector[3] == ra.valueVector[3];
  case Constant::Type_String:
  return ra.type == Constant::Type_String && la.stringLength == ra.stringLength && memcmp(la.valueString, ra.valueString, la.stringLength) == 0;
  default:
