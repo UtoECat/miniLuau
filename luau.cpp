@@ -873,6 +873,7 @@ inline bool isFlagExperimental(const char* flag)
  "LuauInstantiateInSubtyping", // requires some fixes to lua-apps code
  "LuauTinyControlFlowAnalysis", // waiting for updates to packages depended by internal builtin plugins
  "LuauFixIndexerSubtypingOrdering", // requires some small fixes to lua-apps code since this fixes a false negative
+ "LuauUpdatedRequireByStringSemantics", // requires some small fixes to fully implement some proposed changes
  nullptr,
  };
  for (const char* item : kList)
