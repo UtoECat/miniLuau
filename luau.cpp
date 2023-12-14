@@ -2,7 +2,7 @@
 Luau programming language. (Packed version using PACK.LUA)
 MIT License
 
-Copyright (c) 2019-2022 Roblox Corporation
+Copyright (c) 2019-2023 Roblox Corporation
 Copyright (c) 1994–2019 Lua.org, PUC-Rio.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -23,7 +23,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 #include "luau.hpp"
-
+// hack around some variable collision issues, redefined later
+#define kPageSize kPageSize
+#define hasTypedParameters hasTypedParameters
+#line __LINE__ "Bytecode.h"
 enum LuauOpcode
 {
  LOP_NOP,
@@ -240,6 +243,8 @@ enum LuauProtoFlag
  LPF_NATIVE_MODULE = 1 << 0,
  LPF_NATIVE_COLD = 1 << 1,
 };
+#line __LINE__ ""
+#line __LINE__ "BytecodeUtils.h"
 namespace Luau
 {
 inline int getOpLength(LuauOpcode op)
@@ -274,6 +279,8 @@ inline int getOpLength(LuauOpcode op)
  }
 }
 }
+#line __LINE__ ""
+#line __LINE__ "Common.h"
 #ifdef _MSC_VER
 #define LUAU_NORETURN __declspec(noreturn)
 #define LUAU_NOINLINE __declspec(noinline)
@@ -354,6 +361,8 @@ FValue<T>* FValue<T>::list = nullptr;
 #else
 #define LUAU_PRINTF_ATTR(fmt, arg)
 #endif
+#line __LINE__ ""
+#line __LINE__ "DenseHash.h"
 #include <functional>
 #include <utility>
 #include <type_traits>
@@ -864,6 +873,8 @@ public:
  }
 };
 }
+#line __LINE__ ""
+#line __LINE__ "ExperimentalFlags.h"
 #include <string.h>
 namespace Luau
 {
@@ -882,6 +893,10 @@ inline bool isFlagExperimental(const char* flag)
  return false;
 }
 }
+#line __LINE__ ""
+#line __LINE__ "lapi.cpp"
+#line __LINE__ "lobject.h"
+#line __LINE__ "lcommon.h"
 #include <limits.h>
 typedef LUAI_USER_ALIGNMENT_T L_Umaxalign;
 #define check_exp(c, e) (LUAU_ASSERT(c), (e))
@@ -903,6 +918,7 @@ typedef uint32_t Instruction;
 #else
 #define condhardmemtests(x, l) ((void)0)
 #endif
+#line __LINE__ "lobject.h"
 typedef union GCObject GCObject;
 #define CommonHeader uint8_t tt; uint8_t marked; uint8_t memcat
 typedef struct GCheader
@@ -1140,8 +1156,12 @@ LUAI_FUNC int luaO_str2d(const char* s, double* result);
 LUAI_FUNC const char* luaO_pushvfstring(lua_State* L, const char* fmt, va_list argp);
 LUAI_FUNC const char* luaO_pushfstring(lua_State* L, const char* fmt, ...);
 LUAI_FUNC const char* luaO_chunkid(char* buf, size_t buflen, const char* source, size_t srclen);
+#line __LINE__ "lapi.h"
 LUAI_FUNC const TValue* luaA_toobject(lua_State* L, int idx);
 LUAI_FUNC void luaA_pushobject(lua_State* L, const TValue* o);
+#line __LINE__ "lapi.cpp"
+#line __LINE__ "lstate.h"
+#line __LINE__ "ltm.h"
 typedef enum
 {
  TM_INDEX,
@@ -1177,6 +1197,7 @@ LUAI_FUNC const TValue* luaT_gettmbyobj(lua_State* L, const TValue* o, TMS event
 LUAI_FUNC const TString* luaT_objtypenamestr(lua_State* L, const TValue* o);
 LUAI_FUNC const char* luaT_objtypename(lua_State* L, const TValue* o);
 LUAI_FUNC void luaT_init(lua_State* L);
+#line __LINE__ "lstate.h"
 #define registry(L) (&L->global->registry)
 #define EXTRA_STACK 5
 #define BASIC_CI_SIZE 8
@@ -1350,6 +1371,8 @@ union GCObject
 #define obj2gco(v) check_exp(iscollectable(v), cast_to(GCObject*, (v) + 0))
 LUAI_FUNC lua_State* luaE_newthread(lua_State* L);
 LUAI_FUNC void luaE_freethread(lua_State* L, lua_State* L1, struct lua_Page* page);
+#line __LINE__ "lapi.cpp"
+#line __LINE__ "lstring.h"
 #define MAXSSIZE (1 << 30)
 #define ATOM_UNDEF -32768
 #define sizestring(len) (offsetof(TString, data) + len + 1)
@@ -1362,6 +1385,8 @@ LUAI_FUNC TString* luaS_newlstr(lua_State* L, const char* str, size_t l);
 LUAI_FUNC void luaS_free(lua_State* L, TString* ts, struct lua_Page* page);
 LUAI_FUNC TString* luaS_bufstart(lua_State* L, size_t size);
 LUAI_FUNC TString* luaS_buffinish(lua_State* L, TString* ts);
+#line __LINE__ "lapi.cpp"
+#line __LINE__ "ltable.h"
 #define gnode(t, i) (&(t)->node[i])
 #define gkey(n) (&(n)->key)
 #define gval(n) (&(n)->val)
@@ -1385,6 +1410,8 @@ LUAI_FUNC Table* luaH_clone(lua_State* L, Table* tt);
 LUAI_FUNC void luaH_clear(Table* tt);
 #define luaH_setslot(L, t, slot, key) (invalidateTMcache(t), (slot == luaO_nilobject ? luaH_newkey(L, t, key) : cast_to(TValue*, slot)))
 extern const LuaNode luaH_dummynode;
+#line __LINE__ "lapi.cpp"
+#line __LINE__ "lfunc.h"
 #define sizeCclosure(n) (offsetof(Closure, c.upvals) + sizeof(TValue) * (n))
 #define sizeLclosure(n) (offsetof(Closure, l.uprefs) + sizeof(TValue) * (n))
 LUAI_FUNC Proto* luaF_newproto(lua_State* L);
@@ -1398,6 +1425,10 @@ LUAI_FUNC void luaF_freeclosure(lua_State* L, Closure* c, struct lua_Page* page)
 LUAI_FUNC void luaF_freeupval(lua_State* L, UpVal* uv, struct lua_Page* page);
 LUAI_FUNC const LocVar* luaF_getlocal(const Proto* func, int local_number, int pc);
 LUAI_FUNC const LocVar* luaF_findlocal(const Proto* func, int local_reg, int pc);
+#line __LINE__ "lapi.cpp"
+#line __LINE__ "lgc.h"
+#line __LINE__ "ldo.h"
+#line __LINE__ "ldebug.h"
 #define pcRel(pc, p) ((pc) ? cast_to(int, (pc) - (p)->code) - 1 : 0)
 #define luaG_typeerror(L, o, opname) luaG_typeerrorL(L, o, opname)
 #define luaG_forerror(L, o, what) luaG_forerrorL(L, o, what)
@@ -1418,6 +1449,7 @@ LUAI_FUNC void luaG_breakpoint(lua_State* L, Proto* p, int line, bool enable);
 LUAI_FUNC bool luaG_onbreak(lua_State* L);
 LUAI_FUNC int luaG_getline(Proto* p, int pc);
 LUAI_FUNC int luaG_isnative(lua_State* L, int level);
+#line __LINE__ "ldo.h"
 #define luaD_checkstack(L, n) if ((char*)L->stack_last - (char*)L->top <= (n) * (int)sizeof(TValue)) luaD_growstack(L, n); else condhardstacktests(luaD_reallocstack(L, L->stacksize - EXTRA_STACK));
 #define incr_top(L) { luaD_checkstack(L, 1); L->top++; }
 #define savestack(L, p) ((char*)(p) - (char*)L->stack)
@@ -1439,6 +1471,7 @@ LUAI_FUNC void luaD_growstack(lua_State* L, int n);
 LUAI_FUNC void luaD_checkCstack(lua_State* L);
 LUAI_FUNC l_noret luaD_throw(lua_State* L, int errcode);
 LUAI_FUNC int luaD_rawrunprotected(lua_State* L, Pfunc f, void* ud);
+#line __LINE__ "lgc.h"
 #define LUAI_GCGOAL 200
 #define LUAI_GCSTEPMUL 200 // GC runs 'twice the speed' of memory allocation
 #define LUAI_GCSTEPSIZE 1
@@ -1496,11 +1529,15 @@ LUAI_FUNC void luaC_enumheap(lua_State* L, void* context,
  void (*edge)(void* context, void* from, void* to, const char* name));
 LUAI_FUNC int64_t luaC_allocationrate(lua_State* L);
 LUAI_FUNC const char* luaC_statename(int state);
+#line __LINE__ "lapi.cpp"
+#line __LINE__ "ludata.h"
 #define UTAG_IDTOR LUA_UTAG_LIMIT
 #define UTAG_PROXY (LUA_UTAG_LIMIT + 1)
 #define sizeudata(len) (offsetof(Udata, data) + len)
 LUAI_FUNC Udata* luaU_newudata(lua_State* L, size_t s, int tag);
 LUAI_FUNC void luaU_freeudata(lua_State* L, Udata* u, struct lua_Page* page);
+#line __LINE__ "lapi.cpp"
+#line __LINE__ "lvm.h"
 #define tostring(L, o) ((ttype(o) == LUA_TSTRING) || (luaV_tostring(L, o)))
 #define tonumber(o, n) (ttype(o) == LUA_TNUMBER || (((o) = luaV_tonumber(o, n)) != NULL))
 #define equalobj(L, o1, o2) (ttype(o1) == ttype(o2) && luaV_equalval(L, o1, o2))
@@ -1524,6 +1561,8 @@ LUAI_FUNC void luau_execute(lua_State* L);
 LUAI_FUNC int luau_precall(lua_State* L, struct lua_TValue* func, int nresults);
 LUAI_FUNC void luau_poscall(lua_State* L, StkId first);
 LUAI_FUNC void luau_callhook(lua_State* L, lua_Hook hook, void* userdata);
+#line __LINE__ "lapi.cpp"
+#line __LINE__ "lnumutils.h"
 #include <math.h>
 #define luai_numadd(a, b) ((a) + (b))
 #define luai_numsub(a, b) ((a) - (b))
@@ -1572,10 +1611,13 @@ LUAU_FASTMATH_END
 #define LUAI_MAXNUM2STR 48
 LUAI_FUNC char* luai_num2str(char* buf, double n);
 #define luai_str2num(s, p) strtod((s), (p))
+#line __LINE__ "lapi.cpp"
+#line __LINE__ "lbuffer.h"
 #define MAX_BUFFER_SIZE (1 << 30)
 #define sizebuffer(len) (offsetof(Buffer, data) + ((len) < 8 ? 8 : (len)))
 LUAI_FUNC Buffer* luaB_newbuffer(lua_State* L, size_t s);
 LUAI_FUNC void luaB_freebuffer(lua_State* L, Buffer* u, struct lua_Page* page);
+#line __LINE__ "lapi.cpp"
 const char* lua_ident = "$Lua: Lua 5.1.4 Copyright (C) 1994-2008 Lua.org, PUC-Rio $\n"
  "$Authors: R. Ierusalimschy, L. H. de Figueiredo & W. Celes $\n"
  "$URL: www.lua.org $\n";
@@ -2789,6 +2831,8 @@ lua_Alloc lua_getallocf(lua_State* L, void** ud)
  *ud = L->global->ud;
  return f;
 }
+#line __LINE__ ""
+#line __LINE__ "laux.cpp"
 #define abs_index(L, i) ((i) > 0 || (i) <= LUA_REGISTRYINDEX ? (i) : lua_gettop(L) + (i) + 1)
 static const char* currfuncname(lua_State* L)
 {
@@ -3265,6 +3309,8 @@ const char* luaL_tolstring(lua_State* L, int idx, size_t* len)
  }
  return lua_tolstring(L, -1, len);
 }
+#line __LINE__ ""
+#line __LINE__ "lbaselib.cpp"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -3657,6 +3703,8 @@ int luaopen_base(lua_State* L)
  lua_setfield(L, -2, "xpcall");
  return 1;
 }
+#line __LINE__ ""
+#line __LINE__ "lbitlib.cpp"
 LUAU_FASTFLAGVARIABLE(LuauBit32Byteswap, false)
 #define ALLONES ~0u
 #define NBITS int(8 * sizeof(unsigned))
@@ -3861,6 +3909,9 @@ int luaopen_bit32(lua_State* L)
  luaL_register(L, LUA_BITLIBNAME, bitlib);
  return 1;
 }
+#line __LINE__ ""
+#line __LINE__ "lbuffer.cpp"
+#line __LINE__ "lmem.h"
 struct lua_Page;
 union GCObject;
 #define luaM_newgco(L, t, size, memcat) cast_to(t*, luaM_newgco_(L, size, memcat))
@@ -3879,6 +3930,7 @@ LUAI_FUNC void luaM_getpagewalkinfo(lua_Page* page, char** start, char** end, in
 LUAI_FUNC lua_Page* luaM_getnextgcopage(lua_Page* page);
 LUAI_FUNC void luaM_visitpage(lua_Page* page, void* context, bool (*visitor)(void* context, lua_Page* page, GCObject* gco));
 LUAI_FUNC void luaM_visitgco(lua_State* L, void* context, bool (*visitor)(void* context, lua_Page* page, GCObject* gco));
+#line __LINE__ "lbuffer.cpp"
 Buffer* luaB_newbuffer(lua_State* L, size_t s)
 {
  if (s > MAX_BUFFER_SIZE)
@@ -3893,6 +3945,8 @@ void luaB_freebuffer(lua_State* L, Buffer* b, lua_Page* page)
 {
  luaM_freegco(L, b, sizebuffer(b->len), b->memcat, page);
 }
+#line __LINE__ ""
+#line __LINE__ "lbuflib.cpp"
 #if defined(LUAU_BIG_ENDIAN)
 #include <endian.h>
 #endif
@@ -4132,8 +4186,11 @@ int luaopen_buffer(lua_State* L)
  luaL_register(L, LUA_BUFFERLIBNAME, bufferlib);
  return 1;
 }
+#line __LINE__ ""
+#line __LINE__ "lbuiltins.cpp"
 typedef int (*luau_FastFunction)(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams);
 extern const luau_FastFunction luauF_table[256];
+#line __LINE__ "lbuiltins.cpp"
 #ifdef _MSC_VER
 #include <intrin.h>
 #endif
@@ -5428,6 +5485,10 @@ const luau_FastFunction luauF_table[256] = {
  MISSING8,
 #undef MISSING8
 };
+#line __LINE__ ""
+#line __LINE__ "lbytecode.h"
+#line __LINE__ ""
+#line __LINE__ "lcorolib.cpp"
 #define CO_STATUS_ERROR -1
 #define CO_STATUS_BREAK -2
 static const char* const statnames[] = {"running", "suspended", "normal", "dead", "dead"}; // dead appears twice for LUA_COERR and LUA_COFIN
@@ -5634,6 +5695,8 @@ int luaopen_coroutine(lua_State* L)
  lua_setfield(L, -2, "resume");
  return 1;
 }
+#line __LINE__ ""
+#line __LINE__ "ldblib.cpp"
 static lua_State* getthread(lua_State* L, int* arg)
 {
  if (lua_isthread(L, 1))
@@ -5762,6 +5825,8 @@ int luaopen_debug(lua_State* L)
  luaL_register(L, LUA_DBLIBNAME, dblib);
  return 1;
 }
+#line __LINE__ ""
+#line __LINE__ "ldebug.cpp"
 static const char* getfuncname(Closure* f);
 static int currentpc(lua_State* L, CallInfo* ci)
 {
@@ -6216,6 +6281,8 @@ const char* lua_debugtrace(lua_State* L)
  buf[offset] = '\0';
  return buf;
 }
+#line __LINE__ ""
+#line __LINE__ "ldo.cpp"
 #if LUA_USE_LONGJMP
 #include <setjmp.h>
 #else
@@ -6654,6 +6721,8 @@ int luaD_pcall(lua_State* L, Pfunc func, void* u, ptrdiff_t old_top, ptrdiff_t e
  }
  return status;
 }
+#line __LINE__ ""
+#line __LINE__ "lfunc.cpp"
 Proto* luaF_newproto(lua_State* L)
 {
  Proto* f = luaM_newgco(L, Proto, sizeof(Proto), L->activememcat);
@@ -6813,6 +6882,8 @@ const LocVar* luaF_findlocal(const Proto* f, int local_reg, int pc)
  return &f->locvars[i];
  return NULL;
 }
+#line __LINE__ ""
+#line __LINE__ "lgc.cpp"
 #define GC_SWEEPPAGESTEPCOST 16
 #define GC_INTERRUPT(state) { void (*interrupt)(lua_State*, int) = g->cb.interrupt; if (LUAU_UNLIKELY(!!interrupt)) interrupt(L, state); }
 #define maskmarks cast_byte(~(bitmask(BLACKBIT) | WHITEBITS))
@@ -7684,6 +7755,8 @@ const char* luaC_statename(int state)
  return NULL;
  }
 }
+#line __LINE__ ""
+#line __LINE__ "lgcdebug.cpp"
 static void validateobjref(global_State* g, GCObject* f, GCObject* t)
 {
  LUAU_ASSERT(!isdead(g, t));
@@ -8389,6 +8462,8 @@ void luaC_enumheap(lua_State* L, void* context, void (*node)(void* context, void
  enumgco(&ctx, NULL, obj2gco(g->mainthread));
  luaM_visitgco(L, &ctx, enumgco);
 }
+#line __LINE__ ""
+#line __LINE__ "linit.cpp"
 static const luaL_Reg lualibs[] = {
  {"", luaopen_base},
  {LUA_COLIBNAME, luaopen_coroutine},
@@ -8455,6 +8530,8 @@ lua_State* luaL_newstate(void)
 {
  return lua_newstate(l_alloc, NULL);
 }
+#line __LINE__ ""
+#line __LINE__ "lmathlib.cpp"
 #include <time.h>
 #undef PI
 #define PI (3.14159265358979323846)
@@ -8821,6 +8898,8 @@ int luaopen_math(lua_State* L)
  lua_setfield(L, -2, "huge");
  return 1;
 }
+#line __LINE__ ""
+#line __LINE__ "lmem.cpp"
 #ifndef __has_feature
 #define __has_feature(x) 0
 #endif
@@ -9220,6 +9299,8 @@ void luaM_visitgco(lua_State* L, void* context, bool (*visitor)(void* context, l
  curr = next;
  }
 }
+#line __LINE__ ""
+#line __LINE__ "lnumprint.cpp"
 #ifdef _MSC_VER
 #endif
 static const int kPow10TableMin = -292;
@@ -9474,6 +9555,8 @@ char* luai_num2str(char* buf, double n)
  return printexp(exp, dot - 1);
  }
 }
+#line __LINE__ ""
+#line __LINE__ "lobject.cpp"
 const TValue luaO_nilobject_ = {{NULL}, {0}, LUA_TNIL};
 int luaO_log2(unsigned int x)
 {
@@ -9603,6 +9686,8 @@ const char* luaO_chunkid(char* buf, size_t buflen, const char* source, size_t sr
  }
  return buf;
 }
+#line __LINE__ ""
+#line __LINE__ "loslib.cpp"
 #define LUA_STRFTIMEOPTIONS "aAbBcdHIjmMpSUwWxXyYzZ%"
 #if defined(_WIN32)
 static tm* gmtime_r(const time_t* timep, tm* result)
@@ -9779,6 +9864,8 @@ int luaopen_os(lua_State* L)
  luaL_register(L, LUA_OSLIBNAME, syslib);
  return 1;
 }
+#line __LINE__ ""
+#line __LINE__ "lperf.cpp"
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -9829,6 +9916,8 @@ double lua_clock()
  static double period = clock_period();
  return clock_timestamp() * period;
 }
+#line __LINE__ ""
+#line __LINE__ "lstate.cpp"
 typedef struct LG
 {
  lua_State l;
@@ -10026,6 +10115,8 @@ void lua_close(lua_State* L)
  luaF_close(L, L->stack); // close all upvalues for this thread
  close_state(L);
 }
+#line __LINE__ ""
+#line __LINE__ "lstring.cpp"
 unsigned int luaS_hash(const char* str, size_t len)
 {
  unsigned int a = 0, b = 0;
@@ -10170,6 +10261,8 @@ void luaS_free(lua_State* L, TString* ts, lua_Page* page)
  LUAU_ASSERT(ts->next == NULL);
  luaM_freegco(L, ts, sizestring(ts->len), ts->memcat, page);
 }
+#line __LINE__ ""
+#line __LINE__ "lstrlib.cpp"
 #define uchar(c) ((unsigned char)(c))
 static int str_len(lua_State* L)
 {
@@ -11627,6 +11720,8 @@ int luaopen_string(lua_State* L)
  createmetatable(L);
  return 1;
 }
+#line __LINE__ ""
+#line __LINE__ "ltable.cpp"
 #define MAXBITS 26
 #define MAXSIZE (1 << MAXBITS)
 static_assert(offsetof(LuaNode, val) == 0, "Unexpected Node memory layout, pointer cast in gval2slot is incorrect");
@@ -12275,6 +12370,8 @@ void luaH_clear(Table* tt)
  }
  tt->tmcache = cast_byte(~0);
 }
+#line __LINE__ ""
+#line __LINE__ "ltablib.cpp"
 static int foreachi(lua_State* L)
 {
  luaL_checktype(L, 1, LUA_TTABLE);
@@ -12757,6 +12854,8 @@ int luaopen_table(lua_State* L)
  lua_setglobal(L, "unpack");
  return 1;
 }
+#line __LINE__ ""
+#line __LINE__ "ltm.cpp"
 const char* const luaT_typenames[] = {
  "nil",
  "boolean",
@@ -12858,6 +12957,8 @@ const char* luaT_objtypename(lua_State* L, const TValue* o)
 {
  return getstr(luaT_objtypenamestr(L, o));
 }
+#line __LINE__ ""
+#line __LINE__ "ludata.cpp"
 Udata* luaU_newudata(lua_State* L, size_t s, int tag)
 {
  if (s > INT_MAX - sizeof(Udata))
@@ -12887,6 +12988,8 @@ void luaU_freeudata(lua_State* L, Udata* u, lua_Page* page)
  }
  luaM_freegco(L, u, sizeudata(u->len), u->memcat, page);
 }
+#line __LINE__ ""
+#line __LINE__ "lutf8lib.cpp"
 #define MAXUNICODE 0x10FFFF
 #define iscont(p) ((*(p)&0xC0) == 0x80)
 LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauStricterUtf8, false)
@@ -13130,6 +13233,8 @@ int luaopen_utf8(lua_State* L)
  lua_setfield(L, -2, "charpattern");
  return 1;
 }
+#line __LINE__ ""
+#line __LINE__ "lvmexecute.cpp"
 #ifdef __clang__
 #if __has_warning("-Wc99-designator")
 #pragma clang diagnostic ignored "-Wc99-designator"
@@ -15436,6 +15541,8 @@ void luau_poscall(lua_State* L, StkId first)
  L->base = cip->base;
  L->top = (ci->nresults == LUA_MULTRET) ? res : cip->top;
 }
+#line __LINE__ ""
+#line __LINE__ "lvmload.cpp"
 template<typename T>
 struct TempBuffer
 {
@@ -15742,6 +15849,8 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  L->global->GCthreshold = GCthreshold;
  return 0;
 }
+#line __LINE__ ""
+#line __LINE__ "lvmutils.cpp"
 #define MAXTAGLOOP 100
 const TValue* luaV_tonumber(const TValue* obj, TValue* n)
 {
@@ -16255,8 +16364,11 @@ LUAU_NOINLINE void luaV_tryfuncTM(lua_State* L, StkId func)
  L->top++;
  setobj2s(L, func, tm); // tag method is the new function to be called
 }
+#line __LINE__ ""
 #ifdef LUAU_ENABLE_COMPILER
 #undef upvalue
+#line __LINE__ "Ast.cpp"
+#line __LINE__ "Location.h"
 namespace Luau
 {
 struct Position
@@ -16308,6 +16420,7 @@ struct Location
  void shift(const Position& start, const Position& oldEnd, const Position& newEnd);
 };
 }
+#line __LINE__ "Ast.h"
 #include <iterator>
 #include <optional>
 #include <string>
@@ -17349,6 +17462,7 @@ struct hash<Luau::AstName>
  }
 };
 }
+#line __LINE__ "Ast.cpp"
 namespace Luau
 {
 static void visitTypeList(AstVisitor* visitor, const AstTypeList& list)
@@ -18216,10 +18330,13 @@ Location getLocation(const AstTypeList& typeList)
  return result;
 }
 }
+#line __LINE__ ""
+#line __LINE__ "Confusables.cpp"
 namespace Luau
 {
 const char* findConfusable(uint32_t codepoint);
 }
+#line __LINE__ "Confusables.cpp"
 #include <algorithm>
 #include <array>
 namespace Luau
@@ -20026,6 +20143,8 @@ const char* findConfusable(uint32_t codepoint)
  return (it != std::end(kConfusables) && it->codepoint == codepoint) ? it->text : nullptr;
 }
 }
+#line __LINE__ ""
+#line __LINE__ "Lexer.cpp"
 #include <vector>
 namespace Luau
 {
@@ -20216,6 +20335,8 @@ inline bool isSpace(char ch)
  return ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n' || ch == '\v' || ch == '\f';
 }
 }
+#line __LINE__ "Lexer.cpp"
+#line __LINE__ "StringUtils.h"
 #include <stdarg.h>
 namespace Luau
 {
@@ -20233,6 +20354,7 @@ size_t hashRange(const char* data, size_t size);
 std::string escape(std::string_view s, bool escapeForInterpString = false);
 bool isIdentifier(std::string_view s);
 }
+#line __LINE__ "Lexer.cpp"
 LUAU_FASTFLAGVARIABLE(LuauLexerLookaheadRemembersBraceType, false)
 LUAU_FASTFLAGVARIABLE(LuauCheckedFunctionSyntax, false)
 namespace Luau
@@ -21255,6 +21377,8 @@ void Lexer::fixupMultilineString(std::string& data)
  data.resize(dst - &data[0]);
 }
 }
+#line __LINE__ ""
+#line __LINE__ "Location.cpp"
 namespace Luau
 {
 bool Position::operator==(const Position& rhs) const
@@ -21337,6 +21461,9 @@ void Location::shift(const Position& start, const Position& oldEnd, const Positi
  end.shift(start, oldEnd, newEnd);
 }
 }
+#line __LINE__ ""
+#line __LINE__ "Parser.cpp"
+#line __LINE__ "ParseOptions.h"
 namespace Luau
 {
 enum class Mode
@@ -21352,6 +21479,8 @@ struct ParseOptions
  bool captureComments = false;
 };
 }
+#line __LINE__ "Parser.h"
+#line __LINE__ "ParseResult.h"
 namespace Luau
 {
 class AstStatBlock;
@@ -21398,6 +21527,7 @@ struct ParseResult
 };
 static constexpr const char* kParseNameError = "%error-id%";
 }
+#line __LINE__ "Parser.h"
 #include <initializer_list>
 #include <tuple>
 namespace Luau
@@ -21624,6 +21754,8 @@ private:
  std::string scratchData;
 };
 }
+#line __LINE__ "Parser.cpp"
+#line __LINE__ "TimeTrace.h"
 #include <memory>
 LUAU_FASTFLAG(DebugLuauTimeTracing)
 namespace Luau
@@ -21784,6 +21916,7 @@ LUAU_NOINLINE uint16_t createScopeData(const char* name, const char* category);
 #define LUAU_TIMETRACE_OPTIONAL_TAIL_SCOPE(name, category, microsec)
 #define LUAU_TIMETRACE_ARGUMENT(name, value) do { } while (false)
 #endif
+#line __LINE__ "Parser.cpp"
 #include <errno.h>
 LUAU_FASTINTVARIABLE(LuauRecursionLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauTypeLengthLimit, 1000)
@@ -24059,6 +24192,8 @@ void Parser::nextLexeme()
  }
 }
 }
+#line __LINE__ ""
+#line __LINE__ "StringUtils.cpp"
 namespace Luau
 {
 void vformatAppend(std::string& ret, const char* fmt, va_list args)
@@ -24290,6 +24425,8 @@ std::string escape(std::string_view s, bool escapeForInterpString)
  return r;
 }
 }
+#line __LINE__ ""
+#line __LINE__ "TimeTrace.cpp"
 #include <mutex>
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -24499,6 +24636,10 @@ uint16_t createScopeData(const char* name, const char* category)
 }
 } // namespace Luau
 #endif
+#line __LINE__ ""
+#line __LINE__ "BuiltinFolding.cpp"
+#line __LINE__ "ConstantFolding.h"
+#line __LINE__ "ValueTracking.h"
 namespace Luau
 {
 class AstNameTable;
@@ -24528,6 +24669,7 @@ inline Global getGlobalState(const DenseHashMap<AstName, Global>& globals, AstNa
 }
 }
 } // namespace Luau
+#line __LINE__ "ConstantFolding.h"
 namespace Luau
 {
 namespace Compile
@@ -24567,6 +24709,7 @@ void foldConstants(DenseHashMap<AstExpr*, Constant>& constants, DenseHashMap<Ast
  DenseHashMap<AstLocal*, Constant>& locals, const DenseHashMap<AstExprCall*, int>* builtins, bool foldMathK, AstNode* root);
 }
 } // namespace Luau
+#line __LINE__ "BuiltinFolding.h"
 namespace Luau
 {
 namespace Compile
@@ -24575,6 +24718,7 @@ Constant foldBuiltin(int bfid, const Constant* args, size_t count);
 Constant foldBuiltinMath(AstName index);
 }
 } // namespace Luau
+#line __LINE__ "BuiltinFolding.cpp"
 LUAU_FASTFLAGVARIABLE(LuauVectorLiterals, false)
 namespace Luau
 {
@@ -24968,6 +25112,8 @@ Constant foldBuiltinMath(AstName index)
 }
 }
 } // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "Builtins.cpp"
 namespace Luau
 {
 struct CompileOptions;
@@ -25009,6 +25155,8 @@ struct BuiltinInfo
 BuiltinInfo getBuiltinInfo(int bfid);
 }
 } // namespace Luau
+#line __LINE__ "Builtins.cpp"
+#line __LINE__ "Compiler.h"
 namespace Luau
 {
 class AstNameTable;
@@ -25042,6 +25190,7 @@ void compileOrThrow(BytecodeBuilder& bytecode, const std::string& source, const 
 std::string compile(
  const std::string& source, const CompileOptions& options = {}, const ParseOptions& parseOptions = {}, BytecodeEncoder* encoder = nullptr);
 }
+#line __LINE__ "Builtins.cpp"
 LUAU_FASTFLAGVARIABLE(LuauBit32ByteswapBuiltin, false)
 LUAU_FASTFLAGVARIABLE(LuauBufferBuiltins, false)
 namespace Luau
@@ -25425,6 +25574,8 @@ BuiltinInfo getBuiltinInfo(int bfid)
 }
 }
 } // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "BytecodeBuilder.cpp"
 namespace Luau
 {
 class BytecodeEncoder
@@ -25636,6 +25787,7 @@ private:
  unsigned int addStringTableEntry(StringRef value);
 };
 }
+#line __LINE__ "BytecodeBuilder.cpp"
 LUAU_FASTFLAG(LuauVectorLiterals)
 LUAU_FASTFLAG(LuauCompileRevK)
 namespace Luau
@@ -27464,6 +27616,9 @@ void BytecodeBuilder::annotateInstruction(std::string& result, uint32_t fid, uin
  formatAppend(result, "%.*s", dumpinstoffs[next] - dumpinstoffs[instpos], dump.data() + dumpinstoffs[instpos]);
 }
 }
+#line __LINE__ ""
+#line __LINE__ "Compiler.cpp"
+#line __LINE__ "CostModel.h"
 namespace Luau
 {
 namespace Compile
@@ -27473,6 +27628,8 @@ int computeCost(uint64_t model, const bool* varsConst, size_t varCount);
 int getTripCount(double from, double to, double step);
 }
 } // namespace Luau
+#line __LINE__ "Compiler.cpp"
+#line __LINE__ "TableShape.h"
 namespace Luau
 {
 namespace Compile
@@ -27485,10 +27642,13 @@ struct TableShape
 void predictTableShapes(DenseHashMap<AstExprTable*, TableShape>& shapes, AstNode* root);
 }
 } // namespace Luau
+#line __LINE__ "Compiler.cpp"
+#line __LINE__ "Types.h"
 namespace Luau
 {
 void buildTypeMap(DenseHashMap<AstExprFunction*, std::string>& typeMap, AstNode* root, const char* vectorType);
 }
+#line __LINE__ "Compiler.cpp"
 #include <bitset>
 LUAU_FASTINTVARIABLE(LuauCompileLoopUnrollThreshold, 25)
 LUAU_FASTINTVARIABLE(LuauCompileLoopUnrollThresholdMaxBoost, 300)
@@ -30428,6 +30588,8 @@ std::string compile(const std::string& source, const CompileOptions& options, co
  }
 }
 }
+#line __LINE__ ""
+#line __LINE__ "ConstantFolding.cpp"
 namespace Luau
 {
 namespace Compile
@@ -30812,6 +30974,8 @@ void foldConstants(DenseHashMap<AstExpr*, Constant>& constants, DenseHashMap<Ast
 }
 }
 } // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "CostModel.cpp"
 namespace Luau
 {
 namespace Compile
@@ -31117,6 +31281,27 @@ int getTripCount(double from, double to, double step)
 }
 }
 } // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "lcode.cpp"
+char* luau_compile(const char* source, size_t size, lua_CompileOptions* options, size_t* outsize)
+{
+ LUAU_ASSERT(outsize);
+ Luau::CompileOptions opts;
+ if (options)
+ {
+ static_assert(sizeof(lua_CompileOptions) == sizeof(Luau::CompileOptions), "C and C++ interface must match");
+ memcpy(static_cast<void*>(&opts), options, sizeof(opts));
+ }
+ std::string result = compile(std::string(source, size), opts);
+ char* copy = static_cast<char*>(malloc(result.size()));
+ if (!copy)
+ return nullptr;
+ memcpy(copy, result.data(), result.size());
+ *outsize = result.size();
+ return copy;
+}
+#line __LINE__ ""
+#line __LINE__ "TableShape.cpp"
 namespace Luau
 {
 namespace Compile
@@ -31239,6 +31424,8 @@ void predictTableShapes(DenseHashMap<AstExprTable*, TableShape>& shapes, AstNode
 }
 }
 } // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "Types.cpp"
 LUAU_FASTFLAGVARIABLE(LuauCompileBufferAnnotation, false)
 namespace Luau
 {
@@ -31414,6 +31601,8 @@ void buildTypeMap(DenseHashMap<AstExprFunction*, std::string>& typeMap, AstNode*
  root->visit(&visitor);
 }
 }
+#line __LINE__ ""
+#line __LINE__ "ValueTracking.cpp"
 namespace Luau
 {
 namespace Compile
@@ -31492,21 +31681,20821 @@ void trackValues(DenseHashMap<AstName, Global>& globals, DenseHashMap<AstLocal*,
 }
 }
 } // namespace Luau
-char* luau_compile(const char* source, size_t size, lua_CompileOptions* options, size_t* outsize)
+#line __LINE__ ""
+#ifdef LUAU_ENABLE_CODEGEN
+#undef VM_INTERRUPT
+#undef log2
+double log2_custom( double n )
 {
- LUAU_ASSERT(outsize);
- Luau::CompileOptions opts;
- if (options)
- {
- static_assert(sizeof(lua_CompileOptions) == sizeof(Luau::CompileOptions), "C and C++ interface must match");
- memcpy(static_cast<void*>(&opts), options, sizeof(opts));
- }
- std::string result = compile(std::string(source, size), opts);
- char* copy = static_cast<char*>(malloc(result.size()));
- if (!copy)
- return nullptr;
- memcpy(copy, result.data(), result.size());
- *outsize = result.size();
- return copy;
+ return log( n ) / log( 2 );
 }
+#define log2 log2_custom
+#undef kPageSize
+#define kPageSize kPageSize_2
+#line __LINE__ "IrBuilder.cpp"
+#line __LINE__ "IrData.h"
+#line __LINE__ "IrAnalysis.h"
+#include <queue>
+namespace Luau
+{
+namespace CodeGen
+{
+struct IrBlock;
+struct IrFunction;
+void updateUseCounts(IrFunction& function);
+void updateLastUseLocations(IrFunction& function, const std::vector<uint32_t>& sortedBlocks);
+uint32_t getNextInstUse(IrFunction& function, uint32_t targetInstIdx, uint32_t startInstIdx);
+std::pair<uint32_t, uint32_t> getLiveInOutValueCount(IrFunction& function, IrBlock& block);
+uint32_t getLiveInValueCount(IrFunction& function, IrBlock& block);
+uint32_t getLiveOutValueCount(IrFunction& function, IrBlock& block);
+struct RegisterSet
+{
+ std::bitset<256> regs;
+ bool varargSeq = false;
+ uint8_t varargStart = 0;
+};
+void requireVariadicSequence(RegisterSet& sourceRs, const RegisterSet& defRs, uint8_t varargStart);
+struct BlockOrdering
+{
+ uint32_t depth = 0;
+ uint32_t preOrder = ~0u;
+ uint32_t postOrder = ~0u;
+ bool visited = false;
+};
+struct CfgInfo
+{
+ std::vector<uint32_t> predecessors;
+ std::vector<uint32_t> predecessorsOffsets;
+ std::vector<uint32_t> successors;
+ std::vector<uint32_t> successorsOffsets;
+ std::vector<uint32_t> idoms;
+ std::vector<uint32_t> domChildren;
+ std::vector<uint32_t> domChildrenOffsets;
+ std::vector<BlockOrdering> domOrdering;
+ std::vector<RegisterSet> in;
+ std::vector<RegisterSet> def;
+ std::vector<RegisterSet> out;
+ RegisterSet captured;
+};
+void computeCfgImmediateDominators(IrFunction& function);
+void computeCfgDominanceTreeChildren(IrFunction& function);
+struct IdfContext
+{
+ struct BlockAndOrdering
+ {
+ uint32_t blockIdx;
+ BlockOrdering ordering;
+ bool operator<(const BlockAndOrdering& rhs) const
+ {
+ if (ordering.depth != rhs.ordering.depth)
+ return ordering.depth < rhs.ordering.depth;
+ return ordering.preOrder < rhs.ordering.preOrder;
+ }
+ };
+ std::priority_queue<BlockAndOrdering> queue;
+ std::vector<uint32_t> worklist;
+ struct IdfVisitMarks
+ {
+ bool seenInQueue = false;
+ bool seenInWorklist = false;
+ };
+ std::vector<IdfVisitMarks> visits;
+ std::vector<uint32_t> idf;
+};
+void computeIteratedDominanceFrontierForDefs(
+ IdfContext& ctx, const IrFunction& function, const std::vector<uint32_t>& defBlocks, const std::vector<uint32_t>& liveInBlocks);
+void computeCfgInfo(IrFunction& function);
+struct BlockIteratorWrapper
+{
+ const uint32_t* itBegin = nullptr;
+ const uint32_t* itEnd = nullptr;
+ bool empty() const
+ {
+ return itBegin == itEnd;
+ }
+ size_t size() const
+ {
+ return size_t(itEnd - itBegin);
+ }
+ const uint32_t* begin() const
+ {
+ return itBegin;
+ }
+ const uint32_t* end() const
+ {
+ return itEnd;
+ }
+ uint32_t operator[](size_t pos) const
+ {
+ LUAU_ASSERT(pos < size_t(itEnd - itBegin));
+ return itBegin[pos];
+ }
+};
+BlockIteratorWrapper predecessors(const CfgInfo& cfg, uint32_t blockIdx);
+BlockIteratorWrapper successors(const CfgInfo& cfg, uint32_t blockIdx);
+BlockIteratorWrapper domChildren(const CfgInfo& cfg, uint32_t blockIdx);
+}
+} // namespace Luau
+#line __LINE__ "IrData.h"
+#line __LINE__ "Label.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct Label
+{
+ uint32_t id = 0;
+ uint32_t location = ~0u;
+};
+}
+} // namespace Luau
+#line __LINE__ "IrData.h"
+#line __LINE__ "RegisterX64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+namespace X64
+{
+enum class SizeX64 : uint8_t
+{
+ none,
+ byte,
+ word,
+ dword,
+ qword,
+ xmmword,
+ ymmword,
+};
+struct RegisterX64
+{
+ SizeX64 size : 3;
+ uint8_t index : 5;
+ constexpr bool operator==(RegisterX64 rhs) const
+ {
+ return size == rhs.size && index == rhs.index;
+ }
+ constexpr bool operator!=(RegisterX64 rhs) const
+ {
+ return !(*this == rhs);
+ }
+};
+constexpr RegisterX64 noreg{SizeX64::none, 16};
+constexpr RegisterX64 rip{SizeX64::none, 0};
+constexpr RegisterX64 al{SizeX64::byte, 0};
+constexpr RegisterX64 cl{SizeX64::byte, 1};
+constexpr RegisterX64 dl{SizeX64::byte, 2};
+constexpr RegisterX64 bl{SizeX64::byte, 3};
+constexpr RegisterX64 spl{SizeX64::byte, 4};
+constexpr RegisterX64 bpl{SizeX64::byte, 5};
+constexpr RegisterX64 sil{SizeX64::byte, 6};
+constexpr RegisterX64 dil{SizeX64::byte, 7};
+constexpr RegisterX64 r8b{SizeX64::byte, 8};
+constexpr RegisterX64 r9b{SizeX64::byte, 9};
+constexpr RegisterX64 r10b{SizeX64::byte, 10};
+constexpr RegisterX64 r11b{SizeX64::byte, 11};
+constexpr RegisterX64 r12b{SizeX64::byte, 12};
+constexpr RegisterX64 r13b{SizeX64::byte, 13};
+constexpr RegisterX64 r14b{SizeX64::byte, 14};
+constexpr RegisterX64 r15b{SizeX64::byte, 15};
+constexpr RegisterX64 eax{SizeX64::dword, 0};
+constexpr RegisterX64 ecx{SizeX64::dword, 1};
+constexpr RegisterX64 edx{SizeX64::dword, 2};
+constexpr RegisterX64 ebx{SizeX64::dword, 3};
+constexpr RegisterX64 esp{SizeX64::dword, 4};
+constexpr RegisterX64 ebp{SizeX64::dword, 5};
+constexpr RegisterX64 esi{SizeX64::dword, 6};
+constexpr RegisterX64 edi{SizeX64::dword, 7};
+constexpr RegisterX64 r8d{SizeX64::dword, 8};
+constexpr RegisterX64 r9d{SizeX64::dword, 9};
+constexpr RegisterX64 r10d{SizeX64::dword, 10};
+constexpr RegisterX64 r11d{SizeX64::dword, 11};
+constexpr RegisterX64 r12d{SizeX64::dword, 12};
+constexpr RegisterX64 r13d{SizeX64::dword, 13};
+constexpr RegisterX64 r14d{SizeX64::dword, 14};
+constexpr RegisterX64 r15d{SizeX64::dword, 15};
+constexpr RegisterX64 rax{SizeX64::qword, 0};
+constexpr RegisterX64 rcx{SizeX64::qword, 1};
+constexpr RegisterX64 rdx{SizeX64::qword, 2};
+constexpr RegisterX64 rbx{SizeX64::qword, 3};
+constexpr RegisterX64 rsp{SizeX64::qword, 4};
+constexpr RegisterX64 rbp{SizeX64::qword, 5};
+constexpr RegisterX64 rsi{SizeX64::qword, 6};
+constexpr RegisterX64 rdi{SizeX64::qword, 7};
+constexpr RegisterX64 r8{SizeX64::qword, 8};
+constexpr RegisterX64 r9{SizeX64::qword, 9};
+constexpr RegisterX64 r10{SizeX64::qword, 10};
+constexpr RegisterX64 r11{SizeX64::qword, 11};
+constexpr RegisterX64 r12{SizeX64::qword, 12};
+constexpr RegisterX64 r13{SizeX64::qword, 13};
+constexpr RegisterX64 r14{SizeX64::qword, 14};
+constexpr RegisterX64 r15{SizeX64::qword, 15};
+constexpr RegisterX64 xmm0{SizeX64::xmmword, 0};
+constexpr RegisterX64 xmm1{SizeX64::xmmword, 1};
+constexpr RegisterX64 xmm2{SizeX64::xmmword, 2};
+constexpr RegisterX64 xmm3{SizeX64::xmmword, 3};
+constexpr RegisterX64 xmm4{SizeX64::xmmword, 4};
+constexpr RegisterX64 xmm5{SizeX64::xmmword, 5};
+constexpr RegisterX64 xmm6{SizeX64::xmmword, 6};
+constexpr RegisterX64 xmm7{SizeX64::xmmword, 7};
+constexpr RegisterX64 xmm8{SizeX64::xmmword, 8};
+constexpr RegisterX64 xmm9{SizeX64::xmmword, 9};
+constexpr RegisterX64 xmm10{SizeX64::xmmword, 10};
+constexpr RegisterX64 xmm11{SizeX64::xmmword, 11};
+constexpr RegisterX64 xmm12{SizeX64::xmmword, 12};
+constexpr RegisterX64 xmm13{SizeX64::xmmword, 13};
+constexpr RegisterX64 xmm14{SizeX64::xmmword, 14};
+constexpr RegisterX64 xmm15{SizeX64::xmmword, 15};
+constexpr RegisterX64 ymm0{SizeX64::ymmword, 0};
+constexpr RegisterX64 ymm1{SizeX64::ymmword, 1};
+constexpr RegisterX64 ymm2{SizeX64::ymmword, 2};
+constexpr RegisterX64 ymm3{SizeX64::ymmword, 3};
+constexpr RegisterX64 ymm4{SizeX64::ymmword, 4};
+constexpr RegisterX64 ymm5{SizeX64::ymmword, 5};
+constexpr RegisterX64 ymm6{SizeX64::ymmword, 6};
+constexpr RegisterX64 ymm7{SizeX64::ymmword, 7};
+constexpr RegisterX64 ymm8{SizeX64::ymmword, 8};
+constexpr RegisterX64 ymm9{SizeX64::ymmword, 9};
+constexpr RegisterX64 ymm10{SizeX64::ymmword, 10};
+constexpr RegisterX64 ymm11{SizeX64::ymmword, 11};
+constexpr RegisterX64 ymm12{SizeX64::ymmword, 12};
+constexpr RegisterX64 ymm13{SizeX64::ymmword, 13};
+constexpr RegisterX64 ymm14{SizeX64::ymmword, 14};
+constexpr RegisterX64 ymm15{SizeX64::ymmword, 15};
+constexpr RegisterX64 byteReg(RegisterX64 reg)
+{
+ return RegisterX64{SizeX64::byte, reg.index};
+}
+constexpr RegisterX64 wordReg(RegisterX64 reg)
+{
+ return RegisterX64{SizeX64::word, reg.index};
+}
+constexpr RegisterX64 dwordReg(RegisterX64 reg)
+{
+ return RegisterX64{SizeX64::dword, reg.index};
+}
+constexpr RegisterX64 qwordReg(RegisterX64 reg)
+{
+ return RegisterX64{SizeX64::qword, reg.index};
+}
+}
+} // namespace CodeGen
+}
+#line __LINE__ "IrData.h"
+#line __LINE__ "RegisterA64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+namespace A64
+{
+enum class KindA64 : uint8_t
+{
+ none,
+ w,
+ x, // 64-bit GPR
+ s,
+ d, // 64-bit SIMD&FP scalar
+ q,
+};
+struct RegisterA64
+{
+ KindA64 kind : 3;
+ uint8_t index : 5;
+ constexpr bool operator==(RegisterA64 rhs) const
+ {
+ return kind == rhs.kind && index == rhs.index;
+ }
+ constexpr bool operator!=(RegisterA64 rhs) const
+ {
+ return !(*this == rhs);
+ }
+};
+constexpr RegisterA64 castReg(KindA64 kind, RegisterA64 reg)
+{
+ LUAU_ASSERT(kind != reg.kind);
+ LUAU_ASSERT(kind != KindA64::none && reg.kind != KindA64::none);
+ LUAU_ASSERT((kind == KindA64::w || kind == KindA64::x) == (reg.kind == KindA64::w || reg.kind == KindA64::x));
+ return RegisterA64{kind, reg.index};
+}
+constexpr RegisterA64 noreg{KindA64::none, 0};
+constexpr RegisterA64 w0{KindA64::w, 0};
+constexpr RegisterA64 w1{KindA64::w, 1};
+constexpr RegisterA64 w2{KindA64::w, 2};
+constexpr RegisterA64 w3{KindA64::w, 3};
+constexpr RegisterA64 w4{KindA64::w, 4};
+constexpr RegisterA64 w5{KindA64::w, 5};
+constexpr RegisterA64 w6{KindA64::w, 6};
+constexpr RegisterA64 w7{KindA64::w, 7};
+constexpr RegisterA64 w8{KindA64::w, 8};
+constexpr RegisterA64 w9{KindA64::w, 9};
+constexpr RegisterA64 w10{KindA64::w, 10};
+constexpr RegisterA64 w11{KindA64::w, 11};
+constexpr RegisterA64 w12{KindA64::w, 12};
+constexpr RegisterA64 w13{KindA64::w, 13};
+constexpr RegisterA64 w14{KindA64::w, 14};
+constexpr RegisterA64 w15{KindA64::w, 15};
+constexpr RegisterA64 w16{KindA64::w, 16};
+constexpr RegisterA64 w17{KindA64::w, 17};
+constexpr RegisterA64 w18{KindA64::w, 18};
+constexpr RegisterA64 w19{KindA64::w, 19};
+constexpr RegisterA64 w20{KindA64::w, 20};
+constexpr RegisterA64 w21{KindA64::w, 21};
+constexpr RegisterA64 w22{KindA64::w, 22};
+constexpr RegisterA64 w23{KindA64::w, 23};
+constexpr RegisterA64 w24{KindA64::w, 24};
+constexpr RegisterA64 w25{KindA64::w, 25};
+constexpr RegisterA64 w26{KindA64::w, 26};
+constexpr RegisterA64 w27{KindA64::w, 27};
+constexpr RegisterA64 w28{KindA64::w, 28};
+constexpr RegisterA64 w29{KindA64::w, 29};
+constexpr RegisterA64 w30{KindA64::w, 30};
+constexpr RegisterA64 wzr{KindA64::w, 31};
+constexpr RegisterA64 x0{KindA64::x, 0};
+constexpr RegisterA64 x1{KindA64::x, 1};
+constexpr RegisterA64 x2{KindA64::x, 2};
+constexpr RegisterA64 x3{KindA64::x, 3};
+constexpr RegisterA64 x4{KindA64::x, 4};
+constexpr RegisterA64 x5{KindA64::x, 5};
+constexpr RegisterA64 x6{KindA64::x, 6};
+constexpr RegisterA64 x7{KindA64::x, 7};
+constexpr RegisterA64 x8{KindA64::x, 8};
+constexpr RegisterA64 x9{KindA64::x, 9};
+constexpr RegisterA64 x10{KindA64::x, 10};
+constexpr RegisterA64 x11{KindA64::x, 11};
+constexpr RegisterA64 x12{KindA64::x, 12};
+constexpr RegisterA64 x13{KindA64::x, 13};
+constexpr RegisterA64 x14{KindA64::x, 14};
+constexpr RegisterA64 x15{KindA64::x, 15};
+constexpr RegisterA64 x16{KindA64::x, 16};
+constexpr RegisterA64 x17{KindA64::x, 17};
+constexpr RegisterA64 x18{KindA64::x, 18};
+constexpr RegisterA64 x19{KindA64::x, 19};
+constexpr RegisterA64 x20{KindA64::x, 20};
+constexpr RegisterA64 x21{KindA64::x, 21};
+constexpr RegisterA64 x22{KindA64::x, 22};
+constexpr RegisterA64 x23{KindA64::x, 23};
+constexpr RegisterA64 x24{KindA64::x, 24};
+constexpr RegisterA64 x25{KindA64::x, 25};
+constexpr RegisterA64 x26{KindA64::x, 26};
+constexpr RegisterA64 x27{KindA64::x, 27};
+constexpr RegisterA64 x28{KindA64::x, 28};
+constexpr RegisterA64 x29{KindA64::x, 29};
+constexpr RegisterA64 x30{KindA64::x, 30};
+constexpr RegisterA64 xzr{KindA64::x, 31};
+constexpr RegisterA64 sp{KindA64::none, 31};
+constexpr RegisterA64 s0{KindA64::s, 0};
+constexpr RegisterA64 s1{KindA64::s, 1};
+constexpr RegisterA64 s2{KindA64::s, 2};
+constexpr RegisterA64 s3{KindA64::s, 3};
+constexpr RegisterA64 s4{KindA64::s, 4};
+constexpr RegisterA64 s5{KindA64::s, 5};
+constexpr RegisterA64 s6{KindA64::s, 6};
+constexpr RegisterA64 s7{KindA64::s, 7};
+constexpr RegisterA64 s8{KindA64::s, 8};
+constexpr RegisterA64 s9{KindA64::s, 9};
+constexpr RegisterA64 s10{KindA64::s, 10};
+constexpr RegisterA64 s11{KindA64::s, 11};
+constexpr RegisterA64 s12{KindA64::s, 12};
+constexpr RegisterA64 s13{KindA64::s, 13};
+constexpr RegisterA64 s14{KindA64::s, 14};
+constexpr RegisterA64 s15{KindA64::s, 15};
+constexpr RegisterA64 s16{KindA64::s, 16};
+constexpr RegisterA64 s17{KindA64::s, 17};
+constexpr RegisterA64 s18{KindA64::s, 18};
+constexpr RegisterA64 s19{KindA64::s, 19};
+constexpr RegisterA64 s20{KindA64::s, 20};
+constexpr RegisterA64 s21{KindA64::s, 21};
+constexpr RegisterA64 s22{KindA64::s, 22};
+constexpr RegisterA64 s23{KindA64::s, 23};
+constexpr RegisterA64 s24{KindA64::s, 24};
+constexpr RegisterA64 s25{KindA64::s, 25};
+constexpr RegisterA64 s26{KindA64::s, 26};
+constexpr RegisterA64 s27{KindA64::s, 27};
+constexpr RegisterA64 s28{KindA64::s, 28};
+constexpr RegisterA64 s29{KindA64::s, 29};
+constexpr RegisterA64 s30{KindA64::s, 30};
+constexpr RegisterA64 s31{KindA64::s, 31};
+constexpr RegisterA64 d0{KindA64::d, 0};
+constexpr RegisterA64 d1{KindA64::d, 1};
+constexpr RegisterA64 d2{KindA64::d, 2};
+constexpr RegisterA64 d3{KindA64::d, 3};
+constexpr RegisterA64 d4{KindA64::d, 4};
+constexpr RegisterA64 d5{KindA64::d, 5};
+constexpr RegisterA64 d6{KindA64::d, 6};
+constexpr RegisterA64 d7{KindA64::d, 7};
+constexpr RegisterA64 d8{KindA64::d, 8};
+constexpr RegisterA64 d9{KindA64::d, 9};
+constexpr RegisterA64 d10{KindA64::d, 10};
+constexpr RegisterA64 d11{KindA64::d, 11};
+constexpr RegisterA64 d12{KindA64::d, 12};
+constexpr RegisterA64 d13{KindA64::d, 13};
+constexpr RegisterA64 d14{KindA64::d, 14};
+constexpr RegisterA64 d15{KindA64::d, 15};
+constexpr RegisterA64 d16{KindA64::d, 16};
+constexpr RegisterA64 d17{KindA64::d, 17};
+constexpr RegisterA64 d18{KindA64::d, 18};
+constexpr RegisterA64 d19{KindA64::d, 19};
+constexpr RegisterA64 d20{KindA64::d, 20};
+constexpr RegisterA64 d21{KindA64::d, 21};
+constexpr RegisterA64 d22{KindA64::d, 22};
+constexpr RegisterA64 d23{KindA64::d, 23};
+constexpr RegisterA64 d24{KindA64::d, 24};
+constexpr RegisterA64 d25{KindA64::d, 25};
+constexpr RegisterA64 d26{KindA64::d, 26};
+constexpr RegisterA64 d27{KindA64::d, 27};
+constexpr RegisterA64 d28{KindA64::d, 28};
+constexpr RegisterA64 d29{KindA64::d, 29};
+constexpr RegisterA64 d30{KindA64::d, 30};
+constexpr RegisterA64 d31{KindA64::d, 31};
+constexpr RegisterA64 q0{KindA64::q, 0};
+constexpr RegisterA64 q1{KindA64::q, 1};
+constexpr RegisterA64 q2{KindA64::q, 2};
+constexpr RegisterA64 q3{KindA64::q, 3};
+constexpr RegisterA64 q4{KindA64::q, 4};
+constexpr RegisterA64 q5{KindA64::q, 5};
+constexpr RegisterA64 q6{KindA64::q, 6};
+constexpr RegisterA64 q7{KindA64::q, 7};
+constexpr RegisterA64 q8{KindA64::q, 8};
+constexpr RegisterA64 q9{KindA64::q, 9};
+constexpr RegisterA64 q10{KindA64::q, 10};
+constexpr RegisterA64 q11{KindA64::q, 11};
+constexpr RegisterA64 q12{KindA64::q, 12};
+constexpr RegisterA64 q13{KindA64::q, 13};
+constexpr RegisterA64 q14{KindA64::q, 14};
+constexpr RegisterA64 q15{KindA64::q, 15};
+constexpr RegisterA64 q16{KindA64::q, 16};
+constexpr RegisterA64 q17{KindA64::q, 17};
+constexpr RegisterA64 q18{KindA64::q, 18};
+constexpr RegisterA64 q19{KindA64::q, 19};
+constexpr RegisterA64 q20{KindA64::q, 20};
+constexpr RegisterA64 q21{KindA64::q, 21};
+constexpr RegisterA64 q22{KindA64::q, 22};
+constexpr RegisterA64 q23{KindA64::q, 23};
+constexpr RegisterA64 q24{KindA64::q, 24};
+constexpr RegisterA64 q25{KindA64::q, 25};
+constexpr RegisterA64 q26{KindA64::q, 26};
+constexpr RegisterA64 q27{KindA64::q, 27};
+constexpr RegisterA64 q28{KindA64::q, 28};
+constexpr RegisterA64 q29{KindA64::q, 29};
+constexpr RegisterA64 q30{KindA64::q, 30};
+constexpr RegisterA64 q31{KindA64::q, 31};
+}
+} // namespace CodeGen
+}
+#line __LINE__ "IrData.h"
+LUAU_FASTFLAG(LuauKeepVmapLinear2)
+struct Proto;
+namespace Luau
+{
+namespace CodeGen
+{
+enum
+{
+ LBF_IR_MATH_LOG2 = 256,
+};
+enum class IrCmd : uint8_t
+{
+ NOP,
+ LOAD_TAG,
+ LOAD_POINTER,
+ LOAD_DOUBLE,
+ LOAD_INT,
+ LOAD_TVALUE,
+ LOAD_ENV,
+ GET_ARR_ADDR,
+ GET_SLOT_NODE_ADDR,
+ GET_HASH_NODE_ADDR,
+ GET_CLOSURE_UPVAL_ADDR,
+ STORE_TAG,
+ STORE_POINTER,
+ STORE_DOUBLE,
+ STORE_INT,
+ STORE_VECTOR,
+ STORE_TVALUE,
+ STORE_SPLIT_TVALUE,
+ ADD_INT,
+ SUB_INT,
+ ADD_NUM,
+ SUB_NUM,
+ MUL_NUM,
+ DIV_NUM,
+ IDIV_NUM,
+ MOD_NUM,
+ MIN_NUM,
+ MAX_NUM,
+ UNM_NUM,
+ FLOOR_NUM,
+ CEIL_NUM,
+ ROUND_NUM,
+ SQRT_NUM,
+ ABS_NUM,
+ NOT_ANY,
+ CMP_ANY,
+ JUMP,
+ JUMP_IF_TRUTHY,
+ JUMP_IF_FALSY,
+ JUMP_EQ_TAG,
+ JUMP_CMP_INT,
+ JUMP_EQ_POINTER,
+ JUMP_CMP_NUM,
+ JUMP_FORN_LOOP_COND,
+ JUMP_SLOT_MATCH,
+ TABLE_LEN,
+ STRING_LEN,
+ NEW_TABLE,
+ DUP_TABLE,
+ TABLE_SETNUM,
+ TRY_NUM_TO_INDEX,
+ TRY_CALL_FASTGETTM,
+ INT_TO_NUM,
+ UINT_TO_NUM,
+ NUM_TO_INT,
+ NUM_TO_UINT,
+ ADJUST_STACK_TO_REG,
+ ADJUST_STACK_TO_TOP,
+ FASTCALL,
+ INVOKE_FASTCALL,
+ CHECK_FASTCALL_RES,
+ DO_ARITH,
+ DO_LEN,
+ GET_TABLE,
+ SET_TABLE,
+ GET_IMPORT,
+ CONCAT,
+ GET_UPVALUE,
+ SET_UPVALUE,
+ CHECK_TAG,
+ CHECK_TRUTHY,
+ CHECK_READONLY,
+ CHECK_NO_METATABLE,
+ CHECK_SAFE_ENV,
+ CHECK_ARRAY_SIZE,
+ CHECK_SLOT_MATCH,
+ CHECK_NODE_NO_NEXT,
+ CHECK_NODE_VALUE,
+ CHECK_BUFFER_LEN,
+ INTERRUPT,
+ CHECK_GC,
+ BARRIER_OBJ,
+ BARRIER_TABLE_BACK,
+ BARRIER_TABLE_FORWARD,
+ SET_SAVEDPC,
+ CLOSE_UPVALS,
+ CAPTURE,
+ SETLIST,
+ CALL,
+ RETURN,
+ FORGLOOP,
+ FORGLOOP_FALLBACK,
+ FORGPREP_XNEXT_FALLBACK,
+ COVERAGE,
+ FALLBACK_GETGLOBAL,
+ FALLBACK_SETGLOBAL,
+ FALLBACK_GETTABLEKS,
+ FALLBACK_SETTABLEKS,
+ FALLBACK_NAMECALL,
+ FALLBACK_PREPVARARGS,
+ FALLBACK_GETVARARGS,
+ NEWCLOSURE,
+ FALLBACK_DUPCLOSURE,
+ FALLBACK_FORGPREP,
+ SUBSTITUTE,
+ BITAND_UINT,
+ BITXOR_UINT,
+ BITOR_UINT,
+ BITNOT_UINT,
+ BITLSHIFT_UINT,
+ BITRSHIFT_UINT,
+ BITARSHIFT_UINT,
+ BITLROTATE_UINT,
+ BITRROTATE_UINT,
+ BITCOUNTLZ_UINT,
+ BITCOUNTRZ_UINT,
+ BYTESWAP_UINT,
+ INVOKE_LIBM,
+ GET_TYPE,
+ GET_TYPEOF,
+ FINDUPVAL,
+ BUFFER_READI8,
+ BUFFER_READU8,
+ BUFFER_WRITEI8,
+ BUFFER_READI16,
+ BUFFER_READU16,
+ BUFFER_WRITEI16,
+ BUFFER_READI32,
+ BUFFER_WRITEI32,
+ BUFFER_READF32,
+ BUFFER_WRITEF32,
+ BUFFER_READF64,
+ BUFFER_WRITEF64,
+};
+enum class IrConstKind : uint8_t
+{
+ Int,
+ Uint,
+ Double,
+ Tag,
+};
+struct IrConst
+{
+ IrConstKind kind;
+ union
+ {
+ int valueInt;
+ unsigned valueUint;
+ double valueDouble;
+ uint8_t valueTag;
+ };
+};
+enum class IrCondition : uint8_t
+{
+ Equal,
+ NotEqual,
+ Less,
+ NotLess,
+ LessEqual,
+ NotLessEqual,
+ Greater,
+ NotGreater,
+ GreaterEqual,
+ NotGreaterEqual,
+ UnsignedLess,
+ UnsignedLessEqual,
+ UnsignedGreater,
+ UnsignedGreaterEqual,
+ Count
+};
+enum class IrOpKind : uint32_t
+{
+ None,
+ Undef,
+ Constant,
+ Condition,
+ Inst,
+ Block,
+ VmReg,
+ VmConst,
+ VmUpvalue,
+ VmExit,
+};
+constexpr uint32_t kVmExitEntryGuardPc = (1u << 28) - 1;
+struct IrOp
+{
+ IrOpKind kind : 4;
+ uint32_t index : 28;
+ IrOp()
+ : kind(IrOpKind::None)
+ , index(0)
+ {
+ }
+ IrOp(IrOpKind kind, uint32_t index)
+ : kind(kind)
+ , index(index)
+ {
+ }
+ bool operator==(const IrOp& rhs) const
+ {
+ return kind == rhs.kind && index == rhs.index;
+ }
+ bool operator!=(const IrOp& rhs) const
+ {
+ return !(*this == rhs);
+ }
+};
+static_assert(sizeof(IrOp) == 4);
+enum class IrValueKind : uint8_t
+{
+ Unknown,
+ None,
+ Tag,
+ Int,
+ Pointer,
+ Double,
+ Tvalue,
+};
+struct IrInst
+{
+ IrCmd cmd;
+ IrOp a;
+ IrOp b;
+ IrOp c;
+ IrOp d;
+ IrOp e;
+ IrOp f;
+ uint32_t lastUse = 0;
+ uint16_t useCount = 0;
+ X64::RegisterX64 regX64 = X64::noreg;
+ A64::RegisterA64 regA64 = A64::noreg;
+ bool reusedReg = false;
+ bool spilled = false;
+ bool needsReload = false;
+};
+constexpr uint32_t kInvalidInstIdx = ~0u;
+struct IrInstHash
+{
+ static const uint32_t m = 0x5bd1e995;
+ static const int r = 24;
+ static uint32_t mix(uint32_t h, uint32_t k)
+ {
+ k *= m;
+ k ^= k >> r;
+ k *= m;
+ h *= m;
+ h ^= k;
+ return h;
+ }
+ static uint32_t mix(uint32_t h, IrOp op)
+ {
+ static_assert(sizeof(op) == sizeof(uint32_t));
+ uint32_t k;
+ memcpy(&k, &op, sizeof(op));
+ return mix(h, k);
+ }
+ size_t operator()(const IrInst& key) const
+ {
+ uint32_t h = 25;
+ h = mix(h, uint32_t(key.cmd));
+ h = mix(h, key.a);
+ h = mix(h, key.b);
+ h = mix(h, key.c);
+ h = mix(h, key.d);
+ h = mix(h, key.e);
+ h = mix(h, key.f);
+ h ^= h >> 13;
+ h *= m;
+ h ^= h >> 15;
+ return h;
+ }
+};
+struct IrInstEq
+{
+ bool operator()(const IrInst& a, const IrInst& b) const
+ {
+ return a.cmd == b.cmd && a.a == b.a && a.b == b.b && a.c == b.c && a.d == b.d && a.e == b.e && a.f == b.f;
+ }
+};
+enum class IrBlockKind : uint8_t
+{
+ Bytecode,
+ Fallback,
+ Internal,
+ Linearized,
+ Dead,
+};
+struct IrBlock
+{
+ IrBlockKind kind;
+ uint16_t useCount = 0;
+ uint32_t start = ~0u;
+ uint32_t finish = ~0u;
+ uint32_t sortkey = ~0u;
+ uint32_t chainkey = 0;
+ uint32_t expectedNextBlock = ~0u;
+ Label label;
+};
+struct BytecodeMapping
+{
+ uint32_t irLocation;
+ uint32_t asmLocation;
+};
+struct BytecodeBlock
+{
+ int startpc = -1;
+ int finishpc = -1;
+};
+struct BytecodeTypes
+{
+ uint8_t result = LBC_TYPE_ANY;
+ uint8_t a = LBC_TYPE_ANY;
+ uint8_t b = LBC_TYPE_ANY;
+ uint8_t c = LBC_TYPE_ANY;
+};
+struct IrFunction
+{
+ std::vector<IrBlock> blocks;
+ std::vector<IrInst> instructions;
+ std::vector<IrConst> constants;
+ std::vector<BytecodeBlock> bcBlocks;
+ std::vector<BytecodeTypes> bcTypes;
+ std::vector<BytecodeMapping> bcMapping;
+ uint32_t entryBlock = 0;
+ uint32_t entryLocation = 0;
+ std::vector<IrOp> valueRestoreOps;
+ std::vector<uint32_t> validRestoreOpBlocks;
+ uint32_t validRestoreOpBlockIdx = 0;
+ Proto* proto = nullptr;
+ bool variadic = false;
+ CfgInfo cfg;
+ IrBlock& blockOp(IrOp op)
+ {
+ LUAU_ASSERT(op.kind == IrOpKind::Block);
+ return blocks[op.index];
+ }
+ IrInst& instOp(IrOp op)
+ {
+ LUAU_ASSERT(op.kind == IrOpKind::Inst);
+ return instructions[op.index];
+ }
+ IrInst* asInstOp(IrOp op)
+ {
+ if (op.kind == IrOpKind::Inst)
+ return &instructions[op.index];
+ return nullptr;
+ }
+ IrConst& constOp(IrOp op)
+ {
+ LUAU_ASSERT(op.kind == IrOpKind::Constant);
+ return constants[op.index];
+ }
+ uint8_t tagOp(IrOp op)
+ {
+ IrConst& value = constOp(op);
+ LUAU_ASSERT(value.kind == IrConstKind::Tag);
+ return value.valueTag;
+ }
+ std::optional<uint8_t> asTagOp(IrOp op)
+ {
+ if (op.kind != IrOpKind::Constant)
+ return std::nullopt;
+ IrConst& value = constOp(op);
+ if (value.kind != IrConstKind::Tag)
+ return std::nullopt;
+ return value.valueTag;
+ }
+ int intOp(IrOp op)
+ {
+ IrConst& value = constOp(op);
+ LUAU_ASSERT(value.kind == IrConstKind::Int);
+ return value.valueInt;
+ }
+ std::optional<int> asIntOp(IrOp op)
+ {
+ if (op.kind != IrOpKind::Constant)
+ return std::nullopt;
+ IrConst& value = constOp(op);
+ if (value.kind != IrConstKind::Int)
+ return std::nullopt;
+ return value.valueInt;
+ }
+ unsigned uintOp(IrOp op)
+ {
+ IrConst& value = constOp(op);
+ LUAU_ASSERT(value.kind == IrConstKind::Uint);
+ return value.valueUint;
+ }
+ std::optional<unsigned> asUintOp(IrOp op)
+ {
+ if (op.kind != IrOpKind::Constant)
+ return std::nullopt;
+ IrConst& value = constOp(op);
+ if (value.kind != IrConstKind::Uint)
+ return std::nullopt;
+ return value.valueUint;
+ }
+ double doubleOp(IrOp op)
+ {
+ IrConst& value = constOp(op);
+ LUAU_ASSERT(value.kind == IrConstKind::Double);
+ return value.valueDouble;
+ }
+ std::optional<double> asDoubleOp(IrOp op)
+ {
+ if (op.kind != IrOpKind::Constant)
+ return std::nullopt;
+ IrConst& value = constOp(op);
+ if (value.kind != IrConstKind::Double)
+ return std::nullopt;
+ return value.valueDouble;
+ }
+ uint32_t getBlockIndex(const IrBlock& block) const
+ {
+ LUAU_ASSERT(&block >= blocks.data() && &block <= blocks.data() + blocks.size());
+ return uint32_t(&block - blocks.data());
+ }
+ uint32_t getInstIndex(const IrInst& inst) const
+ {
+ LUAU_ASSERT(&inst >= instructions.data() && &inst <= instructions.data() + instructions.size());
+ return uint32_t(&inst - instructions.data());
+ }
+ void recordRestoreOp(uint32_t instIdx, IrOp location)
+ {
+ if (instIdx >= valueRestoreOps.size())
+ valueRestoreOps.resize(instIdx + 1);
+ valueRestoreOps[instIdx] = location;
+ }
+ IrOp findRestoreOp(uint32_t instIdx, bool limitToCurrentBlock) const
+ {
+ if (instIdx >= valueRestoreOps.size())
+ return {};
+ if (FFlag::LuauKeepVmapLinear2)
+ {
+ if (limitToCurrentBlock)
+ {
+ for (uint32_t blockIdx : validRestoreOpBlocks)
+ {
+ const IrBlock& block = blocks[blockIdx];
+ if (instIdx >= block.start && instIdx <= block.finish)
+ return valueRestoreOps[instIdx];
+ }
+ return {};
+ }
+ return valueRestoreOps[instIdx];
+ }
+ else
+ {
+ const IrBlock& block = blocks[validRestoreOpBlockIdx];
+ if (limitToCurrentBlock)
+ {
+ if (instIdx < block.start || instIdx > block.finish)
+ return {};
+ }
+ return valueRestoreOps[instIdx];
+ }
+ }
+ IrOp findRestoreOp(const IrInst& inst, bool limitToCurrentBlock) const
+ {
+ return findRestoreOp(getInstIndex(inst), limitToCurrentBlock);
+ }
+ BytecodeTypes getBytecodeTypesAt(int pcpos) const
+ {
+ LUAU_ASSERT(pcpos >= 0);
+ if (size_t(pcpos) < bcTypes.size())
+ return bcTypes[pcpos];
+ return BytecodeTypes();
+ }
+};
+inline IrCondition conditionOp(IrOp op)
+{
+ LUAU_ASSERT(op.kind == IrOpKind::Condition);
+ return IrCondition(op.index);
+}
+inline int vmRegOp(IrOp op)
+{
+ LUAU_ASSERT(op.kind == IrOpKind::VmReg);
+ return op.index;
+}
+inline int vmConstOp(IrOp op)
+{
+ LUAU_ASSERT(op.kind == IrOpKind::VmConst);
+ return op.index;
+}
+inline int vmUpvalueOp(IrOp op)
+{
+ LUAU_ASSERT(op.kind == IrOpKind::VmUpvalue);
+ return op.index;
+}
+inline uint32_t vmExitOp(IrOp op)
+{
+ LUAU_ASSERT(op.kind == IrOpKind::VmExit);
+ return op.index;
+}
+}
+} // namespace Luau
+#line __LINE__ "IrBuilder.h"
+struct Proto;
+typedef uint32_t Instruction;
+namespace Luau
+{
+namespace CodeGen
+{
+struct AssemblyOptions;
+struct IrBuilder
+{
+ IrBuilder();
+ void buildFunctionIr(Proto* proto);
+ void rebuildBytecodeBasicBlocks(Proto* proto);
+ void translateInst(LuauOpcode op, const Instruction* pc, int i);
+ void handleFastcallFallback(IrOp fallbackOrUndef, const Instruction* pc, int i);
+ bool isInternalBlock(IrOp block);
+ void beginBlock(IrOp block);
+ void loadAndCheckTag(IrOp loc, uint8_t tag, IrOp fallback);
+ void clone(const IrBlock& source, bool removeCurrentTerminator);
+ IrOp undef();
+ IrOp constInt(int value);
+ IrOp constUint(unsigned value);
+ IrOp constDouble(double value);
+ IrOp constTag(uint8_t value);
+ IrOp constAny(IrConst constant, uint64_t asCommonKey);
+ IrOp cond(IrCondition cond);
+ IrOp inst(IrCmd cmd);
+ IrOp inst(IrCmd cmd, IrOp a);
+ IrOp inst(IrCmd cmd, IrOp a, IrOp b);
+ IrOp inst(IrCmd cmd, IrOp a, IrOp b, IrOp c);
+ IrOp inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d);
+ IrOp inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e);
+ IrOp inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e, IrOp f);
+ IrOp block(IrBlockKind kind);
+ IrOp blockAtInst(uint32_t index);
+ IrOp vmReg(uint8_t index);
+ IrOp vmConst(uint32_t index);
+ IrOp vmUpvalue(uint8_t index);
+ IrOp vmExit(uint32_t pcpos);
+ bool inTerminatedBlock = false;
+ bool interruptRequested = false;
+ bool activeFastcallFallback = false;
+ IrOp fastcallFallbackReturn;
+ int fastcallSkipTarget = -1;
+ IrFunction function;
+ uint32_t activeBlockIdx = ~0u;
+ std::vector<uint32_t> instIndexToBlock;
+ struct LoopInfo
+ {
+ IrOp step;
+ int startpc = 0;
+ };
+ std::vector<LoopInfo> numericLoopStack;
+ struct ConstantKey
+ {
+ IrConstKind kind;
+ uint64_t value;
+ bool operator==(const ConstantKey& key) const
+ {
+ return kind == key.kind && value == key.value;
+ }
+ };
+ struct ConstantKeyHash
+ {
+ size_t operator()(const ConstantKey& key) const
+ {
+ const uint32_t m = 0x5bd1e995;
+ uint32_t h1 = uint32_t(key.value);
+ uint32_t h2 = uint32_t(key.value >> 32) ^ (int(key.kind) * m);
+ h1 ^= h2 >> 18;
+ h1 *= m;
+ h2 ^= h1 >> 22;
+ h2 *= m;
+ h1 ^= h2 >> 17;
+ h1 *= m;
+ h2 ^= h1 >> 19;
+ h2 *= m;
+ return size_t(h2);
+ }
+ };
+ DenseHashMap<ConstantKey, uint32_t, ConstantKeyHash> constantMap;
+};
+}
+} // namespace Luau
+#line __LINE__ "IrBuilder.cpp"
+#line __LINE__ "BytecodeAnalysis.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct IrFunction;
+void buildBytecodeBlocks(IrFunction& function, const std::vector<uint8_t>& jumpTargets);
+void analyzeBytecodeTypes(IrFunction& function);
+}
+} // namespace Luau
+#line __LINE__ "IrBuilder.cpp"
+#line __LINE__ "IrUtils.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct IrBuilder;
+inline bool isJumpD(LuauOpcode op)
+{
+ switch (op)
+ {
+ case LOP_JUMP:
+ case LOP_JUMPIF:
+ case LOP_JUMPIFNOT:
+ case LOP_JUMPIFEQ:
+ case LOP_JUMPIFLE:
+ case LOP_JUMPIFLT:
+ case LOP_JUMPIFNOTEQ:
+ case LOP_JUMPIFNOTLE:
+ case LOP_JUMPIFNOTLT:
+ case LOP_FORNPREP:
+ case LOP_FORNLOOP:
+ case LOP_FORGPREP:
+ case LOP_FORGLOOP:
+ case LOP_FORGPREP_INEXT:
+ case LOP_FORGPREP_NEXT:
+ case LOP_JUMPBACK:
+ case LOP_JUMPXEQKNIL:
+ case LOP_JUMPXEQKB:
+ case LOP_JUMPXEQKN:
+ case LOP_JUMPXEQKS:
+ return true;
+ default:
+ return false;
+ }
+}
+inline bool isSkipC(LuauOpcode op)
+{
+ switch (op)
+ {
+ case LOP_LOADB:
+ return true;
+ default:
+ return false;
+ }
+}
+inline bool isFastCall(LuauOpcode op)
+{
+ switch (op)
+ {
+ case LOP_FASTCALL:
+ case LOP_FASTCALL1:
+ case LOP_FASTCALL2:
+ case LOP_FASTCALL2K:
+ return true;
+ default:
+ return false;
+ }
+}
+inline int getJumpTarget(uint32_t insn, uint32_t pc)
+{
+ LuauOpcode op = LuauOpcode(LUAU_INSN_OP(insn));
+ if (isJumpD(op))
+ return int(pc + LUAU_INSN_D(insn) + 1);
+ else if (isFastCall(op))
+ return int(pc + LUAU_INSN_C(insn) + 2);
+ else if (isSkipC(op) && LUAU_INSN_C(insn))
+ return int(pc + LUAU_INSN_C(insn) + 1);
+ else if (op == LOP_JUMPX)
+ return int(pc + LUAU_INSN_E(insn) + 1);
+ else
+ return -1;
+}
+inline bool isBlockTerminator(IrCmd cmd)
+{
+ switch (cmd)
+ {
+ case IrCmd::JUMP:
+ case IrCmd::JUMP_IF_TRUTHY:
+ case IrCmd::JUMP_IF_FALSY:
+ case IrCmd::JUMP_EQ_TAG:
+ case IrCmd::JUMP_CMP_INT:
+ case IrCmd::JUMP_EQ_POINTER:
+ case IrCmd::JUMP_CMP_NUM:
+ case IrCmd::JUMP_FORN_LOOP_COND:
+ case IrCmd::JUMP_SLOT_MATCH:
+ case IrCmd::RETURN:
+ case IrCmd::FORGLOOP:
+ case IrCmd::FORGLOOP_FALLBACK:
+ case IrCmd::FORGPREP_XNEXT_FALLBACK:
+ case IrCmd::FALLBACK_FORGPREP:
+ return true;
+ default:
+ break;
+ }
+ return false;
+}
+inline bool isNonTerminatingJump(IrCmd cmd)
+{
+ switch (cmd)
+ {
+ case IrCmd::TRY_NUM_TO_INDEX:
+ case IrCmd::TRY_CALL_FASTGETTM:
+ case IrCmd::CHECK_FASTCALL_RES:
+ case IrCmd::CHECK_TAG:
+ case IrCmd::CHECK_TRUTHY:
+ case IrCmd::CHECK_READONLY:
+ case IrCmd::CHECK_NO_METATABLE:
+ case IrCmd::CHECK_SAFE_ENV:
+ case IrCmd::CHECK_ARRAY_SIZE:
+ case IrCmd::CHECK_SLOT_MATCH:
+ case IrCmd::CHECK_NODE_NO_NEXT:
+ case IrCmd::CHECK_NODE_VALUE:
+ case IrCmd::CHECK_BUFFER_LEN:
+ return true;
+ default:
+ break;
+ }
+ return false;
+}
+inline bool hasResult(IrCmd cmd)
+{
+ switch (cmd)
+ {
+ case IrCmd::LOAD_TAG:
+ case IrCmd::LOAD_POINTER:
+ case IrCmd::LOAD_DOUBLE:
+ case IrCmd::LOAD_INT:
+ case IrCmd::LOAD_TVALUE:
+ case IrCmd::LOAD_ENV:
+ case IrCmd::GET_ARR_ADDR:
+ case IrCmd::GET_SLOT_NODE_ADDR:
+ case IrCmd::GET_HASH_NODE_ADDR:
+ case IrCmd::GET_CLOSURE_UPVAL_ADDR:
+ case IrCmd::ADD_INT:
+ case IrCmd::SUB_INT:
+ case IrCmd::ADD_NUM:
+ case IrCmd::SUB_NUM:
+ case IrCmd::MUL_NUM:
+ case IrCmd::DIV_NUM:
+ case IrCmd::IDIV_NUM:
+ case IrCmd::MOD_NUM:
+ case IrCmd::MIN_NUM:
+ case IrCmd::MAX_NUM:
+ case IrCmd::UNM_NUM:
+ case IrCmd::FLOOR_NUM:
+ case IrCmd::CEIL_NUM:
+ case IrCmd::ROUND_NUM:
+ case IrCmd::SQRT_NUM:
+ case IrCmd::ABS_NUM:
+ case IrCmd::NOT_ANY:
+ case IrCmd::CMP_ANY:
+ case IrCmd::TABLE_LEN:
+ case IrCmd::TABLE_SETNUM:
+ case IrCmd::STRING_LEN:
+ case IrCmd::NEW_TABLE:
+ case IrCmd::DUP_TABLE:
+ case IrCmd::TRY_NUM_TO_INDEX:
+ case IrCmd::TRY_CALL_FASTGETTM:
+ case IrCmd::INT_TO_NUM:
+ case IrCmd::UINT_TO_NUM:
+ case IrCmd::NUM_TO_INT:
+ case IrCmd::NUM_TO_UINT:
+ case IrCmd::SUBSTITUTE:
+ case IrCmd::INVOKE_FASTCALL:
+ case IrCmd::BITAND_UINT:
+ case IrCmd::BITXOR_UINT:
+ case IrCmd::BITOR_UINT:
+ case IrCmd::BITNOT_UINT:
+ case IrCmd::BITLSHIFT_UINT:
+ case IrCmd::BITRSHIFT_UINT:
+ case IrCmd::BITARSHIFT_UINT:
+ case IrCmd::BITLROTATE_UINT:
+ case IrCmd::BITRROTATE_UINT:
+ case IrCmd::BITCOUNTLZ_UINT:
+ case IrCmd::BITCOUNTRZ_UINT:
+ case IrCmd::INVOKE_LIBM:
+ case IrCmd::GET_TYPE:
+ case IrCmd::GET_TYPEOF:
+ case IrCmd::NEWCLOSURE:
+ case IrCmd::FINDUPVAL:
+ case IrCmd::BUFFER_READI8:
+ case IrCmd::BUFFER_READU8:
+ case IrCmd::BUFFER_READI16:
+ case IrCmd::BUFFER_READU16:
+ case IrCmd::BUFFER_READI32:
+ case IrCmd::BUFFER_READF32:
+ case IrCmd::BUFFER_READF64:
+ return true;
+ default:
+ break;
+ }
+ return false;
+}
+inline bool hasSideEffects(IrCmd cmd)
+{
+ if (cmd == IrCmd::INVOKE_FASTCALL)
+ return true;
+ return !hasResult(cmd);
+}
+inline bool isPseudo(IrCmd cmd)
+{
+ return cmd == IrCmd::NOP || cmd == IrCmd::SUBSTITUTE;
+}
+IrValueKind getCmdValueKind(IrCmd cmd);
+bool isGCO(uint8_t tag);
+void addUse(IrFunction& function, IrOp op);
+void removeUse(IrFunction& function, IrOp op);
+void kill(IrFunction& function, IrInst& inst);
+void kill(IrFunction& function, uint32_t start, uint32_t end);
+void kill(IrFunction& function, IrBlock& block);
+void replace(IrFunction& function, IrOp& original, IrOp replacement);
+void replace(IrFunction& function, IrBlock& block, uint32_t instIdx, IrInst replacement);
+void substitute(IrFunction& function, IrInst& inst, IrOp replacement);
+void applySubstitutions(IrFunction& function, IrOp& op);
+void applySubstitutions(IrFunction& function, IrInst& inst);
+bool compare(double a, double b, IrCondition cond);
+void foldConstants(IrBuilder& build, IrFunction& function, IrBlock& block, uint32_t instIdx);
+uint32_t getNativeContextOffset(int bfid);
+void killUnusedBlocks(IrFunction& function);
+std::vector<uint32_t> getSortedBlockOrder(IrFunction& function);
+IrBlock& getNextBlock(IrFunction& function, const std::vector<uint32_t>& sortedBlocks, IrBlock& dummy, size_t i);
+}
+} // namespace Luau
+#line __LINE__ "IrBuilder.cpp"
+#line __LINE__ "IrTranslation.h"
+typedef uint32_t Instruction;
+namespace Luau
+{
+namespace CodeGen
+{
+enum class IrCondition : uint8_t;
+struct IrOp;
+struct IrBuilder;
+enum class IrCmd : uint8_t;
+void translateInstLoadNil(IrBuilder& build, const Instruction* pc);
+void translateInstLoadB(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstLoadN(IrBuilder& build, const Instruction* pc);
+void translateInstLoadK(IrBuilder& build, const Instruction* pc);
+void translateInstLoadKX(IrBuilder& build, const Instruction* pc);
+void translateInstMove(IrBuilder& build, const Instruction* pc);
+void translateInstJump(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstJumpBack(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstJumpIf(IrBuilder& build, const Instruction* pc, int pcpos, bool not_);
+void translateInstJumpIfEq(IrBuilder& build, const Instruction* pc, int pcpos, bool not_);
+void translateInstJumpIfCond(IrBuilder& build, const Instruction* pc, int pcpos, IrCondition cond);
+void translateInstJumpX(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstJumpxEqNil(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstJumpxEqB(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstJumpxEqN(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstJumpxEqS(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstBinary(IrBuilder& build, const Instruction* pc, int pcpos, TMS tm);
+void translateInstBinaryK(IrBuilder& build, const Instruction* pc, int pcpos, TMS tm);
+void translateInstBinaryRK(IrBuilder& build, const Instruction* pc, int pcpos, TMS tm);
+void translateInstNot(IrBuilder& build, const Instruction* pc);
+void translateInstMinus(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstLength(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstNewTable(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstDupTable(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstGetUpval(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstSetUpval(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstCloseUpvals(IrBuilder& build, const Instruction* pc);
+IrOp translateFastCallN(IrBuilder& build, const Instruction* pc, int pcpos, bool customParams, int customParamCount, IrOp customArgs);
+void translateInstForNPrep(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstForNLoop(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstForGPrepNext(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstForGPrepInext(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstForGLoopIpairs(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstGetTableN(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstSetTableN(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstGetTable(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstSetTable(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstGetImport(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstGetTableKS(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstSetTableKS(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstGetGlobal(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstSetGlobal(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstConcat(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstCapture(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstNamecall(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstAndX(IrBuilder& build, const Instruction* pc, int pcpos, IrOp c);
+void translateInstOrX(IrBuilder& build, const Instruction* pc, int pcpos, IrOp c);
+void translateInstNewClosure(IrBuilder& build, const Instruction* pc, int pcpos);
+void beforeInstForNPrep(IrBuilder& build, const Instruction* pc, int pcpos);
+void afterInstForNLoop(IrBuilder& build, const Instruction* pc);
+}
+} // namespace Luau
+#line __LINE__ "IrBuilder.cpp"
+LUAU_FASTFLAGVARIABLE(LuauCodegenBytecodeInfer, false)
+namespace Luau
+{
+namespace CodeGen
+{
+constexpr unsigned kNoAssociatedBlockIndex = ~0u;
+IrBuilder::IrBuilder()
+ : constantMap({IrConstKind::Tag, ~0ull})
+{
+}
+static bool hasTypedParameters(Proto* proto)
+{
+ return proto->typeinfo && proto->numparams != 0;
+}
+static void buildArgumentTypeChecks(IrBuilder& build, Proto* proto)
+{
+ LUAU_ASSERT(hasTypedParameters(proto));
+ for (int i = 0; i < proto->numparams; ++i)
+ {
+ uint8_t et = proto->typeinfo[2 + i];
+ uint8_t tag = et & ~LBC_TYPE_OPTIONAL_BIT;
+ uint8_t optional = et & LBC_TYPE_OPTIONAL_BIT;
+ if (tag == LBC_TYPE_ANY)
+ continue;
+ IrOp load = build.inst(IrCmd::LOAD_TAG, build.vmReg(i));
+ IrOp nextCheck;
+ if (optional)
+ {
+ nextCheck = build.block(IrBlockKind::Internal);
+ IrOp fallbackCheck = build.block(IrBlockKind::Internal);
+ build.inst(IrCmd::JUMP_EQ_TAG, load, build.constTag(LUA_TNIL), nextCheck, fallbackCheck);
+ build.beginBlock(fallbackCheck);
+ }
+ switch (tag)
+ {
+ case LBC_TYPE_NIL:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TNIL), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ case LBC_TYPE_BOOLEAN:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TBOOLEAN), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ case LBC_TYPE_NUMBER:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TNUMBER), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ case LBC_TYPE_STRING:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TSTRING), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ case LBC_TYPE_TABLE:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TTABLE), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ case LBC_TYPE_FUNCTION:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TFUNCTION), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ case LBC_TYPE_THREAD:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TTHREAD), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ case LBC_TYPE_USERDATA:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TUSERDATA), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ case LBC_TYPE_VECTOR:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TVECTOR), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ case LBC_TYPE_BUFFER:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TBUFFER), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ }
+ if (optional)
+ {
+ build.inst(IrCmd::JUMP, nextCheck);
+ build.beginBlock(nextCheck);
+ }
+ }
+ if (!(proto->typeinfo[2 + proto->numparams - 1] & LBC_TYPE_OPTIONAL_BIT))
+ {
+ IrOp next = build.block(IrBlockKind::Internal);
+ build.inst(IrCmd::JUMP, next);
+ build.beginBlock(next);
+ }
+}
+void IrBuilder::buildFunctionIr(Proto* proto)
+{
+ function.proto = proto;
+ function.variadic = proto->is_vararg != 0;
+ bool generateTypeChecks = hasTypedParameters(proto);
+ IrOp entry = generateTypeChecks ? block(IrBlockKind::Internal) : IrOp{};
+ rebuildBytecodeBasicBlocks(proto);
+ if (FFlag::LuauCodegenBytecodeInfer)
+ analyzeBytecodeTypes(function);
+ function.bcMapping.resize(proto->sizecode, {~0u, ~0u});
+ if (generateTypeChecks)
+ {
+ beginBlock(entry);
+ buildArgumentTypeChecks(*this, proto);
+ inst(IrCmd::JUMP, blockAtInst(0));
+ }
+ else
+ {
+ entry = blockAtInst(0);
+ }
+ function.entryBlock = entry.index;
+ for (int i = 0; i < proto->sizecode;)
+ {
+ const Instruction* pc = &proto->code[i];
+ LuauOpcode op = LuauOpcode(LUAU_INSN_OP(*pc));
+ int nexti = i + getOpLength(op);
+ LUAU_ASSERT(nexti <= proto->sizecode);
+ function.bcMapping[i] = {uint32_t(function.instructions.size()), ~0u};
+ if (instIndexToBlock[i] != kNoAssociatedBlockIndex)
+ beginBlock(blockAtInst(i));
+ if (op == LOP_FORNPREP)
+ beforeInstForNPrep(*this, pc, i);
+ if (!inTerminatedBlock)
+ {
+ if (interruptRequested)
+ {
+ interruptRequested = false;
+ inst(IrCmd::INTERRUPT, constUint(i));
+ }
+ translateInst(op, pc, i);
+ if (fastcallSkipTarget != -1)
+ {
+ nexti = fastcallSkipTarget;
+ fastcallSkipTarget = -1;
+ }
+ }
+ if (op == LOP_FORNLOOP)
+ afterInstForNLoop(*this, pc);
+ i = nexti;
+ LUAU_ASSERT(i <= proto->sizecode);
+ if (i < int(instIndexToBlock.size()) && instIndexToBlock[i] != kNoAssociatedBlockIndex)
+ {
+ if (!isBlockTerminator(function.instructions.back().cmd))
+ inst(IrCmd::JUMP, blockAtInst(i));
+ }
+ }
+ updateUseCounts(function);
+}
+void IrBuilder::rebuildBytecodeBasicBlocks(Proto* proto)
+{
+ instIndexToBlock.resize(proto->sizecode, kNoAssociatedBlockIndex);
+ std::vector<uint8_t> jumpTargets(proto->sizecode, 0);
+ for (int i = 0; i < proto->sizecode;)
+ {
+ const Instruction* pc = &proto->code[i];
+ LuauOpcode op = LuauOpcode(LUAU_INSN_OP(*pc));
+ int target = getJumpTarget(*pc, uint32_t(i));
+ if (target >= 0 && !isFastCall(op))
+ jumpTargets[target] = true;
+ i += getOpLength(op);
+ LUAU_ASSERT(i <= proto->sizecode);
+ }
+ jumpTargets[0] = true;
+ for (int i = 0; i < proto->sizecode; i++)
+ {
+ if (jumpTargets[i])
+ {
+ IrOp b = block(IrBlockKind::Bytecode);
+ instIndexToBlock[i] = b.index;
+ }
+ }
+ if (FFlag::LuauCodegenBytecodeInfer)
+ buildBytecodeBlocks(function, jumpTargets);
+}
+void IrBuilder::translateInst(LuauOpcode op, const Instruction* pc, int i)
+{
+ switch (op)
+ {
+ case LOP_NOP:
+ break;
+ case LOP_LOADNIL:
+ translateInstLoadNil(*this, pc);
+ break;
+ case LOP_LOADB:
+ translateInstLoadB(*this, pc, i);
+ break;
+ case LOP_LOADN:
+ translateInstLoadN(*this, pc);
+ break;
+ case LOP_LOADK:
+ translateInstLoadK(*this, pc);
+ break;
+ case LOP_LOADKX:
+ translateInstLoadKX(*this, pc);
+ break;
+ case LOP_MOVE:
+ translateInstMove(*this, pc);
+ break;
+ case LOP_GETGLOBAL:
+ translateInstGetGlobal(*this, pc, i);
+ break;
+ case LOP_SETGLOBAL:
+ translateInstSetGlobal(*this, pc, i);
+ break;
+ case LOP_CALL:
+ inst(IrCmd::INTERRUPT, constUint(i));
+ inst(IrCmd::SET_SAVEDPC, constUint(i + 1));
+ inst(IrCmd::CALL, vmReg(LUAU_INSN_A(*pc)), constInt(LUAU_INSN_B(*pc) - 1), constInt(LUAU_INSN_C(*pc) - 1));
+ if (activeFastcallFallback)
+ {
+ inst(IrCmd::JUMP, fastcallFallbackReturn);
+ beginBlock(fastcallFallbackReturn);
+ activeFastcallFallback = false;
+ }
+ break;
+ case LOP_RETURN:
+ inst(IrCmd::INTERRUPT, constUint(i));
+ inst(IrCmd::RETURN, vmReg(LUAU_INSN_A(*pc)), constInt(LUAU_INSN_B(*pc) - 1));
+ break;
+ case LOP_GETTABLE:
+ translateInstGetTable(*this, pc, i);
+ break;
+ case LOP_SETTABLE:
+ translateInstSetTable(*this, pc, i);
+ break;
+ case LOP_GETTABLEKS:
+ translateInstGetTableKS(*this, pc, i);
+ break;
+ case LOP_SETTABLEKS:
+ translateInstSetTableKS(*this, pc, i);
+ break;
+ case LOP_GETTABLEN:
+ translateInstGetTableN(*this, pc, i);
+ break;
+ case LOP_SETTABLEN:
+ translateInstSetTableN(*this, pc, i);
+ break;
+ case LOP_JUMP:
+ translateInstJump(*this, pc, i);
+ break;
+ case LOP_JUMPBACK:
+ translateInstJumpBack(*this, pc, i);
+ break;
+ case LOP_JUMPIF:
+ translateInstJumpIf(*this, pc, i, false);
+ break;
+ case LOP_JUMPIFNOT:
+ translateInstJumpIf(*this, pc, i, true);
+ break;
+ case LOP_JUMPIFEQ:
+ translateInstJumpIfEq(*this, pc, i, false);
+ break;
+ case LOP_JUMPIFLE:
+ translateInstJumpIfCond(*this, pc, i, IrCondition::LessEqual);
+ break;
+ case LOP_JUMPIFLT:
+ translateInstJumpIfCond(*this, pc, i, IrCondition::Less);
+ break;
+ case LOP_JUMPIFNOTEQ:
+ translateInstJumpIfEq(*this, pc, i, true);
+ break;
+ case LOP_JUMPIFNOTLE:
+ translateInstJumpIfCond(*this, pc, i, IrCondition::NotLessEqual);
+ break;
+ case LOP_JUMPIFNOTLT:
+ translateInstJumpIfCond(*this, pc, i, IrCondition::NotLess);
+ break;
+ case LOP_JUMPX:
+ translateInstJumpX(*this, pc, i);
+ break;
+ case LOP_JUMPXEQKNIL:
+ translateInstJumpxEqNil(*this, pc, i);
+ break;
+ case LOP_JUMPXEQKB:
+ translateInstJumpxEqB(*this, pc, i);
+ break;
+ case LOP_JUMPXEQKN:
+ translateInstJumpxEqN(*this, pc, i);
+ break;
+ case LOP_JUMPXEQKS:
+ translateInstJumpxEqS(*this, pc, i);
+ break;
+ case LOP_ADD:
+ translateInstBinary(*this, pc, i, TM_ADD);
+ break;
+ case LOP_SUB:
+ translateInstBinary(*this, pc, i, TM_SUB);
+ break;
+ case LOP_MUL:
+ translateInstBinary(*this, pc, i, TM_MUL);
+ break;
+ case LOP_DIV:
+ translateInstBinary(*this, pc, i, TM_DIV);
+ break;
+ case LOP_IDIV:
+ translateInstBinary(*this, pc, i, TM_IDIV);
+ break;
+ case LOP_MOD:
+ translateInstBinary(*this, pc, i, TM_MOD);
+ break;
+ case LOP_POW:
+ translateInstBinary(*this, pc, i, TM_POW);
+ break;
+ case LOP_ADDK:
+ translateInstBinaryK(*this, pc, i, TM_ADD);
+ break;
+ case LOP_SUBK:
+ translateInstBinaryK(*this, pc, i, TM_SUB);
+ break;
+ case LOP_MULK:
+ translateInstBinaryK(*this, pc, i, TM_MUL);
+ break;
+ case LOP_DIVK:
+ translateInstBinaryK(*this, pc, i, TM_DIV);
+ break;
+ case LOP_IDIVK:
+ translateInstBinaryK(*this, pc, i, TM_IDIV);
+ break;
+ case LOP_MODK:
+ translateInstBinaryK(*this, pc, i, TM_MOD);
+ break;
+ case LOP_POWK:
+ translateInstBinaryK(*this, pc, i, TM_POW);
+ break;
+ case LOP_SUBRK:
+ translateInstBinaryRK(*this, pc, i, TM_SUB);
+ break;
+ case LOP_DIVRK:
+ translateInstBinaryRK(*this, pc, i, TM_DIV);
+ break;
+ case LOP_NOT:
+ translateInstNot(*this, pc);
+ break;
+ case LOP_MINUS:
+ translateInstMinus(*this, pc, i);
+ break;
+ case LOP_LENGTH:
+ translateInstLength(*this, pc, i);
+ break;
+ case LOP_NEWTABLE:
+ translateInstNewTable(*this, pc, i);
+ break;
+ case LOP_DUPTABLE:
+ translateInstDupTable(*this, pc, i);
+ break;
+ case LOP_SETLIST:
+ inst(IrCmd::SETLIST, constUint(i), vmReg(LUAU_INSN_A(*pc)), vmReg(LUAU_INSN_B(*pc)), constInt(LUAU_INSN_C(*pc) - 1), constUint(pc[1]),
+ undef());
+ break;
+ case LOP_GETUPVAL:
+ translateInstGetUpval(*this, pc, i);
+ break;
+ case LOP_SETUPVAL:
+ translateInstSetUpval(*this, pc, i);
+ break;
+ case LOP_CLOSEUPVALS:
+ translateInstCloseUpvals(*this, pc);
+ break;
+ case LOP_FASTCALL:
+ handleFastcallFallback(translateFastCallN(*this, pc, i, false, 0, {}), pc, i);
+ break;
+ case LOP_FASTCALL1:
+ handleFastcallFallback(translateFastCallN(*this, pc, i, true, 1, undef()), pc, i);
+ break;
+ case LOP_FASTCALL2:
+ handleFastcallFallback(translateFastCallN(*this, pc, i, true, 2, vmReg(pc[1])), pc, i);
+ break;
+ case LOP_FASTCALL2K:
+ handleFastcallFallback(translateFastCallN(*this, pc, i, true, 2, vmConst(pc[1])), pc, i);
+ break;
+ case LOP_FORNPREP:
+ translateInstForNPrep(*this, pc, i);
+ break;
+ case LOP_FORNLOOP:
+ translateInstForNLoop(*this, pc, i);
+ break;
+ case LOP_FORGLOOP:
+ {
+ int aux = int(pc[1]);
+ if (aux < 0)
+ {
+ translateInstForGLoopIpairs(*this, pc, i);
+ }
+ else
+ {
+ int ra = LUAU_INSN_A(*pc);
+ IrOp loopRepeat = blockAtInst(i + 1 + LUAU_INSN_D(*pc));
+ IrOp loopExit = blockAtInst(i + getOpLength(LOP_FORGLOOP));
+ IrOp fallback = block(IrBlockKind::Fallback);
+ inst(IrCmd::INTERRUPT, constUint(i));
+ loadAndCheckTag(vmReg(ra), LUA_TNIL, fallback);
+ inst(IrCmd::FORGLOOP, vmReg(ra), constInt(aux), loopRepeat, loopExit);
+ beginBlock(fallback);
+ inst(IrCmd::SET_SAVEDPC, constUint(i + 1));
+ inst(IrCmd::FORGLOOP_FALLBACK, vmReg(ra), constInt(aux), loopRepeat, loopExit);
+ beginBlock(loopExit);
+ }
+ break;
+ }
+ case LOP_FORGPREP_NEXT:
+ translateInstForGPrepNext(*this, pc, i);
+ break;
+ case LOP_FORGPREP_INEXT:
+ translateInstForGPrepInext(*this, pc, i);
+ break;
+ case LOP_AND:
+ translateInstAndX(*this, pc, i, vmReg(LUAU_INSN_C(*pc)));
+ break;
+ case LOP_ANDK:
+ translateInstAndX(*this, pc, i, vmConst(LUAU_INSN_C(*pc)));
+ break;
+ case LOP_OR:
+ translateInstOrX(*this, pc, i, vmReg(LUAU_INSN_C(*pc)));
+ break;
+ case LOP_ORK:
+ translateInstOrX(*this, pc, i, vmConst(LUAU_INSN_C(*pc)));
+ break;
+ case LOP_COVERAGE:
+ inst(IrCmd::COVERAGE, constUint(i));
+ break;
+ case LOP_GETIMPORT:
+ translateInstGetImport(*this, pc, i);
+ break;
+ case LOP_CONCAT:
+ translateInstConcat(*this, pc, i);
+ break;
+ case LOP_CAPTURE:
+ translateInstCapture(*this, pc, i);
+ break;
+ case LOP_NAMECALL:
+ translateInstNamecall(*this, pc, i);
+ break;
+ case LOP_PREPVARARGS:
+ inst(IrCmd::FALLBACK_PREPVARARGS, constUint(i), constInt(LUAU_INSN_A(*pc)));
+ break;
+ case LOP_GETVARARGS:
+ inst(IrCmd::FALLBACK_GETVARARGS, constUint(i), vmReg(LUAU_INSN_A(*pc)), constInt(LUAU_INSN_B(*pc) - 1));
+ break;
+ case LOP_NEWCLOSURE:
+ translateInstNewClosure(*this, pc, i);
+ break;
+ case LOP_DUPCLOSURE:
+ inst(IrCmd::FALLBACK_DUPCLOSURE, constUint(i), vmReg(LUAU_INSN_A(*pc)), vmConst(LUAU_INSN_D(*pc)));
+ break;
+ case LOP_FORGPREP:
+ {
+ IrOp loopStart = blockAtInst(i + 1 + LUAU_INSN_D(*pc));
+ inst(IrCmd::FALLBACK_FORGPREP, constUint(i), vmReg(LUAU_INSN_A(*pc)), loopStart);
+ break;
+ }
+ default:
+ LUAU_ASSERT(!"Unknown instruction");
+ }
+}
+void IrBuilder::handleFastcallFallback(IrOp fallbackOrUndef, const Instruction* pc, int i)
+{
+ int skip = LUAU_INSN_C(*pc);
+ if (fallbackOrUndef.kind != IrOpKind::Undef)
+ {
+ IrOp next = blockAtInst(i + skip + 2);
+ inst(IrCmd::JUMP, next);
+ beginBlock(fallbackOrUndef);
+ activeFastcallFallback = true;
+ fastcallFallbackReturn = next;
+ }
+ else
+ {
+ fastcallSkipTarget = i + skip + 2;
+ }
+}
+bool IrBuilder::isInternalBlock(IrOp block)
+{
+ IrBlock& target = function.blocks[block.index];
+ return target.kind == IrBlockKind::Internal;
+}
+void IrBuilder::beginBlock(IrOp block)
+{
+ IrBlock& target = function.blocks[block.index];
+ activeBlockIdx = block.index;
+ LUAU_ASSERT(target.start == ~0u || target.start == uint32_t(function.instructions.size()));
+ target.start = uint32_t(function.instructions.size());
+ target.sortkey = target.start;
+ inTerminatedBlock = false;
+}
+void IrBuilder::loadAndCheckTag(IrOp loc, uint8_t tag, IrOp fallback)
+{
+ inst(IrCmd::CHECK_TAG, inst(IrCmd::LOAD_TAG, loc), constTag(tag), fallback);
+}
+void IrBuilder::clone(const IrBlock& source, bool removeCurrentTerminator)
+{
+ DenseHashMap<uint32_t, uint32_t> instRedir{~0u};
+ auto redirect = [&instRedir](IrOp& op) {
+ if (op.kind == IrOpKind::Inst)
+ {
+ if (const uint32_t* newIndex = instRedir.find(op.index))
+ op.index = *newIndex;
+ else
+ LUAU_ASSERT(!"Values can only be used if they are defined in the same block");
+ }
+ };
+ if (removeCurrentTerminator && inTerminatedBlock)
+ {
+ IrBlock& active = function.blocks[activeBlockIdx];
+ IrInst& term = function.instructions[active.finish];
+ kill(function, term);
+ inTerminatedBlock = false;
+ }
+ for (uint32_t index = source.start; index <= source.finish; index++)
+ {
+ LUAU_ASSERT(index < function.instructions.size());
+ IrInst clone = function.instructions[index];
+ if (isPseudo(clone.cmd))
+ {
+ LUAU_ASSERT(clone.useCount == 0);
+ continue;
+ }
+ redirect(clone.a);
+ redirect(clone.b);
+ redirect(clone.c);
+ redirect(clone.d);
+ redirect(clone.e);
+ redirect(clone.f);
+ addUse(function, clone.a);
+ addUse(function, clone.b);
+ addUse(function, clone.c);
+ addUse(function, clone.d);
+ addUse(function, clone.e);
+ addUse(function, clone.f);
+ instRedir[index] = uint32_t(function.instructions.size());
+ inst(clone.cmd, clone.a, clone.b, clone.c, clone.d, clone.e, clone.f);
+ }
+}
+IrOp IrBuilder::undef()
+{
+ return {IrOpKind::Undef, 0};
+}
+IrOp IrBuilder::constInt(int value)
+{
+ IrConst constant;
+ constant.kind = IrConstKind::Int;
+ constant.valueInt = value;
+ return constAny(constant, uint64_t(value));
+}
+IrOp IrBuilder::constUint(unsigned value)
+{
+ IrConst constant;
+ constant.kind = IrConstKind::Uint;
+ constant.valueUint = value;
+ return constAny(constant, uint64_t(value));
+}
+IrOp IrBuilder::constDouble(double value)
+{
+ IrConst constant;
+ constant.kind = IrConstKind::Double;
+ constant.valueDouble = value;
+ uint64_t asCommonKey;
+ static_assert(sizeof(asCommonKey) == sizeof(value), "Expecting double to be 64-bit");
+ memcpy(&asCommonKey, &value, sizeof(value));
+ return constAny(constant, asCommonKey);
+}
+IrOp IrBuilder::constTag(uint8_t value)
+{
+ IrConst constant;
+ constant.kind = IrConstKind::Tag;
+ constant.valueTag = value;
+ return constAny(constant, uint64_t(value));
+}
+IrOp IrBuilder::constAny(IrConst constant, uint64_t asCommonKey)
+{
+ ConstantKey key{constant.kind, asCommonKey};
+ if (uint32_t* cache = constantMap.find(key))
+ return {IrOpKind::Constant, *cache};
+ uint32_t index = uint32_t(function.constants.size());
+ function.constants.push_back(constant);
+ constantMap[key] = index;
+ return {IrOpKind::Constant, index};
+}
+IrOp IrBuilder::cond(IrCondition cond)
+{
+ return {IrOpKind::Condition, uint32_t(cond)};
+}
+IrOp IrBuilder::inst(IrCmd cmd)
+{
+ return inst(cmd, {}, {}, {}, {}, {}, {});
+}
+IrOp IrBuilder::inst(IrCmd cmd, IrOp a)
+{
+ return inst(cmd, a, {}, {}, {}, {}, {});
+}
+IrOp IrBuilder::inst(IrCmd cmd, IrOp a, IrOp b)
+{
+ return inst(cmd, a, b, {}, {}, {}, {});
+}
+IrOp IrBuilder::inst(IrCmd cmd, IrOp a, IrOp b, IrOp c)
+{
+ return inst(cmd, a, b, c, {}, {}, {});
+}
+IrOp IrBuilder::inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d)
+{
+ return inst(cmd, a, b, c, d, {}, {});
+}
+IrOp IrBuilder::inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e)
+{
+ return inst(cmd, a, b, c, d, e, {});
+}
+IrOp IrBuilder::inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e, IrOp f)
+{
+ uint32_t index = uint32_t(function.instructions.size());
+ function.instructions.push_back({cmd, a, b, c, d, e, f});
+ LUAU_ASSERT(!inTerminatedBlock);
+ if (isBlockTerminator(cmd))
+ {
+ function.blocks[activeBlockIdx].finish = index;
+ inTerminatedBlock = true;
+ }
+ return {IrOpKind::Inst, index};
+}
+IrOp IrBuilder::block(IrBlockKind kind)
+{
+ if (kind == IrBlockKind::Internal && activeFastcallFallback)
+ kind = IrBlockKind::Fallback;
+ uint32_t index = uint32_t(function.blocks.size());
+ function.blocks.push_back(IrBlock{kind});
+ return IrOp{IrOpKind::Block, index};
+}
+IrOp IrBuilder::blockAtInst(uint32_t index)
+{
+ uint32_t blockIndex = instIndexToBlock[index];
+ if (blockIndex != kNoAssociatedBlockIndex)
+ return IrOp{IrOpKind::Block, blockIndex};
+ return block(IrBlockKind::Internal);
+}
+IrOp IrBuilder::vmReg(uint8_t index)
+{
+ return {IrOpKind::VmReg, index};
+}
+IrOp IrBuilder::vmConst(uint32_t index)
+{
+ return {IrOpKind::VmConst, index};
+}
+IrOp IrBuilder::vmUpvalue(uint8_t index)
+{
+ return {IrOpKind::VmUpvalue, index};
+}
+IrOp IrBuilder::vmExit(uint32_t pcpos)
+{
+ return {IrOpKind::VmExit, pcpos};
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#undef hasTypedParameters
+#define hasTypedParameters hasTypedParameters_2
+#line __LINE__ "AssemblyBuilderA64.cpp"
+#line __LINE__ "AddressA64.h"
+#include <stddef.h>
+namespace Luau
+{
+namespace CodeGen
+{
+namespace A64
+{
+enum class AddressKindA64 : uint8_t
+{
+ reg,
+ imm, // reg + imm
+ pre,
+ post, // reg, reg += imm
+};
+struct AddressA64
+{
+ static constexpr size_t kMaxOffset = 1023;
+ constexpr AddressA64(RegisterA64 base, int off = 0, AddressKindA64 kind = AddressKindA64::imm)
+ : kind(kind)
+ , base(base)
+ , offset(xzr)
+ , data(off)
+ {
+ LUAU_ASSERT(base.kind == KindA64::x || base == sp);
+ LUAU_ASSERT(kind != AddressKindA64::reg);
+ }
+ constexpr AddressA64(RegisterA64 base, RegisterA64 offset)
+ : kind(AddressKindA64::reg)
+ , base(base)
+ , offset(offset)
+ , data(0)
+ {
+ LUAU_ASSERT(base.kind == KindA64::x);
+ LUAU_ASSERT(offset.kind == KindA64::x);
+ }
+ AddressKindA64 kind;
+ RegisterA64 base;
+ RegisterA64 offset;
+ int data;
+};
+using mem = AddressA64;
+}
+} // namespace CodeGen
+}
+#line __LINE__ "AssemblyBuilderA64.h"
+#line __LINE__ "ConditionA64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+namespace A64
+{
+enum class ConditionA64
+{
+ Equal,
+ NotEqual,
+ CarrySet,
+ CarryClear,
+ Minus,
+ Plus,
+ Overflow,
+ NoOverflow,
+ UnsignedGreater,
+ UnsignedLessEqual,
+ GreaterEqual,
+ Less,
+ Greater,
+ LessEqual,
+ Always,
+ Count
+};
+}
+} // namespace CodeGen
+}
+#line __LINE__ "AssemblyBuilderA64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+namespace A64
+{
+enum FeaturesA64
+{
+ Feature_JSCVT = 1 << 0,
+};
+class AssemblyBuilderA64
+{
+public:
+ explicit AssemblyBuilderA64(bool logText, unsigned int features = 0);
+ ~AssemblyBuilderA64();
+ void mov(RegisterA64 dst, RegisterA64 src);
+ void mov(RegisterA64 dst, int src);
+ void movz(RegisterA64 dst, uint16_t src, int shift = 0);
+ void movn(RegisterA64 dst, uint16_t src, int shift = 0);
+ void movk(RegisterA64 dst, uint16_t src, int shift = 0);
+ void add(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
+ void add(RegisterA64 dst, RegisterA64 src1, uint16_t src2);
+ void sub(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
+ void sub(RegisterA64 dst, RegisterA64 src1, uint16_t src2);
+ void neg(RegisterA64 dst, RegisterA64 src);
+ void cmp(RegisterA64 src1, RegisterA64 src2);
+ void cmp(RegisterA64 src1, uint16_t src2);
+ void csel(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, ConditionA64 cond);
+ void cset(RegisterA64 dst, ConditionA64 cond);
+ void and_(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
+ void orr(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
+ void eor(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
+ void bic(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
+ void tst(RegisterA64 src1, RegisterA64 src2, int shift = 0);
+ void mvn_(RegisterA64 dst, RegisterA64 src);
+ void and_(RegisterA64 dst, RegisterA64 src1, uint32_t src2);
+ void orr(RegisterA64 dst, RegisterA64 src1, uint32_t src2);
+ void eor(RegisterA64 dst, RegisterA64 src1, uint32_t src2);
+ void tst(RegisterA64 src1, uint32_t src2);
+ void lsl(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
+ void lsr(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
+ void asr(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
+ void ror(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
+ void clz(RegisterA64 dst, RegisterA64 src);
+ void rbit(RegisterA64 dst, RegisterA64 src);
+ void rev(RegisterA64 dst, RegisterA64 src);
+ void lsl(RegisterA64 dst, RegisterA64 src1, uint8_t src2);
+ void lsr(RegisterA64 dst, RegisterA64 src1, uint8_t src2);
+ void asr(RegisterA64 dst, RegisterA64 src1, uint8_t src2);
+ void ror(RegisterA64 dst, RegisterA64 src1, uint8_t src2);
+ void ubfiz(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w);
+ void ubfx(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w);
+ void sbfiz(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w);
+ void sbfx(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w);
+ void ldr(RegisterA64 dst, AddressA64 src);
+ void ldrb(RegisterA64 dst, AddressA64 src);
+ void ldrh(RegisterA64 dst, AddressA64 src);
+ void ldrsb(RegisterA64 dst, AddressA64 src);
+ void ldrsh(RegisterA64 dst, AddressA64 src);
+ void ldrsw(RegisterA64 dst, AddressA64 src);
+ void ldp(RegisterA64 dst1, RegisterA64 dst2, AddressA64 src);
+ void str(RegisterA64 src, AddressA64 dst);
+ void strb(RegisterA64 src, AddressA64 dst);
+ void strh(RegisterA64 src, AddressA64 dst);
+ void stp(RegisterA64 src1, RegisterA64 src2, AddressA64 dst);
+ void b(Label& label);
+ void bl(Label& label);
+ void br(RegisterA64 src);
+ void blr(RegisterA64 src);
+ void ret();
+ void b(ConditionA64 cond, Label& label);
+ void cbz(RegisterA64 src, Label& label);
+ void cbnz(RegisterA64 src, Label& label);
+ void tbz(RegisterA64 src, uint8_t bit, Label& label);
+ void tbnz(RegisterA64 src, uint8_t bit, Label& label);
+ void adr(RegisterA64 dst, const void* ptr, size_t size);
+ void adr(RegisterA64 dst, uint64_t value);
+ void adr(RegisterA64 dst, double value);
+ void adr(RegisterA64 dst, Label& label);
+ void fmov(RegisterA64 dst, RegisterA64 src);
+ void fmov(RegisterA64 dst, double src);
+ void fabs(RegisterA64 dst, RegisterA64 src);
+ void fadd(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
+ void fdiv(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
+ void fmul(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
+ void fneg(RegisterA64 dst, RegisterA64 src);
+ void fsqrt(RegisterA64 dst, RegisterA64 src);
+ void fsub(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
+ void frinta(RegisterA64 dst, RegisterA64 src);
+ void frintm(RegisterA64 dst, RegisterA64 src);
+ void frintp(RegisterA64 dst, RegisterA64 src);
+ void fcvt(RegisterA64 dst, RegisterA64 src);
+ void fcvtzs(RegisterA64 dst, RegisterA64 src);
+ void fcvtzu(RegisterA64 dst, RegisterA64 src);
+ void scvtf(RegisterA64 dst, RegisterA64 src);
+ void ucvtf(RegisterA64 dst, RegisterA64 src);
+ void fjcvtzs(RegisterA64 dst, RegisterA64 src);
+ void fcmp(RegisterA64 src1, RegisterA64 src2);
+ void fcmpz(RegisterA64 src);
+ void fcsel(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, ConditionA64 cond);
+ void udf();
+ bool finalize();
+ Label setLabel();
+ void setLabel(Label& label);
+ uint32_t getLabelOffset(const Label& label)
+ {
+ LUAU_ASSERT(label.location != ~0u);
+ return label.location * 4;
+ }
+ void logAppend(const char* fmt, ...) LUAU_PRINTF_ATTR(2, 3);
+ uint32_t getCodeSize() const;
+ std::vector<uint8_t> data;
+ std::vector<uint32_t> code;
+ std::string text;
+ const bool logText = false;
+ const unsigned int features = 0;
+ static constexpr size_t kMaxImmediate = (1 << 12) - 1;
+ static bool isMaskSupported(uint32_t mask);
+ static bool isFmovSupported(double value);
+private:
+ void place0(const char* name, uint32_t word);
+ void placeSR3(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint8_t op, int shift = 0, int N = 0);
+ void placeSR2(const char* name, RegisterA64 dst, RegisterA64 src, uint8_t op, uint8_t op2 = 0);
+ void placeR3(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint8_t op, uint8_t op2);
+ void placeR1(const char* name, RegisterA64 dst, RegisterA64 src, uint32_t op);
+ void placeI12(const char* name, RegisterA64 dst, RegisterA64 src1, int src2, uint8_t op);
+ void placeI16(const char* name, RegisterA64 dst, int src, uint8_t op, int shift = 0);
+ void placeA(const char* name, RegisterA64 dst, AddressA64 src, uint16_t opsize, int sizelog);
+ void placeB(const char* name, Label& label, uint8_t op);
+ void placeBC(const char* name, Label& label, uint8_t op, uint8_t cond);
+ void placeBCR(const char* name, Label& label, uint8_t op, RegisterA64 cond);
+ void placeBR(const char* name, RegisterA64 src, uint32_t op);
+ void placeBTR(const char* name, Label& label, uint8_t op, RegisterA64 cond, uint8_t bit);
+ void placeADR(const char* name, RegisterA64 src, uint8_t op);
+ void placeADR(const char* name, RegisterA64 src, uint8_t op, Label& label);
+ void placeP(const char* name, RegisterA64 dst1, RegisterA64 dst2, AddressA64 src, uint8_t op, uint8_t opc, int sizelog);
+ void placeCS(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, ConditionA64 cond, uint8_t op, uint8_t opc, int invert = 0);
+ void placeFCMP(const char* name, RegisterA64 src1, RegisterA64 src2, uint8_t op, uint8_t opc);
+ void placeFMOV(const char* name, RegisterA64 dst, double src, uint32_t op);
+ void placeBM(const char* name, RegisterA64 dst, RegisterA64 src1, uint32_t src2, uint8_t op);
+ void placeBFM(const char* name, RegisterA64 dst, RegisterA64 src1, int src2, uint8_t op, int immr, int imms);
+ void placeER(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint8_t op, int shift);
+ void place(uint32_t word);
+ struct Patch
+ {
+ enum Kind
+ {
+ Imm26,
+ Imm19,
+ Imm14,
+ };
+ Kind kind : 2;
+ uint32_t label : 30;
+ uint32_t location;
+ };
+ void patchLabel(Label& label, Patch::Kind kind);
+ void patchOffset(uint32_t location, int value, Patch::Kind kind);
+ void commit();
+ LUAU_NOINLINE void extend();
+ size_t allocateData(size_t size, size_t align);
+ LUAU_NOINLINE void log(const char* opcode);
+ LUAU_NOINLINE void log(const char* opcode, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
+ LUAU_NOINLINE void log(const char* opcode, RegisterA64 dst, RegisterA64 src1, int src2);
+ LUAU_NOINLINE void log(const char* opcode, RegisterA64 dst, RegisterA64 src);
+ LUAU_NOINLINE void log(const char* opcode, RegisterA64 dst, int src, int shift = 0);
+ LUAU_NOINLINE void log(const char* opcode, RegisterA64 dst, double src);
+ LUAU_NOINLINE void log(const char* opcode, RegisterA64 dst, AddressA64 src);
+ LUAU_NOINLINE void log(const char* opcode, RegisterA64 dst1, RegisterA64 dst2, AddressA64 src);
+ LUAU_NOINLINE void log(const char* opcode, RegisterA64 src, Label label, int imm = -1);
+ LUAU_NOINLINE void log(const char* opcode, RegisterA64 src);
+ LUAU_NOINLINE void log(const char* opcode, Label label);
+ LUAU_NOINLINE void log(const char* opcode, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, ConditionA64 cond);
+ LUAU_NOINLINE void log(Label label);
+ LUAU_NOINLINE void log(RegisterA64 reg);
+ LUAU_NOINLINE void log(AddressA64 addr);
+ uint32_t nextLabel = 1;
+ std::vector<Patch> pendingLabels;
+ std::vector<uint32_t> labelLocations;
+ bool finalized = false;
+ bool overflowed = false;
+ size_t dataPos = 0;
+ uint32_t* codePos = nullptr;
+ uint32_t* codeEnd = nullptr;
+};
+}
+} // namespace CodeGen
+}
+#line __LINE__ "AssemblyBuilderA64.cpp"
+#line __LINE__ "BitUtils.h"
+#ifdef _MSC_VER
+#endif
+namespace Luau
+{
+namespace CodeGen
+{
+inline int countlz(uint32_t n)
+{
+#ifdef _MSC_VER
+ unsigned long rl;
+ return _BitScanReverse(&rl, n) ? 31 - int(rl) : 32;
+#else
+ return n == 0 ? 32 : __builtin_clz(n);
+#endif
+}
+inline int countrz(uint32_t n)
+{
+#ifdef _MSC_VER
+ unsigned long rl;
+ return _BitScanForward(&rl, n) ? int(rl) : 32;
+#else
+ return n == 0 ? 32 : __builtin_ctz(n);
+#endif
+}
+inline int lrotate(uint32_t u, int s)
+{
+#ifdef _MSC_VER
+ return _rotl(u, s);
+#else
+ return (u << (s & 31)) | (u >> ((32 - s) & 31));
+#endif
+}
+inline int rrotate(uint32_t u, int s)
+{
+#ifdef _MSC_VER
+ return _rotr(u, s);
+#else
+ return (u >> (s & 31)) | (u << ((32 - s) & 31));
+#endif
+}
+}
+} // namespace Luau
+#line __LINE__ "AssemblyBuilderA64.cpp"
+#line __LINE__ "ByteUtils.h"
+#if defined(LUAU_BIG_ENDIAN)
+#endif
+inline uint8_t* writeu8(uint8_t* target, uint8_t value)
+{
+ *target = value;
+ return target + sizeof(value);
+}
+inline uint8_t* writeu16(uint8_t* target, uint16_t value)
+{
+#if defined(LUAU_BIG_ENDIAN)
+ value = htole16(value);
+#endif
+ memcpy(target, &value, sizeof(value));
+ return target + sizeof(value);
+}
+inline uint8_t* writeu32(uint8_t* target, uint32_t value)
+{
+#if defined(LUAU_BIG_ENDIAN)
+ value = htole32(value);
+#endif
+ memcpy(target, &value, sizeof(value));
+ return target + sizeof(value);
+}
+inline uint8_t* writeu64(uint8_t* target, uint64_t value)
+{
+#if defined(LUAU_BIG_ENDIAN)
+ value = htole64(value);
+#endif
+ memcpy(target, &value, sizeof(value));
+ return target + sizeof(value);
+}
+inline uint8_t* writeuleb128(uint8_t* target, uint64_t value)
+{
+ do
+ {
+ uint8_t byte = value & 0x7f;
+ value >>= 7;
+ if (value)
+ byte |= 0x80;
+ *target++ = byte;
+ } while (value);
+ return target;
+}
+inline uint8_t* writef32(uint8_t* target, float value)
+{
+#if defined(LUAU_BIG_ENDIAN)
+ static_assert(sizeof(float) == sizeof(uint32_t), "type size must match to reinterpret data");
+ uint32_t data;
+ memcpy(&data, &value, sizeof(value));
+ writeu32(target, data);
+#else
+ memcpy(target, &value, sizeof(value));
+#endif
+ return target + sizeof(value);
+}
+inline uint8_t* writef64(uint8_t* target, double value)
+{
+#if defined(LUAU_BIG_ENDIAN)
+ static_assert(sizeof(double) == sizeof(uint64_t), "type size must match to reinterpret data");
+ uint64_t data;
+ memcpy(&data, &value, sizeof(value));
+ writeu64(target, data);
+#else
+ memcpy(target, &value, sizeof(value));
+#endif
+ return target + sizeof(value);
+}
+#line __LINE__ "AssemblyBuilderA64.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+namespace A64
+{
+static const uint8_t codeForCondition[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
+static_assert(sizeof(codeForCondition) / sizeof(codeForCondition[0]) == size_t(ConditionA64::Count), "all conditions have to be covered");
+static const char* textForCondition[] = {
+ "b.eq", "b.ne", "b.cs", "b.cc", "b.mi", "b.pl", "b.vs", "b.vc", "b.hi", "b.ls", "b.ge", "b.lt", "b.gt", "b.le", "b.al"};
+static_assert(sizeof(textForCondition) / sizeof(textForCondition[0]) == size_t(ConditionA64::Count), "all conditions have to be covered");
+const unsigned kMaxAlign = 32;
+static int getFmovImm(double value)
+{
+ uint64_t u;
+ static_assert(sizeof(u) == sizeof(value), "expected double to be 64-bit");
+ memcpy(&u, &value, sizeof(value));
+ if (u == 0)
+ return 256;
+ if ((u & ((1ull << 48) - 1)) != 0)
+ return -1;
+ int imm = (int(u >> 56) & 0x80) | (int(u >> 48) & 0x7f);
+ int dec = ((imm & 0x80) << 8) | ((imm & 0x40) ? 0b00111111'11000000 : 0b01000000'00000000) | (imm & 0x3f);
+ return dec == int(u >> 48) ? imm : -1;
+}
+AssemblyBuilderA64::AssemblyBuilderA64(bool logText, unsigned int features)
+ : logText(logText)
+ , features(features)
+{
+ data.resize(4096);
+ dataPos = data.size();
+ code.resize(1024);
+ codePos = code.data();
+ codeEnd = code.data() + code.size();
+}
+AssemblyBuilderA64::~AssemblyBuilderA64()
+{
+ LUAU_ASSERT(finalized);
+}
+void AssemblyBuilderA64::mov(RegisterA64 dst, RegisterA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x || dst == sp);
+ LUAU_ASSERT(dst.kind == src.kind || (dst.kind == KindA64::x && src == sp) || (dst == sp && src.kind == KindA64::x));
+ if (dst == sp || src == sp)
+ placeR1("mov", dst, src, 0b00'100010'0'000000000000);
+ else
+ placeSR2("mov", dst, src, 0b01'01010);
+}
+void AssemblyBuilderA64::mov(RegisterA64 dst, int src)
+{
+ if (src >= 0)
+ {
+ movz(dst, src & 0xffff);
+ if (src > 0xffff)
+ movk(dst, src >> 16, 16);
+ }
+ else
+ {
+ movn(dst, ~src & 0xffff);
+ if (src < -0x10000)
+ movk(dst, (src >> 16) & 0xffff, 16);
+ }
+}
+void AssemblyBuilderA64::movz(RegisterA64 dst, uint16_t src, int shift)
+{
+ placeI16("movz", dst, src, 0b10'100101, shift);
+}
+void AssemblyBuilderA64::movn(RegisterA64 dst, uint16_t src, int shift)
+{
+ placeI16("movn", dst, src, 0b00'100101, shift);
+}
+void AssemblyBuilderA64::movk(RegisterA64 dst, uint16_t src, int shift)
+{
+ placeI16("movk", dst, src, 0b11'100101, shift);
+}
+void AssemblyBuilderA64::add(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift)
+{
+ if (src1.kind == KindA64::x && src2.kind == KindA64::w)
+ placeER("add", dst, src1, src2, 0b00'01011, shift);
+ else
+ placeSR3("add", dst, src1, src2, 0b00'01011, shift);
+}
+void AssemblyBuilderA64::add(RegisterA64 dst, RegisterA64 src1, uint16_t src2)
+{
+ placeI12("add", dst, src1, src2, 0b00'10001);
+}
+void AssemblyBuilderA64::sub(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift)
+{
+ if (src1.kind == KindA64::x && src2.kind == KindA64::w)
+ placeER("sub", dst, src1, src2, 0b10'01011, shift);
+ else
+ placeSR3("sub", dst, src1, src2, 0b10'01011, shift);
+}
+void AssemblyBuilderA64::sub(RegisterA64 dst, RegisterA64 src1, uint16_t src2)
+{
+ placeI12("sub", dst, src1, src2, 0b10'10001);
+}
+void AssemblyBuilderA64::neg(RegisterA64 dst, RegisterA64 src)
+{
+ placeSR2("neg", dst, src, 0b10'01011);
+}
+void AssemblyBuilderA64::cmp(RegisterA64 src1, RegisterA64 src2)
+{
+ RegisterA64 dst = src1.kind == KindA64::x ? xzr : wzr;
+ placeSR3("cmp", dst, src1, src2, 0b11'01011);
+}
+void AssemblyBuilderA64::cmp(RegisterA64 src1, uint16_t src2)
+{
+ RegisterA64 dst = src1.kind == KindA64::x ? xzr : wzr;
+ placeI12("cmp", dst, src1, src2, 0b11'10001);
+}
+void AssemblyBuilderA64::csel(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, ConditionA64 cond)
+{
+ LUAU_ASSERT(dst.kind == KindA64::x || dst.kind == KindA64::w);
+ placeCS("csel", dst, src1, src2, cond, 0b11010'10'0, 0b00);
+}
+void AssemblyBuilderA64::cset(RegisterA64 dst, ConditionA64 cond)
+{
+ LUAU_ASSERT(dst.kind == KindA64::x || dst.kind == KindA64::w);
+ RegisterA64 src = dst.kind == KindA64::x ? xzr : wzr;
+ placeCS("cset", dst, src, src, cond, 0b11010'10'0, 0b01, 1);
+}
+void AssemblyBuilderA64::and_(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift)
+{
+ placeSR3("and", dst, src1, src2, 0b00'01010, shift);
+}
+void AssemblyBuilderA64::orr(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift)
+{
+ placeSR3("orr", dst, src1, src2, 0b01'01010, shift);
+}
+void AssemblyBuilderA64::eor(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift)
+{
+ placeSR3("eor", dst, src1, src2, 0b10'01010, shift);
+}
+void AssemblyBuilderA64::bic(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift)
+{
+ placeSR3("bic", dst, src1, src2, 0b00'01010, shift, 1);
+}
+void AssemblyBuilderA64::tst(RegisterA64 src1, RegisterA64 src2, int shift)
+{
+ RegisterA64 dst = src1.kind == KindA64::x ? xzr : wzr;
+ placeSR3("tst", dst, src1, src2, 0b11'01010, shift);
+}
+void AssemblyBuilderA64::mvn_(RegisterA64 dst, RegisterA64 src)
+{
+ placeSR2("mvn", dst, src, 0b01'01010, 0b1);
+}
+void AssemblyBuilderA64::and_(RegisterA64 dst, RegisterA64 src1, uint32_t src2)
+{
+ placeBM("and", dst, src1, src2, 0b00'100100);
+}
+void AssemblyBuilderA64::orr(RegisterA64 dst, RegisterA64 src1, uint32_t src2)
+{
+ placeBM("orr", dst, src1, src2, 0b01'100100);
+}
+void AssemblyBuilderA64::eor(RegisterA64 dst, RegisterA64 src1, uint32_t src2)
+{
+ placeBM("eor", dst, src1, src2, 0b10'100100);
+}
+void AssemblyBuilderA64::tst(RegisterA64 src1, uint32_t src2)
+{
+ RegisterA64 dst = src1.kind == KindA64::x ? xzr : wzr;
+ placeBM("tst", dst, src1, src2, 0b11'100100);
+}
+void AssemblyBuilderA64::lsl(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2)
+{
+ placeR3("lsl", dst, src1, src2, 0b11010110, 0b0010'00);
+}
+void AssemblyBuilderA64::lsr(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2)
+{
+ placeR3("lsr", dst, src1, src2, 0b11010110, 0b0010'01);
+}
+void AssemblyBuilderA64::asr(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2)
+{
+ placeR3("asr", dst, src1, src2, 0b11010110, 0b0010'10);
+}
+void AssemblyBuilderA64::ror(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2)
+{
+ placeR3("ror", dst, src1, src2, 0b11010110, 0b0010'11);
+}
+void AssemblyBuilderA64::clz(RegisterA64 dst, RegisterA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ LUAU_ASSERT(dst.kind == src.kind);
+ placeR1("clz", dst, src, 0b10'11010110'00000'00010'0);
+}
+void AssemblyBuilderA64::rbit(RegisterA64 dst, RegisterA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ LUAU_ASSERT(dst.kind == src.kind);
+ placeR1("rbit", dst, src, 0b10'11010110'00000'0000'00);
+}
+void AssemblyBuilderA64::rev(RegisterA64 dst, RegisterA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ LUAU_ASSERT(dst.kind == src.kind);
+ placeR1("rev", dst, src, 0b10'11010110'00000'0000'10 | int(dst.kind == KindA64::x));
+}
+void AssemblyBuilderA64::lsl(RegisterA64 dst, RegisterA64 src1, uint8_t src2)
+{
+ int size = dst.kind == KindA64::x ? 64 : 32;
+ LUAU_ASSERT(src2 < size);
+ placeBFM("lsl", dst, src1, src2, 0b10'100110, (-src2) & (size - 1), size - 1 - src2);
+}
+void AssemblyBuilderA64::lsr(RegisterA64 dst, RegisterA64 src1, uint8_t src2)
+{
+ int size = dst.kind == KindA64::x ? 64 : 32;
+ LUAU_ASSERT(src2 < size);
+ placeBFM("lsr", dst, src1, src2, 0b10'100110, src2, size - 1);
+}
+void AssemblyBuilderA64::asr(RegisterA64 dst, RegisterA64 src1, uint8_t src2)
+{
+ int size = dst.kind == KindA64::x ? 64 : 32;
+ LUAU_ASSERT(src2 < size);
+ placeBFM("asr", dst, src1, src2, 0b00'100110, src2, size - 1);
+}
+void AssemblyBuilderA64::ror(RegisterA64 dst, RegisterA64 src1, uint8_t src2)
+{
+ int size = dst.kind == KindA64::x ? 64 : 32;
+ LUAU_ASSERT(src2 < size);
+ placeBFM("ror", dst, src1, src2, 0b00'100111, src1.index, src2);
+}
+void AssemblyBuilderA64::ubfiz(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w)
+{
+ int size = dst.kind == KindA64::x ? 64 : 32;
+ LUAU_ASSERT(w > 0 && f + w <= size);
+ placeBFM("ubfiz", dst, src, f * 100 + w, 0b10'100110, (-f) & (size - 1), w - 1);
+}
+void AssemblyBuilderA64::ubfx(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w)
+{
+ int size = dst.kind == KindA64::x ? 64 : 32;
+ LUAU_ASSERT(w > 0 && f + w <= size);
+ placeBFM("ubfx", dst, src, f * 100 + w, 0b10'100110, f, f + w - 1);
+}
+void AssemblyBuilderA64::sbfiz(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w)
+{
+ int size = dst.kind == KindA64::x ? 64 : 32;
+ LUAU_ASSERT(w > 0 && f + w <= size);
+ placeBFM("sbfiz", dst, src, f * 100 + w, 0b00'100110, (-f) & (size - 1), w - 1);
+}
+void AssemblyBuilderA64::sbfx(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w)
+{
+ int size = dst.kind == KindA64::x ? 64 : 32;
+ LUAU_ASSERT(w > 0 && f + w <= size);
+ placeBFM("sbfx", dst, src, f * 100 + w, 0b00'100110, f, f + w - 1);
+}
+void AssemblyBuilderA64::ldr(RegisterA64 dst, AddressA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::x || dst.kind == KindA64::w || dst.kind == KindA64::s || dst.kind == KindA64::d || dst.kind == KindA64::q);
+ switch (dst.kind)
+ {
+ case KindA64::w:
+ placeA("ldr", dst, src, 0b10'11100001, 2);
+ break;
+ case KindA64::x:
+ placeA("ldr", dst, src, 0b11'11100001, 3);
+ break;
+ case KindA64::s:
+ placeA("ldr", dst, src, 0b10'11110001, 2);
+ break;
+ case KindA64::d:
+ placeA("ldr", dst, src, 0b11'11110001, 3);
+ break;
+ case KindA64::q:
+ placeA("ldr", dst, src, 0b00'11110011, 4);
+ break;
+ case KindA64::none:
+ LUAU_ASSERT(!"Unexpected register kind");
+ }
+}
+void AssemblyBuilderA64::ldrb(RegisterA64 dst, AddressA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::w);
+ placeA("ldrb", dst, src, 0b00'11100001, 0);
+}
+void AssemblyBuilderA64::ldrh(RegisterA64 dst, AddressA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::w);
+ placeA("ldrh", dst, src, 0b01'11100001, 1);
+}
+void AssemblyBuilderA64::ldrsb(RegisterA64 dst, AddressA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::x || dst.kind == KindA64::w);
+ placeA("ldrsb", dst, src, 0b00'11100010 | uint8_t(dst.kind == KindA64::w), 0);
+}
+void AssemblyBuilderA64::ldrsh(RegisterA64 dst, AddressA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::x || dst.kind == KindA64::w);
+ placeA("ldrsh", dst, src, 0b01'11100010 | uint8_t(dst.kind == KindA64::w), 1);
+}
+void AssemblyBuilderA64::ldrsw(RegisterA64 dst, AddressA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::x);
+ placeA("ldrsw", dst, src, 0b10'11100010, 2);
+}
+void AssemblyBuilderA64::ldp(RegisterA64 dst1, RegisterA64 dst2, AddressA64 src)
+{
+ LUAU_ASSERT(dst1.kind == KindA64::x || dst1.kind == KindA64::w);
+ LUAU_ASSERT(dst1.kind == dst2.kind);
+ placeP("ldp", dst1, dst2, src, 0b101'0'010'1, uint8_t(dst1.kind == KindA64::x) << 1, dst1.kind == KindA64::x ? 3 : 2);
+}
+void AssemblyBuilderA64::str(RegisterA64 src, AddressA64 dst)
+{
+ LUAU_ASSERT(src.kind == KindA64::x || src.kind == KindA64::w || src.kind == KindA64::s || src.kind == KindA64::d || src.kind == KindA64::q);
+ switch (src.kind)
+ {
+ case KindA64::w:
+ placeA("str", src, dst, 0b10'11100000, 2);
+ break;
+ case KindA64::x:
+ placeA("str", src, dst, 0b11'11100000, 3);
+ break;
+ case KindA64::s:
+ placeA("str", src, dst, 0b10'11110000, 2);
+ break;
+ case KindA64::d:
+ placeA("str", src, dst, 0b11'11110000, 3);
+ break;
+ case KindA64::q:
+ placeA("str", src, dst, 0b00'11110010, 4);
+ break;
+ case KindA64::none:
+ LUAU_ASSERT(!"Unexpected register kind");
+ }
+}
+void AssemblyBuilderA64::strb(RegisterA64 src, AddressA64 dst)
+{
+ LUAU_ASSERT(src.kind == KindA64::w);
+ placeA("strb", src, dst, 0b00'11100000, 0);
+}
+void AssemblyBuilderA64::strh(RegisterA64 src, AddressA64 dst)
+{
+ LUAU_ASSERT(src.kind == KindA64::w);
+ placeA("strh", src, dst, 0b01'11100000, 1);
+}
+void AssemblyBuilderA64::stp(RegisterA64 src1, RegisterA64 src2, AddressA64 dst)
+{
+ LUAU_ASSERT(src1.kind == KindA64::x || src1.kind == KindA64::w);
+ LUAU_ASSERT(src1.kind == src2.kind);
+ placeP("stp", src1, src2, dst, 0b101'0'010'0, uint8_t(src1.kind == KindA64::x) << 1, src1.kind == KindA64::x ? 3 : 2);
+}
+void AssemblyBuilderA64::b(Label& label)
+{
+ placeB("b", label, 0b0'00101);
+}
+void AssemblyBuilderA64::bl(Label& label)
+{
+ placeB("bl", label, 0b1'00101);
+}
+void AssemblyBuilderA64::br(RegisterA64 src)
+{
+ placeBR("br", src, 0b1101011'0'0'00'11111'0000'0'0);
+}
+void AssemblyBuilderA64::blr(RegisterA64 src)
+{
+ placeBR("blr", src, 0b1101011'0'0'01'11111'0000'0'0);
+}
+void AssemblyBuilderA64::ret()
+{
+ place0("ret", 0b1101011'0'0'10'11111'0000'0'0'11110'00000);
+}
+void AssemblyBuilderA64::b(ConditionA64 cond, Label& label)
+{
+ placeBC(textForCondition[int(cond)], label, 0b0101010'0, codeForCondition[int(cond)]);
+}
+void AssemblyBuilderA64::cbz(RegisterA64 src, Label& label)
+{
+ placeBCR("cbz", label, 0b011010'0, src);
+}
+void AssemblyBuilderA64::cbnz(RegisterA64 src, Label& label)
+{
+ placeBCR("cbnz", label, 0b011010'1, src);
+}
+void AssemblyBuilderA64::tbz(RegisterA64 src, uint8_t bit, Label& label)
+{
+ placeBTR("tbz", label, 0b011011'0, src, bit);
+}
+void AssemblyBuilderA64::tbnz(RegisterA64 src, uint8_t bit, Label& label)
+{
+ placeBTR("tbnz", label, 0b011011'1, src, bit);
+}
+void AssemblyBuilderA64::adr(RegisterA64 dst, const void* ptr, size_t size)
+{
+ size_t pos = allocateData(size, 4);
+ uint32_t location = getCodeSize();
+ memcpy(&data[pos], ptr, size);
+ placeADR("adr", dst, 0b10000);
+ patchOffset(location, -int(location) - int((data.size() - pos) / 4), Patch::Imm19);
+}
+void AssemblyBuilderA64::adr(RegisterA64 dst, uint64_t value)
+{
+ size_t pos = allocateData(8, 8);
+ uint32_t location = getCodeSize();
+ writeu64(&data[pos], value);
+ placeADR("adr", dst, 0b10000);
+ patchOffset(location, -int(location) - int((data.size() - pos) / 4), Patch::Imm19);
+}
+void AssemblyBuilderA64::adr(RegisterA64 dst, double value)
+{
+ size_t pos = allocateData(8, 8);
+ uint32_t location = getCodeSize();
+ writef64(&data[pos], value);
+ placeADR("adr", dst, 0b10000);
+ patchOffset(location, -int(location) - int((data.size() - pos) / 4), Patch::Imm19);
+}
+void AssemblyBuilderA64::adr(RegisterA64 dst, Label& label)
+{
+ placeADR("adr", dst, 0b10000, label);
+}
+void AssemblyBuilderA64::fmov(RegisterA64 dst, RegisterA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::d && (src.kind == KindA64::d || src.kind == KindA64::x));
+ if (src.kind == KindA64::d)
+ placeR1("fmov", dst, src, 0b000'11110'01'1'0000'00'10000);
+ else
+ placeR1("fmov", dst, src, 0b000'11110'01'1'00'111'000000);
+}
+void AssemblyBuilderA64::fmov(RegisterA64 dst, double src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::d);
+ int imm = getFmovImm(src);
+ LUAU_ASSERT(imm >= 0 && imm <= 256);
+ if (imm == 256)
+ placeFMOV("movi", dst, src, 0b001'0111100000'000'1110'01'00000);
+ else
+ placeFMOV("fmov", dst, src, 0b000'11110'01'1'00000000'100'00000 | (imm << 8));
+}
+void AssemblyBuilderA64::fabs(RegisterA64 dst, RegisterA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::d && src.kind == KindA64::d);
+ placeR1("fabs", dst, src, 0b000'11110'01'1'0000'01'10000);
+}
+void AssemblyBuilderA64::fadd(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2)
+{
+ LUAU_ASSERT(dst.kind == KindA64::d && src1.kind == KindA64::d && src2.kind == KindA64::d);
+ placeR3("fadd", dst, src1, src2, 0b11110'01'1, 0b0010'10);
+}
+void AssemblyBuilderA64::fdiv(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2)
+{
+ LUAU_ASSERT(dst.kind == KindA64::d && src1.kind == KindA64::d && src2.kind == KindA64::d);
+ placeR3("fdiv", dst, src1, src2, 0b11110'01'1, 0b0001'10);
+}
+void AssemblyBuilderA64::fmul(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2)
+{
+ LUAU_ASSERT(dst.kind == KindA64::d && src1.kind == KindA64::d && src2.kind == KindA64::d);
+ placeR3("fmul", dst, src1, src2, 0b11110'01'1, 0b0000'10);
+}
+void AssemblyBuilderA64::fneg(RegisterA64 dst, RegisterA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::d && src.kind == KindA64::d);
+ placeR1("fneg", dst, src, 0b000'11110'01'1'0000'10'10000);
+}
+void AssemblyBuilderA64::fsqrt(RegisterA64 dst, RegisterA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::d && src.kind == KindA64::d);
+ placeR1("fsqrt", dst, src, 0b000'11110'01'1'0000'11'10000);
+}
+void AssemblyBuilderA64::fsub(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2)
+{
+ LUAU_ASSERT(dst.kind == KindA64::d && src1.kind == KindA64::d && src2.kind == KindA64::d);
+ placeR3("fsub", dst, src1, src2, 0b11110'01'1, 0b0011'10);
+}
+void AssemblyBuilderA64::frinta(RegisterA64 dst, RegisterA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::d && src.kind == KindA64::d);
+ placeR1("frinta", dst, src, 0b000'11110'01'1'001'100'10000);
+}
+void AssemblyBuilderA64::frintm(RegisterA64 dst, RegisterA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::d && src.kind == KindA64::d);
+ placeR1("frintm", dst, src, 0b000'11110'01'1'001'010'10000);
+}
+void AssemblyBuilderA64::frintp(RegisterA64 dst, RegisterA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::d && src.kind == KindA64::d);
+ placeR1("frintp", dst, src, 0b000'11110'01'1'001'001'10000);
+}
+void AssemblyBuilderA64::fcvt(RegisterA64 dst, RegisterA64 src)
+{
+ if (dst.kind == KindA64::s && src.kind == KindA64::d)
+ placeR1("fcvt", dst, src, 0b11110'01'1'0001'00'10000);
+ else if (dst.kind == KindA64::d && src.kind == KindA64::s)
+ placeR1("fcvt", dst, src, 0b11110'00'1'0001'01'10000);
+ else
+ LUAU_ASSERT(!"Unexpected register kind");
+}
+void AssemblyBuilderA64::fcvtzs(RegisterA64 dst, RegisterA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ LUAU_ASSERT(src.kind == KindA64::d);
+ placeR1("fcvtzs", dst, src, 0b000'11110'01'1'11'000'000000);
+}
+void AssemblyBuilderA64::fcvtzu(RegisterA64 dst, RegisterA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ LUAU_ASSERT(src.kind == KindA64::d);
+ placeR1("fcvtzu", dst, src, 0b000'11110'01'1'11'001'000000);
+}
+void AssemblyBuilderA64::scvtf(RegisterA64 dst, RegisterA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::d);
+ LUAU_ASSERT(src.kind == KindA64::w || src.kind == KindA64::x);
+ placeR1("scvtf", dst, src, 0b000'11110'01'1'00'010'000000);
+}
+void AssemblyBuilderA64::ucvtf(RegisterA64 dst, RegisterA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::d);
+ LUAU_ASSERT(src.kind == KindA64::w || src.kind == KindA64::x);
+ placeR1("ucvtf", dst, src, 0b000'11110'01'1'00'011'000000);
+}
+void AssemblyBuilderA64::fjcvtzs(RegisterA64 dst, RegisterA64 src)
+{
+ LUAU_ASSERT(dst.kind == KindA64::w);
+ LUAU_ASSERT(src.kind == KindA64::d);
+ LUAU_ASSERT(features & Feature_JSCVT);
+ placeR1("fjcvtzs", dst, src, 0b000'11110'01'1'11'110'000000);
+}
+void AssemblyBuilderA64::fcmp(RegisterA64 src1, RegisterA64 src2)
+{
+ LUAU_ASSERT(src1.kind == KindA64::d && src2.kind == KindA64::d);
+ placeFCMP("fcmp", src1, src2, 0b11110'01'1, 0b00);
+}
+void AssemblyBuilderA64::fcmpz(RegisterA64 src)
+{
+ LUAU_ASSERT(src.kind == KindA64::d);
+ placeFCMP("fcmp", src, RegisterA64{src.kind, 0}, 0b11110'01'1, 0b01);
+}
+void AssemblyBuilderA64::fcsel(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, ConditionA64 cond)
+{
+ LUAU_ASSERT(dst.kind == KindA64::d);
+ placeCS("fcsel", dst, src1, src2, cond, 0b11110'01'1, 0b11);
+}
+void AssemblyBuilderA64::udf()
+{
+ place0("udf", 0);
+}
+bool AssemblyBuilderA64::finalize()
+{
+ code.resize(codePos - code.data());
+ for (Patch fixup : pendingLabels)
+ {
+ uint32_t label = fixup.label;
+ LUAU_ASSERT(labelLocations[label - 1] != ~0u);
+ int value = int(labelLocations[label - 1]) - int(fixup.location);
+ patchOffset(fixup.location, value, fixup.kind);
+ }
+ size_t dataSize = data.size() - dataPos;
+ if (dataSize > 0)
+ memmove(&data[0], &data[dataPos], dataSize);
+ data.resize(dataSize);
+ finalized = true;
+ return !overflowed;
+}
+Label AssemblyBuilderA64::setLabel()
+{
+ Label label{nextLabel++, getCodeSize()};
+ labelLocations.push_back(~0u);
+ if (logText)
+ log(label);
+ return label;
+}
+void AssemblyBuilderA64::setLabel(Label& label)
+{
+ if (label.id == 0)
+ {
+ label.id = nextLabel++;
+ labelLocations.push_back(~0u);
+ }
+ label.location = getCodeSize();
+ labelLocations[label.id - 1] = label.location;
+ if (logText)
+ log(label);
+}
+void AssemblyBuilderA64::logAppend(const char* fmt, ...)
+{
+ char buf[256];
+ va_list args;
+ va_start(args, fmt);
+ vsnprintf(buf, sizeof(buf), fmt, args);
+ va_end(args);
+ text.append(buf);
+}
+uint32_t AssemblyBuilderA64::getCodeSize() const
+{
+ return uint32_t(codePos - code.data());
+}
+bool AssemblyBuilderA64::isMaskSupported(uint32_t mask)
+{
+ int lz = countlz(mask);
+ int rz = countrz(mask);
+ return lz + rz > 0 && lz + rz < 32 &&
+ (mask >> rz) == (1u << (32 - lz - rz)) - 1; // sequence of 1s must be contiguous
+}
+bool AssemblyBuilderA64::isFmovSupported(double value)
+{
+ return getFmovImm(value) >= 0;
+}
+void AssemblyBuilderA64::place0(const char* name, uint32_t op)
+{
+ if (logText)
+ log(name);
+ place(op);
+ commit();
+}
+void AssemblyBuilderA64::placeSR3(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint8_t op, int shift, int N)
+{
+ if (logText)
+ log(name, dst, src1, src2, shift);
+ LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ LUAU_ASSERT(dst.kind == src1.kind && dst.kind == src2.kind);
+ LUAU_ASSERT(shift >= -63 && shift <= 63);
+ uint32_t sf = (dst.kind == KindA64::x) ? 0x80000000 : 0;
+ place(dst.index | (src1.index << 5) | ((shift < 0 ? -shift : shift) << 10) | (src2.index << 16) | (N << 21) | (int(shift < 0) << 22) |
+ (op << 24) | sf);
+ commit();
+}
+void AssemblyBuilderA64::placeSR2(const char* name, RegisterA64 dst, RegisterA64 src, uint8_t op, uint8_t op2)
+{
+ if (logText)
+ log(name, dst, src);
+ LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ LUAU_ASSERT(dst.kind == src.kind);
+ uint32_t sf = (dst.kind == KindA64::x) ? 0x80000000 : 0;
+ place(dst.index | (0x1f << 5) | (src.index << 16) | (op2 << 21) | (op << 24) | sf);
+ commit();
+}
+void AssemblyBuilderA64::placeR3(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint8_t op, uint8_t op2)
+{
+ if (logText)
+ log(name, dst, src1, src2);
+ LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x || dst.kind == KindA64::d);
+ LUAU_ASSERT(dst.kind == src1.kind && dst.kind == src2.kind);
+ uint32_t sf = (dst.kind == KindA64::x) ? 0x80000000 : 0;
+ place(dst.index | (src1.index << 5) | (op2 << 10) | (src2.index << 16) | (op << 21) | sf);
+ commit();
+}
+void AssemblyBuilderA64::placeR1(const char* name, RegisterA64 dst, RegisterA64 src, uint32_t op)
+{
+ if (logText)
+ log(name, dst, src);
+ uint32_t sf = (dst.kind == KindA64::x || src.kind == KindA64::x) ? 0x80000000 : 0;
+ place(dst.index | (src.index << 5) | (op << 10) | sf);
+ commit();
+}
+void AssemblyBuilderA64::placeI12(const char* name, RegisterA64 dst, RegisterA64 src1, int src2, uint8_t op)
+{
+ if (logText)
+ log(name, dst, src1, src2);
+ LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x || dst == sp);
+ LUAU_ASSERT(dst.kind == src1.kind || (dst.kind == KindA64::x && src1 == sp) || (dst == sp && src1.kind == KindA64::x));
+ LUAU_ASSERT(src2 >= 0 && src2 < (1 << 12));
+ uint32_t sf = (dst.kind != KindA64::w) ? 0x80000000 : 0;
+ place(dst.index | (src1.index << 5) | (src2 << 10) | (op << 24) | sf);
+ commit();
+}
+void AssemblyBuilderA64::placeI16(const char* name, RegisterA64 dst, int src, uint8_t op, int shift)
+{
+ if (logText)
+ log(name, dst, src, shift);
+ LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ LUAU_ASSERT(src >= 0 && src <= 0xffff);
+ LUAU_ASSERT(shift == 0 || shift == 16 || shift == 32 || shift == 48);
+ uint32_t sf = (dst.kind == KindA64::x) ? 0x80000000 : 0;
+ place(dst.index | (src << 5) | ((shift >> 4) << 21) | (op << 23) | sf);
+ commit();
+}
+void AssemblyBuilderA64::placeA(const char* name, RegisterA64 dst, AddressA64 src, uint16_t opsize, int sizelog)
+{
+ if (logText)
+ log(name, dst, src);
+ switch (src.kind)
+ {
+ case AddressKindA64::reg:
+ place(dst.index | (src.base.index << 5) | (0b011'0'10 << 10) | (src.offset.index << 16) | (1 << 21) | (opsize << 22));
+ break;
+ case AddressKindA64::imm:
+ if (unsigned(src.data >> sizelog) < 1024 && (src.data & ((1 << sizelog) - 1)) == 0)
+ place(dst.index | (src.base.index << 5) | ((src.data >> sizelog) << 10) | (opsize << 22) | (1 << 24));
+ else if (src.data >= -256 && src.data <= 255)
+ place(dst.index | (src.base.index << 5) | ((src.data & ((1 << 9) - 1)) << 12) | (opsize << 22));
+ else
+ LUAU_ASSERT(!"Unable to encode large immediate offset");
+ break;
+ case AddressKindA64::pre:
+ LUAU_ASSERT(src.data >= -256 && src.data <= 255);
+ place(dst.index | (src.base.index << 5) | (0b11 << 10) | ((src.data & ((1 << 9) - 1)) << 12) | (opsize << 22));
+ break;
+ case AddressKindA64::post:
+ LUAU_ASSERT(src.data >= -256 && src.data <= 255);
+ place(dst.index | (src.base.index << 5) | (0b01 << 10) | ((src.data & ((1 << 9) - 1)) << 12) | (opsize << 22));
+ break;
+ }
+ commit();
+}
+void AssemblyBuilderA64::placeB(const char* name, Label& label, uint8_t op)
+{
+ place(op << 26);
+ commit();
+ patchLabel(label, Patch::Imm26);
+ if (logText)
+ log(name, label);
+}
+void AssemblyBuilderA64::placeBC(const char* name, Label& label, uint8_t op, uint8_t cond)
+{
+ place(cond | (op << 24));
+ commit();
+ patchLabel(label, Patch::Imm19);
+ if (logText)
+ log(name, label);
+}
+void AssemblyBuilderA64::placeBCR(const char* name, Label& label, uint8_t op, RegisterA64 cond)
+{
+ LUAU_ASSERT(cond.kind == KindA64::w || cond.kind == KindA64::x);
+ uint32_t sf = (cond.kind == KindA64::x) ? 0x80000000 : 0;
+ place(cond.index | (op << 24) | sf);
+ commit();
+ patchLabel(label, Patch::Imm19);
+ if (logText)
+ log(name, cond, label);
+}
+void AssemblyBuilderA64::placeBR(const char* name, RegisterA64 src, uint32_t op)
+{
+ if (logText)
+ log(name, src);
+ LUAU_ASSERT(src.kind == KindA64::x);
+ place((src.index << 5) | (op << 10));
+ commit();
+}
+void AssemblyBuilderA64::placeBTR(const char* name, Label& label, uint8_t op, RegisterA64 cond, uint8_t bit)
+{
+ LUAU_ASSERT(cond.kind == KindA64::x || cond.kind == KindA64::w);
+ LUAU_ASSERT(bit < (cond.kind == KindA64::x ? 64 : 32));
+ place(cond.index | ((bit & 0x1f) << 19) | (op << 24) | ((bit >> 5) << 31));
+ commit();
+ patchLabel(label, Patch::Imm14);
+ if (logText)
+ log(name, cond, label, bit);
+}
+void AssemblyBuilderA64::placeADR(const char* name, RegisterA64 dst, uint8_t op)
+{
+ if (logText)
+ log(name, dst);
+ LUAU_ASSERT(dst.kind == KindA64::x);
+ place(dst.index | (op << 24));
+ commit();
+}
+void AssemblyBuilderA64::placeADR(const char* name, RegisterA64 dst, uint8_t op, Label& label)
+{
+ LUAU_ASSERT(dst.kind == KindA64::x);
+ place(dst.index | (op << 24));
+ commit();
+ patchLabel(label, Patch::Imm19);
+ if (logText)
+ log(name, dst, label);
+}
+void AssemblyBuilderA64::placeP(const char* name, RegisterA64 src1, RegisterA64 src2, AddressA64 dst, uint8_t op, uint8_t opc, int sizelog)
+{
+ if (logText)
+ log(name, src1, src2, dst);
+ LUAU_ASSERT(dst.kind == AddressKindA64::imm);
+ LUAU_ASSERT(dst.data >= -128 * (1 << sizelog) && dst.data <= 127 * (1 << sizelog));
+ LUAU_ASSERT(dst.data % (1 << sizelog) == 0);
+ place(src1.index | (dst.base.index << 5) | (src2.index << 10) | (((dst.data >> sizelog) & 127) << 15) | (op << 22) | (opc << 30));
+ commit();
+}
+void AssemblyBuilderA64::placeCS(
+ const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, ConditionA64 cond, uint8_t op, uint8_t opc, int invert)
+{
+ if (logText)
+ log(name, dst, src1, src2, cond);
+ LUAU_ASSERT(dst.kind == src1.kind && dst.kind == src2.kind);
+ uint32_t sf = (dst.kind == KindA64::x) ? 0x80000000 : 0;
+ place(dst.index | (src1.index << 5) | (opc << 10) | ((codeForCondition[int(cond)] ^ invert) << 12) | (src2.index << 16) | (op << 21) | sf);
+ commit();
+}
+void AssemblyBuilderA64::placeFCMP(const char* name, RegisterA64 src1, RegisterA64 src2, uint8_t op, uint8_t opc)
+{
+ if (logText)
+ {
+ if (opc)
+ log(name, src1, 0);
+ else
+ log(name, src1, src2);
+ }
+ LUAU_ASSERT(src1.kind == src2.kind);
+ place((opc << 3) | (src1.index << 5) | (0b1000 << 10) | (src2.index << 16) | (op << 21));
+ commit();
+}
+void AssemblyBuilderA64::placeFMOV(const char* name, RegisterA64 dst, double src, uint32_t op)
+{
+ if (logText)
+ log(name, dst, src);
+ place(dst.index | (op << 5));
+ commit();
+}
+void AssemblyBuilderA64::placeBM(const char* name, RegisterA64 dst, RegisterA64 src1, uint32_t src2, uint8_t op)
+{
+ if (logText)
+ log(name, dst, src1, src2);
+ LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ LUAU_ASSERT(dst.kind == src1.kind);
+ LUAU_ASSERT(isMaskSupported(src2));
+ uint32_t sf = (dst.kind == KindA64::x) ? 0x80000000 : 0;
+ int lz = countlz(src2);
+ int rz = countrz(src2);
+ int imms = 31 - lz - rz;
+ int immr = (32 - rz) & 31; // right rotate amount
+ place(dst.index | (src1.index << 5) | (imms << 10) | (immr << 16) | (op << 23) | sf);
+ commit();
+}
+void AssemblyBuilderA64::placeBFM(const char* name, RegisterA64 dst, RegisterA64 src1, int src2, uint8_t op, int immr, int imms)
+{
+ if (logText)
+ log(name, dst, src1, src2);
+ LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ LUAU_ASSERT(dst.kind == src1.kind);
+ uint32_t sf = (dst.kind == KindA64::x) ? 0x80000000 : 0;
+ uint32_t n = (dst.kind == KindA64::x) ? 1 << 22 : 0;
+ place(dst.index | (src1.index << 5) | (imms << 10) | (immr << 16) | n | (op << 23) | sf);
+ commit();
+}
+void AssemblyBuilderA64::placeER(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint8_t op, int shift)
+{
+ if (logText)
+ log(name, dst, src1, src2, shift);
+ LUAU_ASSERT(dst.kind == KindA64::x && src1.kind == KindA64::x);
+ LUAU_ASSERT(src2.kind == KindA64::w);
+ LUAU_ASSERT(shift >= 0 && shift <= 4);
+ uint32_t sf = (dst.kind == KindA64::x) ? 0x80000000 : 0;
+ int option = 0b010; // UXTW
+ place(dst.index | (src1.index << 5) | (shift << 10) | (option << 13) | (src2.index << 16) | (1 << 21) | (op << 24) | sf);
+ commit();
+}
+void AssemblyBuilderA64::place(uint32_t word)
+{
+ LUAU_ASSERT(codePos < codeEnd);
+ *codePos++ = word;
+}
+void AssemblyBuilderA64::patchLabel(Label& label, Patch::Kind kind)
+{
+ uint32_t location = getCodeSize() - 1;
+ if (label.location == ~0u)
+ {
+ if (label.id == 0)
+ {
+ label.id = nextLabel++;
+ labelLocations.push_back(~0u);
+ }
+ pendingLabels.push_back({kind, label.id, location});
+ }
+ else
+ {
+ int value = int(label.location) - int(location);
+ patchOffset(location, value, kind);
+ }
+}
+void AssemblyBuilderA64::patchOffset(uint32_t location, int value, Patch::Kind kind)
+{
+ int offset = (kind == Patch::Imm26) ? 0 : 5;
+ int range = (kind == Patch::Imm19) ? (1 << 19) : (kind == Patch::Imm26) ? (1 << 26) : (1 << 14);
+ LUAU_ASSERT((code[location] & ((range - 1) << offset)) == 0);
+ if (value > -(range >> 1) && value < (range >> 1))
+ code[location] |= (value & (range - 1)) << offset;
+ else
+ overflowed = true;
+}
+void AssemblyBuilderA64::commit()
+{
+ LUAU_ASSERT(codePos <= codeEnd);
+ if (codeEnd == codePos)
+ extend();
+}
+void AssemblyBuilderA64::extend()
+{
+ uint32_t count = getCodeSize();
+ code.resize(code.size() * 2);
+ codePos = code.data() + count;
+ codeEnd = code.data() + code.size();
+}
+size_t AssemblyBuilderA64::allocateData(size_t size, size_t align)
+{
+ LUAU_ASSERT(align > 0 && align <= kMaxAlign && (align & (align - 1)) == 0);
+ if (dataPos < size)
+ {
+ size_t oldSize = data.size();
+ data.resize(data.size() * 2);
+ memcpy(&data[oldSize], &data[0], oldSize);
+ memset(&data[0], 0, oldSize);
+ dataPos += oldSize;
+ }
+ dataPos = (dataPos - size) & ~(align - 1);
+ return dataPos;
+}
+void AssemblyBuilderA64::log(const char* opcode)
+{
+ logAppend(" %s\n", opcode);
+}
+void AssemblyBuilderA64::log(const char* opcode, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift)
+{
+ logAppend(" %-12s", opcode);
+ if (dst != xzr && dst != wzr)
+ {
+ log(dst);
+ text.append(",");
+ }
+ log(src1);
+ text.append(",");
+ log(src2);
+ if (src1.kind == KindA64::x && src2.kind == KindA64::w)
+ logAppend(" UXTW #%d", shift);
+ else if (shift > 0)
+ logAppend(" LSL #%d", shift);
+ else if (shift < 0)
+ logAppend(" LSR #%d", -shift);
+ text.append("\n");
+}
+void AssemblyBuilderA64::log(const char* opcode, RegisterA64 dst, RegisterA64 src1, int src2)
+{
+ logAppend(" %-12s", opcode);
+ if (dst != xzr && dst != wzr)
+ {
+ log(dst);
+ text.append(",");
+ }
+ log(src1);
+ text.append(",");
+ logAppend("#%d", src2);
+ text.append("\n");
+}
+void AssemblyBuilderA64::log(const char* opcode, RegisterA64 dst, AddressA64 src)
+{
+ logAppend(" %-12s", opcode);
+ log(dst);
+ text.append(",");
+ log(src);
+ text.append("\n");
+}
+void AssemblyBuilderA64::log(const char* opcode, RegisterA64 dst1, RegisterA64 dst2, AddressA64 src)
+{
+ logAppend(" %-12s", opcode);
+ log(dst1);
+ text.append(",");
+ log(dst2);
+ text.append(",");
+ log(src);
+ text.append("\n");
+}
+void AssemblyBuilderA64::log(const char* opcode, RegisterA64 dst, RegisterA64 src)
+{
+ logAppend(" %-12s", opcode);
+ log(dst);
+ text.append(",");
+ log(src);
+ text.append("\n");
+}
+void AssemblyBuilderA64::log(const char* opcode, RegisterA64 dst, int src, int shift)
+{
+ logAppend(" %-12s", opcode);
+ log(dst);
+ text.append(",");
+ logAppend("#%d", src);
+ if (shift > 0)
+ logAppend(" LSL #%d", shift);
+ text.append("\n");
+}
+void AssemblyBuilderA64::log(const char* opcode, RegisterA64 dst, double src)
+{
+ logAppend(" %-12s", opcode);
+ log(dst);
+ text.append(",");
+ logAppend("#%.17g", src);
+ text.append("\n");
+}
+void AssemblyBuilderA64::log(const char* opcode, RegisterA64 src, Label label, int imm)
+{
+ logAppend(" %-12s", opcode);
+ log(src);
+ text.append(",");
+ if (imm >= 0)
+ logAppend("#%d,", imm);
+ logAppend(".L%d\n", label.id);
+}
+void AssemblyBuilderA64::log(const char* opcode, RegisterA64 src)
+{
+ logAppend(" %-12s", opcode);
+ log(src);
+ text.append("\n");
+}
+void AssemblyBuilderA64::log(const char* opcode, Label label)
+{
+ logAppend(" %-12s.L%d\n", opcode, label.id);
+}
+void AssemblyBuilderA64::log(const char* opcode, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, ConditionA64 cond)
+{
+ logAppend(" %-12s", opcode);
+ log(dst);
+ if ((src1 != wzr && src1 != xzr) || (src2 != wzr && src2 != xzr))
+ {
+ text.append(",");
+ log(src1);
+ text.append(",");
+ log(src2);
+ }
+ text.append(",");
+ text.append(textForCondition[int(cond)] + 2);
+ text.append("\n");
+}
+void AssemblyBuilderA64::log(Label label)
+{
+ logAppend(".L%d:\n", label.id);
+}
+void AssemblyBuilderA64::log(RegisterA64 reg)
+{
+ switch (reg.kind)
+ {
+ case KindA64::w:
+ if (reg.index == 31)
+ text.append("wzr");
+ else
+ logAppend("w%d", reg.index);
+ break;
+ case KindA64::x:
+ if (reg.index == 31)
+ text.append("xzr");
+ else
+ logAppend("x%d", reg.index);
+ break;
+ case KindA64::s:
+ logAppend("s%d", reg.index);
+ break;
+ case KindA64::d:
+ logAppend("d%d", reg.index);
+ break;
+ case KindA64::q:
+ logAppend("q%d", reg.index);
+ break;
+ case KindA64::none:
+ if (reg.index == 31)
+ text.append("sp");
+ else
+ LUAU_ASSERT(!"Unexpected register kind");
+ break;
+ }
+}
+void AssemblyBuilderA64::log(AddressA64 addr)
+{
+ switch (addr.kind)
+ {
+ case AddressKindA64::reg:
+ text.append("[");
+ log(addr.base);
+ text.append(",");
+ log(addr.offset);
+ text.append("]");
+ break;
+ case AddressKindA64::imm:
+ text.append("[");
+ log(addr.base);
+ if (addr.data != 0)
+ logAppend(",#%d", addr.data);
+ text.append("]");
+ break;
+ case AddressKindA64::pre:
+ text.append("[");
+ log(addr.base);
+ if (addr.data != 0)
+ logAppend(",#%d", addr.data);
+ text.append("]!");
+ break;
+ case AddressKindA64::post:
+ text.append("[");
+ log(addr.base);
+ text.append("]!");
+ if (addr.data != 0)
+ logAppend(",#%d", addr.data);
+ break;
+ }
+}
+}
+} // namespace CodeGen
+}
+#line __LINE__ ""
+#line __LINE__ "AssemblyBuilderX64.cpp"
+#line __LINE__ "ConditionX64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+enum class ConditionX64 : uint8_t
+{
+ Overflow,
+ NoOverflow,
+ Carry,
+ NoCarry,
+ Below,
+ BelowEqual,
+ Above,
+ AboveEqual,
+ Equal,
+ Less,
+ LessEqual,
+ Greater,
+ GreaterEqual,
+ NotBelow,
+ NotBelowEqual,
+ NotAbove,
+ NotAboveEqual,
+ NotEqual,
+ NotLess,
+ NotLessEqual,
+ NotGreater,
+ NotGreaterEqual,
+ Zero,
+ NotZero,
+ Parity,
+ NotParity,
+ Count
+};
+inline ConditionX64 getReverseCondition(ConditionX64 cond)
+{
+ switch (cond)
+ {
+ case ConditionX64::Overflow:
+ return ConditionX64::NoOverflow;
+ case ConditionX64::NoOverflow:
+ return ConditionX64::Overflow;
+ case ConditionX64::Carry:
+ return ConditionX64::NoCarry;
+ case ConditionX64::NoCarry:
+ return ConditionX64::Carry;
+ case ConditionX64::Below:
+ return ConditionX64::NotBelow;
+ case ConditionX64::BelowEqual:
+ return ConditionX64::NotBelowEqual;
+ case ConditionX64::Above:
+ return ConditionX64::NotAbove;
+ case ConditionX64::AboveEqual:
+ return ConditionX64::NotAboveEqual;
+ case ConditionX64::Equal:
+ return ConditionX64::NotEqual;
+ case ConditionX64::Less:
+ return ConditionX64::NotLess;
+ case ConditionX64::LessEqual:
+ return ConditionX64::NotLessEqual;
+ case ConditionX64::Greater:
+ return ConditionX64::NotGreater;
+ case ConditionX64::GreaterEqual:
+ return ConditionX64::NotGreaterEqual;
+ case ConditionX64::NotBelow:
+ return ConditionX64::Below;
+ case ConditionX64::NotBelowEqual:
+ return ConditionX64::BelowEqual;
+ case ConditionX64::NotAbove:
+ return ConditionX64::Above;
+ case ConditionX64::NotAboveEqual:
+ return ConditionX64::AboveEqual;
+ case ConditionX64::NotEqual:
+ return ConditionX64::Equal;
+ case ConditionX64::NotLess:
+ return ConditionX64::Less;
+ case ConditionX64::NotLessEqual:
+ return ConditionX64::LessEqual;
+ case ConditionX64::NotGreater:
+ return ConditionX64::Greater;
+ case ConditionX64::NotGreaterEqual:
+ return ConditionX64::GreaterEqual;
+ case ConditionX64::Zero:
+ return ConditionX64::NotZero;
+ case ConditionX64::NotZero:
+ return ConditionX64::Zero;
+ case ConditionX64::Parity:
+ return ConditionX64::NotParity;
+ case ConditionX64::NotParity:
+ return ConditionX64::Parity;
+ case ConditionX64::Count:
+ LUAU_ASSERT(!"invalid ConditionX64 value");
+ }
+ return ConditionX64::Count;
+}
+}
+} // namespace Luau
+#line __LINE__ "AssemblyBuilderX64.h"
+#line __LINE__ "OperandX64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+namespace X64
+{
+enum class CategoryX64 : uint8_t
+{
+ reg,
+ mem,
+ imm,
+};
+struct OperandX64
+{
+ constexpr OperandX64(RegisterX64 reg)
+ : cat(CategoryX64::reg)
+ , index(noreg)
+ , base(reg)
+ , memSize(SizeX64::none)
+ , scale(1)
+ , imm(0)
+ {
+ }
+ constexpr OperandX64(int32_t imm)
+ : cat(CategoryX64::imm)
+ , index(noreg)
+ , base(noreg)
+ , memSize(SizeX64::none)
+ , scale(1)
+ , imm(imm)
+ {
+ }
+ constexpr explicit OperandX64(SizeX64 size, RegisterX64 index, uint8_t scale, RegisterX64 base, int32_t disp)
+ : cat(CategoryX64::mem)
+ , index(index)
+ , base(base)
+ , memSize(size)
+ , scale(scale)
+ , imm(disp)
+ {
+ }
+ CategoryX64 cat;
+ RegisterX64 index;
+ RegisterX64 base;
+ SizeX64 memSize : 4;
+ uint8_t scale : 4;
+ int32_t imm;
+ constexpr OperandX64 operator[](OperandX64&& addr) const
+ {
+ LUAU_ASSERT(cat == CategoryX64::mem);
+ LUAU_ASSERT(index == noreg && scale == 1 && base == noreg && imm == 0);
+ LUAU_ASSERT(addr.memSize == SizeX64::none);
+ addr.cat = CategoryX64::mem;
+ addr.memSize = memSize;
+ return addr;
+ }
+};
+constexpr OperandX64 addr{SizeX64::none, noreg, 1, noreg, 0};
+constexpr OperandX64 byte{SizeX64::byte, noreg, 1, noreg, 0};
+constexpr OperandX64 word{SizeX64::word, noreg, 1, noreg, 0};
+constexpr OperandX64 dword{SizeX64::dword, noreg, 1, noreg, 0};
+constexpr OperandX64 qword{SizeX64::qword, noreg, 1, noreg, 0};
+constexpr OperandX64 xmmword{SizeX64::xmmword, noreg, 1, noreg, 0};
+constexpr OperandX64 ymmword{SizeX64::ymmword, noreg, 1, noreg, 0};
+constexpr OperandX64 operator*(RegisterX64 reg, uint8_t scale)
+{
+ if (scale == 1)
+ return OperandX64(reg);
+ LUAU_ASSERT(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+ LUAU_ASSERT(reg.index != 0b100 && "can't scale SP");
+ return OperandX64(SizeX64::none, reg, scale, noreg, 0);
+}
+constexpr OperandX64 operator+(RegisterX64 reg, int32_t disp)
+{
+ return OperandX64(SizeX64::none, noreg, 1, reg, disp);
+}
+constexpr OperandX64 operator-(RegisterX64 reg, int32_t disp)
+{
+ return OperandX64(SizeX64::none, noreg, 1, reg, -disp);
+}
+constexpr OperandX64 operator+(RegisterX64 base, RegisterX64 index)
+{
+ LUAU_ASSERT(index.index != 4 && "sp cannot be used as index");
+ LUAU_ASSERT(base.size == index.size);
+ return OperandX64(SizeX64::none, index, 1, base, 0);
+}
+constexpr OperandX64 operator+(OperandX64 op, int32_t disp)
+{
+ LUAU_ASSERT(op.cat == CategoryX64::mem);
+ LUAU_ASSERT(op.memSize == SizeX64::none);
+ op.imm += disp;
+ return op;
+}
+constexpr OperandX64 operator+(OperandX64 op, RegisterX64 base)
+{
+ LUAU_ASSERT(op.cat == CategoryX64::mem);
+ LUAU_ASSERT(op.memSize == SizeX64::none);
+ LUAU_ASSERT(op.base == noreg);
+ LUAU_ASSERT(op.index == noreg || op.index.size == base.size);
+ op.base = base;
+ return op;
+}
+constexpr OperandX64 operator+(RegisterX64 base, OperandX64 op)
+{
+ LUAU_ASSERT(op.cat == CategoryX64::mem);
+ LUAU_ASSERT(op.memSize == SizeX64::none);
+ LUAU_ASSERT(op.base == noreg);
+ LUAU_ASSERT(op.index == noreg || op.index.size == base.size);
+ op.base = base;
+ return op;
+}
+}
+} // namespace CodeGen
+}
+#line __LINE__ "AssemblyBuilderX64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+namespace X64
+{
+enum class RoundingModeX64
+{
+ RoundToNearestEven = 0b00,
+ RoundToNegativeInfinity = 0b01,
+ RoundToPositiveInfinity = 0b10,
+ RoundToZero = 0b11,
+};
+enum class AlignmentDataX64
+{
+ Nop,
+ Int3,
+ Ud2,
+};
+enum class ABIX64
+{
+ Windows,
+ SystemV,
+};
+class AssemblyBuilderX64
+{
+public:
+ explicit AssemblyBuilderX64(bool logText, ABIX64 abi);
+ explicit AssemblyBuilderX64(bool logText);
+ ~AssemblyBuilderX64();
+ void add(OperandX64 lhs, OperandX64 rhs);
+ void sub(OperandX64 lhs, OperandX64 rhs);
+ void cmp(OperandX64 lhs, OperandX64 rhs);
+ void and_(OperandX64 lhs, OperandX64 rhs);
+ void or_(OperandX64 lhs, OperandX64 rhs);
+ void xor_(OperandX64 lhs, OperandX64 rhs);
+ void sal(OperandX64 lhs, OperandX64 rhs);
+ void sar(OperandX64 lhs, OperandX64 rhs);
+ void shl(OperandX64 lhs, OperandX64 rhs);
+ void shr(OperandX64 lhs, OperandX64 rhs);
+ void rol(OperandX64 lhs, OperandX64 rhs);
+ void ror(OperandX64 lhs, OperandX64 rhs);
+ void mov(OperandX64 lhs, OperandX64 rhs);
+ void mov64(RegisterX64 lhs, int64_t imm);
+ void movsx(RegisterX64 lhs, OperandX64 rhs);
+ void movzx(RegisterX64 lhs, OperandX64 rhs);
+ void div(OperandX64 op);
+ void idiv(OperandX64 op);
+ void mul(OperandX64 op);
+ void imul(OperandX64 op);
+ void neg(OperandX64 op);
+ void not_(OperandX64 op);
+ void dec(OperandX64 op);
+ void inc(OperandX64 op);
+ void imul(OperandX64 lhs, OperandX64 rhs);
+ void imul(OperandX64 dst, OperandX64 lhs, int32_t rhs);
+ void test(OperandX64 lhs, OperandX64 rhs);
+ void lea(OperandX64 lhs, OperandX64 rhs);
+ void setcc(ConditionX64 cond, OperandX64 op);
+ void cmov(ConditionX64 cond, RegisterX64 lhs, OperandX64 rhs);
+ void push(OperandX64 op);
+ void pop(OperandX64 op);
+ void ret();
+ void jcc(ConditionX64 cond, Label& label);
+ void jmp(Label& label);
+ void jmp(OperandX64 op);
+ void call(Label& label);
+ void call(OperandX64 op);
+ void lea(RegisterX64 lhs, Label& label);
+ void int3();
+ void ud2();
+ void bsr(RegisterX64 dst, OperandX64 src);
+ void bsf(RegisterX64 dst, OperandX64 src);
+ void bswap(RegisterX64 dst);
+ void nop(uint32_t length = 1);
+ void align(uint32_t alignment, AlignmentDataX64 data = AlignmentDataX64::Nop);
+ void vaddpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vaddps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vaddsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vaddss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vsubsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vmulsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vdivsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vandpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vandnpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vxorpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vorpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vucomisd(OperandX64 src1, OperandX64 src2);
+ void vcvttsd2si(OperandX64 dst, OperandX64 src);
+ void vcvtsi2sd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vcvtsd2ss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vcvtss2sd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vroundsd(OperandX64 dst, OperandX64 src1, OperandX64 src2, RoundingModeX64 roundingMode);
+ void vsqrtpd(OperandX64 dst, OperandX64 src);
+ void vsqrtps(OperandX64 dst, OperandX64 src);
+ void vsqrtsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vsqrtss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vmovsd(OperandX64 dst, OperandX64 src);
+ void vmovsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vmovss(OperandX64 dst, OperandX64 src);
+ void vmovss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vmovapd(OperandX64 dst, OperandX64 src);
+ void vmovaps(OperandX64 dst, OperandX64 src);
+ void vmovupd(OperandX64 dst, OperandX64 src);
+ void vmovups(OperandX64 dst, OperandX64 src);
+ void vmovq(OperandX64 lhs, OperandX64 rhs);
+ void vmaxsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vminsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vcmpltsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vblendvpd(RegisterX64 dst, RegisterX64 src1, OperandX64 mask, RegisterX64 src3);
+ bool finalize();
+ Label setLabel();
+ void setLabel(Label& label);
+ uint32_t getLabelOffset(const Label& label)
+ {
+ LUAU_ASSERT(label.location != ~0u);
+ return label.location;
+ }
+ OperandX64 i64(int64_t value);
+ OperandX64 f32(float value);
+ OperandX64 f64(double value);
+ OperandX64 f32x4(float x, float y, float z, float w);
+ OperandX64 f64x2(double x, double y);
+ OperandX64 bytes(const void* ptr, size_t size, size_t align = 8);
+ void logAppend(const char* fmt, ...) LUAU_PRINTF_ATTR(2, 3);
+ uint32_t getCodeSize() const;
+ std::vector<uint8_t> data;
+ std::vector<uint8_t> code;
+ std::string text;
+ const bool logText = false;
+ const ABIX64 abi;
+private:
+ void placeBinary(const char* name, OperandX64 lhs, OperandX64 rhs, uint8_t codeimm8, uint8_t codeimm, uint8_t codeimmImm8, uint8_t code8rev,
+ uint8_t coderev, uint8_t code8, uint8_t code, uint8_t opreg);
+ void placeBinaryRegMemAndImm(OperandX64 lhs, OperandX64 rhs, uint8_t code8, uint8_t code, uint8_t codeImm8, uint8_t opreg);
+ void placeBinaryRegAndRegMem(OperandX64 lhs, OperandX64 rhs, uint8_t code8, uint8_t code);
+ void placeBinaryRegMemAndReg(OperandX64 lhs, OperandX64 rhs, uint8_t code8, uint8_t code);
+ void placeUnaryModRegMem(const char* name, OperandX64 op, uint8_t code8, uint8_t code, uint8_t opreg);
+ void placeShift(const char* name, OperandX64 lhs, OperandX64 rhs, uint8_t opreg);
+ void placeJcc(const char* name, Label& label, uint8_t cc);
+ void placeAvx(const char* name, OperandX64 dst, OperandX64 src, uint8_t code, bool setW, uint8_t mode, uint8_t prefix);
+ void placeAvx(const char* name, OperandX64 dst, OperandX64 src, uint8_t code, uint8_t coderev, bool setW, uint8_t mode, uint8_t prefix);
+ void placeAvx(const char* name, OperandX64 dst, OperandX64 src1, OperandX64 src2, uint8_t code, bool setW, uint8_t mode, uint8_t prefix);
+ void placeAvx(
+ const char* name, OperandX64 dst, OperandX64 src1, OperandX64 src2, uint8_t imm8, uint8_t code, bool setW, uint8_t mode, uint8_t prefix);
+ void placeRegAndModRegMem(OperandX64 lhs, OperandX64 rhs, int32_t extraCodeBytes = 0);
+ void placeModRegMem(OperandX64 rhs, uint8_t regop, int32_t extraCodeBytes = 0);
+ void placeRex(RegisterX64 op);
+ void placeRex(OperandX64 op);
+ void placeRexNoW(OperandX64 op);
+ void placeRex(RegisterX64 lhs, OperandX64 rhs);
+ void placeVex(OperandX64 dst, OperandX64 src1, OperandX64 src2, bool setW, uint8_t mode, uint8_t prefix);
+ void placeImm8Or32(int32_t imm);
+ void placeImm8(int32_t imm);
+ void placeImm16(int16_t imm);
+ void placeImm32(int32_t imm);
+ void placeImm64(int64_t imm);
+ void placeLabel(Label& label);
+ void place(uint8_t byte);
+ void commit();
+ LUAU_NOINLINE void extend();
+ size_t allocateData(size_t size, size_t align);
+ LUAU_NOINLINE void log(const char* opcode);
+ LUAU_NOINLINE void log(const char* opcode, OperandX64 op);
+ LUAU_NOINLINE void log(const char* opcode, OperandX64 op1, OperandX64 op2);
+ LUAU_NOINLINE void log(const char* opcode, OperandX64 op1, OperandX64 op2, OperandX64 op3);
+ LUAU_NOINLINE void log(const char* opcode, OperandX64 op1, OperandX64 op2, OperandX64 op3, OperandX64 op4);
+ LUAU_NOINLINE void log(Label label);
+ LUAU_NOINLINE void log(const char* opcode, Label label);
+ LUAU_NOINLINE void log(const char* opcode, RegisterX64 reg, Label label);
+ void log(OperandX64 op);
+ const char* getSizeName(SizeX64 size) const;
+ const char* getRegisterName(RegisterX64 reg) const;
+ uint32_t nextLabel = 1;
+ std::vector<Label> pendingLabels;
+ std::vector<uint32_t> labelLocations;
+ DenseHashMap<uint64_t, int32_t> constCache64;
+ bool finalized = false;
+ size_t dataPos = 0;
+ uint8_t* codePos = nullptr;
+ uint8_t* codeEnd = nullptr;
+};
+}
+} // namespace CodeGen
+}
+#line __LINE__ "AssemblyBuilderX64.cpp"
+LUAU_FASTFLAG(LuauCodeGenFixByteLower)
+namespace Luau
+{
+namespace CodeGen
+{
+namespace X64
+{
+static const uint8_t codeForCondition[] = {
+ 0x0, 0x1, 0x2, 0x3, 0x2, 0x6, 0x7, 0x3, 0x4, 0xc, 0xe, 0xf, 0xd, 0x3, 0x7, 0x6, 0x2, 0x5, 0xd, 0xf, 0xe, 0xc, 0x4, 0x5, 0xa, 0xb};
+static_assert(sizeof(codeForCondition) / sizeof(codeForCondition[0]) == size_t(ConditionX64::Count), "all conditions have to be covered");
+static const char* jccTextForCondition[] = {"jo", "jno", "jc", "jnc", "jb", "jbe", "ja", "jae", "je", "jl", "jle", "jg", "jge", "jnb", "jnbe", "jna",
+ "jnae", "jne", "jnl", "jnle", "jng", "jnge", "jz", "jnz", "jp", "jnp"};
+static_assert(sizeof(jccTextForCondition) / sizeof(jccTextForCondition[0]) == size_t(ConditionX64::Count), "all conditions have to be covered");
+static const char* setccTextForCondition[] = {"seto", "setno", "setc", "setnc", "setb", "setbe", "seta", "setae", "sete", "setl", "setle", "setg",
+ "setge", "setnb", "setnbe", "setna", "setnae", "setne", "setnl", "setnle", "setng", "setnge", "setz", "setnz", "setp", "setnp"};
+static_assert(sizeof(setccTextForCondition) / sizeof(setccTextForCondition[0]) == size_t(ConditionX64::Count), "all conditions have to be covered");
+static const char* cmovTextForCondition[] = {"cmovo", "cmovno", "cmovc", "cmovnc", "cmovb", "cmovbe", "cmova", "cmovae", "cmove", "cmovl", "cmovle",
+ "cmovg", "cmovge", "cmovnb", "cmovnbe", "cmovna", "cmovnae", "cmovne", "cmovnl", "cmovnle", "cmovng", "cmovnge", "cmovz", "cmovnz", "cmovp",
+ "cmovnp"};
+static_assert(sizeof(cmovTextForCondition) / sizeof(cmovTextForCondition[0]) == size_t(ConditionX64::Count), "all conditions have to be covered");
+#define OP_PLUS_REG(op, reg) ((op) + (reg & 0x7))
+#define OP_PLUS_CC(op, cc) ((op) + uint8_t(cc))
+#define REX_W_BIT(value) (value ? 0x8 : 0x0)
+#define REX_W(reg) REX_W_BIT((reg).size == SizeX64::qword || ((reg).size == SizeX64::byte && (reg).index >= 4))
+#define REX_R(reg) (((reg).index & 0x8) >> 1)
+#define REX_X(reg) (((reg).index & 0x8) >> 2)
+#define REX_B(reg) (((reg).index & 0x8) >> 3)
+#define AVX_W(value) ((value) ? 0x80 : 0x0)
+#define AVX_R(reg) ((~(reg).index & 0x8) << 4)
+#define AVX_X(reg) ((~(reg).index & 0x8) << 3)
+#define AVX_B(reg) ((~(reg).index & 0x8) << 2)
+#define AVX_3_1() 0b11000100
+#define AVX_3_2(r, x, b, m) (AVX_R(r) | AVX_X(x) | AVX_B(b) | (m))
+#define AVX_3_3(w, v, l, p) (AVX_W(w) | ((~(v.index) & 0xf) << 3) | ((l) << 2) | (p))
+#define MOD_RM(mod, reg, rm) (((mod) << 6) | (((reg)&0x7) << 3) | ((rm)&0x7))
+#define SIB(scale, index, base) ((getScaleEncoding(scale) << 6) | (((index)&0x7) << 3) | ((base)&0x7))
+const unsigned AVX_0F = 0b0001;
+[[maybe_unused]] const unsigned AVX_0F38 = 0b0010;
+[[maybe_unused]] const unsigned AVX_0F3A = 0b0011;
+const unsigned AVX_NP = 0b00;
+const unsigned AVX_66 = 0b01;
+const unsigned AVX_F3 = 0b10;
+const unsigned AVX_F2 = 0b11;
+const unsigned kMaxAlign = 32;
+const unsigned kMaxInstructionLength = 16;
+const uint8_t kRoundingPrecisionInexact = 0b1000;
+static ABIX64 getCurrentX64ABI()
+{
+#if defined(_WIN32)
+ return ABIX64::Windows;
+#else
+ return ABIX64::SystemV;
+#endif
+}
+AssemblyBuilderX64::AssemblyBuilderX64(bool logText, ABIX64 abi)
+ : logText(logText)
+ , abi(abi)
+ , constCache64(~0ull)
+{
+ data.resize(4096);
+ dataPos = data.size();
+ code.resize(4096);
+ codePos = code.data();
+ codeEnd = code.data() + code.size();
+}
+AssemblyBuilderX64::AssemblyBuilderX64(bool logText)
+ : AssemblyBuilderX64(logText, getCurrentX64ABI())
+{
+}
+AssemblyBuilderX64::~AssemblyBuilderX64()
+{
+ LUAU_ASSERT(finalized);
+}
+void AssemblyBuilderX64::add(OperandX64 lhs, OperandX64 rhs)
+{
+ placeBinary("add", lhs, rhs, 0x80, 0x81, 0x83, 0x00, 0x01, 0x02, 0x03, 0);
+}
+void AssemblyBuilderX64::sub(OperandX64 lhs, OperandX64 rhs)
+{
+ placeBinary("sub", lhs, rhs, 0x80, 0x81, 0x83, 0x28, 0x29, 0x2a, 0x2b, 5);
+}
+void AssemblyBuilderX64::cmp(OperandX64 lhs, OperandX64 rhs)
+{
+ placeBinary("cmp", lhs, rhs, 0x80, 0x81, 0x83, 0x38, 0x39, 0x3a, 0x3b, 7);
+}
+void AssemblyBuilderX64::and_(OperandX64 lhs, OperandX64 rhs)
+{
+ placeBinary("and", lhs, rhs, 0x80, 0x81, 0x83, 0x20, 0x21, 0x22, 0x23, 4);
+}
+void AssemblyBuilderX64::or_(OperandX64 lhs, OperandX64 rhs)
+{
+ placeBinary("or", lhs, rhs, 0x80, 0x81, 0x83, 0x08, 0x09, 0x0a, 0x0b, 1);
+}
+void AssemblyBuilderX64::xor_(OperandX64 lhs, OperandX64 rhs)
+{
+ placeBinary("xor", lhs, rhs, 0x80, 0x81, 0x83, 0x30, 0x31, 0x32, 0x33, 6);
+}
+void AssemblyBuilderX64::sal(OperandX64 lhs, OperandX64 rhs)
+{
+ placeShift("sal", lhs, rhs, 4);
+}
+void AssemblyBuilderX64::sar(OperandX64 lhs, OperandX64 rhs)
+{
+ placeShift("sar", lhs, rhs, 7);
+}
+void AssemblyBuilderX64::shl(OperandX64 lhs, OperandX64 rhs)
+{
+ placeShift("shl", lhs, rhs, 4); // same as sal
+}
+void AssemblyBuilderX64::shr(OperandX64 lhs, OperandX64 rhs)
+{
+ placeShift("shr", lhs, rhs, 5);
+}
+void AssemblyBuilderX64::rol(OperandX64 lhs, OperandX64 rhs)
+{
+ placeShift("rol", lhs, rhs, 0);
+}
+void AssemblyBuilderX64::ror(OperandX64 lhs, OperandX64 rhs)
+{
+ placeShift("ror", lhs, rhs, 1);
+}
+void AssemblyBuilderX64::mov(OperandX64 lhs, OperandX64 rhs)
+{
+ if (logText)
+ log("mov", lhs, rhs);
+ if (lhs.cat == CategoryX64::reg && rhs.cat == CategoryX64::imm)
+ {
+ SizeX64 size = lhs.base.size;
+ placeRex(lhs.base);
+ if (size == SizeX64::byte)
+ {
+ place(OP_PLUS_REG(0xb0, lhs.base.index));
+ placeImm8(rhs.imm);
+ }
+ else if (size == SizeX64::word)
+ {
+ place(0x66);
+ place(OP_PLUS_REG(0xb8, lhs.base.index));
+ placeImm16(rhs.imm);
+ }
+ else if (size == SizeX64::dword)
+ {
+ place(OP_PLUS_REG(0xb8, lhs.base.index));
+ placeImm32(rhs.imm);
+ }
+ else
+ {
+ LUAU_ASSERT(size == SizeX64::qword);
+ place(OP_PLUS_REG(0xb8, lhs.base.index));
+ placeImm64(rhs.imm);
+ }
+ }
+ else if (lhs.cat == CategoryX64::mem && rhs.cat == CategoryX64::imm)
+ {
+ SizeX64 size = lhs.memSize;
+ placeRex(lhs);
+ if (size == SizeX64::byte)
+ {
+ place(0xc6);
+ placeModRegMem(lhs, 0, 1);
+ placeImm8(rhs.imm);
+ }
+ else if (size == SizeX64::word)
+ {
+ place(0x66);
+ place(0xc7);
+ placeModRegMem(lhs, 0, 2);
+ placeImm16(rhs.imm);
+ }
+ else
+ {
+ LUAU_ASSERT(size == SizeX64::dword || size == SizeX64::qword);
+ place(0xc7);
+ placeModRegMem(lhs, 0, 4);
+ placeImm32(rhs.imm);
+ }
+ }
+ else if (lhs.cat == CategoryX64::reg && (rhs.cat == CategoryX64::reg || rhs.cat == CategoryX64::mem))
+ {
+ placeBinaryRegAndRegMem(lhs, rhs, 0x8a, 0x8b);
+ }
+ else if (lhs.cat == CategoryX64::mem && rhs.cat == CategoryX64::reg)
+ {
+ placeBinaryRegMemAndReg(lhs, rhs, 0x88, 0x89);
+ }
+ else
+ {
+ LUAU_ASSERT(!"No encoding for this operand combination");
+ }
+ commit();
+}
+void AssemblyBuilderX64::mov64(RegisterX64 lhs, int64_t imm)
+{
+ if (logText)
+ {
+ text.append(" mov ");
+ log(lhs);
+ logAppend(",%llXh\n", (unsigned long long)imm);
+ }
+ LUAU_ASSERT(lhs.size == SizeX64::qword);
+ placeRex(lhs);
+ place(OP_PLUS_REG(0xb8, lhs.index));
+ placeImm64(imm);
+ commit();
+}
+void AssemblyBuilderX64::movsx(RegisterX64 lhs, OperandX64 rhs)
+{
+ if (logText)
+ log("movsx", lhs, rhs);
+ LUAU_ASSERT(rhs.memSize == SizeX64::byte || rhs.memSize == SizeX64::word);
+ placeRex(lhs, rhs);
+ place(0x0f);
+ place(rhs.memSize == SizeX64::byte ? 0xbe : 0xbf);
+ placeRegAndModRegMem(lhs, rhs);
+ commit();
+}
+void AssemblyBuilderX64::movzx(RegisterX64 lhs, OperandX64 rhs)
+{
+ if (logText)
+ log("movzx", lhs, rhs);
+ LUAU_ASSERT(rhs.memSize == SizeX64::byte || rhs.memSize == SizeX64::word);
+ placeRex(lhs, rhs);
+ place(0x0f);
+ place(rhs.memSize == SizeX64::byte ? 0xb6 : 0xb7);
+ placeRegAndModRegMem(lhs, rhs);
+ commit();
+}
+void AssemblyBuilderX64::div(OperandX64 op)
+{
+ placeUnaryModRegMem("div", op, 0xf6, 0xf7, 6);
+}
+void AssemblyBuilderX64::idiv(OperandX64 op)
+{
+ placeUnaryModRegMem("idiv", op, 0xf6, 0xf7, 7);
+}
+void AssemblyBuilderX64::mul(OperandX64 op)
+{
+ placeUnaryModRegMem("mul", op, 0xf6, 0xf7, 4);
+}
+void AssemblyBuilderX64::imul(OperandX64 op)
+{
+ placeUnaryModRegMem("imul", op, 0xf6, 0xf7, 5);
+}
+void AssemblyBuilderX64::neg(OperandX64 op)
+{
+ placeUnaryModRegMem("neg", op, 0xf6, 0xf7, 3);
+}
+void AssemblyBuilderX64::not_(OperandX64 op)
+{
+ placeUnaryModRegMem("not", op, 0xf6, 0xf7, 2);
+}
+void AssemblyBuilderX64::dec(OperandX64 op)
+{
+ placeUnaryModRegMem("dec", op, 0xfe, 0xff, 1);
+}
+void AssemblyBuilderX64::inc(OperandX64 op)
+{
+ placeUnaryModRegMem("inc", op, 0xfe, 0xff, 0);
+}
+void AssemblyBuilderX64::imul(OperandX64 lhs, OperandX64 rhs)
+{
+ if (logText)
+ log("imul", lhs, rhs);
+ placeRex(lhs.base, rhs);
+ place(0x0f);
+ place(0xaf);
+ placeRegAndModRegMem(lhs, rhs);
+ commit();
+}
+void AssemblyBuilderX64::imul(OperandX64 dst, OperandX64 lhs, int32_t rhs)
+{
+ if (logText)
+ log("imul", dst, lhs, rhs);
+ placeRex(dst.base, lhs);
+ if (int8_t(rhs) == rhs)
+ {
+ place(0x6b);
+ placeRegAndModRegMem(dst, lhs, 1);
+ placeImm8(rhs);
+ }
+ else
+ {
+ place(0x69);
+ placeRegAndModRegMem(dst, lhs, 4);
+ placeImm32(rhs);
+ }
+ commit();
+}
+void AssemblyBuilderX64::test(OperandX64 lhs, OperandX64 rhs)
+{
+ placeBinary("test", lhs, rhs, 0xf6, 0xf7, 0xf7, 0x84, 0x85, 0x84, 0x85, 0);
+}
+void AssemblyBuilderX64::lea(OperandX64 lhs, OperandX64 rhs)
+{
+ if (logText)
+ log("lea", lhs, rhs);
+ LUAU_ASSERT(lhs.cat == CategoryX64::reg && rhs.cat == CategoryX64::mem && rhs.memSize == SizeX64::none);
+ LUAU_ASSERT(rhs.base == rip || rhs.base.size == lhs.base.size);
+ LUAU_ASSERT(rhs.index == noreg || rhs.index.size == lhs.base.size);
+ rhs.memSize = lhs.base.size;
+ placeBinaryRegAndRegMem(lhs, rhs, 0x8d, 0x8d);
+}
+void AssemblyBuilderX64::push(OperandX64 op)
+{
+ if (logText)
+ log("push", op);
+ LUAU_ASSERT(op.cat == CategoryX64::reg && op.base.size == SizeX64::qword);
+ placeRex(op.base);
+ place(OP_PLUS_REG(0x50, op.base.index));
+ commit();
+}
+void AssemblyBuilderX64::pop(OperandX64 op)
+{
+ if (logText)
+ log("pop", op);
+ LUAU_ASSERT(op.cat == CategoryX64::reg && op.base.size == SizeX64::qword);
+ placeRex(op.base);
+ place(OP_PLUS_REG(0x58, op.base.index));
+ commit();
+}
+void AssemblyBuilderX64::ret()
+{
+ if (logText)
+ log("ret");
+ place(0xc3);
+ commit();
+}
+void AssemblyBuilderX64::setcc(ConditionX64 cond, OperandX64 op)
+{
+ SizeX64 size = op.cat == CategoryX64::reg ? op.base.size : op.memSize;
+ LUAU_ASSERT(size == SizeX64::byte);
+ if (logText)
+ log(setccTextForCondition[size_t(cond)], op);
+ placeRex(op);
+ place(0x0f);
+ place(0x90 | codeForCondition[size_t(cond)]);
+ placeModRegMem(op, 0);
+ commit();
+}
+void AssemblyBuilderX64::cmov(ConditionX64 cond, RegisterX64 lhs, OperandX64 rhs)
+{
+ SizeX64 size = rhs.cat == CategoryX64::reg ? rhs.base.size : rhs.memSize;
+ LUAU_ASSERT(size != SizeX64::byte && size == lhs.size);
+ if (logText)
+ log(cmovTextForCondition[size_t(cond)], lhs, rhs);
+ placeRex(lhs, rhs);
+ place(0x0f);
+ place(0x40 | codeForCondition[size_t(cond)]);
+ placeRegAndModRegMem(lhs, rhs);
+ commit();
+}
+void AssemblyBuilderX64::jcc(ConditionX64 cond, Label& label)
+{
+ placeJcc(jccTextForCondition[size_t(cond)], label, codeForCondition[size_t(cond)]);
+}
+void AssemblyBuilderX64::jmp(Label& label)
+{
+ place(0xe9);
+ placeLabel(label);
+ if (logText)
+ log("jmp", label);
+ commit();
+}
+void AssemblyBuilderX64::jmp(OperandX64 op)
+{
+ LUAU_ASSERT((op.cat == CategoryX64::reg ? op.base.size : op.memSize) == SizeX64::qword);
+ if (logText)
+ log("jmp", op);
+ placeRexNoW(op);
+ place(0xff);
+ placeModRegMem(op, 4);
+ commit();
+}
+void AssemblyBuilderX64::call(Label& label)
+{
+ place(0xe8);
+ placeLabel(label);
+ if (logText)
+ log("call", label);
+ commit();
+}
+void AssemblyBuilderX64::call(OperandX64 op)
+{
+ LUAU_ASSERT((op.cat == CategoryX64::reg ? op.base.size : op.memSize) == SizeX64::qword);
+ if (logText)
+ log("call", op);
+ placeRexNoW(op);
+ place(0xff);
+ placeModRegMem(op, 2);
+ commit();
+}
+void AssemblyBuilderX64::lea(RegisterX64 lhs, Label& label)
+{
+ LUAU_ASSERT(lhs.size == SizeX64::qword);
+ placeBinaryRegAndRegMem(lhs, OperandX64(SizeX64::qword, noreg, 1, rip, 0), 0x8d, 0x8d);
+ codePos -= 4;
+ placeLabel(label);
+ commit();
+ if (logText)
+ log("lea", lhs, label);
+}
+void AssemblyBuilderX64::int3()
+{
+ if (logText)
+ log("int3");
+ place(0xcc);
+ commit();
+}
+void AssemblyBuilderX64::ud2()
+{
+ if (logText)
+ log("ud2");
+ place(0x0f);
+ place(0x0b);
+}
+void AssemblyBuilderX64::bsr(RegisterX64 dst, OperandX64 src)
+{
+ if (logText)
+ log("bsr", dst, src);
+ LUAU_ASSERT(dst.size == SizeX64::dword || dst.size == SizeX64::qword);
+ placeRex(dst, src);
+ place(0x0f);
+ place(0xbd);
+ placeRegAndModRegMem(dst, src);
+ commit();
+}
+void AssemblyBuilderX64::bsf(RegisterX64 dst, OperandX64 src)
+{
+ if (logText)
+ log("bsf", dst, src);
+ LUAU_ASSERT(dst.size == SizeX64::dword || dst.size == SizeX64::qword);
+ placeRex(dst, src);
+ place(0x0f);
+ place(0xbc);
+ placeRegAndModRegMem(dst, src);
+ commit();
+}
+void AssemblyBuilderX64::bswap(RegisterX64 dst)
+{
+ if (logText)
+ log("bswap", dst);
+ LUAU_ASSERT(dst.size == SizeX64::dword || dst.size == SizeX64::qword);
+ placeRex(dst);
+ place(0x0f);
+ place(OP_PLUS_REG(0xc8, dst.index));
+ commit();
+}
+void AssemblyBuilderX64::nop(uint32_t length)
+{
+ while (length != 0)
+ {
+ uint32_t step = length > 9 ? 9 : length;
+ length -= step;
+ switch (step)
+ {
+ case 1:
+ if (logText)
+ logAppend(" nop\n");
+ place(0x90);
+ break;
+ case 2:
+ if (logText)
+ logAppend(" xchg ax, ax ; %u-byte nop\n", step);
+ place(0x66);
+ place(0x90);
+ break;
+ case 3:
+ if (logText)
+ logAppend(" nop dword ptr[rax] ; %u-byte nop\n", step);
+ place(0x0f);
+ place(0x1f);
+ place(0x00);
+ break;
+ case 4:
+ if (logText)
+ logAppend(" nop dword ptr[rax] ; %u-byte nop\n", step);
+ place(0x0f);
+ place(0x1f);
+ place(0x40);
+ place(0x00);
+ break;
+ case 5:
+ if (logText)
+ logAppend(" nop dword ptr[rax+rax] ; %u-byte nop\n", step);
+ place(0x0f);
+ place(0x1f);
+ place(0x44);
+ place(0x00);
+ place(0x00);
+ break;
+ case 6:
+ if (logText)
+ logAppend(" nop word ptr[rax+rax] ; %u-byte nop\n", step);
+ place(0x66);
+ place(0x0f);
+ place(0x1f);
+ place(0x44);
+ place(0x00);
+ place(0x00);
+ break;
+ case 7:
+ if (logText)
+ logAppend(" nop dword ptr[rax] ; %u-byte nop\n", step);
+ place(0x0f);
+ place(0x1f);
+ place(0x80);
+ place(0x00);
+ place(0x00);
+ place(0x00);
+ place(0x00);
+ break;
+ case 8:
+ if (logText)
+ logAppend(" nop dword ptr[rax+rax] ; %u-byte nop\n", step);
+ place(0x0f);
+ place(0x1f);
+ place(0x84);
+ place(0x00);
+ place(0x00);
+ place(0x00);
+ place(0x00);
+ place(0x00);
+ break;
+ case 9:
+ if (logText)
+ logAppend(" nop word ptr[rax+rax] ; %u-byte nop\n", step);
+ place(0x66);
+ place(0x0f);
+ place(0x1f);
+ place(0x84);
+ place(0x00);
+ place(0x00);
+ place(0x00);
+ place(0x00);
+ place(0x00);
+ break;
+ }
+ commit();
+ }
+}
+void AssemblyBuilderX64::align(uint32_t alignment, AlignmentDataX64 data)
+{
+ LUAU_ASSERT((alignment & (alignment - 1)) == 0);
+ uint32_t size = getCodeSize();
+ uint32_t pad = ((size + alignment - 1) & ~(alignment - 1)) - size;
+ switch (data)
+ {
+ case AlignmentDataX64::Nop:
+ if (logText)
+ logAppend("; align %u\n", alignment);
+ nop(pad);
+ break;
+ case AlignmentDataX64::Int3:
+ if (logText)
+ logAppend("; align %u using int3\n", alignment);
+ while (codePos + pad > codeEnd)
+ extend();
+ for (uint32_t i = 0; i < pad; ++i)
+ place(0xcc);
+ commit();
+ break;
+ case AlignmentDataX64::Ud2:
+ if (logText)
+ logAppend("; align %u using ud2\n", alignment);
+ while (codePos + pad > codeEnd)
+ extend();
+ uint32_t i = 0;
+ for (; i + 1 < pad; i += 2)
+ {
+ place(0x0f);
+ place(0x0b);
+ }
+ if (i < pad)
+ place(0xcc);
+ commit();
+ break;
+ }
+}
+void AssemblyBuilderX64::vaddpd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vaddpd", dst, src1, src2, 0x58, false, AVX_0F, AVX_66);
+}
+void AssemblyBuilderX64::vaddps(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vaddps", dst, src1, src2, 0x58, false, AVX_0F, AVX_NP);
+}
+void AssemblyBuilderX64::vaddsd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vaddsd", dst, src1, src2, 0x58, false, AVX_0F, AVX_F2);
+}
+void AssemblyBuilderX64::vaddss(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vaddss", dst, src1, src2, 0x58, false, AVX_0F, AVX_F3);
+}
+void AssemblyBuilderX64::vsubsd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vsubsd", dst, src1, src2, 0x5c, false, AVX_0F, AVX_F2);
+}
+void AssemblyBuilderX64::vmulsd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vmulsd", dst, src1, src2, 0x59, false, AVX_0F, AVX_F2);
+}
+void AssemblyBuilderX64::vdivsd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vdivsd", dst, src1, src2, 0x5e, false, AVX_0F, AVX_F2);
+}
+void AssemblyBuilderX64::vandpd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vandpd", dst, src1, src2, 0x54, false, AVX_0F, AVX_66);
+}
+void AssemblyBuilderX64::vandnpd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vandnpd", dst, src1, src2, 0x55, false, AVX_0F, AVX_66);
+}
+void AssemblyBuilderX64::vxorpd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vxorpd", dst, src1, src2, 0x57, false, AVX_0F, AVX_66);
+}
+void AssemblyBuilderX64::vorpd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vorpd", dst, src1, src2, 0x56, false, AVX_0F, AVX_66);
+}
+void AssemblyBuilderX64::vucomisd(OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vucomisd", src1, src2, 0x2e, false, AVX_0F, AVX_66);
+}
+void AssemblyBuilderX64::vcvttsd2si(OperandX64 dst, OperandX64 src)
+{
+ placeAvx("vcvttsd2si", dst, src, 0x2c, dst.base.size == SizeX64::qword, AVX_0F, AVX_F2);
+}
+void AssemblyBuilderX64::vcvtsi2sd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vcvtsi2sd", dst, src1, src2, 0x2a, (src2.cat == CategoryX64::reg ? src2.base.size : src2.memSize) == SizeX64::qword, AVX_0F, AVX_F2);
+}
+void AssemblyBuilderX64::vcvtsd2ss(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ if (src2.cat == CategoryX64::reg)
+ LUAU_ASSERT(src2.base.size == SizeX64::xmmword);
+ else
+ LUAU_ASSERT(src2.memSize == SizeX64::qword);
+ placeAvx("vcvtsd2ss", dst, src1, src2, 0x5a, (src2.cat == CategoryX64::reg ? src2.base.size : src2.memSize) == SizeX64::qword, AVX_0F, AVX_F2);
+}
+void AssemblyBuilderX64::vcvtss2sd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ if (src2.cat == CategoryX64::reg)
+ LUAU_ASSERT(src2.base.size == SizeX64::xmmword);
+ else
+ LUAU_ASSERT(src2.memSize == SizeX64::dword);
+ placeAvx("vcvtsd2ss", dst, src1, src2, 0x5a, false, AVX_0F, AVX_F3);
+}
+void AssemblyBuilderX64::vroundsd(OperandX64 dst, OperandX64 src1, OperandX64 src2, RoundingModeX64 roundingMode)
+{
+ placeAvx("vroundsd", dst, src1, src2, uint8_t(roundingMode) | kRoundingPrecisionInexact, 0x0b, false, AVX_0F3A, AVX_66);
+}
+void AssemblyBuilderX64::vsqrtpd(OperandX64 dst, OperandX64 src)
+{
+ placeAvx("vsqrtpd", dst, src, 0x51, false, AVX_0F, AVX_66);
+}
+void AssemblyBuilderX64::vsqrtps(OperandX64 dst, OperandX64 src)
+{
+ placeAvx("vsqrtps", dst, src, 0x51, false, AVX_0F, AVX_NP);
+}
+void AssemblyBuilderX64::vsqrtsd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vsqrtsd", dst, src1, src2, 0x51, false, AVX_0F, AVX_F2);
+}
+void AssemblyBuilderX64::vsqrtss(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vsqrtss", dst, src1, src2, 0x51, false, AVX_0F, AVX_F3);
+}
+void AssemblyBuilderX64::vmovsd(OperandX64 dst, OperandX64 src)
+{
+ placeAvx("vmovsd", dst, src, 0x10, 0x11, false, AVX_0F, AVX_F2);
+}
+void AssemblyBuilderX64::vmovsd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vmovsd", dst, src1, src2, 0x10, false, AVX_0F, AVX_F2);
+}
+void AssemblyBuilderX64::vmovss(OperandX64 dst, OperandX64 src)
+{
+ placeAvx("vmovss", dst, src, 0x10, 0x11, false, AVX_0F, AVX_F3);
+}
+void AssemblyBuilderX64::vmovss(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vmovss", dst, src1, src2, 0x10, false, AVX_0F, AVX_F3);
+}
+void AssemblyBuilderX64::vmovapd(OperandX64 dst, OperandX64 src)
+{
+ placeAvx("vmovapd", dst, src, 0x28, 0x29, false, AVX_0F, AVX_66);
+}
+void AssemblyBuilderX64::vmovaps(OperandX64 dst, OperandX64 src)
+{
+ placeAvx("vmovaps", dst, src, 0x28, 0x29, false, AVX_0F, AVX_NP);
+}
+void AssemblyBuilderX64::vmovupd(OperandX64 dst, OperandX64 src)
+{
+ placeAvx("vmovupd", dst, src, 0x10, 0x11, false, AVX_0F, AVX_66);
+}
+void AssemblyBuilderX64::vmovups(OperandX64 dst, OperandX64 src)
+{
+ placeAvx("vmovups", dst, src, 0x10, 0x11, false, AVX_0F, AVX_NP);
+}
+void AssemblyBuilderX64::vmovq(OperandX64 dst, OperandX64 src)
+{
+ if (dst.base.size == SizeX64::xmmword)
+ {
+ LUAU_ASSERT(dst.cat == CategoryX64::reg);
+ LUAU_ASSERT(src.base.size == SizeX64::qword);
+ placeAvx("vmovq", dst, src, 0x6e, true, AVX_0F, AVX_66);
+ }
+ else if (dst.base.size == SizeX64::qword)
+ {
+ LUAU_ASSERT(src.cat == CategoryX64::reg);
+ LUAU_ASSERT(src.base.size == SizeX64::xmmword);
+ placeAvx("vmovq", src, dst, 0x7e, true, AVX_0F, AVX_66);
+ }
+ else
+ {
+ LUAU_ASSERT(!"No encoding for left operand of this category");
+ }
+}
+void AssemblyBuilderX64::vmaxsd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vmaxsd", dst, src1, src2, 0x5f, false, AVX_0F, AVX_F2);
+}
+void AssemblyBuilderX64::vminsd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vminsd", dst, src1, src2, 0x5d, false, AVX_0F, AVX_F2);
+}
+void AssemblyBuilderX64::vcmpltsd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vcmpltsd", dst, src1, src2, 0x01, 0xc2, false, AVX_0F, AVX_F2);
+}
+void AssemblyBuilderX64::vblendvpd(RegisterX64 dst, RegisterX64 src1, OperandX64 mask, RegisterX64 src3)
+{
+ placeAvx("vblendvpd", dst, src1, mask, src3.index << 4, 0x4b, false, AVX_0F3A, AVX_66);
+}
+bool AssemblyBuilderX64::finalize()
+{
+ code.resize(codePos - code.data());
+ for (Label fixup : pendingLabels)
+ {
+ LUAU_ASSERT(labelLocations[fixup.id - 1] != ~0u);
+ uint32_t value = labelLocations[fixup.id - 1] - (fixup.location + 4);
+ writeu32(&code[fixup.location], value);
+ }
+ size_t dataSize = data.size() - dataPos;
+ if (dataSize > 0)
+ memmove(&data[0], &data[dataPos], dataSize);
+ data.resize(dataSize);
+ finalized = true;
+ return true;
+}
+Label AssemblyBuilderX64::setLabel()
+{
+ Label label{nextLabel++, getCodeSize()};
+ labelLocations.push_back(~0u);
+ if (logText)
+ log(label);
+ return label;
+}
+void AssemblyBuilderX64::setLabel(Label& label)
+{
+ if (label.id == 0)
+ {
+ label.id = nextLabel++;
+ labelLocations.push_back(~0u);
+ }
+ label.location = getCodeSize();
+ labelLocations[label.id - 1] = label.location;
+ if (logText)
+ log(label);
+}
+OperandX64 AssemblyBuilderX64::i64(int64_t value)
+{
+ uint64_t as64BitKey = value;
+ if (as64BitKey != ~0ull)
+ {
+ if (int32_t* prev = constCache64.find(as64BitKey))
+ return OperandX64(SizeX64::qword, noreg, 1, rip, *prev);
+ }
+ size_t pos = allocateData(8, 8);
+ writeu64(&data[pos], value);
+ int32_t offset = int32_t(pos - data.size());
+ if (as64BitKey != ~0ull)
+ constCache64[as64BitKey] = offset;
+ return OperandX64(SizeX64::qword, noreg, 1, rip, offset);
+}
+OperandX64 AssemblyBuilderX64::f32(float value)
+{
+ size_t pos = allocateData(4, 4);
+ writef32(&data[pos], value);
+ return OperandX64(SizeX64::dword, noreg, 1, rip, int32_t(pos - data.size()));
+}
+OperandX64 AssemblyBuilderX64::f64(double value)
+{
+ uint64_t as64BitKey;
+ static_assert(sizeof(as64BitKey) == sizeof(value), "Expecting double to be 64-bit");
+ memcpy(&as64BitKey, &value, sizeof(value));
+ if (as64BitKey != ~0ull)
+ {
+ if (int32_t* prev = constCache64.find(as64BitKey))
+ return OperandX64(SizeX64::qword, noreg, 1, rip, *prev);
+ }
+ size_t pos = allocateData(8, 8);
+ writef64(&data[pos], value);
+ int32_t offset = int32_t(pos - data.size());
+ if (as64BitKey != ~0ull)
+ constCache64[as64BitKey] = offset;
+ return OperandX64(SizeX64::qword, noreg, 1, rip, offset);
+}
+OperandX64 AssemblyBuilderX64::f32x4(float x, float y, float z, float w)
+{
+ size_t pos = allocateData(16, 16);
+ writef32(&data[pos], x);
+ writef32(&data[pos + 4], y);
+ writef32(&data[pos + 8], z);
+ writef32(&data[pos + 12], w);
+ return OperandX64(SizeX64::xmmword, noreg, 1, rip, int32_t(pos - data.size()));
+}
+OperandX64 AssemblyBuilderX64::f64x2(double x, double y)
+{
+ size_t pos = allocateData(16, 16);
+ writef64(&data[pos], x);
+ writef64(&data[pos + 8], y);
+ return OperandX64(SizeX64::xmmword, noreg, 1, rip, int32_t(pos - data.size()));
+}
+OperandX64 AssemblyBuilderX64::bytes(const void* ptr, size_t size, size_t align)
+{
+ size_t pos = allocateData(size, align);
+ memcpy(&data[pos], ptr, size);
+ return OperandX64(SizeX64::none, noreg, 1, rip, int32_t(pos - data.size()));
+}
+void AssemblyBuilderX64::logAppend(const char* fmt, ...)
+{
+ char buf[256];
+ va_list args;
+ va_start(args, fmt);
+ vsnprintf(buf, sizeof(buf), fmt, args);
+ va_end(args);
+ text.append(buf);
+}
+uint32_t AssemblyBuilderX64::getCodeSize() const
+{
+ return uint32_t(codePos - code.data());
+}
+void AssemblyBuilderX64::placeBinary(const char* name, OperandX64 lhs, OperandX64 rhs, uint8_t codeimm8, uint8_t codeimm, uint8_t codeimmImm8,
+ uint8_t code8rev, uint8_t coderev, uint8_t code8, uint8_t code, uint8_t opreg)
+{
+ if (logText)
+ log(name, lhs, rhs);
+ if ((lhs.cat == CategoryX64::reg || lhs.cat == CategoryX64::mem) && rhs.cat == CategoryX64::imm)
+ placeBinaryRegMemAndImm(lhs, rhs, codeimm8, codeimm, codeimmImm8, opreg);
+ else if (lhs.cat == CategoryX64::reg && (rhs.cat == CategoryX64::reg || rhs.cat == CategoryX64::mem))
+ placeBinaryRegAndRegMem(lhs, rhs, code8, code);
+ else if (lhs.cat == CategoryX64::mem && rhs.cat == CategoryX64::reg)
+ placeBinaryRegMemAndReg(lhs, rhs, code8rev, coderev);
+ else
+ LUAU_ASSERT(!"No encoding for this operand combination");
+}
+void AssemblyBuilderX64::placeBinaryRegMemAndImm(OperandX64 lhs, OperandX64 rhs, uint8_t code8, uint8_t code, uint8_t codeImm8, uint8_t opreg)
+{
+ LUAU_ASSERT(lhs.cat == CategoryX64::reg || lhs.cat == CategoryX64::mem);
+ LUAU_ASSERT(rhs.cat == CategoryX64::imm);
+ SizeX64 size = lhs.cat == CategoryX64::reg ? lhs.base.size : lhs.memSize;
+ LUAU_ASSERT(size == SizeX64::byte || size == SizeX64::dword || size == SizeX64::qword);
+ placeRex(lhs);
+ if (size == SizeX64::byte)
+ {
+ place(code8);
+ placeModRegMem(lhs, opreg, 1);
+ placeImm8(rhs.imm);
+ }
+ else
+ {
+ LUAU_ASSERT(size == SizeX64::dword || size == SizeX64::qword);
+ if (int8_t(rhs.imm) == rhs.imm && code != codeImm8)
+ {
+ place(codeImm8);
+ placeModRegMem(lhs, opreg, 1);
+ placeImm8(rhs.imm);
+ }
+ else
+ {
+ place(code);
+ placeModRegMem(lhs, opreg, 4);
+ placeImm32(rhs.imm);
+ }
+ }
+ commit();
+}
+void AssemblyBuilderX64::placeBinaryRegAndRegMem(OperandX64 lhs, OperandX64 rhs, uint8_t code8, uint8_t code)
+{
+ LUAU_ASSERT(lhs.cat == CategoryX64::reg && (rhs.cat == CategoryX64::reg || rhs.cat == CategoryX64::mem));
+ LUAU_ASSERT(lhs.base.size == (rhs.cat == CategoryX64::reg ? rhs.base.size : rhs.memSize));
+ SizeX64 size = lhs.base.size;
+ LUAU_ASSERT(size == SizeX64::byte || size == SizeX64::word || size == SizeX64::dword || size == SizeX64::qword);
+ if (size == SizeX64::word)
+ place(0x66);
+ placeRex(lhs.base, rhs);
+ place(size == SizeX64::byte ? code8 : code);
+ placeRegAndModRegMem(lhs, rhs);
+ commit();
+}
+void AssemblyBuilderX64::placeBinaryRegMemAndReg(OperandX64 lhs, OperandX64 rhs, uint8_t code8, uint8_t code)
+{
+ placeBinaryRegAndRegMem(rhs, lhs, code8, code);
+}
+void AssemblyBuilderX64::placeUnaryModRegMem(const char* name, OperandX64 op, uint8_t code8, uint8_t code, uint8_t opreg)
+{
+ if (logText)
+ log(name, op);
+ LUAU_ASSERT(op.cat == CategoryX64::reg || op.cat == CategoryX64::mem);
+ SizeX64 size = op.cat == CategoryX64::reg ? op.base.size : op.memSize;
+ LUAU_ASSERT(size == SizeX64::byte || size == SizeX64::dword || size == SizeX64::qword);
+ placeRex(op);
+ place(size == SizeX64::byte ? code8 : code);
+ placeModRegMem(op, opreg);
+ commit();
+}
+void AssemblyBuilderX64::placeShift(const char* name, OperandX64 lhs, OperandX64 rhs, uint8_t opreg)
+{
+ if (logText)
+ log(name, lhs, rhs);
+ LUAU_ASSERT(lhs.cat == CategoryX64::reg || lhs.cat == CategoryX64::mem);
+ LUAU_ASSERT(rhs.cat == CategoryX64::imm || (rhs.cat == CategoryX64::reg && rhs.base == cl));
+ SizeX64 size = lhs.base.size;
+ placeRex(lhs.base);
+ if (rhs.cat == CategoryX64::imm && rhs.imm == 1)
+ {
+ place(size == SizeX64::byte ? 0xd0 : 0xd1);
+ placeModRegMem(lhs, opreg);
+ }
+ else if (rhs.cat == CategoryX64::imm)
+ {
+ LUAU_ASSERT(int8_t(rhs.imm) == rhs.imm);
+ place(size == SizeX64::byte ? 0xc0 : 0xc1);
+ placeModRegMem(lhs, opreg, 1);
+ placeImm8(rhs.imm);
+ }
+ else
+ {
+ place(size == SizeX64::byte ? 0xd2 : 0xd3);
+ placeModRegMem(lhs, opreg);
+ }
+ commit();
+}
+void AssemblyBuilderX64::placeJcc(const char* name, Label& label, uint8_t cc)
+{
+ place(0x0f);
+ place(OP_PLUS_CC(0x80, cc));
+ placeLabel(label);
+ if (logText)
+ log(name, label);
+ commit();
+}
+void AssemblyBuilderX64::placeAvx(const char* name, OperandX64 dst, OperandX64 src, uint8_t code, bool setW, uint8_t mode, uint8_t prefix)
+{
+ LUAU_ASSERT(dst.cat == CategoryX64::reg);
+ LUAU_ASSERT(src.cat == CategoryX64::reg || src.cat == CategoryX64::mem);
+ if (logText)
+ log(name, dst, src);
+ placeVex(dst, noreg, src, setW, mode, prefix);
+ place(code);
+ placeRegAndModRegMem(dst, src);
+ commit();
+}
+void AssemblyBuilderX64::placeAvx(
+ const char* name, OperandX64 dst, OperandX64 src, uint8_t code, uint8_t coderev, bool setW, uint8_t mode, uint8_t prefix)
+{
+ LUAU_ASSERT((dst.cat == CategoryX64::mem && src.cat == CategoryX64::reg) || (dst.cat == CategoryX64::reg && src.cat == CategoryX64::mem));
+ if (logText)
+ log(name, dst, src);
+ if (dst.cat == CategoryX64::mem)
+ {
+ placeVex(src, noreg, dst, setW, mode, prefix);
+ place(coderev);
+ placeRegAndModRegMem(src, dst);
+ }
+ else
+ {
+ placeVex(dst, noreg, src, setW, mode, prefix);
+ place(code);
+ placeRegAndModRegMem(dst, src);
+ }
+ commit();
+}
+void AssemblyBuilderX64::placeAvx(
+ const char* name, OperandX64 dst, OperandX64 src1, OperandX64 src2, uint8_t code, bool setW, uint8_t mode, uint8_t prefix)
+{
+ LUAU_ASSERT(dst.cat == CategoryX64::reg);
+ LUAU_ASSERT(src1.cat == CategoryX64::reg);
+ LUAU_ASSERT(src2.cat == CategoryX64::reg || src2.cat == CategoryX64::mem);
+ if (logText)
+ log(name, dst, src1, src2);
+ placeVex(dst, src1, src2, setW, mode, prefix);
+ place(code);
+ placeRegAndModRegMem(dst, src2);
+ commit();
+}
+void AssemblyBuilderX64::placeAvx(
+ const char* name, OperandX64 dst, OperandX64 src1, OperandX64 src2, uint8_t imm8, uint8_t code, bool setW, uint8_t mode, uint8_t prefix)
+{
+ LUAU_ASSERT(dst.cat == CategoryX64::reg);
+ LUAU_ASSERT(src1.cat == CategoryX64::reg);
+ LUAU_ASSERT(src2.cat == CategoryX64::reg || src2.cat == CategoryX64::mem);
+ if (logText)
+ log(name, dst, src1, src2, imm8);
+ placeVex(dst, src1, src2, setW, mode, prefix);
+ place(code);
+ placeRegAndModRegMem(dst, src2, 1);
+ placeImm8(imm8);
+ commit();
+}
+void AssemblyBuilderX64::placeRex(RegisterX64 op)
+{
+ uint8_t code = REX_W(op) | REX_B(op);
+ if (code != 0)
+ place(code | 0x40);
+}
+void AssemblyBuilderX64::placeRex(OperandX64 op)
+{
+ uint8_t code = 0;
+ if (op.cat == CategoryX64::reg)
+ code = REX_W(op.base) | REX_B(op.base);
+ else if (op.cat == CategoryX64::mem)
+ code = REX_W_BIT(op.memSize == SizeX64::qword) | REX_X(op.index) | REX_B(op.base);
+ else
+ LUAU_ASSERT(!"No encoding for left operand of this category");
+ if (code != 0)
+ place(code | 0x40);
+}
+void AssemblyBuilderX64::placeRexNoW(OperandX64 op)
+{
+ uint8_t code = 0;
+ if (op.cat == CategoryX64::reg)
+ code = REX_B(op.base);
+ else if (op.cat == CategoryX64::mem)
+ code = REX_X(op.index) | REX_B(op.base);
+ else
+ LUAU_ASSERT(!"No encoding for left operand of this category");
+ if (code != 0)
+ place(code | 0x40);
+}
+void AssemblyBuilderX64::placeRex(RegisterX64 lhs, OperandX64 rhs)
+{
+ uint8_t code = REX_W(lhs);
+ if (rhs.cat == CategoryX64::imm)
+ code |= REX_B(lhs);
+ else
+ code |= REX_R(lhs) | REX_X(rhs.index) | REX_B(rhs.base);
+ if (code != 0)
+ place(code | 0x40);
+}
+void AssemblyBuilderX64::placeVex(OperandX64 dst, OperandX64 src1, OperandX64 src2, bool setW, uint8_t mode, uint8_t prefix)
+{
+ LUAU_ASSERT(dst.cat == CategoryX64::reg);
+ LUAU_ASSERT(src1.cat == CategoryX64::reg);
+ LUAU_ASSERT(src2.cat == CategoryX64::reg || src2.cat == CategoryX64::mem);
+ place(AVX_3_1());
+ place(AVX_3_2(dst.base, src2.index, src2.base, mode));
+ place(AVX_3_3(setW, src1.base, dst.base.size == SizeX64::ymmword, prefix));
+}
+static uint8_t getScaleEncoding(uint8_t scale)
+{
+ static const uint8_t scales[9] = {0xff, 0, 1, 0xff, 2, 0xff, 0xff, 0xff, 3};
+ LUAU_ASSERT(scale < 9 && scales[scale] != 0xff);
+ return scales[scale];
+}
+void AssemblyBuilderX64::placeRegAndModRegMem(OperandX64 lhs, OperandX64 rhs, int32_t extraCodeBytes)
+{
+ LUAU_ASSERT(lhs.cat == CategoryX64::reg);
+ placeModRegMem(rhs, lhs.base.index, extraCodeBytes);
+}
+void AssemblyBuilderX64::placeModRegMem(OperandX64 rhs, uint8_t regop, int32_t extraCodeBytes)
+{
+ if (rhs.cat == CategoryX64::reg)
+ {
+ place(MOD_RM(0b11, regop, rhs.base.index));
+ }
+ else if (rhs.cat == CategoryX64::mem)
+ {
+ RegisterX64 index = rhs.index;
+ RegisterX64 base = rhs.base;
+ uint8_t mod = 0b00;
+ if (rhs.imm != 0)
+ {
+ if (int8_t(rhs.imm) == rhs.imm)
+ mod = 0b01;
+ else
+ mod = 0b10;
+ }
+ else
+ {
+ if ((base.index & 0x7) == 0b101)
+ mod = 0b01;
+ }
+ if (index != noreg && base != noreg)
+ {
+ place(MOD_RM(mod, regop, 0b100));
+ place(SIB(rhs.scale, index.index, base.index));
+ if (mod != 0b00)
+ placeImm8Or32(rhs.imm);
+ }
+ else if (index != noreg && rhs.scale != 1)
+ {
+ place(MOD_RM(0b00, regop, 0b100));
+ place(SIB(rhs.scale, index.index, 0b101));
+ placeImm32(rhs.imm);
+ }
+ else if ((base.index & 0x7) == 0b100)
+ {
+ LUAU_ASSERT(rhs.scale == 1);
+ LUAU_ASSERT(index == noreg);
+ place(MOD_RM(mod, regop, 0b100));
+ place(SIB(rhs.scale, 0b100, base.index));
+ if (rhs.imm != 0)
+ placeImm8Or32(rhs.imm);
+ }
+ else if (base == rip)
+ {
+ place(MOD_RM(0b00, regop, 0b101));
+ placeImm32(-int32_t(getCodeSize() + 4 + extraCodeBytes) + rhs.imm);
+ }
+ else if (base != noreg)
+ {
+ place(MOD_RM(mod, regop, base.index));
+ if (mod != 0b00)
+ placeImm8Or32(rhs.imm);
+ }
+ else
+ {
+ place(MOD_RM(0b00, regop, 0b100));
+ place(SIB(1, 0b100, 0b101));
+ placeImm32(rhs.imm);
+ }
+ }
+ else
+ {
+ LUAU_ASSERT(!"No encoding for right operand of this category");
+ }
+}
+void AssemblyBuilderX64::placeImm8Or32(int32_t imm)
+{
+ int8_t imm8 = int8_t(imm);
+ if (imm8 == imm)
+ place(imm8);
+ else
+ placeImm32(imm);
+}
+void AssemblyBuilderX64::placeImm8(int32_t imm)
+{
+ int8_t imm8 = int8_t(imm);
+ if (FFlag::LuauCodeGenFixByteLower)
+ {
+ LUAU_ASSERT(imm8 == imm);
+ place(imm8);
+ }
+ else
+ {
+ if (imm8 == imm)
+ place(imm8);
+ else
+ LUAU_ASSERT(!"Invalid immediate value");
+ }
+}
+void AssemblyBuilderX64::placeImm16(int16_t imm)
+{
+ uint8_t* pos = codePos;
+ LUAU_ASSERT(pos + sizeof(imm) < codeEnd);
+ codePos = writeu16(pos, imm);
+}
+void AssemblyBuilderX64::placeImm32(int32_t imm)
+{
+ uint8_t* pos = codePos;
+ LUAU_ASSERT(pos + sizeof(imm) < codeEnd);
+ codePos = writeu32(pos, imm);
+}
+void AssemblyBuilderX64::placeImm64(int64_t imm)
+{
+ uint8_t* pos = codePos;
+ LUAU_ASSERT(pos + sizeof(imm) < codeEnd);
+ codePos = writeu64(pos, imm);
+}
+void AssemblyBuilderX64::placeLabel(Label& label)
+{
+ if (label.location == ~0u)
+ {
+ if (label.id == 0)
+ {
+ label.id = nextLabel++;
+ labelLocations.push_back(~0u);
+ }
+ pendingLabels.push_back({label.id, getCodeSize()});
+ placeImm32(0);
+ }
+ else
+ {
+ placeImm32(int32_t(label.location - (4 + getCodeSize())));
+ }
+}
+void AssemblyBuilderX64::place(uint8_t byte)
+{
+ LUAU_ASSERT(codePos < codeEnd);
+ *codePos++ = byte;
+}
+void AssemblyBuilderX64::commit()
+{
+ LUAU_ASSERT(codePos <= codeEnd);
+ if (unsigned(codeEnd - codePos) < kMaxInstructionLength)
+ extend();
+}
+void AssemblyBuilderX64::extend()
+{
+ uint32_t count = getCodeSize();
+ code.resize(code.size() * 2);
+ codePos = code.data() + count;
+ codeEnd = code.data() + code.size();
+}
+size_t AssemblyBuilderX64::allocateData(size_t size, size_t align)
+{
+ LUAU_ASSERT(align > 0 && align <= kMaxAlign && (align & (align - 1)) == 0);
+ if (dataPos < size)
+ {
+ size_t oldSize = data.size();
+ data.resize(data.size() * 2);
+ memcpy(&data[oldSize], &data[0], oldSize);
+ memset(&data[0], 0, oldSize);
+ dataPos += oldSize;
+ }
+ dataPos = (dataPos - size) & ~(align - 1);
+ return dataPos;
+}
+void AssemblyBuilderX64::log(const char* opcode)
+{
+ logAppend(" %s\n", opcode);
+}
+void AssemblyBuilderX64::log(const char* opcode, OperandX64 op)
+{
+ logAppend(" %-12s", opcode);
+ log(op);
+ text.append("\n");
+}
+void AssemblyBuilderX64::log(const char* opcode, OperandX64 op1, OperandX64 op2)
+{
+ logAppend(" %-12s", opcode);
+ log(op1);
+ text.append(",");
+ log(op2);
+ text.append("\n");
+}
+void AssemblyBuilderX64::log(const char* opcode, OperandX64 op1, OperandX64 op2, OperandX64 op3)
+{
+ logAppend(" %-12s", opcode);
+ log(op1);
+ text.append(",");
+ log(op2);
+ text.append(",");
+ log(op3);
+ text.append("\n");
+}
+void AssemblyBuilderX64::log(const char* opcode, OperandX64 op1, OperandX64 op2, OperandX64 op3, OperandX64 op4)
+{
+ logAppend(" %-12s", opcode);
+ log(op1);
+ text.append(",");
+ log(op2);
+ text.append(",");
+ log(op3);
+ text.append(",");
+ log(op4);
+ text.append("\n");
+}
+void AssemblyBuilderX64::log(Label label)
+{
+ logAppend(".L%d:\n", label.id);
+}
+void AssemblyBuilderX64::log(const char* opcode, Label label)
+{
+ logAppend(" %-12s.L%d\n", opcode, label.id);
+}
+void AssemblyBuilderX64::log(const char* opcode, RegisterX64 reg, Label label)
+{
+ logAppend(" %-12s", opcode);
+ log(reg);
+ text.append(",");
+ logAppend(".L%d\n", label.id);
+}
+void AssemblyBuilderX64::log(OperandX64 op)
+{
+ switch (op.cat)
+ {
+ case CategoryX64::reg:
+ logAppend("%s", getRegisterName(op.base));
+ break;
+ case CategoryX64::mem:
+ if (op.base == rip)
+ {
+ if (op.memSize != SizeX64::none)
+ logAppend("%s ptr ", getSizeName(op.memSize));
+ logAppend("[.start%+d]", op.imm);
+ return;
+ }
+ if (op.memSize != SizeX64::none)
+ logAppend("%s ptr ", getSizeName(op.memSize));
+ logAppend("[");
+ if (op.base != noreg)
+ logAppend("%s", getRegisterName(op.base));
+ if (op.index != noreg)
+ logAppend("%s%s", op.base != noreg ? "+" : "", getRegisterName(op.index));
+ if (op.scale != 1)
+ logAppend("*%d", op.scale);
+ if (op.imm != 0)
+ {
+ if (op.imm >= 0 && op.imm <= 9)
+ logAppend("+%d", op.imm);
+ else if (op.imm > 0)
+ logAppend("+0%Xh", op.imm);
+ else
+ logAppend("-0%Xh", -op.imm);
+ }
+ text.append("]");
+ break;
+ case CategoryX64::imm:
+ if (op.imm >= 0 && op.imm <= 9)
+ logAppend("%d", op.imm);
+ else
+ logAppend("%Xh", op.imm);
+ break;
+ default:
+ LUAU_ASSERT(!"Unknown operand category");
+ }
+}
+const char* AssemblyBuilderX64::getSizeName(SizeX64 size) const
+{
+ static const char* sizeNames[] = {"none", "byte", "word", "dword", "qword", "xmmword", "ymmword"};
+ LUAU_ASSERT(unsigned(size) < sizeof(sizeNames) / sizeof(sizeNames[0]));
+ return sizeNames[unsigned(size)];
+}
+const char* AssemblyBuilderX64::getRegisterName(RegisterX64 reg) const
+{
+ static const char* names[][16] = {{"rip", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""},
+ {"al", "cl", "dl", "bl", "spl", "bpl", "sil", "dil", "r8b", "r9b", "r10b", "r11b", "r12b", "r13b", "r14b", "r15b"},
+ {"ax", "cx", "dx", "bx", "sp", "bp", "si", "di", "r8w", "r9w", "r10w", "r11w", "r12w", "r13w", "r14w", "r15w"},
+ {"eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi", "r8d", "r9d", "r10d", "r11d", "r12d", "r13d", "r14d", "r15d"},
+ {"rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"},
+ {"xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7", "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15"},
+ {"ymm0", "ymm1", "ymm2", "ymm3", "ymm4", "ymm5", "ymm6", "ymm7", "ymm8", "ymm9", "ymm10", "ymm11", "ymm12", "ymm13", "ymm14", "ymm15"}};
+ LUAU_ASSERT(reg.index < 16);
+ LUAU_ASSERT(reg.size <= SizeX64::ymmword);
+ return names[size_t(reg.size)][reg.index];
+}
+}
+} // namespace CodeGen
+}
+#line __LINE__ ""
+#line __LINE__ "BytecodeAnalysis.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+static bool hasTypedParameters(Proto* proto)
+{
+ return proto->typeinfo && proto->numparams != 0;
+}
+static uint8_t getBytecodeConstantTag(Proto* proto, unsigned ki)
+{
+ TValue protok = proto->k[ki];
+ switch (protok.tt)
+ {
+ case LUA_TNIL:
+ return LBC_TYPE_NIL;
+ case LUA_TBOOLEAN:
+ return LBC_TYPE_BOOLEAN;
+ case LUA_TLIGHTUSERDATA:
+ return LBC_TYPE_USERDATA;
+ case LUA_TNUMBER:
+ return LBC_TYPE_NUMBER;
+ case LUA_TVECTOR:
+ return LBC_TYPE_VECTOR;
+ case LUA_TSTRING:
+ return LBC_TYPE_STRING;
+ case LUA_TTABLE:
+ return LBC_TYPE_TABLE;
+ case LUA_TFUNCTION:
+ return LBC_TYPE_FUNCTION;
+ case LUA_TUSERDATA:
+ return LBC_TYPE_USERDATA;
+ case LUA_TTHREAD:
+ return LBC_TYPE_THREAD;
+ case LUA_TBUFFER:
+ return LBC_TYPE_BUFFER;
+ }
+ return LBC_TYPE_ANY;
+}
+static void applyBuiltinCall(int bfid, BytecodeTypes& types)
+{
+ switch (bfid)
+ {
+ case LBF_NONE:
+ case LBF_ASSERT:
+ types.result = LBC_TYPE_ANY;
+ break;
+ case LBF_MATH_ABS:
+ case LBF_MATH_ACOS:
+ case LBF_MATH_ASIN:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ break;
+ case LBF_MATH_ATAN2:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ types.b = LBC_TYPE_NUMBER;
+ break;
+ case LBF_MATH_ATAN:
+ case LBF_MATH_CEIL:
+ case LBF_MATH_COSH:
+ case LBF_MATH_COS:
+ case LBF_MATH_DEG:
+ case LBF_MATH_EXP:
+ case LBF_MATH_FLOOR:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ break;
+ case LBF_MATH_FMOD:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ types.b = LBC_TYPE_NUMBER;
+ break;
+ case LBF_MATH_FREXP:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ break;
+ case LBF_MATH_LDEXP:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ types.b = LBC_TYPE_NUMBER;
+ break;
+ case LBF_MATH_LOG10:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ break;
+ case LBF_MATH_LOG:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ types.b = LBC_TYPE_NUMBER;
+ break;
+ case LBF_MATH_MAX:
+ case LBF_MATH_MIN:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ types.b = LBC_TYPE_NUMBER;
+ types.c = LBC_TYPE_NUMBER;
+ break;
+ case LBF_MATH_MODF:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ break;
+ case LBF_MATH_POW:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ types.b = LBC_TYPE_NUMBER;
+ break;
+ case LBF_MATH_RAD:
+ case LBF_MATH_SINH:
+ case LBF_MATH_SIN:
+ case LBF_MATH_SQRT:
+ case LBF_MATH_TANH:
+ case LBF_MATH_TAN:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ break;
+ case LBF_BIT32_ARSHIFT:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ types.b = LBC_TYPE_NUMBER;
+ break;
+ case LBF_BIT32_BAND:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ types.b = LBC_TYPE_NUMBER;
+ types.c = LBC_TYPE_NUMBER;
+ break;
+ case LBF_BIT32_BNOT:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ break;
+ case LBF_BIT32_BOR:
+ case LBF_BIT32_BXOR:
+ case LBF_BIT32_BTEST:
+ case LBF_BIT32_EXTRACT:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ types.b = LBC_TYPE_NUMBER;
+ types.c = LBC_TYPE_NUMBER;
+ break;
+ case LBF_BIT32_LROTATE:
+ case LBF_BIT32_LSHIFT:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ types.b = LBC_TYPE_NUMBER;
+ break;
+ case LBF_BIT32_REPLACE:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ types.b = LBC_TYPE_NUMBER;
+ types.c = LBC_TYPE_NUMBER;
+ break;
+ case LBF_BIT32_RROTATE:
+ case LBF_BIT32_RSHIFT:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ types.b = LBC_TYPE_NUMBER;
+ break;
+ case LBF_TYPE:
+ types.result = LBC_TYPE_STRING;
+ break;
+ case LBF_STRING_BYTE:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_STRING;
+ types.b = LBC_TYPE_NUMBER;
+ break;
+ case LBF_STRING_CHAR:
+ types.result = LBC_TYPE_STRING;
+ types.a = LBC_TYPE_NUMBER;
+ types.b = LBC_TYPE_NUMBER;
+ types.c = LBC_TYPE_NUMBER;
+ break;
+ case LBF_STRING_LEN:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_STRING;
+ break;
+ case LBF_TYPEOF:
+ types.result = LBC_TYPE_STRING;
+ break;
+ case LBF_STRING_SUB:
+ types.result = LBC_TYPE_STRING;
+ types.a = LBC_TYPE_STRING;
+ types.b = LBC_TYPE_NUMBER;
+ types.c = LBC_TYPE_NUMBER;
+ break;
+ case LBF_MATH_CLAMP:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ types.b = LBC_TYPE_NUMBER;
+ types.c = LBC_TYPE_NUMBER;
+ break;
+ case LBF_MATH_SIGN:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ break;
+ case LBF_MATH_ROUND:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ break;
+ case LBF_RAWGET:
+ types.result = LBC_TYPE_ANY;
+ types.a = LBC_TYPE_TABLE;
+ break;
+ case LBF_RAWEQUAL:
+ types.result = LBC_TYPE_BOOLEAN;
+ break;
+ case LBF_TABLE_UNPACK:
+ types.result = LBC_TYPE_ANY;
+ types.a = LBC_TYPE_TABLE;
+ types.b = LBC_TYPE_NUMBER;
+ break;
+ case LBF_VECTOR:
+ types.result = LBC_TYPE_VECTOR;
+ types.a = LBC_TYPE_NUMBER;
+ types.b = LBC_TYPE_NUMBER;
+ types.c = LBC_TYPE_NUMBER;
+ break;
+ case LBF_BIT32_COUNTLZ:
+ case LBF_BIT32_COUNTRZ:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ break;
+ case LBF_SELECT_VARARG:
+ types.result = LBC_TYPE_ANY;
+ break;
+ case LBF_RAWLEN:
+ types.result = LBC_TYPE_NUMBER;
+ break;
+ case LBF_BIT32_EXTRACTK:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ types.b = LBC_TYPE_NUMBER;
+ break;
+ case LBF_GETMETATABLE:
+ types.result = LBC_TYPE_TABLE;
+ break;
+ case LBF_TONUMBER:
+ types.result = LBC_TYPE_NUMBER;
+ break;
+ case LBF_TOSTRING:
+ types.result = LBC_TYPE_STRING;
+ break;
+ case LBF_BIT32_BYTESWAP:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_NUMBER;
+ break;
+ case LBF_BUFFER_READI8:
+ case LBF_BUFFER_READU8:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_BUFFER;
+ types.b = LBC_TYPE_NUMBER;
+ break;
+ case LBF_BUFFER_WRITEU8:
+ types.result = LBC_TYPE_NIL;
+ types.a = LBC_TYPE_BUFFER;
+ types.b = LBC_TYPE_NUMBER;
+ types.c = LBC_TYPE_NUMBER;
+ break;
+ case LBF_BUFFER_READI16:
+ case LBF_BUFFER_READU16:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_BUFFER;
+ types.b = LBC_TYPE_NUMBER;
+ break;
+ case LBF_BUFFER_WRITEU16:
+ types.result = LBC_TYPE_NIL;
+ types.a = LBC_TYPE_BUFFER;
+ types.b = LBC_TYPE_NUMBER;
+ types.c = LBC_TYPE_NUMBER;
+ break;
+ case LBF_BUFFER_READI32:
+ case LBF_BUFFER_READU32:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_BUFFER;
+ types.b = LBC_TYPE_NUMBER;
+ break;
+ case LBF_BUFFER_WRITEU32:
+ types.result = LBC_TYPE_NIL;
+ types.a = LBC_TYPE_BUFFER;
+ types.b = LBC_TYPE_NUMBER;
+ types.c = LBC_TYPE_NUMBER;
+ break;
+ case LBF_BUFFER_READF32:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_BUFFER;
+ types.b = LBC_TYPE_NUMBER;
+ break;
+ case LBF_BUFFER_WRITEF32:
+ types.result = LBC_TYPE_NIL;
+ types.a = LBC_TYPE_BUFFER;
+ types.b = LBC_TYPE_NUMBER;
+ types.c = LBC_TYPE_NUMBER;
+ break;
+ case LBF_BUFFER_READF64:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_BUFFER;
+ types.b = LBC_TYPE_NUMBER;
+ break;
+ case LBF_BUFFER_WRITEF64:
+ types.result = LBC_TYPE_NIL;
+ types.a = LBC_TYPE_BUFFER;
+ types.b = LBC_TYPE_NUMBER;
+ types.c = LBC_TYPE_NUMBER;
+ break;
+ case LBF_TABLE_INSERT:
+ types.result = LBC_TYPE_NIL;
+ types.a = LBC_TYPE_TABLE;
+ break;
+ case LBF_RAWSET:
+ types.result = LBC_TYPE_ANY;
+ types.a = LBC_TYPE_TABLE;
+ break;
+ case LBF_SETMETATABLE:
+ types.result = LBC_TYPE_TABLE;
+ types.a = LBC_TYPE_TABLE;
+ types.b = LBC_TYPE_TABLE;
+ break;
+ }
+}
+void buildBytecodeBlocks(IrFunction& function, const std::vector<uint8_t>& jumpTargets)
+{
+ Proto* proto = function.proto;
+ LUAU_ASSERT(proto);
+ std::vector<BytecodeBlock>& bcBlocks = function.bcBlocks;
+ bcBlocks.push_back(BytecodeBlock{0, -1});
+ int previ = 0;
+ for (int i = 0; i < proto->sizecode;)
+ {
+ const Instruction* pc = &proto->code[i];
+ LuauOpcode op = LuauOpcode(LUAU_INSN_OP(*pc));
+ int nexti = i + getOpLength(op);
+ if (i != 0 && jumpTargets[i])
+ {
+ bcBlocks.back().finishpc = previ;
+ bcBlocks.push_back(BytecodeBlock{i, -1});
+ }
+ int target = getJumpTarget(*pc, uint32_t(i));
+ if (target >= 0 && !isFastCall(op))
+ {
+ bcBlocks.back().finishpc = i;
+ if (!jumpTargets[nexti])
+ bcBlocks.push_back(BytecodeBlock{nexti, -1});
+ }
+ else if (op == LOP_RETURN)
+ {
+ bcBlocks.back().finishpc = i;
+ }
+ previ = i;
+ i = nexti;
+ LUAU_ASSERT(i <= proto->sizecode);
+ }
+}
+void analyzeBytecodeTypes(IrFunction& function)
+{
+ Proto* proto = function.proto;
+ LUAU_ASSERT(proto);
+ uint8_t regTags[256];
+ memset(regTags, LBC_TYPE_ANY, 256);
+ function.bcTypes.resize(proto->sizecode);
+ for (const BytecodeBlock& block : function.bcBlocks)
+ {
+ LUAU_ASSERT(block.startpc != -1);
+ LUAU_ASSERT(block.finishpc != -1);
+ if (hasTypedParameters(proto))
+ {
+ for (int i = 0; i < proto->numparams; ++i)
+ {
+ uint8_t et = proto->typeinfo[2 + i];
+ regTags[i] = et & ~LBC_TYPE_OPTIONAL_BIT;
+ }
+ }
+ for (int i = proto->numparams; i < proto->maxstacksize; ++i)
+ regTags[i] = LBC_TYPE_ANY;
+ for (int i = block.startpc; i <= block.finishpc;)
+ {
+ const Instruction* pc = &proto->code[i];
+ LuauOpcode op = LuauOpcode(LUAU_INSN_OP(*pc));
+ BytecodeTypes& bcType = function.bcTypes[i];
+ switch (op)
+ {
+ case LOP_NOP:
+ break;
+ case LOP_LOADNIL:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ regTags[ra] = LBC_TYPE_NIL;
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_LOADB:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ regTags[ra] = LBC_TYPE_BOOLEAN;
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_LOADN:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ regTags[ra] = LBC_TYPE_NUMBER;
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_LOADK:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ int kb = LUAU_INSN_D(*pc);
+ bcType.a = getBytecodeConstantTag(proto, kb);
+ regTags[ra] = bcType.a;
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_LOADKX:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ int kb = int(pc[1]);
+ bcType.a = getBytecodeConstantTag(proto, kb);
+ regTags[ra] = bcType.a;
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_MOVE:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ bcType.a = regTags[rb];
+ regTags[ra] = regTags[rb];
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_GETTABLE:
+ {
+ int rb = LUAU_INSN_B(*pc);
+ int rc = LUAU_INSN_C(*pc);
+ bcType.a = regTags[rb];
+ bcType.b = regTags[rc];
+ break;
+ }
+ case LOP_SETTABLE:
+ {
+ int rb = LUAU_INSN_B(*pc);
+ int rc = LUAU_INSN_C(*pc);
+ bcType.a = regTags[rb];
+ bcType.b = regTags[rc];
+ break;
+ }
+ case LOP_GETTABLEKS:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ uint32_t kc = pc[1];
+ bcType.a = regTags[rb];
+ bcType.b = getBytecodeConstantTag(proto, kc);
+ regTags[ra] = LBC_TYPE_ANY;
+ if (bcType.a == LBC_TYPE_VECTOR)
+ regTags[ra] = LBC_TYPE_NUMBER;
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_SETTABLEKS:
+ {
+ int rb = LUAU_INSN_B(*pc);
+ bcType.a = regTags[rb];
+ bcType.b = LBC_TYPE_STRING;
+ break;
+ }
+ case LOP_GETTABLEN:
+ case LOP_SETTABLEN:
+ {
+ int rb = LUAU_INSN_B(*pc);
+ bcType.a = regTags[rb];
+ bcType.b = LBC_TYPE_NUMBER;
+ break;
+ }
+ case LOP_ADD:
+ case LOP_SUB:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ int rc = LUAU_INSN_C(*pc);
+ bcType.a = regTags[rb];
+ bcType.b = regTags[rc];
+ regTags[ra] = LBC_TYPE_ANY;
+ if (bcType.a == LBC_TYPE_NUMBER && bcType.b == LBC_TYPE_NUMBER)
+ regTags[ra] = LBC_TYPE_NUMBER;
+ else if (bcType.a == LBC_TYPE_VECTOR && bcType.b == LBC_TYPE_VECTOR)
+ regTags[ra] = LBC_TYPE_VECTOR;
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_MUL:
+ case LOP_DIV:
+ case LOP_IDIV:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ int rc = LUAU_INSN_C(*pc);
+ bcType.a = regTags[rb];
+ bcType.b = regTags[rc];
+ regTags[ra] = LBC_TYPE_ANY;
+ if (bcType.a == LBC_TYPE_NUMBER)
+ {
+ if (bcType.b == LBC_TYPE_NUMBER)
+ regTags[ra] = LBC_TYPE_NUMBER;
+ else if (bcType.b == LBC_TYPE_VECTOR)
+ regTags[ra] = LBC_TYPE_VECTOR;
+ }
+ else if (bcType.a == LBC_TYPE_VECTOR)
+ {
+ if (bcType.b == LBC_TYPE_NUMBER || bcType.b == LBC_TYPE_VECTOR)
+ regTags[ra] = LBC_TYPE_VECTOR;
+ }
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_MOD:
+ case LOP_POW:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ int rc = LUAU_INSN_C(*pc);
+ bcType.a = regTags[rb];
+ bcType.b = regTags[rc];
+ regTags[ra] = LBC_TYPE_ANY;
+ if (bcType.a == LBC_TYPE_NUMBER && bcType.b == LBC_TYPE_NUMBER)
+ regTags[ra] = LBC_TYPE_NUMBER;
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_ADDK:
+ case LOP_SUBK:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ int kc = LUAU_INSN_C(*pc);
+ bcType.a = regTags[rb];
+ bcType.b = getBytecodeConstantTag(proto, kc);
+ regTags[ra] = LBC_TYPE_ANY;
+ if (bcType.a == LBC_TYPE_NUMBER && bcType.b == LBC_TYPE_NUMBER)
+ regTags[ra] = LBC_TYPE_NUMBER;
+ else if (bcType.a == LBC_TYPE_VECTOR && bcType.b == LBC_TYPE_VECTOR)
+ regTags[ra] = LBC_TYPE_VECTOR;
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_MULK:
+ case LOP_DIVK:
+ case LOP_IDIVK:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ int kc = LUAU_INSN_C(*pc);
+ bcType.a = regTags[rb];
+ bcType.b = getBytecodeConstantTag(proto, kc);
+ regTags[ra] = LBC_TYPE_ANY;
+ if (bcType.a == LBC_TYPE_NUMBER)
+ {
+ if (bcType.b == LBC_TYPE_NUMBER)
+ regTags[ra] = LBC_TYPE_NUMBER;
+ else if (bcType.b == LBC_TYPE_VECTOR)
+ regTags[ra] = LBC_TYPE_VECTOR;
+ }
+ else if (bcType.a == LBC_TYPE_VECTOR)
+ {
+ if (bcType.b == LBC_TYPE_NUMBER || bcType.b == LBC_TYPE_VECTOR)
+ regTags[ra] = LBC_TYPE_VECTOR;
+ }
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_MODK:
+ case LOP_POWK:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ int kc = LUAU_INSN_C(*pc);
+ bcType.a = regTags[rb];
+ bcType.b = getBytecodeConstantTag(proto, kc);
+ regTags[ra] = LBC_TYPE_ANY;
+ if (bcType.a == LBC_TYPE_NUMBER && bcType.b == LBC_TYPE_NUMBER)
+ regTags[ra] = LBC_TYPE_NUMBER;
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_SUBRK:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ int kb = LUAU_INSN_B(*pc);
+ int rc = LUAU_INSN_C(*pc);
+ bcType.a = getBytecodeConstantTag(proto, kb);
+ bcType.b = regTags[rc];
+ regTags[ra] = LBC_TYPE_ANY;
+ if (bcType.a == LBC_TYPE_NUMBER && bcType.b == LBC_TYPE_NUMBER)
+ regTags[ra] = LBC_TYPE_NUMBER;
+ else if (bcType.a == LBC_TYPE_VECTOR && bcType.b == LBC_TYPE_VECTOR)
+ regTags[ra] = LBC_TYPE_VECTOR;
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_DIVRK:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ int kc = LUAU_INSN_C(*pc);
+ bcType.a = regTags[rb];
+ bcType.b = getBytecodeConstantTag(proto, kc);
+ regTags[ra] = LBC_TYPE_ANY;
+ if (bcType.a == LBC_TYPE_NUMBER)
+ {
+ if (bcType.b == LBC_TYPE_NUMBER)
+ regTags[ra] = LBC_TYPE_NUMBER;
+ else if (bcType.b == LBC_TYPE_VECTOR)
+ regTags[ra] = LBC_TYPE_VECTOR;
+ }
+ else if (bcType.a == LBC_TYPE_VECTOR)
+ {
+ if (bcType.b == LBC_TYPE_NUMBER || bcType.b == LBC_TYPE_VECTOR)
+ regTags[ra] = LBC_TYPE_VECTOR;
+ }
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_NOT:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ bcType.a = regTags[rb];
+ regTags[ra] = LBC_TYPE_BOOLEAN;
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_MINUS:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ bcType.a = regTags[rb];
+ regTags[ra] = LBC_TYPE_ANY;
+ if (bcType.a == LBC_TYPE_NUMBER)
+ regTags[ra] = LBC_TYPE_NUMBER;
+ else if (bcType.a == LBC_TYPE_VECTOR)
+ regTags[ra] = LBC_TYPE_VECTOR;
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_LENGTH:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ bcType.a = regTags[rb];
+ regTags[ra] = LBC_TYPE_NUMBER;
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_NEWTABLE:
+ case LOP_DUPTABLE:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ regTags[ra] = LBC_TYPE_TABLE;
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_FASTCALL:
+ {
+ int bfid = LUAU_INSN_A(*pc);
+ int skip = LUAU_INSN_C(*pc);
+ Instruction call = pc[skip + 1];
+ LUAU_ASSERT(LUAU_INSN_OP(call) == LOP_CALL);
+ int ra = LUAU_INSN_A(call);
+ applyBuiltinCall(bfid, bcType);
+ regTags[ra + 1] = bcType.a;
+ regTags[ra + 2] = bcType.b;
+ regTags[ra + 3] = bcType.c;
+ regTags[ra] = bcType.result;
+ break;
+ }
+ case LOP_FASTCALL1:
+ case LOP_FASTCALL2K:
+ {
+ int bfid = LUAU_INSN_A(*pc);
+ int skip = LUAU_INSN_C(*pc);
+ Instruction call = pc[skip + 1];
+ LUAU_ASSERT(LUAU_INSN_OP(call) == LOP_CALL);
+ int ra = LUAU_INSN_A(call);
+ applyBuiltinCall(bfid, bcType);
+ regTags[LUAU_INSN_B(*pc)] = bcType.a;
+ regTags[ra] = bcType.result;
+ break;
+ }
+ case LOP_FASTCALL2:
+ {
+ int bfid = LUAU_INSN_A(*pc);
+ int skip = LUAU_INSN_C(*pc);
+ Instruction call = pc[skip + 1];
+ LUAU_ASSERT(LUAU_INSN_OP(call) == LOP_CALL);
+ int ra = LUAU_INSN_A(call);
+ applyBuiltinCall(bfid, bcType);
+ regTags[LUAU_INSN_B(*pc)] = bcType.a;
+ regTags[int(pc[1])] = bcType.b;
+ regTags[ra] = bcType.result;
+ break;
+ }
+ case LOP_FORNPREP:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ regTags[ra] = LBC_TYPE_NUMBER;
+ regTags[ra + 1] = LBC_TYPE_NUMBER;
+ regTags[ra + 2] = LBC_TYPE_NUMBER;
+ break;
+ }
+ case LOP_FORNLOOP:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ regTags[ra] = LBC_TYPE_NUMBER;
+ regTags[ra + 1] = LBC_TYPE_NUMBER;
+ regTags[ra + 2] = LBC_TYPE_NUMBER;
+ break;
+ }
+ case LOP_CONCAT:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ regTags[ra] = LBC_TYPE_STRING;
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_NEWCLOSURE:
+ case LOP_DUPCLOSURE:
+ {
+ int ra = LUAU_INSN_A(*pc);
+ regTags[ra] = LBC_TYPE_FUNCTION;
+ bcType.result = regTags[ra];
+ break;
+ }
+ case LOP_GETGLOBAL:
+ case LOP_SETGLOBAL:
+ case LOP_CALL:
+ case LOP_RETURN:
+ case LOP_JUMP:
+ case LOP_JUMPBACK:
+ case LOP_JUMPIF:
+ case LOP_JUMPIFNOT:
+ case LOP_JUMPIFEQ:
+ case LOP_JUMPIFLE:
+ case LOP_JUMPIFLT:
+ case LOP_JUMPIFNOTEQ:
+ case LOP_JUMPIFNOTLE:
+ case LOP_JUMPIFNOTLT:
+ case LOP_JUMPX:
+ case LOP_JUMPXEQKNIL:
+ case LOP_JUMPXEQKB:
+ case LOP_JUMPXEQKN:
+ case LOP_JUMPXEQKS:
+ case LOP_SETLIST:
+ case LOP_GETUPVAL:
+ case LOP_SETUPVAL:
+ case LOP_CLOSEUPVALS:
+ case LOP_FORGLOOP:
+ case LOP_FORGPREP_NEXT:
+ case LOP_FORGPREP_INEXT:
+ case LOP_AND:
+ case LOP_ANDK:
+ case LOP_OR:
+ case LOP_ORK:
+ case LOP_COVERAGE:
+ case LOP_GETIMPORT:
+ case LOP_CAPTURE:
+ case LOP_NAMECALL:
+ case LOP_PREPVARARGS:
+ case LOP_GETVARARGS:
+ case LOP_FORGPREP:
+ break;
+ default:
+ LUAU_ASSERT(!"Unknown instruction");
+ }
+ i += getOpLength(op);
+ }
+ }
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "BytecodeSummary.cpp"
+struct lua_State;
+struct Proto;
+namespace Luau
+{
+namespace CodeGen
+{
+class FunctionBytecodeSummary
+{
+public:
+ FunctionBytecodeSummary(std::string source, std::string name, const int line, unsigned nestingLimit);
+ const std::string& getSource() const
+ {
+ return source;
+ }
+ const std::string& getName() const
+ {
+ return name;
+ }
+ int getLine() const
+ {
+ return line;
+ }
+ const unsigned getNestingLimit() const
+ {
+ return nestingLimit;
+ }
+ const unsigned getOpLimit() const
+ {
+ return LOP__COUNT;
+ }
+ void incCount(unsigned nesting, uint8_t op)
+ {
+ LUAU_ASSERT(nesting <= getNestingLimit());
+ LUAU_ASSERT(op < getOpLimit());
+ ++counts[nesting][op];
+ }
+ unsigned getCount(unsigned nesting, uint8_t op) const
+ {
+ LUAU_ASSERT(nesting <= getNestingLimit());
+ LUAU_ASSERT(op < getOpLimit());
+ return counts[nesting][op];
+ }
+ const std::vector<unsigned>& getCounts(unsigned nesting) const
+ {
+ LUAU_ASSERT(nesting <= getNestingLimit());
+ return counts[nesting];
+ }
+ static FunctionBytecodeSummary fromProto(Proto* proto, unsigned nestingLimit);
+private:
+ std::string source;
+ std::string name;
+ int line;
+ unsigned nestingLimit;
+ std::vector<std::vector<unsigned>> counts;
+};
+std::vector<FunctionBytecodeSummary> summarizeBytecode(lua_State* L, int idx, unsigned nestingLimit);
+}
+} // namespace Luau
+#line __LINE__ "BytecodeSummary.cpp"
+#line __LINE__ "CodeGenLower.h"
+#line __LINE__ "CodeGen.h"
+struct lua_State;
+namespace Luau
+{
+namespace CodeGen
+{
+enum CodeGenFlags
+{
+ CodeGen_OnlyNativeModules = 1 << 0,
+ CodeGen_ColdFunctions = 1 << 1,
+};
+enum class CodeGenCompilationResult
+{
+ Success,
+ NothingToCompile, // There were no new functions to compile
+ CodeGenNotInitialized,
+ CodeGenFailed, // Native codegen failed due to an internal compiler error
+ AllocationFailed,
+};
+struct CompilationStats
+{
+ size_t bytecodeSizeBytes = 0;
+ size_t nativeCodeSizeBytes = 0;
+ size_t nativeDataSizeBytes = 0;
+ size_t nativeMetadataSizeBytes = 0;
+ uint32_t functionsCompiled = 0;
+};
+using AllocationCallback = void(void* context, void* oldPointer, size_t oldSize, void* newPointer, size_t newSize);
+bool isSupported();
+void create(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext);
+void create(lua_State* L);
+CodeGenCompilationResult compile(lua_State* L, int idx, unsigned int flags = 0, CompilationStats* stats = nullptr);
+using AnnotatorFn = void (*)(void* context, std::string& result, int fid, int instpos);
+struct AssemblyOptions
+{
+ enum Target
+ {
+ Host,
+ A64,
+ A64_NoFeatures,
+ X64_Windows,
+ X64_SystemV,
+ };
+ Target target = Host;
+ unsigned int flags = 0;
+ bool outputBinary = false;
+ bool includeAssembly = false;
+ bool includeIr = false;
+ bool includeOutlinedCode = false;
+ AnnotatorFn annotator = nullptr;
+ void* annotatorContext = nullptr;
+};
+struct BlockLinearizationStats
+{
+ unsigned int constPropInstructionCount = 0;
+ double timeSeconds = 0.0;
+ BlockLinearizationStats& operator+=(const BlockLinearizationStats& that)
+ {
+ this->constPropInstructionCount += that.constPropInstructionCount;
+ this->timeSeconds += that.timeSeconds;
+ return *this;
+ }
+ BlockLinearizationStats operator+(const BlockLinearizationStats& other) const
+ {
+ BlockLinearizationStats result(*this);
+ result += other;
+ return result;
+ }
+};
+struct FunctionStats
+{
+ std::string name;
+ int line = -1;
+ unsigned bcodeCount = 0;
+ unsigned irCount = 0;
+ unsigned asmCount = 0;
+};
+struct LoweringStats
+{
+ unsigned totalFunctions = 0;
+ unsigned skippedFunctions = 0;
+ int spillsToSlot = 0;
+ int spillsToRestore = 0;
+ unsigned maxSpillSlotsUsed = 0;
+ unsigned blocksPreOpt = 0;
+ unsigned blocksPostOpt = 0;
+ unsigned maxBlockInstructions = 0;
+ int regAllocErrors = 0;
+ int loweringErrors = 0;
+ BlockLinearizationStats blockLinearizationStats;
+ bool collectFunctionStats = false;
+ std::vector<FunctionStats> functions;
+ LoweringStats operator+(const LoweringStats& other) const
+ {
+ LoweringStats result(*this);
+ result += other;
+ return result;
+ }
+ LoweringStats& operator+=(const LoweringStats& that)
+ {
+ this->totalFunctions += that.totalFunctions;
+ this->skippedFunctions += that.skippedFunctions;
+ this->spillsToSlot += that.spillsToSlot;
+ this->spillsToRestore += that.spillsToRestore;
+ this->maxSpillSlotsUsed = std::max(this->maxSpillSlotsUsed, that.maxSpillSlotsUsed);
+ this->blocksPreOpt += that.blocksPreOpt;
+ this->blocksPostOpt += that.blocksPostOpt;
+ this->maxBlockInstructions = std::max(this->maxBlockInstructions, that.maxBlockInstructions);
+ this->regAllocErrors += that.regAllocErrors;
+ this->loweringErrors += that.loweringErrors;
+ this->blockLinearizationStats += that.blockLinearizationStats;
+ if (this->collectFunctionStats)
+ this->functions.insert(this->functions.end(), that.functions.begin(), that.functions.end());
+ return *this;
+ }
+};
+std::string getAssembly(lua_State* L, int idx, AssemblyOptions options = {}, LoweringStats* stats = nullptr);
+using PerfLogFn = void (*)(void* context, uintptr_t addr, unsigned size, const char* symbol);
+void setPerfLog(void* context, PerfLogFn logFn);
+}
+} // namespace Luau
+#line __LINE__ "CodeGenLower.h"
+#line __LINE__ "IrDump.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct CfgInfo;
+const char* getCmdName(IrCmd cmd);
+const char* getBlockKindName(IrBlockKind kind);
+struct IrToStringContext
+{
+ std::string& result;
+ const std::vector<IrBlock>& blocks;
+ const std::vector<IrConst>& constants;
+ const CfgInfo& cfg;
+};
+void toString(IrToStringContext& ctx, const IrInst& inst, uint32_t index);
+void toString(IrToStringContext& ctx, const IrBlock& block, uint32_t index);
+void toString(IrToStringContext& ctx, IrOp op);
+void toString(std::string& result, IrConst constant);
+void toString(std::string& result, const BytecodeTypes& bcTypes);
+void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, const IrInst& inst, uint32_t instIdx, bool includeUseInfo);
+void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t index, bool includeUseInfo);
+std::string toString(const IrFunction& function, bool includeUseInfo);
+std::string dump(const IrFunction& function);
+std::string toDot(const IrFunction& function, bool includeInst);
+std::string toDotCfg(const IrFunction& function);
+std::string toDotDjGraph(const IrFunction& function);
+std::string dumpDot(const IrFunction& function, bool includeInst);
+}
+} // namespace Luau
+#line __LINE__ "CodeGenLower.h"
+#line __LINE__ "OptimizeConstProp.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct IrBuilder;
+void constPropInBlockChains(IrBuilder& build, bool useValueNumbering);
+void createLinearBlocks(IrBuilder& build, bool useValueNumbering);
+}
+} // namespace Luau
+#line __LINE__ "CodeGenLower.h"
+#line __LINE__ "OptimizeFinalX64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+void optimizeMemoryOperandsX64(IrFunction& function);
+}
+} // namespace Luau
+#line __LINE__ "CodeGenLower.h"
+#line __LINE__ "EmitCommon.h"
+namespace Luau
+{
+namespace CodeGen
+{
+constexpr unsigned kTValueSizeLog2 = 4;
+constexpr unsigned kLuaNodeSizeLog2 = 5;
+constexpr unsigned kOffsetOfTKeyTagNext = 12; // offsetof cannot be used on a bit field
+constexpr unsigned kTKeyTagBits = 4;
+constexpr unsigned kTKeyTagMask = (1 << kTKeyTagBits) - 1;
+constexpr unsigned kOffsetOfInstructionC = 3;
+struct ModuleHelpers
+{
+ Label exitContinueVm;
+ Label exitNoContinueVm;
+ Label exitContinueVmClearNativeFlag;
+ Label updatePcAndContinueInVm;
+ Label return_;
+ Label interrupt;
+ Label continueCall; // x0: closure
+};
+}
+} // namespace Luau
+#line __LINE__ "CodeGenLower.h"
+#line __LINE__ "IrLoweringA64.h"
+#line __LINE__ "IrRegAllocA64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct LoweringStats;
+namespace A64
+{
+class AssemblyBuilderA64;
+struct IrRegAllocA64
+{
+ IrRegAllocA64(IrFunction& function, LoweringStats* stats, std::initializer_list<std::pair<RegisterA64, RegisterA64>> regs);
+ RegisterA64 allocReg(KindA64 kind, uint32_t index);
+ RegisterA64 allocTemp(KindA64 kind);
+ RegisterA64 allocReuse(KindA64 kind, uint32_t index, std::initializer_list<IrOp> oprefs);
+ RegisterA64 takeReg(RegisterA64 reg, uint32_t index);
+ void freeReg(RegisterA64 reg);
+ void freeLastUseReg(IrInst& target, uint32_t index);
+ void freeLastUseRegs(const IrInst& inst, uint32_t index);
+ void freeTempRegs();
+ size_t spill(AssemblyBuilderA64& build, uint32_t index, std::initializer_list<RegisterA64> live = {});
+ void restore(AssemblyBuilderA64& build, size_t start);
+ void restoreReg(AssemblyBuilderA64& build, IrInst& inst);
+ struct Set
+ {
+ uint32_t base = 0;
+ uint32_t free = 0;
+ uint32_t temp = 0;
+ uint32_t defs[32];
+ };
+ struct Spill
+ {
+ uint32_t inst;
+ RegisterA64 origin;
+ int8_t slot;
+ };
+ Set& getSet(KindA64 kind);
+ IrFunction& function;
+ LoweringStats* stats = nullptr;
+ Set gpr, simd;
+ std::vector<Spill> spills;
+ uint32_t freeSpillSlots = 0;
+ bool error = false;
+};
+}
+} // namespace CodeGen
+}
+#line __LINE__ "IrLoweringA64.h"
+#line __LINE__ "IrValueLocationTracking.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct IrValueLocationTracking
+{
+ IrValueLocationTracking(IrFunction& function);
+ void setRestoreCallack(void* context, void (*callback)(void* context, IrInst& inst));
+ void beforeInstLowering(IrInst& inst);
+ void afterInstLowering(IrInst& inst, uint32_t instIdx);
+ void recordRestoreOp(uint32_t instIdx, IrOp location);
+ void invalidateRestoreOp(IrOp location, bool skipValueInvalidation);
+ void invalidateRestoreVmRegs(int start, int count);
+ IrFunction& function;
+ std::array<uint32_t, 256> vmRegValue;
+ int maxReg = 0;
+ void* restoreCallbackCtx = nullptr;
+ void (*restoreCallback)(void* context, IrInst& inst) = nullptr;
+};
+}
+} // namespace Luau
+#line __LINE__ "IrLoweringA64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct ModuleHelpers;
+struct AssemblyOptions;
+struct LoweringStats;
+namespace A64
+{
+struct IrLoweringA64
+{
+ IrLoweringA64(AssemblyBuilderA64& build, ModuleHelpers& helpers, IrFunction& function, LoweringStats* stats);
+ void lowerInst(IrInst& inst, uint32_t index, const IrBlock& next);
+ void finishBlock(const IrBlock& curr, const IrBlock& next);
+ void finishFunction();
+ bool hasError() const;
+ bool isFallthroughBlock(const IrBlock& target, const IrBlock& next);
+ void jumpOrFallthrough(IrBlock& target, const IrBlock& next);
+ Label& getTargetLabel(IrOp op, Label& fresh);
+ void finalizeTargetLabel(IrOp op, Label& fresh);
+ RegisterA64 tempDouble(IrOp op);
+ RegisterA64 tempInt(IrOp op);
+ RegisterA64 tempUint(IrOp op);
+ AddressA64 tempAddr(IrOp op, int offset);
+ AddressA64 tempAddrBuffer(IrOp bufferOp, IrOp indexOp);
+ RegisterA64 regOp(IrOp op);
+ IrConst constOp(IrOp op) const;
+ uint8_t tagOp(IrOp op) const;
+ int intOp(IrOp op) const;
+ unsigned uintOp(IrOp op) const;
+ double doubleOp(IrOp op) const;
+ IrBlock& blockOp(IrOp op) const;
+ Label& labelOp(IrOp op) const;
+ struct InterruptHandler
+ {
+ Label self;
+ unsigned int pcpos;
+ Label next;
+ };
+ struct ExitHandler
+ {
+ Label self;
+ unsigned int pcpos;
+ };
+ AssemblyBuilderA64& build;
+ ModuleHelpers& helpers;
+ IrFunction& function;
+ LoweringStats* stats = nullptr;
+ IrRegAllocA64 regs;
+ IrValueLocationTracking valueTracker;
+ std::vector<InterruptHandler> interruptHandlers;
+ std::vector<ExitHandler> exitHandlers;
+ DenseHashMap<uint32_t, uint32_t> exitHandlerMap;
+ bool error = false;
+};
+}
+} // namespace CodeGen
+}
+#line __LINE__ "CodeGenLower.h"
+#line __LINE__ "IrLoweringX64.h"
+#line __LINE__ "IrRegAllocX64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct LoweringStats;
+namespace X64
+{
+constexpr uint8_t kNoStackSlot = 0xff;
+struct IrSpillX64
+{
+ uint32_t instIdx = 0;
+ IrValueKind valueKind = IrValueKind::Unknown;
+ unsigned spillId = 0;
+ uint8_t stackSlot = kNoStackSlot;
+ RegisterX64 originalLoc = noreg;
+};
+struct IrRegAllocX64
+{
+ IrRegAllocX64(AssemblyBuilderX64& build, IrFunction& function, LoweringStats* stats);
+ RegisterX64 allocReg(SizeX64 size, uint32_t instIdx);
+ RegisterX64 allocRegOrReuse(SizeX64 size, uint32_t instIdx, std::initializer_list<IrOp> oprefs);
+ RegisterX64 takeReg(RegisterX64 reg, uint32_t instIdx);
+ bool canTakeReg(RegisterX64 reg) const;
+ void freeReg(RegisterX64 reg);
+ void freeLastUseReg(IrInst& target, uint32_t instIdx);
+ void freeLastUseRegs(const IrInst& inst, uint32_t instIdx);
+ bool isLastUseReg(const IrInst& target, uint32_t instIdx) const;
+ bool shouldFreeGpr(RegisterX64 reg) const;
+ unsigned findSpillStackSlot(IrValueKind valueKind);
+ IrOp getRestoreOp(const IrInst& inst) const;
+ bool hasRestoreOp(const IrInst& inst) const;
+ OperandX64 getRestoreAddress(const IrInst& inst, IrOp restoreOp);
+ void preserve(IrInst& inst);
+ void restore(IrInst& inst, bool intoOriginalLocation);
+ void preserveAndFreeInstValues();
+ uint32_t findInstructionWithFurthestNextUse(const std::array<uint32_t, 16>& regInstUsers) const;
+ void assertFree(RegisterX64 reg) const;
+ void assertAllFree() const;
+ void assertNoSpills() const;
+ AssemblyBuilderX64& build;
+ IrFunction& function;
+ LoweringStats* stats = nullptr;
+ uint32_t currInstIdx = ~0u;
+ std::array<bool, 16> freeGprMap;
+ std::array<uint32_t, 16> gprInstUsers;
+ std::array<bool, 16> freeXmmMap;
+ std::array<uint32_t, 16> xmmInstUsers;
+ uint8_t usableXmmRegCount = 0;
+ std::bitset<256> usedSpillSlots;
+ unsigned maxUsedSlot = 0;
+ unsigned nextSpillId = 1;
+ std::vector<IrSpillX64> spills;
+};
+struct ScopedRegX64
+{
+ explicit ScopedRegX64(IrRegAllocX64& owner);
+ ScopedRegX64(IrRegAllocX64& owner, SizeX64 size);
+ ScopedRegX64(IrRegAllocX64& owner, RegisterX64 reg);
+ ~ScopedRegX64();
+ ScopedRegX64(const ScopedRegX64&) = delete;
+ ScopedRegX64& operator=(const ScopedRegX64&) = delete;
+ void take(RegisterX64 reg);
+ void alloc(SizeX64 size);
+ void free();
+ RegisterX64 release();
+ IrRegAllocX64& owner;
+ RegisterX64 reg;
+};
+struct ScopedSpills
+{
+ explicit ScopedSpills(IrRegAllocX64& owner);
+ ~ScopedSpills();
+ ScopedSpills(const ScopedSpills&) = delete;
+ ScopedSpills& operator=(const ScopedSpills&) = delete;
+ IrRegAllocX64& owner;
+ unsigned startSpillId = 0;
+};
+}
+} // namespace CodeGen
+}
+#line __LINE__ "IrLoweringX64.h"
+struct Proto;
+namespace Luau
+{
+namespace CodeGen
+{
+struct ModuleHelpers;
+struct AssemblyOptions;
+struct LoweringStats;
+namespace X64
+{
+struct IrLoweringX64
+{
+ IrLoweringX64(AssemblyBuilderX64& build, ModuleHelpers& helpers, IrFunction& function, LoweringStats* stats);
+ void lowerInst(IrInst& inst, uint32_t index, const IrBlock& next);
+ void finishBlock(const IrBlock& curr, const IrBlock& next);
+ void finishFunction();
+ bool hasError() const;
+ bool isFallthroughBlock(const IrBlock& target, const IrBlock& next);
+ void jumpOrFallthrough(IrBlock& target, const IrBlock& next);
+ Label& getTargetLabel(IrOp op, Label& fresh);
+ void finalizeTargetLabel(IrOp op, Label& fresh);
+ void jumpOrAbortOnUndef(ConditionX64 cond, IrOp target, const IrBlock& next);
+ void jumpOrAbortOnUndef(IrOp target, const IrBlock& next);
+ void storeDoubleAsFloat(OperandX64 dst, IrOp src);
+ OperandX64 memRegDoubleOp(IrOp op);
+ OperandX64 memRegUintOp(IrOp op);
+ OperandX64 memRegTagOp(IrOp op);
+ RegisterX64 regOp(IrOp op);
+ OperandX64 bufferAddrOp(IrOp bufferOp, IrOp indexOp);
+ IrConst constOp(IrOp op) const;
+ uint8_t tagOp(IrOp op) const;
+ int intOp(IrOp op) const;
+ unsigned uintOp(IrOp op) const;
+ double doubleOp(IrOp op) const;
+ IrBlock& blockOp(IrOp op) const;
+ Label& labelOp(IrOp op) const;
+ struct InterruptHandler
+ {
+ Label self;
+ unsigned int pcpos;
+ Label next;
+ };
+ struct ExitHandler
+ {
+ Label self;
+ unsigned int pcpos;
+ };
+ AssemblyBuilderX64& build;
+ ModuleHelpers& helpers;
+ IrFunction& function;
+ LoweringStats* stats = nullptr;
+ IrRegAllocX64 regs;
+ IrValueLocationTracking valueTracker;
+ std::vector<InterruptHandler> interruptHandlers;
+ std::vector<ExitHandler> exitHandlers;
+ DenseHashMap<uint32_t, uint32_t> exitHandlerMap;
+};
+}
+} // namespace CodeGen
+}
+#line __LINE__ "CodeGenLower.h"
+LUAU_FASTFLAG(DebugCodegenNoOpt)
+LUAU_FASTFLAG(DebugCodegenOptSize)
+LUAU_FASTFLAG(DebugCodegenSkipNumbering)
+LUAU_FASTINT(CodegenHeuristicsInstructionLimit)
+LUAU_FASTINT(CodegenHeuristicsBlockLimit)
+LUAU_FASTINT(CodegenHeuristicsBlockInstructionLimit)
+LUAU_FASTFLAG(LuauKeepVmapLinear2)
+namespace Luau
+{
+namespace CodeGen
+{
+inline void gatherFunctions(std::vector<Proto*>& results, Proto* proto, unsigned int flags)
+{
+ if (results.size() <= size_t(proto->bytecodeid))
+ results.resize(proto->bytecodeid + 1);
+ if (results[proto->bytecodeid])
+ return;
+ if ((proto->flags & LPF_NATIVE_COLD) == 0 || (flags & CodeGen_ColdFunctions) != 0)
+ results[proto->bytecodeid] = proto;
+ for (int i = 0; i < proto->sizep; i++)
+ gatherFunctions(results, proto->p[i], flags);
+}
+inline unsigned getInstructionCount(const std::vector<IrInst>& instructions, IrCmd cmd)
+{
+ return unsigned(std::count_if(instructions.begin(), instructions.end(), [&cmd](const IrInst& inst) {
+ return inst.cmd == cmd;
+ }));
+}
+template<typename AssemblyBuilder, typename IrLowering>
+inline bool lowerImpl(AssemblyBuilder& build, IrLowering& lowering, IrFunction& function, const std::vector<uint32_t>& sortedBlocks, int bytecodeid,
+ AssemblyOptions options)
+{
+ std::vector<uint32_t> bcLocations(function.instructions.size() + 1, ~0u);
+ for (size_t i = 0; i < function.bcMapping.size(); ++i)
+ {
+ uint32_t irLocation = function.bcMapping[i].irLocation;
+ if (irLocation != ~0u)
+ bcLocations[irLocation] = uint32_t(i);
+ }
+ bool outputEnabled = options.includeAssembly || options.includeIr;
+ IrToStringContext ctx{build.text, function.blocks, function.constants, function.cfg};
+ size_t textSize = build.text.length();
+ uint32_t codeSize = build.getCodeSize();
+ bool seenFallback = false;
+ IrBlock dummy;
+ dummy.start = ~0u;
+ LUAU_ASSERT(sortedBlocks[0] == 0);
+ for (size_t i = 0; i < sortedBlocks.size(); ++i)
+ {
+ uint32_t blockIndex = sortedBlocks[i];
+ IrBlock& block = function.blocks[blockIndex];
+ if (block.kind == IrBlockKind::Dead)
+ continue;
+ LUAU_ASSERT(block.start != ~0u);
+ LUAU_ASSERT(block.finish != ~0u);
+ if (block.kind == IrBlockKind::Fallback && !seenFallback)
+ {
+ textSize = build.text.length();
+ codeSize = build.getCodeSize();
+ seenFallback = true;
+ }
+ if (options.includeIr)
+ {
+ build.logAppend("# ");
+ toStringDetailed(ctx, block, blockIndex, true);
+ }
+ if (FFlag::LuauKeepVmapLinear2)
+ {
+ function.validRestoreOpBlocks.push_back(blockIndex);
+ }
+ else
+ {
+ function.validRestoreOpBlockIdx = blockIndex;
+ }
+ build.setLabel(block.label);
+ if (blockIndex == function.entryBlock)
+ {
+ function.entryLocation = build.getLabelOffset(block.label);
+ }
+ IrBlock& nextBlock = getNextBlock(function, sortedBlocks, dummy, i);
+ if (block.expectedNextBlock != ~0u)
+ LUAU_ASSERT(function.getBlockIndex(nextBlock) == block.expectedNextBlock);
+ for (uint32_t index = block.start; index <= block.finish; index++)
+ {
+ LUAU_ASSERT(index < function.instructions.size());
+ uint32_t bcLocation = bcLocations[index];
+ if (outputEnabled && options.annotator && bcLocation != ~0u)
+ {
+ options.annotator(options.annotatorContext, build.text, bytecodeid, bcLocation);
+ BytecodeTypes bcTypes = function.getBytecodeTypesAt(bcLocation);
+ if (bcTypes.result != LBC_TYPE_ANY || bcTypes.a != LBC_TYPE_ANY || bcTypes.b != LBC_TYPE_ANY || bcTypes.c != LBC_TYPE_ANY)
+ {
+ toString(ctx.result, bcTypes);
+ build.logAppend("\n");
+ }
+ }
+ if (bcLocation != ~0u)
+ {
+ Label label = (index == block.start) ? block.label : build.setLabel();
+ function.bcMapping[bcLocation].asmLocation = build.getLabelOffset(label);
+ }
+ IrInst& inst = function.instructions[index];
+ if (isPseudo(inst.cmd))
+ {
+ LUAU_ASSERT(inst.useCount == 0);
+ continue;
+ }
+ LUAU_ASSERT(inst.lastUse == 0 || inst.useCount != 0);
+ if (options.includeIr)
+ {
+ build.logAppend("# ");
+ toStringDetailed(ctx, block, blockIndex, inst, index, true);
+ }
+ lowering.lowerInst(inst, index, nextBlock);
+ if (lowering.hasError())
+ {
+ for (size_t j = i + 1; j < sortedBlocks.size(); ++j)
+ {
+ IrBlock& abandoned = function.blocks[sortedBlocks[j]];
+ build.setLabel(abandoned.label);
+ }
+ lowering.finishFunction();
+ return false;
+ }
+ }
+ lowering.finishBlock(block, nextBlock);
+ if (options.includeIr)
+ build.logAppend("#\n");
+ if (FFlag::LuauKeepVmapLinear2 && block.expectedNextBlock == ~0u)
+ function.validRestoreOpBlocks.clear();
+ }
+ if (!seenFallback)
+ {
+ textSize = build.text.length();
+ codeSize = build.getCodeSize();
+ }
+ lowering.finishFunction();
+ if (outputEnabled && !options.includeOutlinedCode && textSize < build.text.size())
+ {
+ build.text.resize(textSize);
+ if (options.includeAssembly)
+ build.logAppend("; skipping %u bytes of outlined code\n", unsigned((build.getCodeSize() - codeSize) * sizeof(build.code[0])));
+ }
+ return true;
+}
+inline bool lowerIr(X64::AssemblyBuilderX64& build, IrBuilder& ir, const std::vector<uint32_t>& sortedBlocks, ModuleHelpers& helpers, Proto* proto,
+ AssemblyOptions options, LoweringStats* stats)
+{
+ optimizeMemoryOperandsX64(ir.function);
+ X64::IrLoweringX64 lowering(build, helpers, ir.function, stats);
+ return lowerImpl(build, lowering, ir.function, sortedBlocks, proto->bytecodeid, options);
+}
+inline bool lowerIr(A64::AssemblyBuilderA64& build, IrBuilder& ir, const std::vector<uint32_t>& sortedBlocks, ModuleHelpers& helpers, Proto* proto,
+ AssemblyOptions options, LoweringStats* stats)
+{
+ A64::IrLoweringA64 lowering(build, helpers, ir.function, stats);
+ return lowerImpl(build, lowering, ir.function, sortedBlocks, proto->bytecodeid, options);
+}
+template<typename AssemblyBuilder>
+inline bool lowerFunction(IrBuilder& ir, AssemblyBuilder& build, ModuleHelpers& helpers, Proto* proto, AssemblyOptions options, LoweringStats* stats)
+{
+ killUnusedBlocks(ir.function);
+ unsigned preOptBlockCount = 0;
+ unsigned maxBlockInstructions = 0;
+ for (const IrBlock& block : ir.function.blocks)
+ {
+ preOptBlockCount += (block.kind != IrBlockKind::Dead);
+ unsigned blockInstructions = block.finish - block.start;
+ maxBlockInstructions = std::max(maxBlockInstructions, blockInstructions);
+ }
+ if (stats)
+ {
+ stats->blocksPreOpt += preOptBlockCount;
+ stats->maxBlockInstructions = maxBlockInstructions;
+ }
+ if (preOptBlockCount >= unsigned(FInt::CodegenHeuristicsBlockLimit.value))
+ return false;
+ if (maxBlockInstructions >= unsigned(FInt::CodegenHeuristicsBlockInstructionLimit.value))
+ return false;
+ computeCfgInfo(ir.function);
+ if (!FFlag::DebugCodegenNoOpt)
+ {
+ bool useValueNumbering = !FFlag::DebugCodegenSkipNumbering;
+ constPropInBlockChains(ir, useValueNumbering);
+ if (!FFlag::DebugCodegenOptSize)
+ {
+ double startTime = 0.0;
+ unsigned constPropInstructionCount = 0;
+ if (stats)
+ {
+ constPropInstructionCount = getInstructionCount(ir.function.instructions, IrCmd::SUBSTITUTE);
+ startTime = lua_clock();
+ }
+ createLinearBlocks(ir, useValueNumbering);
+ if (stats)
+ {
+ stats->blockLinearizationStats.timeSeconds += lua_clock() - startTime;
+ constPropInstructionCount = getInstructionCount(ir.function.instructions, IrCmd::SUBSTITUTE) - constPropInstructionCount;
+ stats->blockLinearizationStats.constPropInstructionCount += constPropInstructionCount;
+ }
+ }
+ }
+ std::vector<uint32_t> sortedBlocks = getSortedBlockOrder(ir.function);
+ updateLastUseLocations(ir.function, sortedBlocks);
+ if (stats)
+ {
+ for (const IrBlock& block : ir.function.blocks)
+ {
+ if (block.kind != IrBlockKind::Dead)
+ ++stats->blocksPostOpt;
+ }
+ }
+ return lowerIr(build, ir, sortedBlocks, helpers, proto, options, stats);
+}
+}
+} // namespace Luau
+#line __LINE__ "BytecodeSummary.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+FunctionBytecodeSummary::FunctionBytecodeSummary(std::string source, std::string name, const int line, unsigned nestingLimit)
+ : source(std::move(source))
+ , name(std::move(name))
+ , line(line)
+ , nestingLimit(nestingLimit)
+{
+ counts.reserve(nestingLimit);
+ for (unsigned i = 0; i < 1 + nestingLimit; ++i)
+ {
+ counts.push_back(std::vector<unsigned>(getOpLimit(), 0));
+ }
+}
+FunctionBytecodeSummary FunctionBytecodeSummary::fromProto(Proto* proto, unsigned nestingLimit)
+{
+ const char* source = getstr(proto->source);
+ source = (source[0] == '=' || source[0] == '@') ? source + 1 : "[string]";
+ const char* name = proto->debugname ? getstr(proto->debugname) : "";
+ int line = proto->linedefined;
+ FunctionBytecodeSummary summary(source, name, line, nestingLimit);
+ for (int i = 0; i < proto->sizecode; ++i)
+ {
+ Instruction insn = proto->code[i];
+ uint8_t op = LUAU_INSN_OP(insn);
+ summary.incCount(0, op);
+ }
+ return summary;
+}
+std::vector<FunctionBytecodeSummary> summarizeBytecode(lua_State* L, int idx, unsigned nestingLimit)
+{
+ LUAU_ASSERT(lua_isLfunction(L, idx));
+ const TValue* func = luaA_toobject(L, idx);
+ Proto* root = clvalue(func)->l.p;
+ std::vector<Proto*> protos;
+ gatherFunctions(protos, root, CodeGen_ColdFunctions);
+ std::vector<FunctionBytecodeSummary> summaries;
+ summaries.reserve(protos.size());
+ for (Proto* proto : protos)
+ {
+ summaries.push_back(FunctionBytecodeSummary::fromProto(proto, nestingLimit));
+ }
+ return summaries;
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "CodeAllocator.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+constexpr uint32_t kCodeAlignment = 32;
+struct CodeAllocator
+{
+ CodeAllocator(size_t blockSize, size_t maxTotalSize);
+ CodeAllocator(size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext);
+ ~CodeAllocator();
+ bool allocate(
+ const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize, uint8_t*& result, size_t& resultSize, uint8_t*& resultCodeStart);
+ void* context = nullptr;
+ void* (*createBlockUnwindInfo)(void* context, uint8_t* block, size_t blockSize, size_t& startOffset) = nullptr;
+ void (*destroyBlockUnwindInfo)(void* context, void* unwindData) = nullptr;
+private:
+ static const size_t kMaxReservedDataSize = 256;
+ bool allocateNewBlock(size_t& unwindInfoSize);
+ uint8_t* allocatePages(size_t size) const;
+ void freePages(uint8_t* mem, size_t size) const;
+ uint8_t* blockPos = nullptr;
+ uint8_t* blockEnd = nullptr;
+ std::vector<uint8_t*> blocks;
+ std::vector<void*> unwindInfos;
+ size_t blockSize = 0;
+ size_t maxTotalSize = 0;
+ AllocationCallback* allocationCallback = nullptr;
+ void* allocationCallbackContext = nullptr;
+};
+}
+} // namespace Luau
+#line __LINE__ "CodeAllocator.cpp"
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+const size_t kPageSize = 4096;
+#else
+#include <sys/mman.h>
+#include <unistd.h>
+#if defined(__FreeBSD__) && !(_POSIX_C_SOURCE >= 200112L)
+const size_t kPageSize = getpagesize();
+#else
+const size_t kPageSize = sysconf(_SC_PAGESIZE);
+#endif
+#endif
+static size_t alignToPageSize(size_t size)
+{
+ return (size + kPageSize - 1) & ~(kPageSize - 1);
+}
+#if defined(_WIN32)
+static uint8_t* allocatePagesImpl(size_t size)
+{
+ LUAU_ASSERT(size == alignToPageSize(size));
+ return (uint8_t*)VirtualAlloc(nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+}
+static void freePagesImpl(uint8_t* mem, size_t size)
+{
+ LUAU_ASSERT(size == alignToPageSize(size));
+ if (VirtualFree(mem, 0, MEM_RELEASE) == 0)
+ LUAU_ASSERT(!"failed to deallocate block memory");
+}
+static void makePagesExecutable(uint8_t* mem, size_t size)
+{
+ LUAU_ASSERT((uintptr_t(mem) & (kPageSize - 1)) == 0);
+ LUAU_ASSERT(size == alignToPageSize(size));
+ DWORD oldProtect;
+ if (VirtualProtect(mem, size, PAGE_EXECUTE_READ, &oldProtect) == 0)
+ LUAU_ASSERT(!"Failed to change page protection");
+}
+static void flushInstructionCache(uint8_t* mem, size_t size)
+{
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
+ if (FlushInstructionCache(GetCurrentProcess(), mem, size) == 0)
+ LUAU_ASSERT(!"Failed to flush instruction cache");
+#endif
+}
+#else
+static uint8_t* allocatePagesImpl(size_t size)
+{
+ LUAU_ASSERT(size == alignToPageSize(size));
+#ifdef __APPLE__
+ void* result = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_JIT, -1, 0);
+#else
+ void* result = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+#endif
+ return (result == MAP_FAILED) ? nullptr : static_cast<uint8_t*>(result);
+}
+static void freePagesImpl(uint8_t* mem, size_t size)
+{
+ LUAU_ASSERT(size == alignToPageSize(size));
+ if (munmap(mem, size) != 0)
+ LUAU_ASSERT(!"Failed to deallocate block memory");
+}
+static void makePagesExecutable(uint8_t* mem, size_t size)
+{
+ LUAU_ASSERT((uintptr_t(mem) & (kPageSize - 1)) == 0);
+ LUAU_ASSERT(size == alignToPageSize(size));
+ if (mprotect(mem, size, PROT_READ | PROT_EXEC) != 0)
+ LUAU_ASSERT(!"Failed to change page protection");
+}
+static void flushInstructionCache(uint8_t* mem, size_t size)
+{
+ __builtin___clear_cache((char*)mem, (char*)mem + size);
+}
+#endif
+namespace Luau
+{
+namespace CodeGen
+{
+CodeAllocator::CodeAllocator(size_t blockSize, size_t maxTotalSize)
+ : CodeAllocator(blockSize, maxTotalSize, nullptr, nullptr)
+{
+}
+CodeAllocator::CodeAllocator(size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext)
+ : blockSize{blockSize}
+ , maxTotalSize{maxTotalSize}
+ , allocationCallback{allocationCallback}
+ , allocationCallbackContext{allocationCallbackContext}
+{
+ LUAU_ASSERT(blockSize > kMaxReservedDataSize);
+ LUAU_ASSERT(maxTotalSize >= blockSize);
+}
+CodeAllocator::~CodeAllocator()
+{
+ if (destroyBlockUnwindInfo)
+ {
+ for (void* unwindInfo : unwindInfos)
+ destroyBlockUnwindInfo(context, unwindInfo);
+ }
+ for (uint8_t* block : blocks)
+ freePages(block, blockSize);
+}
+bool CodeAllocator::allocate(
+ const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize, uint8_t*& result, size_t& resultSize, uint8_t*& resultCodeStart)
+{
+ size_t alignedDataSize = (dataSize + (kCodeAlignment - 1)) & ~(kCodeAlignment - 1);
+ size_t totalSize = alignedDataSize + codeSize;
+ if (totalSize > blockSize - kMaxReservedDataSize)
+ return false;
+ size_t startOffset = 0;
+ if (totalSize > size_t(blockEnd - blockPos))
+ {
+ if (!allocateNewBlock(startOffset))
+ return false;
+ LUAU_ASSERT(totalSize <= size_t(blockEnd - blockPos));
+ }
+ LUAU_ASSERT((uintptr_t(blockPos) & (kPageSize - 1)) == 0);
+ size_t dataOffset = startOffset + alignedDataSize - dataSize;
+ size_t codeOffset = startOffset + alignedDataSize;
+ if (dataSize)
+ memcpy(blockPos + dataOffset, data, dataSize);
+ if (codeSize)
+ memcpy(blockPos + codeOffset, code, codeSize);
+ size_t pageAlignedSize = alignToPageSize(startOffset + totalSize);
+ makePagesExecutable(blockPos, pageAlignedSize);
+ flushInstructionCache(blockPos + codeOffset, codeSize);
+ result = blockPos + startOffset;
+ resultSize = totalSize;
+ resultCodeStart = blockPos + codeOffset;
+ if (pageAlignedSize <= size_t(blockEnd - blockPos))
+ {
+ blockPos += pageAlignedSize;
+ LUAU_ASSERT((uintptr_t(blockPos) & (kPageSize - 1)) == 0);
+ LUAU_ASSERT(blockPos <= blockEnd);
+ }
+ else
+ {
+ blockPos = blockEnd;
+ }
+ return true;
+}
+bool CodeAllocator::allocateNewBlock(size_t& unwindInfoSize)
+{
+ if ((blocks.size() + 1) * blockSize > maxTotalSize)
+ return false;
+ uint8_t* block = allocatePages(blockSize);
+ if (!block)
+ return false;
+ blockPos = block;
+ blockEnd = block + blockSize;
+ blocks.push_back(block);
+ if (createBlockUnwindInfo)
+ {
+ void* unwindInfo = createBlockUnwindInfo(context, block, blockSize, unwindInfoSize);
+ unwindInfoSize = (unwindInfoSize + (kCodeAlignment - 1)) & ~(kCodeAlignment - 1);
+ LUAU_ASSERT(unwindInfoSize <= kMaxReservedDataSize);
+ if (!unwindInfo)
+ return false;
+ unwindInfos.push_back(unwindInfo);
+ }
+ return true;
+}
+uint8_t* CodeAllocator::allocatePages(size_t size) const
+{
+ const size_t pageAlignedSize = alignToPageSize(size);
+ uint8_t* const mem = allocatePagesImpl(pageAlignedSize);
+ if (mem == nullptr)
+ return nullptr;
+ if (allocationCallback)
+ allocationCallback(allocationCallbackContext, nullptr, 0, mem, pageAlignedSize);
+ return mem;
+}
+void CodeAllocator::freePages(uint8_t* mem, size_t size) const
+{
+ const size_t pageAlignedSize = alignToPageSize(size);
+ if (allocationCallback)
+ allocationCallback(allocationCallbackContext, mem, pageAlignedSize, nullptr, 0);
+ freePagesImpl(mem, pageAlignedSize);
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "CodeBlockUnwind.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+void* createBlockUnwindInfo(void* context, uint8_t* block, size_t blockSize, size_t& startOffset);
+void destroyBlockUnwindInfo(void* context, void* unwindData);
+bool isUnwindSupported();
+}
+} // namespace Luau
+#line __LINE__ "CodeBlockUnwind.cpp"
+#line __LINE__ "UnwindBuilder.h"
+namespace Luau
+{
+namespace CodeGen
+{
+static uint32_t kFullBlockFuncton = ~0u;
+class UnwindBuilder
+{
+public:
+ enum Arch
+ {
+ X64,
+ A64
+ };
+ virtual ~UnwindBuilder() = default;
+ virtual void setBeginOffset(size_t beginOffset) = 0;
+ virtual size_t getBeginOffset() const = 0;
+ virtual void startInfo(Arch arch) = 0;
+ virtual void startFunction() = 0;
+ virtual void finishFunction(uint32_t beginOffset, uint32_t endOffset) = 0;
+ virtual void finishInfo() = 0;
+ virtual void prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs) = 0;
+ virtual void prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame, std::initializer_list<X64::RegisterX64> gpr,
+ const std::vector<X64::RegisterX64>& simd) = 0;
+ virtual size_t getSize() const = 0;
+ virtual size_t getFunctionCount() const = 0;
+ virtual void finalize(char* target, size_t offset, void* funcAddress, size_t funcSize) const = 0;
+};
+}
+} // namespace Luau
+#line __LINE__ "CodeBlockUnwind.cpp"
+#if defined(_WIN32) && defined(_M_X64)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#elif defined(__linux__) || defined(__APPLE__)
+extern "C" void __register_frame(const void*);
+extern "C" void __deregister_frame(const void*);
+extern "C" void __unw_add_dynamic_fde() __attribute__((weak));
+#endif
+#if defined(__APPLE__) && defined(__aarch64__)
+#include <sys/sysctl.h>
+#include <mach-o/loader.h>
+#include <dlfcn.h>
+struct unw_dynamic_unwind_sections_t
+{
+ uintptr_t dso_base;
+ uintptr_t dwarf_section;
+ size_t dwarf_section_length;
+ uintptr_t compact_unwind_section;
+ size_t compact_unwind_section_length;
+};
+typedef int (*unw_add_find_dynamic_unwind_sections_t)(int (*)(uintptr_t addr, unw_dynamic_unwind_sections_t* info));
+#endif
+namespace Luau
+{
+namespace CodeGen
+{
+#if defined(__APPLE__) && defined(__aarch64__)
+static int findDynamicUnwindSections(uintptr_t addr, unw_dynamic_unwind_sections_t* info)
+{
+ static const mach_header_64 kFakeMachHeader = {
+ MH_MAGIC_64,
+ CPU_TYPE_ARM64,
+ CPU_SUBTYPE_ARM64_ALL,
+ MH_DYLIB,
+ };
+ info->dso_base = (uintptr_t)&kFakeMachHeader;
+ info->dwarf_section = 0;
+ info->dwarf_section_length = 0;
+ info->compact_unwind_section = 0;
+ info->compact_unwind_section_length = 0;
+ return 1;
+}
+#endif
+#if defined(__linux__) || defined(__APPLE__)
+static void visitFdeEntries(char* pos, void (*cb)(const void*))
+{
+ if (__unw_add_dynamic_fde == nullptr)
+ return cb(pos);
+ for (;;)
+ {
+ unsigned partLength;
+ memcpy(&partLength, pos, sizeof(partLength));
+ if (partLength == 0)
+ break;
+ unsigned partId;
+ memcpy(&partId, pos + 4, sizeof(partId));
+ if (partId != 0)
+ cb(pos); // CIE is found using an offset in FDE
+ pos += partLength + 4;
+ }
+}
+#endif
+void* createBlockUnwindInfo(void* context, uint8_t* block, size_t blockSize, size_t& beginOffset)
+{
+ UnwindBuilder* unwind = (UnwindBuilder*)context;
+ size_t unwindSize = unwind->getSize();
+ unwindSize = (unwindSize + (kCodeAlignment - 1)) & ~(kCodeAlignment - 1);
+ LUAU_ASSERT(blockSize >= unwindSize);
+ char* unwindData = (char*)block;
+ unwind->finalize(unwindData, unwindSize, block, blockSize);
+#if defined(_WIN32) && defined(_M_X64)
+ if (!RtlAddFunctionTable((RUNTIME_FUNCTION*)block, uint32_t(unwind->getFunctionCount()), uintptr_t(block)))
+ {
+ LUAU_ASSERT(!"Failed to allocate function table");
+ return nullptr;
+ }
+#elif defined(__linux__) || defined(__APPLE__)
+ visitFdeEntries(unwindData, __register_frame);
+#endif
+#if defined(__APPLE__) && defined(__aarch64__)
+ static unw_add_find_dynamic_unwind_sections_t unw_add_find_dynamic_unwind_sections =
+ unw_add_find_dynamic_unwind_sections_t(dlsym(RTLD_DEFAULT, "__unw_add_find_dynamic_unwind_sections"));
+ static int regonce = unw_add_find_dynamic_unwind_sections ? unw_add_find_dynamic_unwind_sections(findDynamicUnwindSections) : 0;
+ LUAU_ASSERT(regonce == 0);
+#endif
+ beginOffset = unwindSize + unwind->getBeginOffset();
+ return block;
+}
+void destroyBlockUnwindInfo(void* context, void* unwindData)
+{
+#if defined(_WIN32) && defined(_M_X64)
+ if (!RtlDeleteFunctionTable((RUNTIME_FUNCTION*)unwindData))
+ LUAU_ASSERT(!"Failed to deallocate function table");
+#elif defined(__linux__) || defined(__APPLE__)
+ visitFdeEntries((char*)unwindData, __deregister_frame);
+#endif
+}
+bool isUnwindSupported()
+{
+#if defined(_WIN32) && defined(_M_X64)
+ return true;
+#elif defined(__APPLE__) && defined(__aarch64__)
+ char ver[256];
+ size_t verLength = sizeof(ver);
+ return sysctlbyname("kern.osrelease", ver, &verLength, NULL, 0) == 0 && atoi(ver) >= 22;
+#elif defined(__linux__) || defined(__APPLE__)
+ return true;
+#else
+ return false;
+#endif
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "CodeGenA64.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+struct NativeState;
+struct ModuleHelpers;
+namespace A64
+{
+class AssemblyBuilderA64;
+bool initHeaderFunctions(NativeState& data);
+void assembleHelpers(AssemblyBuilderA64& build, ModuleHelpers& helpers);
+}
+} // namespace CodeGen
+}
+#line __LINE__ "CodeGenA64.cpp"
+#line __LINE__ "CodeGenUtils.h"
+namespace Luau
+{
+namespace CodeGen
+{
+bool forgLoopTableIter(lua_State* L, Table* h, int index, TValue* ra);
+bool forgLoopNodeIter(lua_State* L, Table* h, int index, TValue* ra);
+bool forgLoopNonTableFallback(lua_State* L, int insnA, int aux);
+void forgPrepXnextFallback(lua_State* L, TValue* ra, int pc);
+Closure* callProlog(lua_State* L, TValue* ra, StkId argtop, int nresults);
+void callEpilogC(lua_State* L, int nresults, int n);
+#define CALL_FALLBACK_YIELD 1
+Closure* callFallback(lua_State* L, StkId ra, StkId argtop, int nresults);
+const Instruction* executeGETGLOBAL(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executeSETGLOBAL(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executeGETTABLEKS(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executeSETTABLEKS(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executeNAMECALL(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executeSETLIST(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executeFORGPREP(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+void executeGETVARARGSMultRet(lua_State* L, const Instruction* pc, StkId base, int rai);
+void executeGETVARARGSConst(lua_State* L, StkId base, int rai, int b);
+const Instruction* executeDUPCLOSURE(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executePREPVARARGS(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+}
+} // namespace Luau
+#line __LINE__ "CodeGenA64.cpp"
+#line __LINE__ "NativeState.h"
+typedef int (*luau_FastFunction)(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams);
+namespace Luau
+{
+namespace CodeGen
+{
+class UnwindBuilder;
+struct NativeContext
+{
+ uint8_t* gateEntry = nullptr;
+ uint8_t* gateExit = nullptr;
+ int (*luaV_lessthan)(lua_State* L, const TValue* l, const TValue* r) = nullptr;
+ int (*luaV_lessequal)(lua_State* L, const TValue* l, const TValue* r) = nullptr;
+ int (*luaV_equalval)(lua_State* L, const TValue* t1, const TValue* t2) = nullptr;
+ void (*luaV_doarith)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc, TMS op) = nullptr;
+ void (*luaV_dolen)(lua_State* L, StkId ra, const TValue* rb) = nullptr;
+ void (*luaV_gettable)(lua_State* L, const TValue* t, TValue* key, StkId val) = nullptr;
+ void (*luaV_settable)(lua_State* L, const TValue* t, TValue* key, StkId val) = nullptr;
+ void (*luaV_getimport)(lua_State* L, Table* env, TValue* k, StkId res, uint32_t id, bool propagatenil) = nullptr;
+ void (*luaV_concat)(lua_State* L, int total, int last) = nullptr;
+ int (*luaH_getn)(Table* t) = nullptr;
+ Table* (*luaH_new)(lua_State* L, int narray, int lnhash) = nullptr;
+ Table* (*luaH_clone)(lua_State* L, Table* tt) = nullptr;
+ void (*luaH_resizearray)(lua_State* L, Table* t, int nasize) = nullptr;
+ TValue* (*luaH_setnum)(lua_State* L, Table* t, int key);
+ void (*luaC_barriertable)(lua_State* L, Table* t, GCObject* v) = nullptr;
+ void (*luaC_barrierf)(lua_State* L, GCObject* o, GCObject* v) = nullptr;
+ void (*luaC_barrierback)(lua_State* L, GCObject* o, GCObject** gclist) = nullptr;
+ size_t (*luaC_step)(lua_State* L, bool assist) = nullptr;
+ void (*luaF_close)(lua_State* L, StkId level) = nullptr;
+ UpVal* (*luaF_findupval)(lua_State* L, StkId level) = nullptr;
+ Closure* (*luaF_newLclosure)(lua_State* L, int nelems, Table* e, Proto* p) = nullptr;
+ const TValue* (*luaT_gettm)(Table* events, TMS event, TString* ename) = nullptr;
+ const TString* (*luaT_objtypenamestr)(lua_State* L, const TValue* o) = nullptr;
+ double (*libm_exp)(double) = nullptr;
+ double (*libm_pow)(double, double) = nullptr;
+ double (*libm_fmod)(double, double) = nullptr;
+ double (*libm_asin)(double) = nullptr;
+ double (*libm_sin)(double) = nullptr;
+ double (*libm_sinh)(double) = nullptr;
+ double (*libm_acos)(double) = nullptr;
+ double (*libm_cos)(double) = nullptr;
+ double (*libm_cosh)(double) = nullptr;
+ double (*libm_atan)(double) = nullptr;
+ double (*libm_atan2)(double, double) = nullptr;
+ double (*libm_tan)(double) = nullptr;
+ double (*libm_tanh)(double) = nullptr;
+ double (*libm_log)(double) = nullptr;
+ double (*libm_log2)(double) = nullptr;
+ double (*libm_log10)(double) = nullptr;
+ double (*libm_ldexp)(double, int) = nullptr;
+ double (*libm_round)(double) = nullptr;
+ double (*libm_frexp)(double, int*) = nullptr;
+ double (*libm_modf)(double, double*) = nullptr;
+ bool (*forgLoopTableIter)(lua_State* L, Table* h, int index, TValue* ra) = nullptr;
+ bool (*forgLoopNodeIter)(lua_State* L, Table* h, int index, TValue* ra) = nullptr;
+ bool (*forgLoopNonTableFallback)(lua_State* L, int insnA, int aux) = nullptr;
+ void (*forgPrepXnextFallback)(lua_State* L, TValue* ra, int pc) = nullptr;
+ Closure* (*callProlog)(lua_State* L, TValue* ra, StkId argtop, int nresults) = nullptr;
+ void (*callEpilogC)(lua_State* L, int nresults, int n) = nullptr;
+ Closure* (*callFallback)(lua_State* L, StkId ra, StkId argtop, int nresults) = nullptr;
+ const Instruction* (*executeGETGLOBAL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executeSETGLOBAL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executeGETTABLEKS)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executeSETTABLEKS)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executeNAMECALL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executeSETLIST)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executeFORGPREP)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ void (*executeGETVARARGSMultRet)(lua_State* L, const Instruction* pc, StkId base, int rai) = nullptr;
+ void (*executeGETVARARGSConst)(lua_State* L, StkId base, int rai, int b) = nullptr;
+ const Instruction* (*executeDUPCLOSURE)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executePREPVARARGS)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ luau_FastFunction luauF_table[256] = {};
+};
+using GateFn = int (*)(lua_State*, Proto*, uintptr_t, NativeContext*);
+struct NativeState
+{
+ NativeState();
+ NativeState(AllocationCallback* allocationCallback, void* allocationCallbackContext);
+ ~NativeState();
+ CodeAllocator codeAllocator;
+ std::unique_ptr<UnwindBuilder> unwindBuilder;
+ uint8_t* gateData = nullptr;
+ size_t gateDataSize = 0;
+ NativeContext context;
+};
+void initFunctions(NativeState& data);
+}
+} // namespace Luau
+#line __LINE__ "CodeGenA64.cpp"
+#line __LINE__ "EmitCommonA64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct NativeState;
+namespace A64
+{
+constexpr RegisterA64 rState = x19;
+constexpr RegisterA64 rNativeContext = x20; // NativeContext* context
+constexpr RegisterA64 rGlobalState = x21;
+constexpr RegisterA64 rConstants = x22; // TValue* k
+constexpr RegisterA64 rClosure = x23;
+constexpr RegisterA64 rCode = x24; // Instruction* code
+constexpr RegisterA64 rBase = x25;
+constexpr unsigned kStashSlots = 9;
+constexpr unsigned kTempSlots = 1; // 8 bytes of temporary space, such luxury!
+constexpr unsigned kSpillSlots = 22;
+constexpr unsigned kStackSize = (kStashSlots + kTempSlots + kSpillSlots) * 8;
+constexpr AddressA64 sSpillArea = mem(sp, (kStashSlots + kTempSlots) * 8);
+constexpr AddressA64 sTemporary = mem(sp, kStashSlots * 8);
+inline void emitUpdateBase(AssemblyBuilderA64& build)
+{
+ build.ldr(rBase, mem(rState, offsetof(lua_State, base)));
+}
+}
+} // namespace CodeGen
+}
+#line __LINE__ "CodeGenA64.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+namespace A64
+{
+struct EntryLocations
+{
+ Label start;
+ Label prologueEnd;
+ Label epilogueStart;
+};
+static void emitExit(AssemblyBuilderA64& build, bool continueInVm)
+{
+ build.mov(x0, continueInVm);
+ build.ldr(x1, mem(rNativeContext, offsetof(NativeContext, gateExit)));
+ build.br(x1);
+}
+static void emitUpdatePcForExit(AssemblyBuilderA64& build)
+{
+ build.add(x0, rCode, x0);
+ build.ldr(x1, mem(rState, offsetof(lua_State, ci)));
+ build.str(x0, mem(x1, offsetof(CallInfo, savedpc)));
+}
+static void emitClearNativeFlag(AssemblyBuilderA64& build)
+{
+ build.ldr(x0, mem(rState, offsetof(lua_State, ci)));
+ build.ldr(w1, mem(x0, offsetof(CallInfo, flags)));
+ build.mov(w2, ~LUA_CALLINFO_NATIVE);
+ build.and_(w1, w1, w2);
+ build.str(w1, mem(x0, offsetof(CallInfo, flags)));
+}
+static void emitInterrupt(AssemblyBuilderA64& build)
+{
+ Label skip;
+ build.mov(rBase, x1);
+ build.ldr(x2, mem(rState, offsetof(lua_State, global)));
+ build.ldr(x2, mem(x2, offsetof(global_State, cb.interrupt)));
+ build.cbz(x2, skip);
+ build.add(x0, rCode, x0);
+ build.ldr(x1, mem(rState, offsetof(lua_State, ci)));
+ build.str(x0, mem(x1, offsetof(CallInfo, savedpc)));
+ build.mov(x0, rState);
+ build.mov(w1, -1);
+ build.blr(x2);
+ build.ldrb(w0, mem(rState, offsetof(lua_State, status)));
+ build.cbz(w0, skip);
+ build.ldr(x1, mem(rState, offsetof(lua_State, ci)));
+ build.ldr(x0, mem(x1, offsetof(CallInfo, savedpc)));
+ build.sub(x0, x0, sizeof(Instruction));
+ build.str(x0, mem(x1, offsetof(CallInfo, savedpc)));
+ emitExit(build, false);
+ build.setLabel(skip);
+ build.mov(x0, rBase);
+ emitUpdateBase(build);
+ build.br(x0);
+}
+static void emitContinueCall(AssemblyBuilderA64& build, ModuleHelpers& helpers)
+{
+ LUAU_ASSERT(CALL_FALLBACK_YIELD == 1);
+ build.tbnz(x0, 0, helpers.exitNoContinueVm);
+ build.ldr(x1, mem(x0, offsetof(Closure, l.p))); // cl->l.p aka proto
+ build.ldr(x2, mem(x1, offsetof(Proto, exectarget)));
+ build.cbz(x2, helpers.exitContinueVm);
+ build.mov(rClosure, x0);
+ LUAU_ASSERT(offsetof(Proto, code) == offsetof(Proto, k) + 8);
+ build.ldp(rConstants, rCode, mem(x1, offsetof(Proto, k)));
+ build.br(x2);
+}
+void emitReturn(AssemblyBuilderA64& build, ModuleHelpers& helpers)
+{
+ build.ldr(x0, mem(rState, offsetof(lua_State, ci)));
+ build.ldr(w3, mem(x0, offsetof(CallInfo, nresults)));
+ Label skipResultCopy;
+ build.cmp(w2, w3);
+ build.b(ConditionA64::GreaterEqual, skipResultCopy);
+ build.sub(w2, w3, w2); // counter = nresults - written
+ build.mov(w4, LUA_TNIL);
+ Label repeatNilLoop = build.setLabel();
+ build.str(w4, mem(x1, offsetof(TValue, tt)));
+ build.add(x1, x1, sizeof(TValue));
+ build.sub(w2, w2, 1);
+ build.cbnz(w2, repeatNilLoop);
+ build.setLabel(skipResultCopy);
+ build.sub(x2, x0, sizeof(CallInfo));
+ Label skipFixedRetTop;
+ build.tbnz(w3, 31, skipFixedRetTop);
+ build.ldr(x1, mem(x2, offsetof(CallInfo, top)));
+ build.setLabel(skipFixedRetTop);
+ build.str(x2, mem(rState, offsetof(lua_State, ci))); // L->ci = cip
+ build.ldr(rBase, mem(x2, offsetof(CallInfo, base)));
+ build.str(rBase, mem(rState, offsetof(lua_State, base))); // L->base = cip->base
+ build.str(x1, mem(rState, offsetof(lua_State, top)));
+ build.ldr(w4, mem(x0, offsetof(CallInfo, flags)));
+ build.tbnz(w4, countrz(LUA_CALLINFO_RETURN), helpers.exitNoContinueVm);
+ build.ldr(w4, mem(x2, offsetof(CallInfo, flags)));
+ build.tbz(w4, countrz(LUA_CALLINFO_NATIVE), helpers.exitContinueVm);
+ build.ldr(rClosure, mem(x2, offsetof(CallInfo, func)));
+ build.ldr(rClosure, mem(rClosure, offsetof(TValue, value.gc)));
+ build.ldr(x1, mem(rClosure, offsetof(Closure, l.p)));
+ LUAU_ASSERT(offsetof(Proto, code) == offsetof(Proto, k) + 8);
+ build.ldp(rConstants, rCode, mem(x1, offsetof(Proto, k)));
+ build.ldr(x2, mem(x2, offsetof(CallInfo, savedpc))); // cip->savedpc
+ build.sub(x2, x2, rCode);
+ LUAU_ASSERT(offsetof(Proto, exectarget) == offsetof(Proto, execdata) + 8);
+ build.ldp(x3, x4, mem(x1, offsetof(Proto, execdata)));
+ build.ldr(w2, mem(x3, x2));
+ build.add(x4, x4, x2);
+ build.br(x4);
+}
+static EntryLocations buildEntryFunction(AssemblyBuilderA64& build, UnwindBuilder& unwind)
+{
+ EntryLocations locations;
+ locations.start = build.setLabel();
+ build.sub(sp, sp, kStackSize);
+ build.stp(x29, x30, mem(sp));
+ build.stp(x19, x20, mem(sp, 16));
+ build.stp(x21, x22, mem(sp, 32));
+ build.stp(x23, x24, mem(sp, 48));
+ build.str(x25, mem(sp, 64));
+ build.mov(x29, sp);
+ locations.prologueEnd = build.setLabel();
+ uint32_t prologueSize = build.getLabelOffset(locations.prologueEnd) - build.getLabelOffset(locations.start);
+ build.mov(rState, x0);
+ build.mov(rNativeContext, x3);
+ build.ldr(rGlobalState, mem(x0, offsetof(lua_State, global)));
+ build.ldr(rBase, mem(x0, offsetof(lua_State, base)));
+ LUAU_ASSERT(offsetof(Proto, code) == offsetof(Proto, k) + 8);
+ build.ldp(rConstants, rCode, mem(x1, offsetof(Proto, k)));
+ build.ldr(x9, mem(x0, offsetof(lua_State, ci)));
+ build.ldr(x9, mem(x9, offsetof(CallInfo, func))); // L->ci->func
+ build.ldr(rClosure, mem(x9, offsetof(TValue, value.gc)));
+ build.br(x2);
+ locations.epilogueStart = build.setLabel();
+ build.ldr(x25, mem(sp, 64));
+ build.ldp(x23, x24, mem(sp, 48));
+ build.ldp(x21, x22, mem(sp, 32));
+ build.ldp(x19, x20, mem(sp, 16));
+ build.ldp(x29, x30, mem(sp));
+ build.add(sp, sp, kStackSize);
+ build.ret();
+ unwind.startFunction();
+ unwind.prologueA64(prologueSize, kStackSize, {x29, x30, x19, x20, x21, x22, x23, x24, x25});
+ unwind.finishFunction(build.getLabelOffset(locations.start), kFullBlockFuncton);
+ return locations;
+}
+bool initHeaderFunctions(NativeState& data)
+{
+ AssemblyBuilderA64 build( false);
+ UnwindBuilder& unwind = *data.unwindBuilder.get();
+ unwind.startInfo(UnwindBuilder::A64);
+ EntryLocations entryLocations = buildEntryFunction(build, unwind);
+ build.finalize();
+ unwind.finishInfo();
+ LUAU_ASSERT(build.data.empty());
+ uint8_t* codeStart = nullptr;
+ if (!data.codeAllocator.allocate(build.data.data(), int(build.data.size()), reinterpret_cast<const uint8_t*>(build.code.data()),
+ int(build.code.size() * sizeof(build.code[0])), data.gateData, data.gateDataSize, codeStart))
+ {
+ LUAU_ASSERT(!"Failed to create entry function");
+ return false;
+ }
+ unwind.setBeginOffset(build.getLabelOffset(entryLocations.prologueEnd));
+ data.context.gateEntry = codeStart + build.getLabelOffset(entryLocations.start);
+ data.context.gateExit = codeStart + build.getLabelOffset(entryLocations.epilogueStart);
+ return true;
+}
+void assembleHelpers(AssemblyBuilderA64& build, ModuleHelpers& helpers)
+{
+ if (build.logText)
+ build.logAppend("; updatePcAndContinueInVm\n");
+ build.setLabel(helpers.updatePcAndContinueInVm);
+ emitUpdatePcForExit(build);
+ if (build.logText)
+ build.logAppend("; exitContinueVmClearNativeFlag\n");
+ build.setLabel(helpers.exitContinueVmClearNativeFlag);
+ emitClearNativeFlag(build);
+ if (build.logText)
+ build.logAppend("; exitContinueVm\n");
+ build.setLabel(helpers.exitContinueVm);
+ emitExit(build, true);
+ if (build.logText)
+ build.logAppend("; exitNoContinueVm\n");
+ build.setLabel(helpers.exitNoContinueVm);
+ emitExit(build, false);
+ if (build.logText)
+ build.logAppend("; interrupt\n");
+ build.setLabel(helpers.interrupt);
+ emitInterrupt(build);
+ if (build.logText)
+ build.logAppend("; return\n");
+ build.setLabel(helpers.return_);
+ emitReturn(build, helpers);
+ if (build.logText)
+ build.logAppend("; continueCall\n");
+ build.setLabel(helpers.continueCall);
+ emitContinueCall(build, helpers);
+}
+}
+} // namespace CodeGen
+}
+#line __LINE__ ""
+#line __LINE__ "CodeGenAssembly.cpp"
+#line __LINE__ "CodeGenX64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct NativeState;
+struct ModuleHelpers;
+namespace X64
+{
+class AssemblyBuilderX64;
+bool initHeaderFunctions(NativeState& data);
+void assembleHelpers(AssemblyBuilderX64& build, ModuleHelpers& helpers);
+}
+} // namespace CodeGen
+}
+#line __LINE__ "CodeGenAssembly.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+template<typename AssemblyBuilder>
+static void logFunctionHeader(AssemblyBuilder& build, Proto* proto)
+{
+ if (proto->debugname)
+ build.logAppend("; function %s(", getstr(proto->debugname));
+ else
+ build.logAppend("; function(");
+ for (int i = 0; i < proto->numparams; i++)
+ {
+ LocVar* var = proto->locvars ? &proto->locvars[proto->sizelocvars - proto->numparams + i] : nullptr;
+ if (var && var->varname)
+ build.logAppend("%s%s", i == 0 ? "" : ", ", getstr(var->varname));
+ else
+ build.logAppend("%s$arg%d", i == 0 ? "" : ", ", i);
+ }
+ if (proto->numparams != 0 && proto->is_vararg)
+ build.logAppend(", ...)");
+ else
+ build.logAppend(")");
+ if (proto->linedefined >= 0)
+ build.logAppend(" line %d\n", proto->linedefined);
+ else
+ build.logAppend("\n");
+}
+unsigned getInstructionCount(const Instruction* insns, const unsigned size)
+{
+ unsigned count = 0;
+ for (unsigned i = 0; i < size;)
+ {
+ ++count;
+ i += Luau::getOpLength(LuauOpcode(LUAU_INSN_OP(insns[i])));
+ }
+ return count;
+}
+template<typename AssemblyBuilder>
+static std::string getAssemblyImpl(AssemblyBuilder& build, const TValue* func, AssemblyOptions options, LoweringStats* stats)
+{
+ Proto* root = clvalue(func)->l.p;
+ if ((options.flags & CodeGen_OnlyNativeModules) != 0 && (root->flags & LPF_NATIVE_MODULE) == 0)
+ return std::string();
+ std::vector<Proto*> protos;
+ gatherFunctions(protos, root, options.flags);
+ protos.erase(std::remove_if(protos.begin(), protos.end(),
+ [](Proto* p) {
+ return p == nullptr;
+ }),
+ protos.end());
+ if (stats)
+ stats->totalFunctions += unsigned(protos.size());
+ if (protos.empty())
+ {
+ build.finalize();
+ return std::string();
+ }
+ ModuleHelpers helpers;
+ assembleHelpers(build, helpers);
+ if (!options.includeOutlinedCode && options.includeAssembly)
+ {
+ build.text.clear();
+ build.logAppend("; skipping %u bytes of outlined helpers\n", unsigned(build.getCodeSize() * sizeof(build.code[0])));
+ }
+ for (Proto* p : protos)
+ {
+ IrBuilder ir;
+ ir.buildFunctionIr(p);
+ unsigned asmCount = build.getCodeSize();
+ if (options.includeAssembly || options.includeIr)
+ logFunctionHeader(build, p);
+ if (!lowerFunction(ir, build, helpers, p, options, stats))
+ {
+ if (build.logText)
+ build.logAppend("; skipping (can't lower)\n");
+ asmCount = 0;
+ if (stats)
+ stats->skippedFunctions += 1;
+ }
+ else
+ {
+ asmCount = build.getCodeSize() - asmCount;
+ }
+ if (stats && stats->collectFunctionStats)
+ {
+ const char* name = p->debugname ? getstr(p->debugname) : "";
+ int line = p->linedefined;
+ unsigned bcodeCount = getInstructionCount(p->code, p->sizecode);
+ unsigned irCount = unsigned(ir.function.instructions.size());
+ stats->functions.push_back({name, line, bcodeCount, irCount, asmCount});
+ }
+ if (build.logText)
+ build.logAppend("\n");
+ }
+ if (!build.finalize())
+ return std::string();
+ if (options.outputBinary)
+ return std::string(reinterpret_cast<const char*>(build.code.data()), reinterpret_cast<const char*>(build.code.data() + build.code.size())) +
+ std::string(build.data.begin(), build.data.end());
+ else
+ return build.text;
+}
+#if defined(__aarch64__)
+unsigned int getCpuFeaturesA64();
+#endif
+std::string getAssembly(lua_State* L, int idx, AssemblyOptions options, LoweringStats* stats)
+{
+ LUAU_ASSERT(lua_isLfunction(L, idx));
+ const TValue* func = luaA_toobject(L, idx);
+ switch (options.target)
+ {
+ case AssemblyOptions::Host:
+ {
+#if defined(__aarch64__)
+ static unsigned int cpuFeatures = getCpuFeaturesA64();
+ A64::AssemblyBuilderA64 build( options.includeAssembly, cpuFeatures);
+#else
+ X64::AssemblyBuilderX64 build( options.includeAssembly);
+#endif
+ return getAssemblyImpl(build, func, options, stats);
+ }
+ case AssemblyOptions::A64:
+ {
+ A64::AssemblyBuilderA64 build( options.includeAssembly, A64::Feature_JSCVT);
+ return getAssemblyImpl(build, func, options, stats);
+ }
+ case AssemblyOptions::A64_NoFeatures:
+ {
+ A64::AssemblyBuilderA64 build( options.includeAssembly, 0);
+ return getAssemblyImpl(build, func, options, stats);
+ }
+ case AssemblyOptions::X64_Windows:
+ {
+ X64::AssemblyBuilderX64 build( options.includeAssembly, X64::ABIX64::Windows);
+ return getAssemblyImpl(build, func, options, stats);
+ }
+ case AssemblyOptions::X64_SystemV:
+ {
+ X64::AssemblyBuilderX64 build( options.includeAssembly, X64::ABIX64::SystemV);
+ return getAssemblyImpl(build, func, options, stats);
+ }
+ default:
+ LUAU_ASSERT(!"Unknown target");
+ return std::string();
+ }
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "CodeGen.cpp"
+#line __LINE__ "UnwindBuilderDwarf2.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct UnwindFunctionDwarf2
+{
+ uint32_t beginOffset;
+ uint32_t endOffset;
+ uint32_t fdeEntryStartPos;
+};
+class UnwindBuilderDwarf2 : public UnwindBuilder
+{
+public:
+ void setBeginOffset(size_t beginOffset) override;
+ size_t getBeginOffset() const override;
+ void startInfo(Arch arch) override;
+ void startFunction() override;
+ void finishFunction(uint32_t beginOffset, uint32_t endOffset) override;
+ void finishInfo() override;
+ void prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs) override;
+ void prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame, std::initializer_list<X64::RegisterX64> gpr,
+ const std::vector<X64::RegisterX64>& simd) override;
+ size_t getSize() const override;
+ size_t getFunctionCount() const override;
+ void finalize(char* target, size_t offset, void* funcAddress, size_t funcSize) const override;
+private:
+ size_t beginOffset = 0;
+ std::vector<UnwindFunctionDwarf2> unwindFunctions;
+ static const unsigned kRawDataLimit = 1024;
+ uint8_t rawData[kRawDataLimit];
+ uint8_t* pos = rawData;
+ uint8_t* fdeEntryStart = nullptr;
+};
+}
+} // namespace Luau
+#line __LINE__ "CodeGen.cpp"
+#line __LINE__ "UnwindBuilderWin.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct UnwindFunctionWin
+{
+ uint32_t beginOffset;
+ uint32_t endOffset;
+ uint32_t unwindInfoOffset;
+};
+struct UnwindInfoWin
+{
+ uint8_t version : 3;
+ uint8_t flags : 5;
+ uint8_t prologsize;
+ uint8_t unwindcodecount;
+ uint8_t framereg : 4;
+ uint8_t frameregoff : 4;
+};
+struct UnwindCodeWin
+{
+ uint8_t offset;
+ uint8_t opcode : 4;
+ uint8_t opinfo : 4;
+};
+class UnwindBuilderWin : public UnwindBuilder
+{
+public:
+ void setBeginOffset(size_t beginOffset) override;
+ size_t getBeginOffset() const override;
+ void startInfo(Arch arch) override;
+ void startFunction() override;
+ void finishFunction(uint32_t beginOffset, uint32_t endOffset) override;
+ void finishInfo() override;
+ void prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs) override;
+ void prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame, std::initializer_list<X64::RegisterX64> gpr,
+ const std::vector<X64::RegisterX64>& simd) override;
+ size_t getSize() const override;
+ size_t getFunctionCount() const override;
+ void finalize(char* target, size_t offset, void* funcAddress, size_t funcSize) const override;
+private:
+ size_t beginOffset = 0;
+ static const unsigned kRawDataLimit = 1024;
+ uint8_t rawData[kRawDataLimit];
+ uint8_t* rawDataPos = rawData;
+ std::vector<UnwindFunctionWin> unwindFunctions;
+ std::vector<UnwindCodeWin> unwindCodes;
+ uint8_t prologSize = 0;
+ X64::RegisterX64 frameReg = X64::noreg;
+ uint8_t frameRegOffset = 0;
+};
+}
+} // namespace Luau
+#line __LINE__ "CodeGen.cpp"
+#if defined(__x86_64__) || defined(_M_X64)
+#ifdef _MSC_VER
+#else
+#endif
+#endif
+#if defined(__aarch64__)
+#ifdef __APPLE__
+#endif
+#endif
+LUAU_FASTFLAGVARIABLE(DebugCodegenNoOpt, false)
+LUAU_FASTFLAGVARIABLE(DebugCodegenOptSize, false)
+LUAU_FASTFLAGVARIABLE(DebugCodegenSkipNumbering, false)
+LUAU_FASTINTVARIABLE(CodegenHeuristicsInstructionLimit, 1'048'576) // 1 M
+LUAU_FASTINTVARIABLE(CodegenHeuristicsBlockLimit, 32'768)
+LUAU_FASTINTVARIABLE(CodegenHeuristicsBlockInstructionLimit, 65'536)
+namespace Luau
+{
+namespace CodeGen
+{
+static const Instruction kCodeEntryInsn = LOP_NATIVECALL;
+static void* gPerfLogContext = nullptr;
+static PerfLogFn gPerfLogFn = nullptr;
+struct NativeProto
+{
+ Proto* p;
+ void* execdata;
+ uintptr_t exectarget;
+};
+static NativeProto createNativeProto(Proto* proto, const IrBuilder& ir)
+{
+ int sizecode = proto->sizecode;
+ uint32_t* instOffsets = new uint32_t[sizecode];
+ uint32_t instTarget = ir.function.entryLocation;
+ for (int i = 0; i < sizecode; i++)
+ {
+ LUAU_ASSERT(ir.function.bcMapping[i].asmLocation >= instTarget);
+ instOffsets[i] = ir.function.bcMapping[i].asmLocation - instTarget;
+ }
+ instOffsets[0] = 0;
+ return {proto, instOffsets, instTarget};
+}
+static void destroyExecData(void* execdata)
+{
+ delete[] static_cast<uint32_t*>(execdata);
+}
+static void logPerfFunction(Proto* p, uintptr_t addr, unsigned size)
+{
+ LUAU_ASSERT(p->source);
+ const char* source = getstr(p->source);
+ source = (source[0] == '=' || source[0] == '@') ? source + 1 : "[string]";
+ char name[256];
+ snprintf(name, sizeof(name), "<luau> %s:%d %s", source, p->linedefined, p->debugname ? getstr(p->debugname) : "");
+ if (gPerfLogFn)
+ gPerfLogFn(gPerfLogContext, addr, size, name);
+}
+template<typename AssemblyBuilder>
+static std::optional<NativeProto> createNativeFunction(AssemblyBuilder& build, ModuleHelpers& helpers, Proto* proto, uint32_t& totalIrInstCount)
+{
+ IrBuilder ir;
+ ir.buildFunctionIr(proto);
+ unsigned instCount = unsigned(ir.function.instructions.size());
+ if (totalIrInstCount + instCount >= unsigned(FInt::CodegenHeuristicsInstructionLimit.value))
+ return std::nullopt;
+ totalIrInstCount += instCount;
+ if (!lowerFunction(ir, build, helpers, proto, {}, nullptr))
+ return std::nullopt;
+ return createNativeProto(proto, ir);
+}
+static NativeState* getNativeState(lua_State* L)
+{
+ return static_cast<NativeState*>(L->global->ecb.context);
+}
+static void onCloseState(lua_State* L)
+{
+ delete getNativeState(L);
+ L->global->ecb = lua_ExecutionCallbacks();
+}
+static void onDestroyFunction(lua_State* L, Proto* proto)
+{
+ destroyExecData(proto->execdata);
+ proto->execdata = nullptr;
+ proto->exectarget = 0;
+ proto->codeentry = proto->code;
+}
+static int onEnter(lua_State* L, Proto* proto)
+{
+ NativeState* data = getNativeState(L);
+ LUAU_ASSERT(proto->execdata);
+ LUAU_ASSERT(L->ci->savedpc >= proto->code && L->ci->savedpc < proto->code + proto->sizecode);
+ uintptr_t target = proto->exectarget + static_cast<uint32_t*>(proto->execdata)[L->ci->savedpc - proto->code];
+ return GateFn(data->context.gateEntry)(L, proto, target, &data->context);
+}
+#if defined(__aarch64__)
+unsigned int getCpuFeaturesA64()
+{
+ unsigned int result = 0;
+#ifdef __APPLE__
+ int jscvt = 0;
+ size_t jscvtLen = sizeof(jscvt);
+ if (sysctlbyname("hw.optional.arm.FEAT_JSCVT", &jscvt, &jscvtLen, nullptr, 0) == 0 && jscvt == 1)
+ result |= A64::Feature_JSCVT;
+#endif
+ return result;
+}
+#endif
+bool isSupported()
+{
+ if (LUA_EXTRA_SIZE != 1)
+ return false;
+ if (sizeof(TValue) != 16)
+ return false;
+ if (sizeof(LuaNode) != 32)
+ return false;
+#if defined(_WIN32)
+ if (!isUnwindSupported())
+ return false;
+#else
+ if (!LUA_USE_LONGJMP && !isUnwindSupported())
+ return false;
+#endif
+#if defined(__x86_64__) || defined(_M_X64)
+ int cpuinfo[4] = {};
+#ifdef _MSC_VER
+ __cpuid(cpuinfo, 1);
+#else
+ __cpuid(1, cpuinfo[0], cpuinfo[1], cpuinfo[2], cpuinfo[3]);
+#endif
+ if ((cpuinfo[2] & (1 << 28)) == 0)
+ return false;
+ return true;
+#elif defined(__aarch64__)
+ return true;
+#else
+ return false;
+#endif
+}
+void create(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext)
+{
+ LUAU_ASSERT(isSupported());
+ std::unique_ptr<NativeState> data = std::make_unique<NativeState>(allocationCallback, allocationCallbackContext);
+#if defined(_WIN32)
+ data->unwindBuilder = std::make_unique<UnwindBuilderWin>();
+#else
+ data->unwindBuilder = std::make_unique<UnwindBuilderDwarf2>();
+#endif
+ data->codeAllocator.context = data->unwindBuilder.get();
+ data->codeAllocator.createBlockUnwindInfo = createBlockUnwindInfo;
+ data->codeAllocator.destroyBlockUnwindInfo = destroyBlockUnwindInfo;
+ initFunctions(*data);
+#if defined(__x86_64__) || defined(_M_X64)
+ if (!X64::initHeaderFunctions(*data))
+ return;
+#elif defined(__aarch64__)
+ if (!A64::initHeaderFunctions(*data))
+ return;
+#endif
+ if (gPerfLogFn)
+ gPerfLogFn(gPerfLogContext, uintptr_t(data->context.gateEntry), 4096, "<luau gate>");
+ lua_ExecutionCallbacks* ecb = &L->global->ecb;
+ ecb->context = data.release();
+ ecb->close = onCloseState;
+ ecb->destroy = onDestroyFunction;
+ ecb->enter = onEnter;
+}
+void create(lua_State* L)
+{
+ create(L, nullptr, nullptr);
+}
+CodeGenCompilationResult compile(lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
+{
+ LUAU_ASSERT(lua_isLfunction(L, idx));
+ const TValue* func = luaA_toobject(L, idx);
+ Proto* root = clvalue(func)->l.p;
+ if ((flags & CodeGen_OnlyNativeModules) != 0 && (root->flags & LPF_NATIVE_MODULE) == 0)
+ return CodeGenCompilationResult::NothingToCompile;
+ NativeState* data = getNativeState(L);
+ if (!data)
+ return CodeGenCompilationResult::CodeGenNotInitialized;
+ std::vector<Proto*> protos;
+ gatherFunctions(protos, root, flags);
+ protos.erase(std::remove_if(protos.begin(), protos.end(),
+ [](Proto* p) {
+ return p == nullptr || p->execdata != nullptr;
+ }),
+ protos.end());
+ if (protos.empty())
+ return CodeGenCompilationResult::NothingToCompile;
+#if defined(__aarch64__)
+ static unsigned int cpuFeatures = getCpuFeaturesA64();
+ A64::AssemblyBuilderA64 build( false, cpuFeatures);
+#else
+ X64::AssemblyBuilderX64 build( false);
+#endif
+ ModuleHelpers helpers;
+#if defined(__aarch64__)
+ A64::assembleHelpers(build, helpers);
+#else
+ X64::assembleHelpers(build, helpers);
+#endif
+ std::vector<NativeProto> results;
+ results.reserve(protos.size());
+ uint32_t totalIrInstCount = 0;
+ for (Proto* p : protos)
+ {
+ if (std::optional<NativeProto> np = createNativeFunction(build, helpers, p, totalIrInstCount))
+ results.push_back(*np);
+ }
+ if (!build.finalize())
+ {
+ for (NativeProto result : results)
+ destroyExecData(result.execdata);
+ return CodeGenCompilationResult::CodeGenFailed;
+ }
+ if (results.empty())
+ return CodeGenCompilationResult::CodeGenFailed;
+ uint8_t* nativeData = nullptr;
+ size_t sizeNativeData = 0;
+ uint8_t* codeStart = nullptr;
+ if (!data->codeAllocator.allocate(build.data.data(), int(build.data.size()), reinterpret_cast<const uint8_t*>(build.code.data()),
+ int(build.code.size() * sizeof(build.code[0])), nativeData, sizeNativeData, codeStart))
+ {
+ for (NativeProto result : results)
+ destroyExecData(result.execdata);
+ return CodeGenCompilationResult::AllocationFailed;
+ }
+ if (gPerfLogFn && results.size() > 0)
+ {
+ gPerfLogFn(gPerfLogContext, uintptr_t(codeStart), uint32_t(results[0].exectarget), "<luau helpers>");
+ for (size_t i = 0; i < results.size(); ++i)
+ {
+ uint32_t begin = uint32_t(results[i].exectarget);
+ uint32_t end = i + 1 < results.size() ? uint32_t(results[i + 1].exectarget) : uint32_t(build.code.size() * sizeof(build.code[0]));
+ LUAU_ASSERT(begin < end);
+ logPerfFunction(results[i].p, uintptr_t(codeStart) + begin, end - begin);
+ }
+ }
+ for (const NativeProto& result : results)
+ {
+ result.p->execdata = result.execdata;
+ result.p->exectarget = uintptr_t(codeStart) + result.exectarget;
+ result.p->codeentry = &kCodeEntryInsn;
+ }
+ if (stats != nullptr)
+ {
+ for (const NativeProto& result : results)
+ {
+ stats->bytecodeSizeBytes += result.p->sizecode * sizeof(Instruction);
+ stats->nativeMetadataSizeBytes += result.p->sizecode * sizeof(uint32_t);
+ }
+ stats->functionsCompiled += uint32_t(results.size());
+ stats->nativeCodeSizeBytes += build.code.size();
+ stats->nativeDataSizeBytes += build.data.size();
+ }
+ return CodeGenCompilationResult::Success;
+}
+void setPerfLog(void* context, PerfLogFn logFn)
+{
+ gPerfLogContext = context;
+ gPerfLogFn = logFn;
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "CodeGenUtils.cpp"
+#define VM_PROTECT(x) { L->ci->savedpc = pc; { x; }; base = L->base; }
+#define VM_PROTECT_PC() L->ci->savedpc = pc
+#define VM_REG(i) (LUAU_ASSERT(unsigned(i) < unsigned(L->top - base)), &base[i])
+#define VM_KV(i) (LUAU_ASSERT(unsigned(i) < unsigned(cl->l.p->sizek)), &k[i])
+#define VM_UV(i) (LUAU_ASSERT(unsigned(i) < unsigned(cl->nupvalues)), &cl->l.uprefs[i])
+#define VM_PATCH_C(pc, slot) *const_cast<Instruction*>(pc) = ((uint8_t(slot) << 24) | (0x00ffffffu & *(pc)))
+#define VM_PATCH_E(pc, slot) *const_cast<Instruction*>(pc) = ((uint32_t(slot) << 8) | (0x000000ffu & *(pc)))
+#define VM_INTERRUPT() { void (*interrupt)(lua_State*, int) = L->global->cb.interrupt; if (LUAU_UNLIKELY(!!interrupt)) { VM_PROTECT(L->ci->savedpc++; interrupt(L, -1)); if (L->status != 0) { L->ci->savedpc--; return NULL; } } }
+namespace Luau
+{
+namespace CodeGen
+{
+bool forgLoopTableIter(lua_State* L, Table* h, int index, TValue* ra)
+{
+ int sizearray = h->sizearray;
+ while (unsigned(index) < unsigned(sizearray))
+ {
+ TValue* e = &h->array[index];
+ if (!ttisnil(e))
+ {
+ setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(index + 1)));
+ setnvalue(ra + 3, double(index + 1));
+ setobj2s(L, ra + 4, e);
+ return true;
+ }
+ index++;
+ }
+ int sizenode = 1 << h->lsizenode;
+ while (unsigned(index - h->sizearray) < unsigned(sizenode))
+ {
+ LuaNode* n = &h->node[index - sizearray];
+ if (!ttisnil(gval(n)))
+ {
+ setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(index + 1)));
+ getnodekey(L, ra + 3, n);
+ setobj(L, ra + 4, gval(n));
+ return true;
+ }
+ index++;
+ }
+ return false;
+}
+bool forgLoopNodeIter(lua_State* L, Table* h, int index, TValue* ra)
+{
+ int sizearray = h->sizearray;
+ int sizenode = 1 << h->lsizenode;
+ while (unsigned(index - sizearray) < unsigned(sizenode))
+ {
+ LuaNode* n = &h->node[index - sizearray];
+ if (!ttisnil(gval(n)))
+ {
+ setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(index + 1)));
+ getnodekey(L, ra + 3, n);
+ setobj(L, ra + 4, gval(n));
+ return true;
+ }
+ index++;
+ }
+ return false;
+}
+bool forgLoopNonTableFallback(lua_State* L, int insnA, int aux)
+{
+ TValue* base = L->base;
+ TValue* ra = VM_REG(insnA);
+ setobj2s(L, ra + 3 + 2, ra + 2);
+ setobj2s(L, ra + 3 + 1, ra + 1);
+ setobj2s(L, ra + 3, ra);
+ L->top = ra + 3 + 3;
+ LUAU_ASSERT(L->top <= L->stack_last);
+ luaD_call(L, ra + 3, uint8_t(aux));
+ L->top = L->ci->top;
+ base = L->base;
+ ra = VM_REG(insnA);
+ setobj2s(L, ra + 2, ra + 3);
+ return !ttisnil(ra + 3);
+}
+void forgPrepXnextFallback(lua_State* L, TValue* ra, int pc)
+{
+ if (!ttisfunction(ra))
+ {
+ Closure* cl = clvalue(L->ci->func);
+ L->ci->savedpc = cl->l.p->code + pc;
+ luaG_typeerror(L, ra, "iterate over");
+ }
+}
+Closure* callProlog(lua_State* L, TValue* ra, StkId argtop, int nresults)
+{
+ if (LUAU_UNLIKELY(!ttisfunction(ra)))
+ {
+ luaV_tryfuncTM(L, ra);
+ argtop++;
+ }
+ Closure* ccl = clvalue(ra);
+ CallInfo* ci = incr_ci(L);
+ ci->func = ra;
+ ci->base = ra + 1;
+ ci->top = argtop + ccl->stacksize;
+ ci->savedpc = NULL;
+ ci->flags = 0;
+ ci->nresults = nresults;
+ L->base = ci->base;
+ L->top = argtop;
+ luaD_checkstack(L, ccl->stacksize);
+ return ccl;
+}
+void callEpilogC(lua_State* L, int nresults, int n)
+{
+ CallInfo* ci = L->ci;
+ CallInfo* cip = ci - 1;
+ StkId res = ci->func;
+ StkId vali = L->top - n;
+ StkId valend = L->top;
+ int i;
+ for (i = nresults; i != 0 && vali < valend; i--)
+ setobj2s(L, res++, vali++);
+ while (i-- > 0)
+ setnilvalue(res++);
+ L->ci = cip;
+ L->base = cip->base;
+ L->top = (nresults == LUA_MULTRET) ? res : cip->top;
+}
+Closure* callFallback(lua_State* L, StkId ra, StkId argtop, int nresults)
+{
+ if (LUAU_UNLIKELY(!ttisfunction(ra)))
+ {
+ luaV_tryfuncTM(L, ra);
+ argtop++;
+ }
+ Closure* ccl = clvalue(ra);
+ CallInfo* ci = incr_ci(L);
+ ci->func = ra;
+ ci->base = ra + 1;
+ ci->top = argtop + ccl->stacksize;
+ ci->savedpc = NULL;
+ ci->flags = 0;
+ ci->nresults = nresults;
+ L->base = ci->base;
+ L->top = argtop;
+ luaD_checkstack(L, ccl->stacksize);
+ LUAU_ASSERT(ci->top <= L->stack_last);
+ if (!ccl->isC)
+ {
+ Proto* p = ccl->l.p;
+ StkId argi = L->top;
+ StkId argend = L->base + p->numparams;
+ while (argi < argend)
+ setnilvalue(argi++);
+ L->top = p->is_vararg ? argi : ci->top;
+ ci->savedpc = p->code;
+ if (LUAU_LIKELY(p->execdata != NULL))
+ ci->flags = LUA_CALLINFO_NATIVE;
+ return ccl;
+ }
+ else
+ {
+ lua_CFunction func = ccl->c.f;
+ int n = func(L);
+ if (n < 0)
+ return (Closure*)CALL_FALLBACK_YIELD;
+ CallInfo* ci = L->ci;
+ CallInfo* cip = ci - 1;
+ StkId res = ci->func;
+ StkId vali = L->top - n;
+ StkId valend = L->top;
+ int i;
+ for (i = nresults; i != 0 && vali < valend; i--)
+ setobj2s(L, res++, vali++);
+ while (i-- > 0)
+ setnilvalue(res++);
+ L->ci = cip;
+ L->base = cip->base;
+ L->top = (nresults == LUA_MULTRET) ? res : cip->top;
+ return NULL;
+ }
+}
+const Instruction* executeGETGLOBAL(lua_State* L, const Instruction* pc, StkId base, TValue* k)
+{
+ [[maybe_unused]] Closure* cl = clvalue(L->ci->func);
+ Instruction insn = *pc++;
+ StkId ra = VM_REG(LUAU_INSN_A(insn));
+ uint32_t aux = *pc++;
+ TValue* kv = VM_KV(aux);
+ LUAU_ASSERT(ttisstring(kv));
+ Table* h = cl->env;
+ int slot = LUAU_INSN_C(insn) & h->nodemask8;
+ TValue g;
+ sethvalue(L, &g, h);
+ L->cachedslot = slot;
+ VM_PROTECT(luaV_gettable(L, &g, kv, ra));
+ VM_PATCH_C(pc - 2, L->cachedslot);
+ return pc;
+}
+const Instruction* executeSETGLOBAL(lua_State* L, const Instruction* pc, StkId base, TValue* k)
+{
+ [[maybe_unused]] Closure* cl = clvalue(L->ci->func);
+ Instruction insn = *pc++;
+ StkId ra = VM_REG(LUAU_INSN_A(insn));
+ uint32_t aux = *pc++;
+ TValue* kv = VM_KV(aux);
+ LUAU_ASSERT(ttisstring(kv));
+ Table* h = cl->env;
+ int slot = LUAU_INSN_C(insn) & h->nodemask8;
+ TValue g;
+ sethvalue(L, &g, h);
+ L->cachedslot = slot;
+ VM_PROTECT(luaV_settable(L, &g, kv, ra));
+ VM_PATCH_C(pc - 2, L->cachedslot);
+ return pc;
+}
+const Instruction* executeGETTABLEKS(lua_State* L, const Instruction* pc, StkId base, TValue* k)
+{
+ [[maybe_unused]] Closure* cl = clvalue(L->ci->func);
+ Instruction insn = *pc++;
+ StkId ra = VM_REG(LUAU_INSN_A(insn));
+ StkId rb = VM_REG(LUAU_INSN_B(insn));
+ uint32_t aux = *pc++;
+ TValue* kv = VM_KV(aux);
+ LUAU_ASSERT(ttisstring(kv));
+ if (ttistable(rb))
+ {
+ Table* h = hvalue(rb);
+ if (!h->metatable)
+ {
+ const TValue* res = luaH_getstr(h, tsvalue(kv));
+ if (res != luaO_nilobject)
+ {
+ int cachedslot = gval2slot(h, res);
+ VM_PATCH_C(pc - 2, cachedslot);
+ }
+ setobj2s(L, ra, res);
+ return pc;
+ }
+ else
+ {
+ int slot = LUAU_INSN_C(insn) & h->nodemask8;
+ L->cachedslot = slot;
+ VM_PROTECT(luaV_gettable(L, rb, kv, ra));
+ VM_PATCH_C(pc - 2, L->cachedslot);
+ return pc;
+ }
+ }
+ else
+ {
+ const TValue* fn = 0;
+ if (ttisuserdata(rb) && (fn = fasttm(L, uvalue(rb)->metatable, TM_INDEX)) && ttisfunction(fn) && clvalue(fn)->isC)
+ {
+ LUAU_ASSERT(L->top + 3 < L->stack + L->stacksize);
+ StkId top = L->top;
+ setobj2s(L, top + 0, fn);
+ setobj2s(L, top + 1, rb);
+ setobj2s(L, top + 2, kv);
+ L->top = top + 3;
+ L->cachedslot = LUAU_INSN_C(insn);
+ VM_PROTECT(luaV_callTM(L, 2, LUAU_INSN_A(insn)));
+ VM_PATCH_C(pc - 2, L->cachedslot);
+ return pc;
+ }
+ else if (ttisvector(rb))
+ {
+ const char* name = getstr(tsvalue(kv));
+ int ic = (name[0] | ' ') - 'x';
+#if LUA_VECTOR_SIZE == 4
+ if (ic == -1)
+ ic = 3;
+#endif
+ if (unsigned(ic) < LUA_VECTOR_SIZE && name[1] == '\0')
+ {
+ const float* v = vvalue(rb);
+ setnvalue(ra, v[ic]);
+ return pc;
+ }
+ fn = fasttm(L, L->global->mt[LUA_TVECTOR], TM_INDEX);
+ if (fn && ttisfunction(fn) && clvalue(fn)->isC)
+ {
+ LUAU_ASSERT(L->top + 3 < L->stack + L->stacksize);
+ StkId top = L->top;
+ setobj2s(L, top + 0, fn);
+ setobj2s(L, top + 1, rb);
+ setobj2s(L, top + 2, kv);
+ L->top = top + 3;
+ L->cachedslot = LUAU_INSN_C(insn);
+ VM_PROTECT(luaV_callTM(L, 2, LUAU_INSN_A(insn)));
+ VM_PATCH_C(pc - 2, L->cachedslot);
+ return pc;
+ }
+ }
+ }
+ VM_PROTECT(luaV_gettable(L, rb, kv, ra));
+ return pc;
+}
+const Instruction* executeSETTABLEKS(lua_State* L, const Instruction* pc, StkId base, TValue* k)
+{
+ [[maybe_unused]] Closure* cl = clvalue(L->ci->func);
+ Instruction insn = *pc++;
+ StkId ra = VM_REG(LUAU_INSN_A(insn));
+ StkId rb = VM_REG(LUAU_INSN_B(insn));
+ uint32_t aux = *pc++;
+ TValue* kv = VM_KV(aux);
+ LUAU_ASSERT(ttisstring(kv));
+ if (ttistable(rb))
+ {
+ Table* h = hvalue(rb);
+ if (fastnotm(h->metatable, TM_NEWINDEX) && !h->readonly)
+ {
+ VM_PROTECT_PC();
+ TValue* res = luaH_setstr(L, h, tsvalue(kv));
+ int cachedslot = gval2slot(h, res);
+ VM_PATCH_C(pc - 2, cachedslot);
+ setobj2t(L, res, ra);
+ luaC_barriert(L, h, ra);
+ return pc;
+ }
+ else
+ {
+ int slot = LUAU_INSN_C(insn) & h->nodemask8;
+ L->cachedslot = slot;
+ VM_PROTECT(luaV_settable(L, rb, kv, ra));
+ VM_PATCH_C(pc - 2, L->cachedslot);
+ return pc;
+ }
+ }
+ else
+ {
+ const TValue* fn = 0;
+ if (ttisuserdata(rb) && (fn = fasttm(L, uvalue(rb)->metatable, TM_NEWINDEX)) && ttisfunction(fn) && clvalue(fn)->isC)
+ {
+ LUAU_ASSERT(L->top + 4 < L->stack + L->stacksize);
+ StkId top = L->top;
+ setobj2s(L, top + 0, fn);
+ setobj2s(L, top + 1, rb);
+ setobj2s(L, top + 2, kv);
+ setobj2s(L, top + 3, ra);
+ L->top = top + 4;
+ L->cachedslot = LUAU_INSN_C(insn);
+ VM_PROTECT(luaV_callTM(L, 3, -1));
+ VM_PATCH_C(pc - 2, L->cachedslot);
+ return pc;
+ }
+ else
+ {
+ VM_PROTECT(luaV_settable(L, rb, kv, ra));
+ return pc;
+ }
+ }
+}
+const Instruction* executeNAMECALL(lua_State* L, const Instruction* pc, StkId base, TValue* k)
+{
+ [[maybe_unused]] Closure* cl = clvalue(L->ci->func);
+ Instruction insn = *pc++;
+ StkId ra = VM_REG(LUAU_INSN_A(insn));
+ StkId rb = VM_REG(LUAU_INSN_B(insn));
+ uint32_t aux = *pc++;
+ TValue* kv = VM_KV(aux);
+ LUAU_ASSERT(ttisstring(kv));
+ if (ttistable(rb))
+ {
+ setobj2s(L, ra + 1, rb);
+ L->cachedslot = LUAU_INSN_C(insn);
+ VM_PROTECT(luaV_gettable(L, rb, kv, ra));
+ VM_PATCH_C(pc - 2, L->cachedslot);
+ ra = VM_REG(LUAU_INSN_A(insn));
+ if (ttisnil(ra))
+ luaG_methoderror(L, ra + 1, tsvalue(kv));
+ }
+ else
+ {
+ Table* mt = ttisuserdata(rb) ? uvalue(rb)->metatable : L->global->mt[ttype(rb)];
+ const TValue* tmi = 0;
+ if (const TValue* fn = fasttm(L, mt, TM_NAMECALL))
+ {
+ setobj2s(L, ra + 1, rb);
+ setobj2s(L, ra, fn);
+ L->namecall = tsvalue(kv);
+ }
+ else if ((tmi = fasttm(L, mt, TM_INDEX)) && ttistable(tmi))
+ {
+ Table* h = hvalue(tmi);
+ int slot = LUAU_INSN_C(insn) & h->nodemask8;
+ LuaNode* n = &h->node[slot];
+ if (LUAU_LIKELY(ttisstring(gkey(n)) && tsvalue(gkey(n)) == tsvalue(kv) && !ttisnil(gval(n))))
+ {
+ setobj2s(L, ra + 1, rb);
+ setobj2s(L, ra, gval(n));
+ }
+ else
+ {
+ setobj2s(L, ra + 1, rb);
+ L->cachedslot = slot;
+ VM_PROTECT(luaV_gettable(L, rb, kv, ra));
+ VM_PATCH_C(pc - 2, L->cachedslot);
+ ra = VM_REG(LUAU_INSN_A(insn));
+ if (ttisnil(ra))
+ luaG_methoderror(L, ra + 1, tsvalue(kv));
+ }
+ }
+ else
+ {
+ setobj2s(L, ra + 1, rb);
+ VM_PROTECT(luaV_gettable(L, rb, kv, ra));
+ ra = VM_REG(LUAU_INSN_A(insn));
+ if (ttisnil(ra))
+ luaG_methoderror(L, ra + 1, tsvalue(kv));
+ }
+ }
+ LUAU_ASSERT(LUAU_INSN_OP(*pc) == LOP_CALL);
+ return pc;
+}
+const Instruction* executeSETLIST(lua_State* L, const Instruction* pc, StkId base, TValue* k)
+{
+ [[maybe_unused]] Closure* cl = clvalue(L->ci->func);
+ Instruction insn = *pc++;
+ StkId ra = VM_REG(LUAU_INSN_A(insn));
+ StkId rb = &base[LUAU_INSN_B(insn)];
+ int c = LUAU_INSN_C(insn) - 1;
+ uint32_t index = *pc++;
+ if (c == LUA_MULTRET)
+ {
+ c = int(L->top - rb);
+ L->top = L->ci->top;
+ }
+ Table* h = hvalue(ra);
+ if (!ttistable(ra))
+ return NULL;
+ int last = index + c - 1;
+ if (last > h->sizearray)
+ {
+ VM_PROTECT_PC();
+ luaH_resizearray(L, h, last);
+ }
+ TValue* array = h->array;
+ for (int i = 0; i < c; ++i)
+ setobj2t(L, &array[index + i - 1], rb + i);
+ luaC_barrierfast(L, h);
+ return pc;
+}
+const Instruction* executeFORGPREP(lua_State* L, const Instruction* pc, StkId base, TValue* k)
+{
+ [[maybe_unused]] Closure* cl = clvalue(L->ci->func);
+ Instruction insn = *pc++;
+ StkId ra = VM_REG(LUAU_INSN_A(insn));
+ if (ttisfunction(ra))
+ {
+ }
+ else
+ {
+ Table* mt = ttistable(ra) ? hvalue(ra)->metatable : ttisuserdata(ra) ? uvalue(ra)->metatable : cast_to(Table*, NULL);
+ if (const TValue* fn = fasttm(L, mt, TM_ITER))
+ {
+ setobj2s(L, ra + 1, ra);
+ setobj2s(L, ra, fn);
+ L->top = ra + 2;
+ LUAU_ASSERT(L->top <= L->stack_last);
+ VM_PROTECT(luaD_call(L, ra, 3));
+ L->top = L->ci->top;
+ ra = VM_REG(LUAU_INSN_A(insn));
+ if (ttisnil(ra))
+ {
+ VM_PROTECT_PC();
+ luaG_typeerror(L, ra, "call");
+ }
+ }
+ else if (fasttm(L, mt, TM_CALL))
+ {
+ }
+ else if (ttistable(ra))
+ {
+ setobj2s(L, ra + 1, ra);
+ setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(0)));
+ setnilvalue(ra);
+ }
+ else
+ {
+ VM_PROTECT_PC();
+ luaG_typeerror(L, ra, "iterate over");
+ }
+ }
+ pc += LUAU_INSN_D(insn);
+ LUAU_ASSERT(unsigned(pc - cl->l.p->code) < unsigned(cl->l.p->sizecode));
+ return pc;
+}
+void executeGETVARARGSMultRet(lua_State* L, const Instruction* pc, StkId base, int rai)
+{
+ [[maybe_unused]] Closure* cl = clvalue(L->ci->func);
+ int n = cast_int(base - L->ci->func) - cl->l.p->numparams - 1;
+ VM_PROTECT(luaD_checkstack(L, n));
+ StkId ra = VM_REG(rai);
+ for (int j = 0; j < n; j++)
+ setobj2s(L, ra + j, base - n + j);
+ L->top = ra + n;
+}
+void executeGETVARARGSConst(lua_State* L, StkId base, int rai, int b)
+{
+ [[maybe_unused]] Closure* cl = clvalue(L->ci->func);
+ int n = cast_int(base - L->ci->func) - cl->l.p->numparams - 1;
+ StkId ra = VM_REG(rai);
+ for (int j = 0; j < b && j < n; j++)
+ setobj2s(L, ra + j, base - n + j);
+ for (int j = n; j < b; j++)
+ setnilvalue(ra + j);
+}
+const Instruction* executeDUPCLOSURE(lua_State* L, const Instruction* pc, StkId base, TValue* k)
+{
+ [[maybe_unused]] Closure* cl = clvalue(L->ci->func);
+ Instruction insn = *pc++;
+ StkId ra = VM_REG(LUAU_INSN_A(insn));
+ TValue* kv = VM_KV(LUAU_INSN_D(insn));
+ Closure* kcl = clvalue(kv);
+ VM_PROTECT_PC();
+ Closure* ncl = (kcl->env == cl->env) ? kcl : luaF_newLclosure(L, kcl->nupvalues, cl->env, kcl->l.p);
+ setclvalue(L, ra, ncl);
+ for (int ui = 0; ui < kcl->nupvalues; ++ui)
+ {
+ Instruction uinsn = pc[ui];
+ LUAU_ASSERT(LUAU_INSN_OP(uinsn) == LOP_CAPTURE);
+ LUAU_ASSERT(LUAU_INSN_A(uinsn) == LCT_VAL || LUAU_INSN_A(uinsn) == LCT_UPVAL);
+ TValue* uv = (LUAU_INSN_A(uinsn) == LCT_VAL) ? VM_REG(LUAU_INSN_B(uinsn)) : VM_UV(LUAU_INSN_B(uinsn));
+ if (ncl == kcl && luaO_rawequalObj(&ncl->l.uprefs[ui], uv))
+ continue;
+ if (ncl == kcl && kcl->preload == 0)
+ {
+ ncl = luaF_newLclosure(L, kcl->nupvalues, cl->env, kcl->l.p);
+ setclvalue(L, ra, ncl);
+ ui = -1;
+ continue;
+ }
+ setobj(L, &ncl->l.uprefs[ui], uv);
+ luaC_barrier(L, ncl, uv);
+ }
+ ncl->preload = 0;
+ if (kcl != ncl)
+ VM_PROTECT(luaC_checkGC(L));
+ pc += kcl->nupvalues;
+ return pc;
+}
+const Instruction* executePREPVARARGS(lua_State* L, const Instruction* pc, StkId base, TValue* k)
+{
+ [[maybe_unused]] Closure* cl = clvalue(L->ci->func);
+ Instruction insn = *pc++;
+ int numparams = LUAU_INSN_A(insn);
+ VM_PROTECT(luaD_checkstack(L, cl->stacksize + numparams));
+ LUAU_ASSERT(cast_int(L->top - base) >= numparams);
+ StkId fixed = base; // first fixed argument
+ base = L->top;
+ for (int i = 0; i < numparams; ++i)
+ {
+ setobj2s(L, base + i, fixed + i);
+ setnilvalue(fixed + i);
+ }
+ L->ci->base = base;
+ L->ci->top = base + cl->stacksize;
+ L->base = base;
+ L->top = L->ci->top;
+ return pc;
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "CodeGenX64.cpp"
+#line __LINE__ "EmitCommonX64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+enum class IrCondition : uint8_t;
+struct NativeState;
+struct IrOp;
+namespace X64
+{
+struct IrRegAllocX64;
+constexpr uint32_t kFunctionAlignment = 32;
+constexpr RegisterX64 rState = r15; // lua_State* L
+constexpr RegisterX64 rBase = r14;
+constexpr RegisterX64 rNativeContext = r13; // NativeContext* context
+constexpr RegisterX64 rConstants = r12;
+constexpr unsigned kExtraLocals = 3;
+constexpr unsigned kSpillSlots = 13; // Number of 8 byte slots available for register allocator to spill data into
+static_assert((kExtraLocals + kSpillSlots) * 8 % 16 == 0, "locals have to preserve 16 byte alignment");
+constexpr uint8_t kWindowsFirstNonVolXmmReg = 6;
+constexpr uint8_t kWindowsUsableXmmRegs = 10;
+constexpr uint8_t kSystemVUsableXmmRegs = 16; // All xmm regs are volatile
+inline uint8_t getXmmRegisterCount(ABIX64 abi)
+{
+ return abi == ABIX64::SystemV ? kSystemVUsableXmmRegs : kWindowsUsableXmmRegs;
+}
+constexpr unsigned kStackAlign = 8;
+constexpr unsigned kStackLocalStorage = 8 * kExtraLocals;
+constexpr unsigned kStackSpillStorage = 8 * kSpillSlots;
+constexpr unsigned kStackExtraArgumentStorage = 2 * 8;
+constexpr unsigned kStackRegHomeStorage = 4 * 8; // Register 'home' locations that can be used by callees under Windows ABI
+inline unsigned getNonVolXmmStorageSize(ABIX64 abi, uint8_t xmmRegCount)
+{
+ if (abi == ABIX64::SystemV)
+ return 0;
+ if (xmmRegCount <= kWindowsFirstNonVolXmmReg)
+ return 0;
+ LUAU_ASSERT(xmmRegCount <= 16);
+ return (xmmRegCount - kWindowsFirstNonVolXmmReg) * 16;
+}
+constexpr unsigned kStackOffsetToLocals = kStackExtraArgumentStorage + kStackRegHomeStorage;
+constexpr unsigned kStackOffsetToSpillSlots = kStackOffsetToLocals + kStackLocalStorage;
+inline unsigned getFullStackSize(ABIX64 abi, uint8_t xmmRegCount)
+{
+ return kStackOffsetToSpillSlots + kStackSpillStorage + getNonVolXmmStorageSize(abi, xmmRegCount) + kStackAlign;
+}
+constexpr OperandX64 sClosure = qword[rsp + kStackOffsetToLocals + 0];
+constexpr OperandX64 sCode = qword[rsp + kStackOffsetToLocals + 8]; // Instruction* code
+constexpr OperandX64 sTemporarySlot = addr[rsp + kStackOffsetToLocals + 16];
+constexpr OperandX64 sSpillArea = addr[rsp + kStackOffsetToSpillSlots];
+inline OperandX64 luauReg(int ri)
+{
+ return xmmword[rBase + ri * sizeof(TValue)];
+}
+inline OperandX64 luauRegAddress(int ri)
+{
+ return addr[rBase + ri * sizeof(TValue)];
+}
+inline OperandX64 luauRegValue(int ri)
+{
+ return qword[rBase + ri * sizeof(TValue) + offsetof(TValue, value)];
+}
+inline OperandX64 luauRegTag(int ri)
+{
+ return dword[rBase + ri * sizeof(TValue) + offsetof(TValue, tt)];
+}
+inline OperandX64 luauRegValueInt(int ri)
+{
+ return dword[rBase + ri * sizeof(TValue) + offsetof(TValue, value)];
+}
+inline OperandX64 luauRegValueVector(int ri, int index)
+{
+ return dword[rBase + ri * sizeof(TValue) + offsetof(TValue, value) + (sizeof(float) * index)];
+}
+inline OperandX64 luauConstant(int ki)
+{
+ return xmmword[rConstants + ki * sizeof(TValue)];
+}
+inline OperandX64 luauConstantAddress(int ki)
+{
+ return addr[rConstants + ki * sizeof(TValue)];
+}
+inline OperandX64 luauConstantTag(int ki)
+{
+ return dword[rConstants + ki * sizeof(TValue) + offsetof(TValue, tt)];
+}
+inline OperandX64 luauConstantValue(int ki)
+{
+ return qword[rConstants + ki * sizeof(TValue) + offsetof(TValue, value)];
+}
+inline OperandX64 luauNodeKeyValue(RegisterX64 node)
+{
+ return qword[node + offsetof(LuaNode, key) + offsetof(TKey, value)];
+}
+inline OperandX64 luauNodeKeyTag(RegisterX64 node)
+{
+ return dword[node + offsetof(LuaNode, key) + kOffsetOfTKeyTagNext];
+}
+inline void setLuauReg(AssemblyBuilderX64& build, RegisterX64 tmp, int ri, OperandX64 op)
+{
+ LUAU_ASSERT(op.cat == CategoryX64::mem);
+ build.vmovups(tmp, op);
+ build.vmovups(luauReg(ri), tmp);
+}
+inline void jumpIfTagIs(AssemblyBuilderX64& build, int ri, lua_Type tag, Label& label)
+{
+ build.cmp(luauRegTag(ri), tag);
+ build.jcc(ConditionX64::Equal, label);
+}
+inline void jumpIfTagIsNot(AssemblyBuilderX64& build, int ri, lua_Type tag, Label& label)
+{
+ build.cmp(luauRegTag(ri), tag);
+ build.jcc(ConditionX64::NotEqual, label);
+}
+inline void jumpIfFalsy(AssemblyBuilderX64& build, int ri, Label& target, Label& fallthrough)
+{
+ jumpIfTagIs(build, ri, LUA_TNIL, target);
+ jumpIfTagIsNot(build, ri, LUA_TBOOLEAN, fallthrough); // true if not nil or boolean
+ build.cmp(luauRegValueInt(ri), 0);
+ build.jcc(ConditionX64::Equal, target);
+}
+inline void jumpIfTruthy(AssemblyBuilderX64& build, int ri, Label& target, Label& fallthrough)
+{
+ jumpIfTagIs(build, ri, LUA_TNIL, fallthrough);
+ jumpIfTagIsNot(build, ri, LUA_TBOOLEAN, target); // true if not nil or boolean
+ build.cmp(luauRegValueInt(ri), 0);
+ build.jcc(ConditionX64::NotEqual, target);
+}
+void jumpOnNumberCmp(AssemblyBuilderX64& build, RegisterX64 tmp, OperandX64 lhs, OperandX64 rhs, IrCondition cond, Label& label);
+ConditionX64 getConditionInt(IrCondition cond);
+void getTableNodeAtCachedSlot(AssemblyBuilderX64& build, RegisterX64 tmp, RegisterX64 node, RegisterX64 table, int pcpos);
+void convertNumberToIndexOrJump(AssemblyBuilderX64& build, RegisterX64 tmp, RegisterX64 numd, RegisterX64 numi, Label& label);
+void callArithHelper(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, OperandX64 b, OperandX64 c, TMS tm);
+void callLengthHelper(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, int rb);
+void callGetTable(IrRegAllocX64& regs, AssemblyBuilderX64& build, int rb, OperandX64 c, int ra);
+void callSetTable(IrRegAllocX64& regs, AssemblyBuilderX64& build, int rb, OperandX64 c, int ra);
+void checkObjectBarrierConditions(AssemblyBuilderX64& build, RegisterX64 tmp, RegisterX64 object, IrOp ra, int ratag, Label& skip);
+void callBarrierObject(IrRegAllocX64& regs, AssemblyBuilderX64& build, RegisterX64 object, IrOp objectOp, IrOp ra, int ratag);
+void callBarrierTableFast(IrRegAllocX64& regs, AssemblyBuilderX64& build, RegisterX64 table, IrOp tableOp);
+void callStepGc(IrRegAllocX64& regs, AssemblyBuilderX64& build);
+void emitClearNativeFlag(AssemblyBuilderX64& build);
+void emitExit(AssemblyBuilderX64& build, bool continueInVm);
+void emitUpdateBase(AssemblyBuilderX64& build);
+void emitInterrupt(AssemblyBuilderX64& build);
+void emitFallback(IrRegAllocX64& regs, AssemblyBuilderX64& build, int offset, int pcpos);
+void emitUpdatePcForExit(AssemblyBuilderX64& build);
+void emitReturn(AssemblyBuilderX64& build, ModuleHelpers& helpers);
+}
+} // namespace CodeGen
+}
+#line __LINE__ "CodeGenX64.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+namespace X64
+{
+struct EntryLocations
+{
+ Label start;
+ Label prologueEnd;
+ Label epilogueStart;
+};
+static EntryLocations buildEntryFunction(AssemblyBuilderX64& build, UnwindBuilder& unwind)
+{
+ EntryLocations locations;
+ build.align(kFunctionAlignment, X64::AlignmentDataX64::Ud2);
+ locations.start = build.setLabel();
+ unwind.startFunction();
+ RegisterX64 rArg1 = (build.abi == ABIX64::Windows) ? rcx : rdi;
+ RegisterX64 rArg2 = (build.abi == ABIX64::Windows) ? rdx : rsi;
+ RegisterX64 rArg3 = (build.abi == ABIX64::Windows) ? r8 : rdx;
+ RegisterX64 rArg4 = (build.abi == ABIX64::Windows) ? r9 : rcx;
+ if (build.abi == ABIX64::SystemV)
+ {
+ build.push(rbp);
+ build.mov(rbp, rsp);
+ }
+ build.push(rbx);
+ build.push(r12);
+ build.push(r13);
+ build.push(r14);
+ build.push(r15);
+ if (build.abi == ABIX64::Windows)
+ {
+ build.push(rdi);
+ build.push(rsi);
+ build.push(rbp);
+ }
+ uint8_t usableXmmRegCount = getXmmRegisterCount(build.abi);
+ unsigned xmmStorageSize = getNonVolXmmStorageSize(build.abi, usableXmmRegCount);
+ unsigned fullStackSize = getFullStackSize(build.abi, usableXmmRegCount);
+ build.sub(rsp, fullStackSize);
+ OperandX64 xmmStorageOffset = rsp + (fullStackSize - (kStackAlign + xmmStorageSize));
+ std::vector<RegisterX64> savedXmmRegs;
+ if (build.abi == ABIX64::Windows)
+ {
+ if (usableXmmRegCount > kWindowsFirstNonVolXmmReg)
+ savedXmmRegs.reserve(usableXmmRegCount - kWindowsFirstNonVolXmmReg);
+ for (uint8_t i = kWindowsFirstNonVolXmmReg, offset = 0; i < usableXmmRegCount; i++, offset += 16)
+ {
+ RegisterX64 xmmReg = RegisterX64{SizeX64::xmmword, i};
+ build.vmovaps(xmmword[xmmStorageOffset + offset], xmmReg);
+ savedXmmRegs.push_back(xmmReg);
+ }
+ }
+ locations.prologueEnd = build.setLabel();
+ uint32_t prologueSize = build.getLabelOffset(locations.prologueEnd) - build.getLabelOffset(locations.start);
+ if (build.abi == ABIX64::SystemV)
+ unwind.prologueX64(prologueSize, fullStackSize, true, {rbx, r12, r13, r14, r15}, {});
+ else if (build.abi == ABIX64::Windows)
+ unwind.prologueX64(prologueSize, fullStackSize, false, {rbx, r12, r13, r14, r15, rdi, rsi, rbp}, savedXmmRegs);
+ build.mov(rState, rArg1);
+ build.mov(rNativeContext, rArg4);
+ build.mov(rBase, qword[rState + offsetof(lua_State, base)]);
+ build.mov(rax, qword[rState + offsetof(lua_State, ci)]); // L->ci
+ build.mov(rax, qword[rax + offsetof(CallInfo, func)]);
+ build.mov(rax, qword[rax + offsetof(TValue, value.gc)]); // L->ci->func->value.gc aka cl
+ build.mov(sClosure, rax);
+ build.mov(rConstants, qword[rArg2 + offsetof(Proto, k)]);
+ build.mov(rax, qword[rArg2 + offsetof(Proto, code)]); // proto->code
+ build.mov(sCode, rax);
+ build.jmp(rArg3);
+ locations.epilogueStart = build.setLabel();
+ if (build.abi == ABIX64::Windows)
+ {
+ for (uint8_t i = kWindowsFirstNonVolXmmReg, offset = 0; i < usableXmmRegCount; i++, offset += 16)
+ build.vmovaps(RegisterX64{SizeX64::xmmword, i}, xmmword[xmmStorageOffset + offset]);
+ }
+ build.add(rsp, fullStackSize);
+ if (build.abi == ABIX64::Windows)
+ {
+ build.pop(rbp);
+ build.pop(rsi);
+ build.pop(rdi);
+ }
+ build.pop(r15);
+ build.pop(r14);
+ build.pop(r13);
+ build.pop(r12);
+ build.pop(rbx);
+ if (build.abi == ABIX64::SystemV)
+ build.pop(rbp);
+ build.ret();
+ unwind.finishFunction(build.getLabelOffset(locations.start), kFullBlockFuncton);
+ return locations;
+}
+bool initHeaderFunctions(NativeState& data)
+{
+ AssemblyBuilderX64 build( false);
+ UnwindBuilder& unwind = *data.unwindBuilder.get();
+ unwind.startInfo(UnwindBuilder::X64);
+ EntryLocations entryLocations = buildEntryFunction(build, unwind);
+ build.finalize();
+ unwind.finishInfo();
+ LUAU_ASSERT(build.data.empty());
+ uint8_t* codeStart = nullptr;
+ if (!data.codeAllocator.allocate(
+ build.data.data(), int(build.data.size()), build.code.data(), int(build.code.size()), data.gateData, data.gateDataSize, codeStart))
+ {
+ LUAU_ASSERT(!"Failed to create entry function");
+ return false;
+ }
+ unwind.setBeginOffset(build.getLabelOffset(entryLocations.prologueEnd));
+ data.context.gateEntry = codeStart + build.getLabelOffset(entryLocations.start);
+ data.context.gateExit = codeStart + build.getLabelOffset(entryLocations.epilogueStart);
+ return true;
+}
+void assembleHelpers(X64::AssemblyBuilderX64& build, ModuleHelpers& helpers)
+{
+ if (build.logText)
+ build.logAppend("; updatePcAndContinueInVm\n");
+ build.setLabel(helpers.updatePcAndContinueInVm);
+ emitUpdatePcForExit(build);
+ if (build.logText)
+ build.logAppend("; exitContinueVmClearNativeFlag\n");
+ build.setLabel(helpers.exitContinueVmClearNativeFlag);
+ emitClearNativeFlag(build);
+ if (build.logText)
+ build.logAppend("; exitContinueVm\n");
+ build.setLabel(helpers.exitContinueVm);
+ emitExit(build, true);
+ if (build.logText)
+ build.logAppend("; exitNoContinueVm\n");
+ build.setLabel(helpers.exitNoContinueVm);
+ emitExit(build, false);
+ if (build.logText)
+ build.logAppend("; interrupt\n");
+ build.setLabel(helpers.interrupt);
+ emitInterrupt(build);
+ if (build.logText)
+ build.logAppend("; return\n");
+ build.setLabel(helpers.return_);
+ emitReturn(build, helpers);
+}
+}
+} // namespace CodeGen
+}
+#line __LINE__ ""
+#line __LINE__ "EmitBuiltinsX64.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+struct Label;
+struct IrOp;
+namespace X64
+{
+class AssemblyBuilderX64;
+struct OperandX64;
+struct IrRegAllocX64;
+void emitBuiltin(IrRegAllocX64& regs, AssemblyBuilderX64& build, int bfid, int ra, int arg, OperandX64 arg2, int nparams, int nresults);
+}
+} // namespace CodeGen
+}
+#line __LINE__ "EmitBuiltinsX64.cpp"
+#line __LINE__ "IrCallWrapperX64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+namespace X64
+{
+struct IrRegAllocX64;
+struct ScopedRegX64;
+struct CallArgument
+{
+ SizeX64 targetSize = SizeX64::none;
+ OperandX64 source = noreg;
+ IrOp sourceOp;
+ OperandX64 target = noreg;
+ bool candidate = true;
+};
+class IrCallWrapperX64
+{
+public:
+ IrCallWrapperX64(IrRegAllocX64& regs, AssemblyBuilderX64& build, uint32_t instIdx = kInvalidInstIdx);
+ void addArgument(SizeX64 targetSize, OperandX64 source, IrOp sourceOp = {});
+ void addArgument(SizeX64 targetSize, ScopedRegX64& scopedReg);
+ void call(const OperandX64& func);
+ RegisterX64 suggestNextArgumentRegister(SizeX64 size) const;
+ IrRegAllocX64& regs;
+ AssemblyBuilderX64& build;
+ uint32_t instIdx = ~0u;
+private:
+ OperandX64 getNextArgumentTarget(SizeX64 size) const;
+ void countRegisterUses();
+ CallArgument* findNonInterferingArgument();
+ bool interferesWithOperand(const OperandX64& op, RegisterX64 reg) const;
+ bool interferesWithActiveSources(const CallArgument& targetArg, int targetArgIndex) const;
+ bool interferesWithActiveTarget(RegisterX64 sourceReg) const;
+ void moveToTarget(CallArgument& arg);
+ void freeSourceRegisters(CallArgument& arg);
+ void renameRegister(RegisterX64& target, RegisterX64 reg, RegisterX64 replacement);
+ void renameSourceRegisters(RegisterX64 reg, RegisterX64 replacement);
+ RegisterX64 findConflictingTarget() const;
+ void renameConflictingRegister(RegisterX64 conflict);
+ int getRegisterUses(RegisterX64 reg) const;
+ void addRegisterUse(RegisterX64 reg);
+ void removeRegisterUse(RegisterX64 reg);
+ static const int kMaxCallArguments = 6;
+ std::array<CallArgument, kMaxCallArguments> args;
+ int argCount = 0;
+ int gprPos = 0;
+ int xmmPos = 0;
+ OperandX64 funcOp;
+ std::array<uint8_t, 16> gprUses;
+ std::array<uint8_t, 16> xmmUses;
+};
+}
+} // namespace CodeGen
+}
+#line __LINE__ "EmitBuiltinsX64.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+namespace X64
+{
+static void emitBuiltinMathFrexp(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, int arg, int nresults)
+{
+ IrCallWrapperX64 callWrap(regs, build);
+ callWrap.addArgument(SizeX64::xmmword, luauRegValue(arg));
+ callWrap.addArgument(SizeX64::qword, sTemporarySlot);
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, libm_frexp)]);
+ build.vmovsd(luauRegValue(ra), xmm0);
+ if (nresults > 1)
+ {
+ build.vcvtsi2sd(xmm0, xmm0, dword[sTemporarySlot + 0]);
+ build.vmovsd(luauRegValue(ra + 1), xmm0);
+ }
+}
+static void emitBuiltinMathModf(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, int arg, int nresults)
+{
+ IrCallWrapperX64 callWrap(regs, build);
+ callWrap.addArgument(SizeX64::xmmword, luauRegValue(arg));
+ callWrap.addArgument(SizeX64::qword, sTemporarySlot);
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, libm_modf)]);
+ build.vmovsd(xmm1, qword[sTemporarySlot + 0]);
+ build.vmovsd(luauRegValue(ra), xmm1);
+ if (nresults > 1)
+ build.vmovsd(luauRegValue(ra + 1), xmm0);
+}
+static void emitBuiltinMathSign(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, int arg)
+{
+ ScopedRegX64 tmp0{regs, SizeX64::xmmword};
+ ScopedRegX64 tmp1{regs, SizeX64::xmmword};
+ ScopedRegX64 tmp2{regs, SizeX64::xmmword};
+ ScopedRegX64 tmp3{regs, SizeX64::xmmword};
+ build.vmovsd(tmp0.reg, luauRegValue(arg));
+ build.vxorpd(tmp1.reg, tmp1.reg, tmp1.reg);
+ build.vcmpltsd(tmp2.reg, tmp0.reg, tmp1.reg);
+ build.vmovsd(tmp3.reg, build.f64(-1));
+ build.vandpd(tmp2.reg, tmp2.reg, tmp3.reg);
+ build.vcmpltsd(tmp0.reg, tmp1.reg, tmp0.reg);
+ build.vblendvpd(tmp0.reg, tmp2.reg, build.f64x2(1, 1), tmp0.reg);
+ build.vmovsd(luauRegValue(ra), tmp0.reg);
+}
+void emitBuiltin(IrRegAllocX64& regs, AssemblyBuilderX64& build, int bfid, int ra, int arg, OperandX64 arg2, int nparams, int nresults)
+{
+ switch (bfid)
+ {
+ case LBF_MATH_FREXP:
+ LUAU_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
+ return emitBuiltinMathFrexp(regs, build, ra, arg, nresults);
+ case LBF_MATH_MODF:
+ LUAU_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
+ return emitBuiltinMathModf(regs, build, ra, arg, nresults);
+ case LBF_MATH_SIGN:
+ LUAU_ASSERT(nparams == 1 && nresults == 1);
+ return emitBuiltinMathSign(regs, build, ra, arg);
+ default:
+ LUAU_ASSERT(!"Missing x64 lowering");
+ }
+}
+}
+} // namespace CodeGen
+}
+#line __LINE__ ""
+#line __LINE__ "EmitCommonX64.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+namespace X64
+{
+void jumpOnNumberCmp(AssemblyBuilderX64& build, RegisterX64 tmp, OperandX64 lhs, OperandX64 rhs, IrCondition cond, Label& label)
+{
+ if (cond == IrCondition::Greater || cond == IrCondition::GreaterEqual || cond == IrCondition::NotGreater || cond == IrCondition::NotGreaterEqual)
+ std::swap(lhs, rhs);
+ if (rhs.cat == CategoryX64::reg)
+ {
+ build.vucomisd(rhs, lhs);
+ }
+ else
+ {
+ build.vmovsd(tmp, rhs);
+ build.vucomisd(tmp, lhs);
+ }
+ switch (cond)
+ {
+ case IrCondition::NotLessEqual:
+ case IrCondition::NotGreaterEqual:
+ build.jcc(ConditionX64::NotAboveEqual, label);
+ break;
+ case IrCondition::LessEqual:
+ case IrCondition::GreaterEqual:
+ build.jcc(ConditionX64::AboveEqual, label);
+ break;
+ case IrCondition::NotLess:
+ case IrCondition::NotGreater:
+ build.jcc(ConditionX64::NotAbove, label);
+ break;
+ case IrCondition::Less:
+ case IrCondition::Greater:
+ build.jcc(ConditionX64::Above, label);
+ break;
+ case IrCondition::NotEqual:
+ build.jcc(ConditionX64::NotZero, label);
+ build.jcc(ConditionX64::Parity, label);
+ break;
+ default:
+ LUAU_ASSERT(!"Unsupported condition");
+ }
+}
+ConditionX64 getConditionInt(IrCondition cond)
+{
+ switch (cond)
+ {
+ case IrCondition::Equal:
+ return ConditionX64::Equal;
+ case IrCondition::NotEqual:
+ return ConditionX64::NotEqual;
+ case IrCondition::Less:
+ return ConditionX64::Less;
+ case IrCondition::NotLess:
+ return ConditionX64::NotLess;
+ case IrCondition::LessEqual:
+ return ConditionX64::LessEqual;
+ case IrCondition::NotLessEqual:
+ return ConditionX64::NotLessEqual;
+ case IrCondition::Greater:
+ return ConditionX64::Greater;
+ case IrCondition::NotGreater:
+ return ConditionX64::NotGreater;
+ case IrCondition::GreaterEqual:
+ return ConditionX64::GreaterEqual;
+ case IrCondition::NotGreaterEqual:
+ return ConditionX64::NotGreaterEqual;
+ case IrCondition::UnsignedLess:
+ return ConditionX64::Below;
+ case IrCondition::UnsignedLessEqual:
+ return ConditionX64::BelowEqual;
+ case IrCondition::UnsignedGreater:
+ return ConditionX64::Above;
+ case IrCondition::UnsignedGreaterEqual:
+ return ConditionX64::AboveEqual;
+ default:
+ LUAU_ASSERT(!"Unsupported condition");
+ return ConditionX64::Zero;
+ }
+}
+void getTableNodeAtCachedSlot(AssemblyBuilderX64& build, RegisterX64 tmp, RegisterX64 node, RegisterX64 table, int pcpos)
+{
+ LUAU_ASSERT(tmp != node);
+ LUAU_ASSERT(table != node);
+ build.mov(node, qword[table + offsetof(Table, node)]);
+ build.mov(tmp, sCode);
+ build.movzx(dwordReg(tmp), byte[tmp + pcpos * sizeof(Instruction) + kOffsetOfInstructionC]);
+ build.and_(byteReg(tmp), byte[table + offsetof(Table, nodemask8)]);
+ build.shl(dwordReg(tmp), kLuaNodeSizeLog2);
+ build.add(node, tmp);
+}
+void convertNumberToIndexOrJump(AssemblyBuilderX64& build, RegisterX64 tmp, RegisterX64 numd, RegisterX64 numi, Label& label)
+{
+ LUAU_ASSERT(numi.size == SizeX64::dword);
+ build.vcvttsd2si(numi, numd);
+ build.vcvtsi2sd(tmp, numd, numi);
+ build.vucomisd(tmp, numd);
+ build.jcc(ConditionX64::NotZero, label);
+}
+void callArithHelper(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, OperandX64 b, OperandX64 c, TMS tm)
+{
+ IrCallWrapperX64 callWrap(regs, build);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::qword, luauRegAddress(ra));
+ callWrap.addArgument(SizeX64::qword, b);
+ callWrap.addArgument(SizeX64::qword, c);
+ callWrap.addArgument(SizeX64::dword, tm);
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_doarith)]);
+ emitUpdateBase(build);
+}
+void callLengthHelper(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, int rb)
+{
+ IrCallWrapperX64 callWrap(regs, build);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::qword, luauRegAddress(ra));
+ callWrap.addArgument(SizeX64::qword, luauRegAddress(rb));
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_dolen)]);
+ emitUpdateBase(build);
+}
+void callGetTable(IrRegAllocX64& regs, AssemblyBuilderX64& build, int rb, OperandX64 c, int ra)
+{
+ IrCallWrapperX64 callWrap(regs, build);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::qword, luauRegAddress(rb));
+ callWrap.addArgument(SizeX64::qword, c);
+ callWrap.addArgument(SizeX64::qword, luauRegAddress(ra));
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_gettable)]);
+ emitUpdateBase(build);
+}
+void callSetTable(IrRegAllocX64& regs, AssemblyBuilderX64& build, int rb, OperandX64 c, int ra)
+{
+ IrCallWrapperX64 callWrap(regs, build);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::qword, luauRegAddress(rb));
+ callWrap.addArgument(SizeX64::qword, c);
+ callWrap.addArgument(SizeX64::qword, luauRegAddress(ra));
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_settable)]);
+ emitUpdateBase(build);
+}
+void checkObjectBarrierConditions(AssemblyBuilderX64& build, RegisterX64 tmp, RegisterX64 object, IrOp ra, int ratag, Label& skip)
+{
+ if (ratag == -1 || !isGCO(ratag))
+ {
+ OperandX64 tag = (ra.kind == IrOpKind::VmReg) ? luauRegTag(vmRegOp(ra)) : luauConstantTag(vmConstOp(ra));
+ build.cmp(tag, LUA_TSTRING);
+ build.jcc(ConditionX64::Less, skip);
+ }
+ build.test(byte[object + offsetof(GCheader, marked)], bitmask(BLACKBIT));
+ build.jcc(ConditionX64::Zero, skip);
+ OperandX64 value = (ra.kind == IrOpKind::VmReg) ? luauRegValue(vmRegOp(ra)) : luauConstantValue(vmConstOp(ra));
+ build.mov(tmp, value);
+ build.test(byte[tmp + offsetof(GCheader, marked)], bit2mask(WHITE0BIT, WHITE1BIT));
+ build.jcc(ConditionX64::Zero, skip);
+}
+void callBarrierObject(IrRegAllocX64& regs, AssemblyBuilderX64& build, RegisterX64 object, IrOp objectOp, IrOp ra, int ratag)
+{
+ Label skip;
+ ScopedRegX64 tmp{regs, SizeX64::qword};
+ checkObjectBarrierConditions(build, tmp.reg, object, ra, ratag, skip);
+ {
+ ScopedSpills spillGuard(regs);
+ IrCallWrapperX64 callWrap(regs, build);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::qword, object, objectOp);
+ callWrap.addArgument(SizeX64::qword, tmp);
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaC_barrierf)]);
+ }
+ build.setLabel(skip);
+}
+void callBarrierTableFast(IrRegAllocX64& regs, AssemblyBuilderX64& build, RegisterX64 table, IrOp tableOp)
+{
+ Label skip;
+ build.test(byte[table + offsetof(GCheader, marked)], bitmask(BLACKBIT));
+ build.jcc(ConditionX64::Zero, skip);
+ {
+ ScopedSpills spillGuard(regs);
+ IrCallWrapperX64 callWrap(regs, build);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::qword, table, tableOp);
+ callWrap.addArgument(SizeX64::qword, addr[table + offsetof(Table, gclist)]);
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaC_barrierback)]);
+ }
+ build.setLabel(skip);
+}
+void callStepGc(IrRegAllocX64& regs, AssemblyBuilderX64& build)
+{
+ Label skip;
+ {
+ ScopedRegX64 tmp1{regs, SizeX64::qword};
+ ScopedRegX64 tmp2{regs, SizeX64::qword};
+ build.mov(tmp1.reg, qword[rState + offsetof(lua_State, global)]);
+ build.mov(tmp2.reg, qword[tmp1.reg + offsetof(global_State, totalbytes)]);
+ build.cmp(tmp2.reg, qword[tmp1.reg + offsetof(global_State, GCthreshold)]);
+ build.jcc(ConditionX64::Below, skip);
+ }
+ {
+ ScopedSpills spillGuard(regs);
+ IrCallWrapperX64 callWrap(regs, build);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::dword, 1);
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaC_step)]);
+ emitUpdateBase(build);
+ }
+ build.setLabel(skip);
+}
+void emitClearNativeFlag(AssemblyBuilderX64& build)
+{
+ build.mov(rax, qword[rState + offsetof(lua_State, ci)]);
+ build.and_(dword[rax + offsetof(CallInfo, flags)], ~LUA_CALLINFO_NATIVE);
+}
+void emitExit(AssemblyBuilderX64& build, bool continueInVm)
+{
+ if (continueInVm)
+ build.mov(eax, 1);
+ else
+ build.xor_(eax, eax);
+ build.jmp(qword[rNativeContext + offsetof(NativeContext, gateExit)]);
+}
+void emitUpdateBase(AssemblyBuilderX64& build)
+{
+ build.mov(rBase, qword[rState + offsetof(lua_State, base)]);
+}
+void emitInterrupt(AssemblyBuilderX64& build)
+{
+ RegisterX64 rArg1 = (build.abi == ABIX64::Windows) ? rcx : rdi;
+ RegisterX64 rArg2 = (build.abi == ABIX64::Windows) ? rdx : rsi;
+ Label skip;
+ build.mov(rcx, sCode);
+ build.lea(rcx, addr[rcx + rax * sizeof(Instruction)]);
+ build.mov(rax, qword[rState + offsetof(lua_State, ci)]);
+ build.mov(qword[rax + offsetof(CallInfo, savedpc)], rcx);
+ build.mov(rax, qword[rState + offsetof(lua_State, global)]);
+ build.mov(rax, qword[rax + offsetof(global_State, cb.interrupt)]);
+ build.test(rax, rax);
+ build.jcc(ConditionX64::Zero, skip);
+ build.mov(rArg1, rState);
+ build.mov(dwordReg(rArg2), -1);
+ build.call(rax);
+ build.mov(al, byte[rState + offsetof(lua_State, status)]);
+ build.test(al, al);
+ build.jcc(ConditionX64::Zero, skip);
+ build.mov(rax, qword[rState + offsetof(lua_State, ci)]);
+ build.sub(qword[rax + offsetof(CallInfo, savedpc)], sizeof(Instruction));
+ emitExit(build, false);
+ build.setLabel(skip);
+ emitUpdateBase(build);
+ build.jmp(rbx);
+}
+void emitFallback(IrRegAllocX64& regs, AssemblyBuilderX64& build, int offset, int pcpos)
+{
+ IrCallWrapperX64 callWrap(regs, build);
+ callWrap.addArgument(SizeX64::qword, rState);
+ RegisterX64 reg = callWrap.suggestNextArgumentRegister(SizeX64::qword);
+ build.mov(reg, sCode);
+ callWrap.addArgument(SizeX64::qword, addr[reg + pcpos * sizeof(Instruction)]);
+ callWrap.addArgument(SizeX64::qword, rBase);
+ callWrap.addArgument(SizeX64::qword, rConstants);
+ callWrap.call(qword[rNativeContext + offset]);
+ emitUpdateBase(build);
+}
+void emitUpdatePcForExit(AssemblyBuilderX64& build)
+{
+ build.add(rdx, sCode);
+ build.mov(rax, qword[rState + offsetof(lua_State, ci)]);
+ build.mov(qword[rax + offsetof(CallInfo, savedpc)], rdx);
+}
+void emitReturn(AssemblyBuilderX64& build, ModuleHelpers& helpers)
+{
+ RegisterX64 res = rdi;
+ RegisterX64 written = ecx;
+ RegisterX64 ci = r8;
+ RegisterX64 cip = r9;
+ RegisterX64 nresults = esi;
+ build.mov(ci, qword[rState + offsetof(lua_State, ci)]);
+ build.lea(cip, addr[ci - sizeof(CallInfo)]);
+ build.mov(nresults, dword[ci + offsetof(CallInfo, nresults)]);
+ Label skipResultCopy;
+ RegisterX64 counter = written;
+ build.sub(counter, nresults);
+ build.jcc(ConditionX64::GreaterEqual, skipResultCopy);
+ Label repeatNilLoop = build.setLabel();
+ build.mov(dword[res + offsetof(TValue, tt)], LUA_TNIL);
+ build.add(res, sizeof(TValue));
+ build.inc(counter);
+ build.jcc(ConditionX64::NotZero, repeatNilLoop);
+ build.setLabel(skipResultCopy);
+ build.mov(qword[rState + offsetof(lua_State, ci)], cip);
+ build.mov(rBase, qword[cip + offsetof(CallInfo, base)]); // sync base = L->base while we have a chance
+ build.mov(qword[rState + offsetof(lua_State, base)], rBase);
+ Label skipFixedRetTop;
+ build.test(nresults, nresults);
+ build.jcc(ConditionX64::Less, skipFixedRetTop); // jl jumps if SF != OF
+ build.mov(res, qword[cip + offsetof(CallInfo, top)]);
+ build.setLabel(skipFixedRetTop);
+ build.mov(qword[rState + offsetof(lua_State, top)], res);
+ build.test(byte[ci + offsetof(CallInfo, flags)], LUA_CALLINFO_RETURN);
+ build.jcc(ConditionX64::NotZero, helpers.exitNoContinueVm);
+ RegisterX64 proto = rcx;
+ RegisterX64 execdata = rbx;
+ build.mov(rax, qword[cip + offsetof(CallInfo, func)]);
+ build.mov(rax, qword[rax + offsetof(TValue, value.gc)]);
+ build.mov(sClosure, rax);
+ build.mov(proto, qword[rax + offsetof(Closure, l.p)]);
+ build.mov(execdata, qword[proto + offsetof(Proto, execdata)]);
+ build.test(byte[cip + offsetof(CallInfo, flags)], LUA_CALLINFO_NATIVE);
+ build.jcc(ConditionX64::Zero, helpers.exitContinueVm);
+ build.mov(rConstants, qword[proto + offsetof(Proto, k)]);
+ build.mov(rdx, qword[proto + offsetof(Proto, code)]);
+ build.mov(sCode, rdx);
+ build.mov(rax, qword[cip + offsetof(CallInfo, savedpc)]);
+ build.sub(rax, rdx);
+ build.mov(edx, dword[execdata + rax]);
+ build.add(rdx, qword[proto + offsetof(Proto, exectarget)]);
+ build.jmp(rdx);
+}
+}
+} // namespace CodeGen
+}
+#line __LINE__ ""
+#line __LINE__ "EmitInstructionX64.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+struct Label;
+struct ModuleHelpers;
+namespace X64
+{
+class AssemblyBuilderX64;
+struct IrRegAllocX64;
+void emitInstCall(AssemblyBuilderX64& build, ModuleHelpers& helpers, int ra, int nparams, int nresults);
+void emitInstReturn(AssemblyBuilderX64& build, ModuleHelpers& helpers, int ra, int actualResults, bool functionVariadic);
+void emitInstSetList(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, int rb, int count, uint32_t index, int knownSize);
+void emitInstForGLoop(AssemblyBuilderX64& build, int ra, int aux, Label& loopRepeat);
+}
+} // namespace CodeGen
+}
+#line __LINE__ "EmitInstructionX64.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+namespace X64
+{
+void emitInstCall(AssemblyBuilderX64& build, ModuleHelpers& helpers, int ra, int nparams, int nresults)
+{
+ RegisterX64 rArg1 = (build.abi == ABIX64::Windows) ? rcx : rdi;
+ RegisterX64 rArg2 = (build.abi == ABIX64::Windows) ? rdx : rsi;
+ RegisterX64 rArg3 = (build.abi == ABIX64::Windows) ? r8 : rdx;
+ RegisterX64 rArg4 = (build.abi == ABIX64::Windows) ? r9 : rcx;
+ build.mov(rArg1, rState);
+ build.lea(rArg2, luauRegAddress(ra));
+ if (nparams == LUA_MULTRET)
+ build.mov(rArg3, qword[rState + offsetof(lua_State, top)]);
+ else
+ build.lea(rArg3, luauRegAddress(ra + 1 + nparams));
+ build.mov(dwordReg(rArg4), nresults);
+ build.call(qword[rNativeContext + offsetof(NativeContext, callProlog)]);
+ RegisterX64 ccl = rax;
+ emitUpdateBase(build);
+ Label cFuncCall;
+ build.test(byte[ccl + offsetof(Closure, isC)], 1);
+ build.jcc(ConditionX64::NotZero, cFuncCall);
+ {
+ RegisterX64 proto = rcx;
+ RegisterX64 ci = rdx;
+ RegisterX64 argi = rsi;
+ RegisterX64 argend = rdi;
+ build.mov(proto, qword[ccl + offsetof(Closure, l.p)]);
+ build.mov(sClosure, ccl); // Last use of 'ccl'
+ build.mov(ci, qword[rState + offsetof(lua_State, ci)]);
+ Label fillnil, exitfillnil;
+ build.mov(argi, qword[rState + offsetof(lua_State, top)]);
+ build.movzx(eax, byte[proto + offsetof(Proto, numparams)]);
+ build.shl(eax, kTValueSizeLog2);
+ build.lea(argend, addr[rBase + rax]);
+ build.setLabel(fillnil);
+ build.cmp(argi, argend);
+ build.jcc(ConditionX64::NotBelow, exitfillnil);
+ build.mov(dword[argi + offsetof(TValue, tt)], LUA_TNIL);
+ build.add(argi, sizeof(TValue));
+ build.jmp(fillnil);
+ build.setLabel(exitfillnil);
+ build.mov(rax, qword[ci + offsetof(CallInfo, top)]);
+ Label skipVararg;
+ build.test(byte[proto + offsetof(Proto, is_vararg)], 1);
+ build.jcc(ConditionX64::Zero, skipVararg);
+ build.mov(rax, argi);
+ build.setLabel(skipVararg);
+ build.mov(qword[rState + offsetof(lua_State, top)], rax);
+ build.mov(rax, qword[proto + offsetof(Proto, code)]);
+ build.mov(sCode, rax);
+ build.mov(qword[ci + offsetof(CallInfo, savedpc)], rax);
+ build.mov(rConstants, qword[proto + offsetof(Proto, k)]);
+ build.mov(rax, qword[proto + offsetof(Proto, exectarget)]);
+ build.test(rax, rax);
+ build.jcc(ConditionX64::Zero, helpers.exitContinueVm);
+ build.mov(dword[ci + offsetof(CallInfo, flags)], LUA_CALLINFO_NATIVE);
+ build.jmp(rax);
+ }
+ build.setLabel(cFuncCall);
+ {
+ build.mov(rArg1, rState);
+ build.call(qword[ccl + offsetof(Closure, c.f)]);
+ RegisterX64 results = eax;
+ build.test(results, results);
+ build.jcc(ConditionX64::Less, helpers.exitNoContinueVm); // jl jumps if SF != OF
+ if (nresults != 0 && nresults != 1)
+ {
+ build.mov(rArg1, rState);
+ build.mov(dwordReg(rArg2), nresults);
+ build.mov(dwordReg(rArg3), results);
+ build.call(qword[rNativeContext + offsetof(NativeContext, callEpilogC)]);
+ emitUpdateBase(build);
+ return;
+ }
+ RegisterX64 ci = rdx;
+ RegisterX64 cip = rcx;
+ RegisterX64 vali = rsi;
+ build.mov(ci, qword[rState + offsetof(lua_State, ci)]);
+ build.lea(cip, addr[ci - sizeof(CallInfo)]);
+ build.mov(rBase, qword[cip + offsetof(CallInfo, base)]);
+ build.mov(qword[rState + offsetof(lua_State, base)], rBase);
+ if (nresults == 1)
+ {
+ build.mov(vali, qword[rState + offsetof(lua_State, top)]);
+ build.shl(results, kTValueSizeLog2);
+ build.sub(vali, qwordReg(results));
+ build.vmovups(xmm0, xmmword[vali]);
+ build.vmovups(luauReg(ra), xmm0);
+ Label skipnil;
+ build.test(results, results);
+ build.jcc(ConditionX64::NotZero, skipnil);
+ build.mov(luauRegTag(ra), LUA_TNIL);
+ build.setLabel(skipnil);
+ }
+ build.mov(qword[rState + offsetof(lua_State, ci)], cip);
+ build.mov(rax, qword[cip + offsetof(CallInfo, top)]);
+ build.mov(qword[rState + offsetof(lua_State, top)], rax);
+ }
+}
+void emitInstReturn(AssemblyBuilderX64& build, ModuleHelpers& helpers, int ra, int actualResults, bool functionVariadic)
+{
+ RegisterX64 res = rdi;
+ RegisterX64 written = ecx;
+ if (functionVariadic)
+ {
+ build.mov(res, qword[rState + offsetof(lua_State, ci)]);
+ build.mov(res, qword[res + offsetof(CallInfo, func)]);
+ }
+ else if (actualResults != 1)
+ build.lea(res, addr[rBase - sizeof(TValue)]);
+ if (actualResults == 0)
+ {
+ build.xor_(written, written);
+ build.jmp(helpers.return_);
+ }
+ else if (actualResults == 1 && !functionVariadic)
+ {
+ build.vmovups(xmm0, luauReg(ra));
+ build.vmovups(xmmword[rBase - sizeof(TValue)], xmm0);
+ build.mov(res, rBase);
+ build.mov(written, 1);
+ build.jmp(helpers.return_);
+ }
+ else if (actualResults >= 1 && actualResults <= 3)
+ {
+ for (int r = 0; r < actualResults; ++r)
+ {
+ build.vmovups(xmm0, luauReg(ra + r));
+ build.vmovups(xmmword[res + r * sizeof(TValue)], xmm0);
+ }
+ build.add(res, actualResults * sizeof(TValue));
+ build.mov(written, actualResults);
+ build.jmp(helpers.return_);
+ }
+ else
+ {
+ RegisterX64 vali = rax;
+ RegisterX64 valend = rdx;
+ build.lea(vali, luauRegAddress(ra));
+ if (actualResults == LUA_MULTRET)
+ build.mov(valend, qword[rState + offsetof(lua_State, top)]);
+ else
+ build.lea(valend, luauRegAddress(ra + actualResults));
+ build.xor_(written, written);
+ Label repeatValueLoop, exitValueLoop;
+ if (actualResults == LUA_MULTRET)
+ {
+ build.cmp(vali, valend);
+ build.jcc(ConditionX64::NotBelow, exitValueLoop);
+ }
+ build.setLabel(repeatValueLoop);
+ build.vmovups(xmm0, xmmword[vali]);
+ build.vmovups(xmmword[res], xmm0);
+ build.add(vali, sizeof(TValue));
+ build.add(res, sizeof(TValue));
+ build.inc(written);
+ build.cmp(vali, valend);
+ build.jcc(ConditionX64::Below, repeatValueLoop);
+ build.setLabel(exitValueLoop);
+ build.jmp(helpers.return_);
+ }
+}
+void emitInstSetList(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, int rb, int count, uint32_t index, int knownSize)
+{
+ RegisterX64 rArg1 = (build.abi == ABIX64::Windows) ? rcx : rdi;
+ RegisterX64 rArg2 = (build.abi == ABIX64::Windows) ? rdx : rsi;
+ RegisterX64 rArg3 = (build.abi == ABIX64::Windows) ? r8 : rdx;
+ OperandX64 last = index + count - 1;
+ RegisterX64 cscaled = rbx;
+ if (count == LUA_MULTRET)
+ {
+ RegisterX64 tmp = rax;
+ build.mov(cscaled, qword[rState + offsetof(lua_State, top)]);
+ build.lea(tmp, luauRegAddress(rb));
+ build.sub(cscaled, tmp);
+ build.mov(tmp, qword[rState + offsetof(lua_State, ci)]);
+ build.mov(tmp, qword[tmp + offsetof(CallInfo, top)]);
+ build.mov(qword[rState + offsetof(lua_State, top)], tmp);
+ last = edx;
+ build.mov(last, dwordReg(cscaled));
+ build.shr(last, kTValueSizeLog2);
+ build.add(last, index - 1);
+ }
+ RegisterX64 table = regs.takeReg(rax, kInvalidInstIdx);
+ build.mov(table, luauRegValue(ra));
+ if (count == LUA_MULTRET || knownSize < 0 || knownSize < int(index + count - 1))
+ {
+ Label skipResize;
+ build.cmp(dword[table + offsetof(Table, sizearray)], last);
+ build.jcc(ConditionX64::NotBelow, skipResize);
+ LUAU_ASSERT(rArg3 != table);
+ build.mov(dwordReg(rArg3), last);
+ build.mov(rArg2, table);
+ build.mov(rArg1, rState);
+ build.call(qword[rNativeContext + offsetof(NativeContext, luaH_resizearray)]);
+ build.mov(table, luauRegValue(ra));
+ build.setLabel(skipResize);
+ }
+ RegisterX64 arrayDst = rdx;
+ RegisterX64 offset = rcx;
+ build.mov(arrayDst, qword[table + offsetof(Table, array)]);
+ const int kUnrollSetListLimit = 4;
+ if (count != LUA_MULTRET && count <= kUnrollSetListLimit)
+ {
+ for (int i = 0; i < count; ++i)
+ {
+ build.vmovups(xmm0, luauRegValue(rb + i));
+ build.vmovups(xmmword[arrayDst + (index + i - 1) * sizeof(TValue)], xmm0);
+ }
+ }
+ else
+ {
+ LUAU_ASSERT(count != 0);
+ build.xor_(offset, offset);
+ if (index != 1)
+ build.add(arrayDst, (index - 1) * sizeof(TValue));
+ Label repeatLoop, endLoop;
+ OperandX64 limit = count == LUA_MULTRET ? cscaled : OperandX64(count * sizeof(TValue));
+ if (count == LUA_MULTRET)
+ {
+ build.cmp(offset, limit);
+ build.jcc(ConditionX64::NotBelow, endLoop);
+ }
+ build.setLabel(repeatLoop);
+ build.vmovups(xmm0, xmmword[offset + rBase + rb * sizeof(TValue)]); // luauReg(rb) unwrapped to add offset
+ build.vmovups(xmmword[offset + arrayDst], xmm0);
+ build.add(offset, sizeof(TValue));
+ build.cmp(offset, limit);
+ build.jcc(ConditionX64::Below, repeatLoop);
+ build.setLabel(endLoop);
+ }
+ callBarrierTableFast(regs, build, table, {});
+}
+void emitInstForGLoop(AssemblyBuilderX64& build, int ra, int aux, Label& loopRepeat)
+{
+ LUAU_ASSERT(aux >= 0);
+ RegisterX64 rArg1 = (build.abi == ABIX64::Windows) ? rcx : rdi;
+ RegisterX64 rArg2 = (build.abi == ABIX64::Windows) ? rdx : rsi;
+ RegisterX64 rArg3 = (build.abi == ABIX64::Windows) ? r8 : rdx;
+ RegisterX64 rArg4 = (build.abi == ABIX64::Windows) ? r9 : rcx;
+ RegisterX64 table = rArg2;
+ RegisterX64 index = rArg3;
+ RegisterX64 elemPtr = rax;
+ build.mov(table, luauRegValue(ra + 1));
+ build.mov(index, luauRegValue(ra + 2));
+ build.mov(dwordReg(elemPtr), dwordReg(index));
+ build.shl(dwordReg(elemPtr), kTValueSizeLog2);
+ build.add(elemPtr, qword[table + offsetof(Table, array)]);
+ for (int i = 2; i < aux; ++i)
+ build.mov(luauRegTag(ra + 3 + i), LUA_TNIL);
+ Label skipArray, skipArrayNil;
+ Label arrayLoop = build.setLabel();
+ build.cmp(dwordReg(index), dword[table + offsetof(Table, sizearray)]);
+ build.jcc(ConditionX64::NotBelow, skipArray);
+ build.inc(index);
+ build.cmp(dword[elemPtr + offsetof(TValue, tt)], LUA_TNIL);
+ build.jcc(ConditionX64::Equal, skipArrayNil);
+ build.mov(luauRegValue(ra + 2), index);
+ build.vcvtsi2sd(xmm0, xmm0, dwordReg(index));
+ build.vmovsd(luauRegValue(ra + 3), xmm0);
+ build.mov(luauRegTag(ra + 3), LUA_TNUMBER);
+ setLuauReg(build, xmm2, ra + 4, xmmword[elemPtr]);
+ build.jmp(loopRepeat);
+ build.setLabel(skipArrayNil);
+ build.add(elemPtr, sizeof(TValue));
+ build.jmp(arrayLoop);
+ build.setLabel(skipArray);
+ build.mov(rArg1, rState);
+ build.lea(rArg4, luauRegAddress(ra));
+ build.call(qword[rNativeContext + offsetof(NativeContext, forgLoopNodeIter)]);
+ build.test(al, al);
+ build.jcc(ConditionX64::NotZero, loopRepeat);
+}
+}
+} // namespace CodeGen
+}
+#line __LINE__ ""
+#line __LINE__ "IrAnalysis.cpp"
+#line __LINE__ "IrVisitUseDef.h"
+namespace Luau
+{
+namespace CodeGen
+{
+template<typename T>
+static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrInst& inst)
+{
+ switch (inst.cmd)
+ {
+ case IrCmd::LOAD_TAG:
+ case IrCmd::LOAD_POINTER:
+ case IrCmd::LOAD_DOUBLE:
+ case IrCmd::LOAD_INT:
+ case IrCmd::LOAD_TVALUE:
+ visitor.maybeUse(inst.a);
+ break;
+ case IrCmd::STORE_TAG:
+ case IrCmd::STORE_POINTER:
+ case IrCmd::STORE_DOUBLE:
+ case IrCmd::STORE_INT:
+ case IrCmd::STORE_VECTOR:
+ case IrCmd::STORE_TVALUE:
+ case IrCmd::STORE_SPLIT_TVALUE:
+ visitor.maybeDef(inst.a);
+ break;
+ case IrCmd::CMP_ANY:
+ visitor.use(inst.a);
+ visitor.use(inst.b);
+ break;
+ case IrCmd::JUMP_IF_TRUTHY:
+ case IrCmd::JUMP_IF_FALSY:
+ visitor.use(inst.a);
+ break;
+ case IrCmd::DO_ARITH:
+ visitor.maybeUse(inst.b);
+ visitor.maybeUse(inst.c); // Argument can also be a VmConst
+ visitor.def(inst.a);
+ break;
+ case IrCmd::GET_TABLE:
+ visitor.use(inst.b);
+ visitor.maybeUse(inst.c);
+ visitor.def(inst.a);
+ break;
+ case IrCmd::SET_TABLE:
+ visitor.use(inst.a);
+ visitor.use(inst.b);
+ visitor.maybeUse(inst.c);
+ break;
+ case IrCmd::DO_LEN:
+ visitor.use(inst.b);
+ visitor.def(inst.a);
+ break;
+ case IrCmd::GET_IMPORT:
+ visitor.def(inst.a);
+ break;
+ case IrCmd::CONCAT:
+ visitor.useRange(vmRegOp(inst.a), function.uintOp(inst.b));
+ visitor.defRange(vmRegOp(inst.a), function.uintOp(inst.b));
+ break;
+ case IrCmd::GET_UPVALUE:
+ visitor.def(inst.a);
+ break;
+ case IrCmd::SET_UPVALUE:
+ visitor.use(inst.b);
+ break;
+ case IrCmd::INTERRUPT:
+ break;
+ case IrCmd::BARRIER_OBJ:
+ case IrCmd::BARRIER_TABLE_FORWARD:
+ visitor.maybeUse(inst.b);
+ break;
+ case IrCmd::CLOSE_UPVALS:
+ break;
+ case IrCmd::CAPTURE:
+ visitor.maybeUse(inst.a);
+ if (function.uintOp(inst.b) == 1)
+ visitor.capture(vmRegOp(inst.a));
+ break;
+ case IrCmd::SETLIST:
+ visitor.use(inst.b);
+ visitor.useRange(vmRegOp(inst.c), function.intOp(inst.d));
+ break;
+ case IrCmd::CALL:
+ visitor.use(inst.a);
+ visitor.useRange(vmRegOp(inst.a) + 1, function.intOp(inst.b));
+ visitor.defRange(vmRegOp(inst.a), function.intOp(inst.c));
+ break;
+ case IrCmd::RETURN:
+ visitor.useRange(vmRegOp(inst.a), function.intOp(inst.b));
+ break;
+ case IrCmd::FASTCALL:
+ case IrCmd::INVOKE_FASTCALL:
+ if (int count = function.intOp(inst.e); count != -1)
+ {
+ if (count >= 3)
+ {
+ LUAU_ASSERT(inst.d.kind == IrOpKind::VmReg && vmRegOp(inst.d) == vmRegOp(inst.c) + 1);
+ visitor.useRange(vmRegOp(inst.c), count);
+ }
+ else
+ {
+ if (count >= 1)
+ visitor.use(inst.c);
+ if (count >= 2)
+ visitor.maybeUse(inst.d);
+ }
+ }
+ else
+ {
+ visitor.useVarargs(vmRegOp(inst.c));
+ }
+ if (int count = function.intOp(inst.f); count != -1)
+ visitor.defRange(vmRegOp(inst.b), count);
+ break;
+ case IrCmd::FORGLOOP:
+ visitor.use(inst.a, 1);
+ visitor.use(inst.a, 2);
+ visitor.def(inst.a, 2);
+ visitor.defRange(vmRegOp(inst.a) + 3, function.intOp(inst.b));
+ break;
+ case IrCmd::FORGLOOP_FALLBACK:
+ visitor.useRange(vmRegOp(inst.a), 3);
+ visitor.def(inst.a, 2);
+ visitor.defRange(vmRegOp(inst.a) + 3, uint8_t(function.intOp(inst.b)));
+ break;
+ case IrCmd::FORGPREP_XNEXT_FALLBACK:
+ visitor.use(inst.b);
+ break;
+ case IrCmd::FALLBACK_GETGLOBAL:
+ visitor.def(inst.b);
+ break;
+ case IrCmd::FALLBACK_SETGLOBAL:
+ visitor.use(inst.b);
+ break;
+ case IrCmd::FALLBACK_GETTABLEKS:
+ visitor.use(inst.c);
+ visitor.def(inst.b);
+ break;
+ case IrCmd::FALLBACK_SETTABLEKS:
+ visitor.use(inst.b);
+ visitor.use(inst.c);
+ break;
+ case IrCmd::FALLBACK_NAMECALL:
+ visitor.use(inst.c);
+ visitor.defRange(vmRegOp(inst.b), 2);
+ break;
+ case IrCmd::FALLBACK_PREPVARARGS:
+ break;
+ case IrCmd::FALLBACK_GETVARARGS:
+ visitor.defRange(vmRegOp(inst.b), function.intOp(inst.c));
+ break;
+ case IrCmd::FALLBACK_DUPCLOSURE:
+ visitor.def(inst.b);
+ break;
+ case IrCmd::FALLBACK_FORGPREP:
+ visitor.use(inst.b);
+ visitor.defRange(vmRegOp(inst.b), 3);
+ break;
+ case IrCmd::ADJUST_STACK_TO_REG:
+ visitor.defRange(vmRegOp(inst.a), -1);
+ break;
+ case IrCmd::ADJUST_STACK_TO_TOP:
+ break;
+ case IrCmd::GET_TYPEOF:
+ visitor.use(inst.a);
+ break;
+ case IrCmd::FINDUPVAL:
+ visitor.use(inst.a);
+ break;
+ default:
+ LUAU_ASSERT(inst.a.kind != IrOpKind::VmReg);
+ LUAU_ASSERT(inst.b.kind != IrOpKind::VmReg);
+ LUAU_ASSERT(inst.c.kind != IrOpKind::VmReg);
+ LUAU_ASSERT(inst.d.kind != IrOpKind::VmReg);
+ LUAU_ASSERT(inst.e.kind != IrOpKind::VmReg);
+ LUAU_ASSERT(inst.f.kind != IrOpKind::VmReg);
+ break;
+ }
+}
+template<typename T>
+static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrBlock& block)
+{
+ for (uint32_t instIdx = block.start; instIdx <= block.finish; instIdx++)
+ {
+ IrInst& inst = function.instructions[instIdx];
+ visitVmRegDefsUses(visitor, function, inst);
+ }
+}
+}
+} // namespace Luau
+#line __LINE__ "IrAnalysis.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+void updateUseCounts(IrFunction& function)
+{
+ std::vector<IrBlock>& blocks = function.blocks;
+ std::vector<IrInst>& instructions = function.instructions;
+ for (IrBlock& block : blocks)
+ block.useCount = 0;
+ for (IrInst& inst : instructions)
+ inst.useCount = 0;
+ auto checkOp = [&](IrOp op) {
+ if (op.kind == IrOpKind::Inst)
+ {
+ IrInst& target = instructions[op.index];
+ LUAU_ASSERT(target.useCount < 0xffff);
+ target.useCount++;
+ }
+ else if (op.kind == IrOpKind::Block)
+ {
+ IrBlock& target = blocks[op.index];
+ LUAU_ASSERT(target.useCount < 0xffff);
+ target.useCount++;
+ }
+ };
+ for (IrInst& inst : instructions)
+ {
+ checkOp(inst.a);
+ checkOp(inst.b);
+ checkOp(inst.c);
+ checkOp(inst.d);
+ checkOp(inst.e);
+ checkOp(inst.f);
+ }
+}
+void updateLastUseLocations(IrFunction& function, const std::vector<uint32_t>& sortedBlocks)
+{
+ std::vector<IrInst>& instructions = function.instructions;
+#if defined(LUAU_ASSERTENABLED)
+ for (IrInst& inst : instructions)
+ LUAU_ASSERT(inst.lastUse == 0);
+#endif
+ for (size_t i = 0; i < sortedBlocks.size(); ++i)
+ {
+ uint32_t blockIndex = sortedBlocks[i];
+ IrBlock& block = function.blocks[blockIndex];
+ if (block.kind == IrBlockKind::Dead)
+ continue;
+ LUAU_ASSERT(block.start != ~0u);
+ LUAU_ASSERT(block.finish != ~0u);
+ for (uint32_t instIdx = block.start; instIdx <= block.finish; instIdx++)
+ {
+ LUAU_ASSERT(instIdx < function.instructions.size());
+ IrInst& inst = instructions[instIdx];
+ auto checkOp = [&](IrOp op) {
+ if (op.kind == IrOpKind::Inst)
+ instructions[op.index].lastUse = uint32_t(instIdx);
+ };
+ if (isPseudo(inst.cmd))
+ continue;
+ checkOp(inst.a);
+ checkOp(inst.b);
+ checkOp(inst.c);
+ checkOp(inst.d);
+ checkOp(inst.e);
+ checkOp(inst.f);
+ }
+ }
+}
+uint32_t getNextInstUse(IrFunction& function, uint32_t targetInstIdx, uint32_t startInstIdx)
+{
+ LUAU_ASSERT(startInstIdx < function.instructions.size());
+ IrInst& targetInst = function.instructions[targetInstIdx];
+ for (uint32_t i = startInstIdx; i <= targetInst.lastUse; i++)
+ {
+ IrInst& inst = function.instructions[i];
+ if (isPseudo(inst.cmd))
+ continue;
+ if (inst.a.kind == IrOpKind::Inst && inst.a.index == targetInstIdx)
+ return i;
+ if (inst.b.kind == IrOpKind::Inst && inst.b.index == targetInstIdx)
+ return i;
+ if (inst.c.kind == IrOpKind::Inst && inst.c.index == targetInstIdx)
+ return i;
+ if (inst.d.kind == IrOpKind::Inst && inst.d.index == targetInstIdx)
+ return i;
+ if (inst.e.kind == IrOpKind::Inst && inst.e.index == targetInstIdx)
+ return i;
+ if (inst.f.kind == IrOpKind::Inst && inst.f.index == targetInstIdx)
+ return i;
+ }
+ LUAU_ASSERT(!"Failed to find next use");
+ return targetInst.lastUse;
+}
+std::pair<uint32_t, uint32_t> getLiveInOutValueCount(IrFunction& function, IrBlock& block)
+{
+ uint32_t liveIns = 0;
+ uint32_t liveOuts = 0;
+ auto checkOp = [&](IrOp op) {
+ if (op.kind == IrOpKind::Inst)
+ {
+ if (op.index >= block.start && op.index <= block.finish)
+ liveOuts--;
+ else
+ liveIns++;
+ }
+ };
+ for (uint32_t instIdx = block.start; instIdx <= block.finish; instIdx++)
+ {
+ IrInst& inst = function.instructions[instIdx];
+ if (isPseudo(inst.cmd))
+ continue;
+ liveOuts += inst.useCount;
+ checkOp(inst.a);
+ checkOp(inst.b);
+ checkOp(inst.c);
+ checkOp(inst.d);
+ checkOp(inst.e);
+ checkOp(inst.f);
+ }
+ return std::make_pair(liveIns, liveOuts);
+}
+uint32_t getLiveInValueCount(IrFunction& function, IrBlock& block)
+{
+ return getLiveInOutValueCount(function, block).first;
+}
+uint32_t getLiveOutValueCount(IrFunction& function, IrBlock& block)
+{
+ return getLiveInOutValueCount(function, block).second;
+}
+void requireVariadicSequence(RegisterSet& sourceRs, const RegisterSet& defRs, uint8_t varargStart)
+{
+ if (!defRs.varargSeq)
+ {
+ while (defRs.regs.test(varargStart))
+ varargStart++;
+ LUAU_ASSERT(!sourceRs.varargSeq || sourceRs.varargStart == varargStart);
+ sourceRs.varargSeq = true;
+ sourceRs.varargStart = varargStart;
+ }
+ else
+ {
+ for (int i = varargStart; i < defRs.varargStart; i++)
+ {
+ if (!defRs.regs.test(i))
+ sourceRs.regs.set(i);
+ }
+ }
+}
+struct BlockVmRegLiveInComputation
+{
+ BlockVmRegLiveInComputation(RegisterSet& defRs, std::bitset<256>& capturedRegs)
+ : defRs(defRs)
+ , capturedRegs(capturedRegs)
+ {
+ }
+ RegisterSet& defRs;
+ std::bitset<256>& capturedRegs;
+ RegisterSet inRs;
+ void def(IrOp op, int offset = 0)
+ {
+ defRs.regs.set(vmRegOp(op) + offset, true);
+ }
+ void use(IrOp op, int offset = 0)
+ {
+ if (!defRs.regs.test(vmRegOp(op) + offset))
+ inRs.regs.set(vmRegOp(op) + offset, true);
+ }
+ void maybeDef(IrOp op)
+ {
+ if (op.kind == IrOpKind::VmReg)
+ defRs.regs.set(vmRegOp(op), true);
+ }
+ void maybeUse(IrOp op)
+ {
+ if (op.kind == IrOpKind::VmReg)
+ {
+ if (!defRs.regs.test(vmRegOp(op)))
+ inRs.regs.set(vmRegOp(op), true);
+ }
+ }
+ void defVarargs(uint8_t varargStart)
+ {
+ defRs.varargSeq = true;
+ defRs.varargStart = varargStart;
+ }
+ void useVarargs(uint8_t varargStart)
+ {
+ requireVariadicSequence(inRs, defRs, varargStart);
+ defRs.varargSeq = false;
+ defRs.varargStart = 0;
+ }
+ void defRange(int start, int count)
+ {
+ if (count == -1)
+ {
+ defVarargs(start);
+ }
+ else
+ {
+ for (int i = start; i < start + count; i++)
+ defRs.regs.set(i, true);
+ }
+ }
+ void useRange(int start, int count)
+ {
+ if (count == -1)
+ {
+ useVarargs(start);
+ }
+ else
+ {
+ for (int i = start; i < start + count; i++)
+ {
+ if (!defRs.regs.test(i))
+ inRs.regs.set(i, true);
+ }
+ }
+ }
+ void capture(int reg)
+ {
+ capturedRegs.set(reg, true);
+ }
+};
+static RegisterSet computeBlockLiveInRegSet(IrFunction& function, const IrBlock& block, RegisterSet& defRs, std::bitset<256>& capturedRegs)
+{
+ BlockVmRegLiveInComputation visitor(defRs, capturedRegs);
+ visitVmRegDefsUses(visitor, function, block);
+ return visitor.inRs;
+}
+static void computeCfgLiveInOutRegSets(IrFunction& function)
+{
+ CfgInfo& info = function.cfg;
+ info.def.clear();
+ info.out.clear();
+ info.in.resize(function.blocks.size());
+ info.def.resize(function.blocks.size());
+ info.out.resize(function.blocks.size());
+ std::bitset<256> capturedRegs;
+ for (size_t blockIdx = 0; blockIdx < function.blocks.size(); blockIdx++)
+ {
+ const IrBlock& block = function.blocks[blockIdx];
+ if (block.kind == IrBlockKind::Dead)
+ continue;
+ info.in[blockIdx] = computeBlockLiveInRegSet(function, block, info.def[blockIdx], capturedRegs);
+ }
+ info.captured.regs = capturedRegs;
+ std::vector<uint32_t> worklist;
+ std::vector<uint8_t> inWorklist;
+ inWorklist.resize(function.blocks.size(), false);
+ for (size_t blockIdx = 0; blockIdx < function.blocks.size(); blockIdx++)
+ {
+ const IrBlock& block = function.blocks[blockIdx];
+ if (block.kind == IrBlockKind::Dead)
+ continue;
+ worklist.push_back(uint32_t(blockIdx));
+ inWorklist[blockIdx] = true;
+ }
+ while (!worklist.empty())
+ {
+ uint32_t blockIdx = worklist.back();
+ worklist.pop_back();
+ inWorklist[blockIdx] = false;
+ IrBlock& curr = function.blocks[blockIdx];
+ RegisterSet& inRs = info.in[blockIdx];
+ RegisterSet& defRs = info.def[blockIdx];
+ RegisterSet& outRs = info.out[blockIdx];
+ BlockIteratorWrapper successorsIt = successors(info, blockIdx);
+ for (uint32_t succIdx : successorsIt)
+ {
+ IrBlock& succ = function.blocks[succIdx];
+ if (curr.kind != IrBlockKind::Fallback && succ.kind == IrBlockKind::Fallback)
+ {
+ LUAU_ASSERT(successorsIt.size() != 1);
+ continue;
+ }
+ const RegisterSet& succRs = info.in[succIdx];
+ outRs.regs |= succRs.regs;
+ if (succRs.varargSeq)
+ {
+ LUAU_ASSERT(!outRs.varargSeq || outRs.varargStart == succRs.varargStart);
+ outRs.varargSeq = true;
+ outRs.varargStart = succRs.varargStart;
+ }
+ }
+ RegisterSet oldInRs = inRs;
+ inRs.regs |= outRs.regs & ~defRs.regs;
+ if (outRs.varargSeq)
+ requireVariadicSequence(inRs, defRs, outRs.varargStart);
+ if (inRs.regs != oldInRs.regs || inRs.varargSeq != oldInRs.varargSeq)
+ {
+ for (uint32_t predIdx : predecessors(info, blockIdx))
+ {
+ if (!inWorklist[predIdx])
+ {
+ worklist.push_back(predIdx);
+ inWorklist[predIdx] = true;
+ }
+ }
+ }
+ }
+ if (function.proto)
+ {
+ RegisterSet& entryIn = info.in[0];
+ LUAU_ASSERT(!entryIn.varargSeq);
+ for (size_t i = 0; i < entryIn.regs.size(); i++)
+ LUAU_ASSERT(!entryIn.regs.test(i) || i < function.proto->numparams);
+ }
+}
+static void computeCfgBlockEdges(IrFunction& function)
+{
+ CfgInfo& info = function.cfg;
+ info.predecessorsOffsets.clear();
+ info.successorsOffsets.clear();
+ info.predecessorsOffsets.reserve(function.blocks.size());
+ info.successorsOffsets.reserve(function.blocks.size());
+ int edgeCount = 0;
+ for (const IrBlock& block : function.blocks)
+ {
+ info.predecessorsOffsets.push_back(edgeCount);
+ edgeCount += block.useCount;
+ }
+ info.predecessors.resize(edgeCount);
+ info.successors.resize(edgeCount);
+ edgeCount = 0;
+ for (size_t blockIdx = 0; blockIdx < function.blocks.size(); blockIdx++)
+ {
+ const IrBlock& block = function.blocks[blockIdx];
+ info.successorsOffsets.push_back(edgeCount);
+ if (block.kind == IrBlockKind::Dead)
+ continue;
+ for (uint32_t instIdx = block.start; instIdx <= block.finish; instIdx++)
+ {
+ const IrInst& inst = function.instructions[instIdx];
+ auto checkOp = [&](IrOp op) {
+ if (op.kind == IrOpKind::Block)
+ {
+ info.predecessors[info.predecessorsOffsets[op.index]++] = uint32_t(blockIdx);
+ info.successors[edgeCount++] = op.index;
+ }
+ };
+ checkOp(inst.a);
+ checkOp(inst.b);
+ checkOp(inst.c);
+ checkOp(inst.d);
+ checkOp(inst.e);
+ checkOp(inst.f);
+ }
+ }
+ for (size_t blockIdx = 0; blockIdx < function.blocks.size(); blockIdx++)
+ {
+ const IrBlock& block = function.blocks[blockIdx];
+ info.predecessorsOffsets[blockIdx] -= block.useCount;
+ }
+}
+template<auto childIt>
+void computeBlockOrdering(
+ IrFunction& function, std::vector<BlockOrdering>& ordering, std::vector<uint32_t>* preOrder, std::vector<uint32_t>* postOrder)
+{
+ CfgInfo& info = function.cfg;
+ LUAU_ASSERT(info.idoms.size() == function.blocks.size());
+ ordering.clear();
+ ordering.resize(function.blocks.size());
+ struct StackItem
+ {
+ uint32_t blockIdx;
+ uint32_t itPos;
+ };
+ std::vector<StackItem> stack;
+ if (preOrder)
+ preOrder->reserve(function.blocks.size());
+ if (postOrder)
+ postOrder->reserve(function.blocks.size());
+ uint32_t nextPreOrder = 0;
+ uint32_t nextPostOrder = 0;
+ stack.push_back({0, 0});
+ ordering[0].visited = true;
+ ordering[0].preOrder = nextPreOrder++;
+ while (!stack.empty())
+ {
+ StackItem& item = stack.back();
+ BlockIteratorWrapper children = childIt(info, item.blockIdx);
+ if (item.itPos < children.size())
+ {
+ uint32_t childIdx = children[item.itPos++];
+ BlockOrdering& childOrdering = ordering[childIdx];
+ if (!childOrdering.visited)
+ {
+ childOrdering.visited = true;
+ childOrdering.depth = uint32_t(stack.size());
+ childOrdering.preOrder = nextPreOrder++;
+ if (preOrder)
+ preOrder->push_back(item.blockIdx);
+ stack.push_back({childIdx, 0});
+ }
+ }
+ else
+ {
+ ordering[item.blockIdx].postOrder = nextPostOrder++;
+ if (postOrder)
+ postOrder->push_back(item.blockIdx);
+ stack.pop_back();
+ }
+ }
+}
+static uint32_t findCommonDominator(const std::vector<uint32_t>& idoms, const std::vector<BlockOrdering>& data, uint32_t a, uint32_t b)
+{
+ while (a != b)
+ {
+ while (data[a].postOrder < data[b].postOrder)
+ {
+ a = idoms[a];
+ LUAU_ASSERT(a != ~0u);
+ }
+ while (data[b].postOrder < data[a].postOrder)
+ {
+ b = idoms[b];
+ LUAU_ASSERT(b != ~0u);
+ }
+ }
+ return a;
+}
+void computeCfgImmediateDominators(IrFunction& function)
+{
+ CfgInfo& info = function.cfg;
+ info.idoms.clear();
+ info.idoms.resize(function.blocks.size(), ~0u);
+ std::vector<BlockOrdering> ordering;
+ std::vector<uint32_t> blocksInPostOrder;
+ computeBlockOrdering<successors>(function, ordering, nullptr, &blocksInPostOrder);
+ info.idoms[0] = 0;
+ bool updated = true;
+ while (updated)
+ {
+ updated = false;
+ for (int i = int(blocksInPostOrder.size() - 2); i >= 0; i--)
+ {
+ uint32_t blockIdx = blocksInPostOrder[i];
+ uint32_t newIdom = ~0u;
+ for (uint32_t predIdx : predecessors(info, blockIdx))
+ {
+ if (uint32_t predIdom = info.idoms[predIdx]; predIdom != ~0u)
+ {
+ if (newIdom == ~0u)
+ newIdom = predIdx;
+ else
+ newIdom = findCommonDominator(info.idoms, ordering, newIdom, predIdx);
+ }
+ }
+ if (newIdom != info.idoms[blockIdx])
+ {
+ info.idoms[blockIdx] = newIdom;
+ updated = true;
+ }
+ }
+ }
+ info.idoms[0] = ~0u;
+}
+void computeCfgDominanceTreeChildren(IrFunction& function)
+{
+ CfgInfo& info = function.cfg;
+ info.domChildren.clear();
+ info.domChildrenOffsets.clear();
+ info.domChildrenOffsets.resize(function.blocks.size());
+ for (size_t blockIdx = 0; blockIdx < function.blocks.size(); blockIdx++)
+ {
+ uint32_t domParent = info.idoms[blockIdx];
+ if (domParent != ~0u)
+ info.domChildrenOffsets[domParent]++;
+ }
+ uint32_t total = 0;
+ for (size_t blockIdx = 0; blockIdx < function.blocks.size(); blockIdx++)
+ {
+ uint32_t& offset = info.domChildrenOffsets[blockIdx];
+ uint32_t count = offset;
+ offset = total;
+ total += count;
+ }
+ info.domChildren.resize(total);
+ for (size_t blockIdx = 0; blockIdx < function.blocks.size(); blockIdx++)
+ {
+ uint32_t domParent = info.idoms[blockIdx];
+ if (domParent != ~0u)
+ info.domChildren[info.domChildrenOffsets[domParent]++] = uint32_t(blockIdx);
+ }
+ for (int blockIdx = int(function.blocks.size() - 1); blockIdx > 0; blockIdx--)
+ info.domChildrenOffsets[blockIdx] = info.domChildrenOffsets[blockIdx - 1];
+ info.domChildrenOffsets[0] = 0;
+ computeBlockOrdering<domChildren>(function, info.domOrdering, nullptr, nullptr);
+}
+void computeIteratedDominanceFrontierForDefs(
+ IdfContext& ctx, const IrFunction& function, const std::vector<uint32_t>& defBlocks, const std::vector<uint32_t>& liveInBlocks)
+{
+ LUAU_ASSERT(!function.cfg.domOrdering.empty());
+ LUAU_ASSERT(ctx.queue.empty());
+ LUAU_ASSERT(ctx.worklist.empty());
+ ctx.idf.clear();
+ ctx.visits.clear();
+ ctx.visits.resize(function.blocks.size());
+ for (uint32_t defBlock : defBlocks)
+ {
+ const BlockOrdering& ordering = function.cfg.domOrdering[defBlock];
+ ctx.queue.push({defBlock, ordering});
+ }
+ while (!ctx.queue.empty())
+ {
+ IdfContext::BlockAndOrdering root = ctx.queue.top();
+ ctx.queue.pop();
+ LUAU_ASSERT(ctx.worklist.empty());
+ ctx.worklist.push_back(root.blockIdx);
+ ctx.visits[root.blockIdx].seenInWorklist = true;
+ while (!ctx.worklist.empty())
+ {
+ uint32_t blockIdx = ctx.worklist.back();
+ ctx.worklist.pop_back();
+ for (uint32_t succIdx : successors(function.cfg, blockIdx))
+ {
+ const BlockOrdering& succOrdering = function.cfg.domOrdering[succIdx];
+ if (succOrdering.depth > root.ordering.depth)
+ continue;
+ if (ctx.visits[succIdx].seenInQueue)
+ continue;
+ ctx.visits[succIdx].seenInQueue = true;
+ if (std::find(liveInBlocks.begin(), liveInBlocks.end(), succIdx) == liveInBlocks.end())
+ continue;
+ ctx.idf.push_back(succIdx);
+ if (std::find(defBlocks.begin(), defBlocks.end(), succIdx) == defBlocks.end())
+ ctx.queue.push({succIdx, succOrdering});
+ }
+ for (uint32_t domChildIdx : domChildren(function.cfg, blockIdx))
+ {
+ if (ctx.visits[domChildIdx].seenInWorklist)
+ continue;
+ ctx.visits[domChildIdx].seenInWorklist = true;
+ ctx.worklist.push_back(domChildIdx);
+ }
+ }
+ }
+}
+void computeCfgInfo(IrFunction& function)
+{
+ computeCfgBlockEdges(function);
+ computeCfgImmediateDominators(function);
+ computeCfgDominanceTreeChildren(function);
+ computeCfgLiveInOutRegSets(function);
+}
+BlockIteratorWrapper predecessors(const CfgInfo& cfg, uint32_t blockIdx)
+{
+ LUAU_ASSERT(blockIdx < cfg.predecessorsOffsets.size());
+ uint32_t start = cfg.predecessorsOffsets[blockIdx];
+ uint32_t end = blockIdx + 1 < cfg.predecessorsOffsets.size() ? cfg.predecessorsOffsets[blockIdx + 1] : uint32_t(cfg.predecessors.size());
+ return BlockIteratorWrapper{cfg.predecessors.data() + start, cfg.predecessors.data() + end};
+}
+BlockIteratorWrapper successors(const CfgInfo& cfg, uint32_t blockIdx)
+{
+ LUAU_ASSERT(blockIdx < cfg.successorsOffsets.size());
+ uint32_t start = cfg.successorsOffsets[blockIdx];
+ uint32_t end = blockIdx + 1 < cfg.successorsOffsets.size() ? cfg.successorsOffsets[blockIdx + 1] : uint32_t(cfg.successors.size());
+ return BlockIteratorWrapper{cfg.successors.data() + start, cfg.successors.data() + end};
+}
+BlockIteratorWrapper domChildren(const CfgInfo& cfg, uint32_t blockIdx)
+{
+ LUAU_ASSERT(blockIdx < cfg.domChildrenOffsets.size());
+ uint32_t start = cfg.domChildrenOffsets[blockIdx];
+ uint32_t end = blockIdx + 1 < cfg.domChildrenOffsets.size() ? cfg.domChildrenOffsets[blockIdx + 1] : uint32_t(cfg.domChildren.size());
+ return BlockIteratorWrapper{cfg.domChildren.data() + start, cfg.domChildren.data() + end};
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "IrCallWrapperX64.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+namespace X64
+{
+static const std::array<OperandX64, 6> kWindowsGprOrder = {rcx, rdx, r8, r9, addr[rsp + kStackRegHomeStorage], addr[rsp + kStackRegHomeStorage + 8]};
+static const std::array<OperandX64, 6> kSystemvGprOrder = {rdi, rsi, rdx, rcx, r8, r9};
+static const std::array<OperandX64, 4> kXmmOrder = {xmm0, xmm1, xmm2, xmm3};
+static bool sameUnderlyingRegister(RegisterX64 a, RegisterX64 b)
+{
+ SizeX64 underlyingSizeA = a.size == SizeX64::xmmword ? SizeX64::xmmword : SizeX64::qword;
+ SizeX64 underlyingSizeB = b.size == SizeX64::xmmword ? SizeX64::xmmword : SizeX64::qword;
+ return underlyingSizeA == underlyingSizeB && a.index == b.index;
+}
+IrCallWrapperX64::IrCallWrapperX64(IrRegAllocX64& regs, AssemblyBuilderX64& build, uint32_t instIdx)
+ : regs(regs)
+ , build(build)
+ , instIdx(instIdx)
+ , funcOp(noreg)
+{
+ gprUses.fill(0);
+ xmmUses.fill(0);
+}
+void IrCallWrapperX64::addArgument(SizeX64 targetSize, OperandX64 source, IrOp sourceOp)
+{
+ LUAU_ASSERT(instIdx != kInvalidInstIdx || sourceOp.kind == IrOpKind::None);
+ LUAU_ASSERT(argCount < kMaxCallArguments);
+ CallArgument& arg = args[argCount++];
+ arg = {targetSize, source, sourceOp};
+ arg.target = getNextArgumentTarget(targetSize);
+ if (build.abi == ABIX64::Windows)
+ {
+ gprPos++;
+ xmmPos++;
+ }
+ else
+ {
+ if (targetSize == SizeX64::xmmword)
+ xmmPos++;
+ else
+ gprPos++;
+ }
+}
+void IrCallWrapperX64::addArgument(SizeX64 targetSize, ScopedRegX64& scopedReg)
+{
+ addArgument(targetSize, scopedReg.release(), {});
+}
+void IrCallWrapperX64::call(const OperandX64& func)
+{
+ funcOp = func;
+ countRegisterUses();
+ for (int i = 0; i < argCount; ++i)
+ {
+ CallArgument& arg = args[i];
+ if (arg.sourceOp.kind != IrOpKind::None)
+ {
+ if (IrInst* inst = regs.function.asInstOp(arg.sourceOp))
+ {
+ if (regs.isLastUseReg(*inst, instIdx))
+ inst->regX64 = noreg;
+ else if (inst->regX64.size == SizeX64::xmmword || regs.shouldFreeGpr(inst->regX64))
+ regs.takeReg(inst->regX64, kInvalidInstIdx);
+ }
+ }
+ if (arg.source.cat == CategoryX64::imm)
+ {
+ arg.candidate = false;
+ }
+ else if (arg.target.cat == CategoryX64::mem)
+ {
+ if (arg.source.cat == CategoryX64::mem)
+ {
+ ScopedRegX64 tmp{regs, arg.target.memSize};
+ freeSourceRegisters(arg);
+ if (arg.source.memSize == SizeX64::none)
+ build.lea(tmp.reg, arg.source);
+ else
+ build.mov(tmp.reg, arg.source);
+ build.mov(arg.target, tmp.reg);
+ }
+ else
+ {
+ freeSourceRegisters(arg);
+ build.mov(arg.target, arg.source);
+ }
+ arg.candidate = false;
+ }
+ else if (arg.source.cat == CategoryX64::reg && sameUnderlyingRegister(arg.target.base, arg.source.base))
+ {
+ freeSourceRegisters(arg);
+ if (getRegisterUses(arg.target.base) == 0)
+ regs.takeReg(arg.target.base, kInvalidInstIdx);
+ else
+ addRegisterUse(arg.target.base);
+ arg.candidate = false;
+ }
+ }
+ while (true)
+ {
+ if (CallArgument* candidate = findNonInterferingArgument())
+ {
+ LUAU_ASSERT(candidate->target.cat == CategoryX64::reg);
+ freeSourceRegisters(*candidate);
+ LUAU_ASSERT(getRegisterUses(candidate->target.base) == 0);
+ regs.takeReg(candidate->target.base, kInvalidInstIdx);
+ moveToTarget(*candidate);
+ candidate->candidate = false;
+ }
+ else if (RegisterX64 conflict = findConflictingTarget(); conflict != noreg)
+ {
+ renameConflictingRegister(conflict);
+ }
+ else
+ {
+ for (int i = 0; i < argCount; ++i)
+ LUAU_ASSERT(!args[i].candidate);
+ break;
+ }
+ }
+ for (int i = 0; i < argCount; ++i)
+ {
+ CallArgument& arg = args[i];
+ if (arg.source.cat == CategoryX64::imm)
+ {
+ arg.candidate = true;
+ if (RegisterX64 conflict = findConflictingTarget(); conflict != noreg)
+ renameConflictingRegister(conflict);
+ if (arg.target.cat == CategoryX64::reg)
+ regs.takeReg(arg.target.base, kInvalidInstIdx);
+ moveToTarget(arg);
+ arg.candidate = false;
+ }
+ }
+ removeRegisterUse(funcOp.base);
+ removeRegisterUse(funcOp.index);
+ for (int i = 0; i < argCount; ++i)
+ {
+ CallArgument& arg = args[i];
+ if (arg.target.cat == CategoryX64::reg)
+ regs.freeReg(arg.target.base);
+ }
+ regs.preserveAndFreeInstValues();
+ regs.assertAllFree();
+ build.call(funcOp);
+}
+RegisterX64 IrCallWrapperX64::suggestNextArgumentRegister(SizeX64 size) const
+{
+ OperandX64 target = getNextArgumentTarget(size);
+ if (target.cat != CategoryX64::reg)
+ return regs.allocReg(size, kInvalidInstIdx);
+ if (!regs.canTakeReg(target.base))
+ return regs.allocReg(size, kInvalidInstIdx);
+ return regs.takeReg(target.base, kInvalidInstIdx);
+}
+OperandX64 IrCallWrapperX64::getNextArgumentTarget(SizeX64 size) const
+{
+ if (size == SizeX64::xmmword)
+ {
+ LUAU_ASSERT(size_t(xmmPos) < kXmmOrder.size());
+ return kXmmOrder[xmmPos];
+ }
+ const std::array<OperandX64, 6>& gprOrder = build.abi == ABIX64::Windows ? kWindowsGprOrder : kSystemvGprOrder;
+ LUAU_ASSERT(size_t(gprPos) < gprOrder.size());
+ OperandX64 target = gprOrder[gprPos];
+ if (target.cat == CategoryX64::reg)
+ target.base.size = size;
+ else if (target.cat == CategoryX64::mem)
+ target.memSize = size;
+ return target;
+}
+void IrCallWrapperX64::countRegisterUses()
+{
+ for (int i = 0; i < argCount; ++i)
+ {
+ addRegisterUse(args[i].source.base);
+ addRegisterUse(args[i].source.index);
+ }
+ addRegisterUse(funcOp.base);
+ addRegisterUse(funcOp.index);
+}
+CallArgument* IrCallWrapperX64::findNonInterferingArgument()
+{
+ for (int i = 0; i < argCount; ++i)
+ {
+ CallArgument& arg = args[i];
+ if (arg.candidate && !interferesWithActiveSources(arg, i) && !interferesWithOperand(funcOp, arg.target.base))
+ return &arg;
+ }
+ return nullptr;
+}
+bool IrCallWrapperX64::interferesWithOperand(const OperandX64& op, RegisterX64 reg) const
+{
+ return sameUnderlyingRegister(op.base, reg) || sameUnderlyingRegister(op.index, reg);
+}
+bool IrCallWrapperX64::interferesWithActiveSources(const CallArgument& targetArg, int targetArgIndex) const
+{
+ for (int i = 0; i < argCount; ++i)
+ {
+ const CallArgument& arg = args[i];
+ if (arg.candidate && i != targetArgIndex && interferesWithOperand(arg.source, targetArg.target.base))
+ return true;
+ }
+ return false;
+}
+bool IrCallWrapperX64::interferesWithActiveTarget(RegisterX64 sourceReg) const
+{
+ for (int i = 0; i < argCount; ++i)
+ {
+ const CallArgument& arg = args[i];
+ if (arg.candidate && sameUnderlyingRegister(arg.target.base, sourceReg))
+ return true;
+ }
+ return false;
+}
+void IrCallWrapperX64::moveToTarget(CallArgument& arg)
+{
+ if (arg.source.cat == CategoryX64::reg)
+ {
+ RegisterX64 source = arg.source.base;
+ if (source.size == SizeX64::xmmword)
+ build.vmovsd(arg.target, source, source);
+ else
+ build.mov(arg.target, source);
+ }
+ else if (arg.source.cat == CategoryX64::imm)
+ {
+ build.mov(arg.target, arg.source);
+ }
+ else
+ {
+ if (arg.source.memSize == SizeX64::none)
+ build.lea(arg.target, arg.source);
+ else if (arg.target.base.size == SizeX64::xmmword && arg.source.memSize == SizeX64::xmmword)
+ build.vmovups(arg.target, arg.source);
+ else if (arg.target.base.size == SizeX64::xmmword)
+ build.vmovsd(arg.target, arg.source);
+ else
+ build.mov(arg.target, arg.source);
+ }
+}
+void IrCallWrapperX64::freeSourceRegisters(CallArgument& arg)
+{
+ removeRegisterUse(arg.source.base);
+ removeRegisterUse(arg.source.index);
+}
+void IrCallWrapperX64::renameRegister(RegisterX64& target, RegisterX64 reg, RegisterX64 replacement)
+{
+ if (sameUnderlyingRegister(target, reg))
+ {
+ addRegisterUse(replacement);
+ removeRegisterUse(target);
+ target.index = replacement.index;
+ }
+}
+void IrCallWrapperX64::renameSourceRegisters(RegisterX64 reg, RegisterX64 replacement)
+{
+ for (int i = 0; i < argCount; ++i)
+ {
+ CallArgument& arg = args[i];
+ if (arg.candidate)
+ {
+ renameRegister(arg.source.base, reg, replacement);
+ renameRegister(arg.source.index, reg, replacement);
+ }
+ }
+ renameRegister(funcOp.base, reg, replacement);
+ renameRegister(funcOp.index, reg, replacement);
+}
+RegisterX64 IrCallWrapperX64::findConflictingTarget() const
+{
+ for (int i = 0; i < argCount; ++i)
+ {
+ const CallArgument& arg = args[i];
+ if (arg.candidate)
+ {
+ if (interferesWithActiveTarget(arg.source.base))
+ return arg.source.base;
+ if (interferesWithActiveTarget(arg.source.index))
+ return arg.source.index;
+ }
+ }
+ if (interferesWithActiveTarget(funcOp.base))
+ return funcOp.base;
+ if (interferesWithActiveTarget(funcOp.index))
+ return funcOp.index;
+ return noreg;
+}
+void IrCallWrapperX64::renameConflictingRegister(RegisterX64 conflict)
+{
+ RegisterX64 freshReg = regs.allocReg(conflict.size, kInvalidInstIdx);
+ if (conflict.size == SizeX64::xmmword)
+ build.vmovsd(freshReg, conflict, conflict);
+ else
+ build.mov(freshReg, conflict);
+ renameSourceRegisters(conflict, freshReg);
+}
+int IrCallWrapperX64::getRegisterUses(RegisterX64 reg) const
+{
+ return reg.size == SizeX64::xmmword ? xmmUses[reg.index] : (reg.size != SizeX64::none ? gprUses[reg.index] : 0);
+}
+void IrCallWrapperX64::addRegisterUse(RegisterX64 reg)
+{
+ if (reg.size == SizeX64::xmmword)
+ xmmUses[reg.index]++;
+ else if (reg.size != SizeX64::none)
+ gprUses[reg.index]++;
+}
+void IrCallWrapperX64::removeRegisterUse(RegisterX64 reg)
+{
+ if (reg.size == SizeX64::xmmword)
+ {
+ LUAU_ASSERT(xmmUses[reg.index] != 0);
+ xmmUses[reg.index]--;
+ if (xmmUses[reg.index] == 0)
+ regs.freeReg(reg);
+ }
+ else if (reg.size != SizeX64::none)
+ {
+ LUAU_ASSERT(gprUses[reg.index] != 0);
+ gprUses[reg.index]--;
+ if (gprUses[reg.index] == 0 && regs.shouldFreeGpr(reg))
+ regs.freeReg(reg);
+ }
+}
+}
+} // namespace CodeGen
+}
+#line __LINE__ ""
+#line __LINE__ "IrDump.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+static const char* textForCondition[] = {
+ "eq", "not_eq", "lt", "not_lt", "le", "not_le", "gt", "not_gt", "ge", "not_ge", "u_lt", "u_le", "u_gt", "u_ge"};
+static_assert(sizeof(textForCondition) / sizeof(textForCondition[0]) == size_t(IrCondition::Count), "all conditions have to be covered");
+const int kDetailsAlignColumn = 60;
+LUAU_PRINTF_ATTR(2, 3)
+static void append(std::string& result, const char* fmt, ...)
+{
+ char buf[256];
+ va_list args;
+ va_start(args, fmt);
+ vsnprintf(buf, sizeof(buf), fmt, args);
+ va_end(args);
+ result.append(buf);
+}
+static void padToDetailColumn(std::string& result, size_t lineStart)
+{
+ int pad = kDetailsAlignColumn - int(result.size() - lineStart);
+ if (pad > 0)
+ result.append(pad, ' ');
+}
+static const char* getTagName(uint8_t tag)
+{
+ switch (tag)
+ {
+ case LUA_TNIL:
+ return "tnil";
+ case LUA_TBOOLEAN:
+ return "tboolean";
+ case LUA_TLIGHTUSERDATA:
+ return "tlightuserdata";
+ case LUA_TNUMBER:
+ return "tnumber";
+ case LUA_TVECTOR:
+ return "tvector";
+ case LUA_TSTRING:
+ return "tstring";
+ case LUA_TTABLE:
+ return "ttable";
+ case LUA_TFUNCTION:
+ return "tfunction";
+ case LUA_TUSERDATA:
+ return "tuserdata";
+ case LUA_TTHREAD:
+ return "tthread";
+ case LUA_TBUFFER:
+ return "tbuffer";
+ case LUA_TPROTO:
+ return "tproto";
+ case LUA_TUPVAL:
+ return "tupval";
+ case LUA_TDEADKEY:
+ return "tdeadkey";
+ default:
+ LUAU_ASSERT(!"Unknown type tag");
+ LUAU_UNREACHABLE();
+ }
+}
+const char* getCmdName(IrCmd cmd)
+{
+ switch (cmd)
+ {
+ case IrCmd::NOP:
+ return "NOP";
+ case IrCmd::LOAD_TAG:
+ return "LOAD_TAG";
+ case IrCmd::LOAD_POINTER:
+ return "LOAD_POINTER";
+ case IrCmd::LOAD_DOUBLE:
+ return "LOAD_DOUBLE";
+ case IrCmd::LOAD_INT:
+ return "LOAD_INT";
+ case IrCmd::LOAD_TVALUE:
+ return "LOAD_TVALUE";
+ case IrCmd::LOAD_ENV:
+ return "LOAD_ENV";
+ case IrCmd::GET_ARR_ADDR:
+ return "GET_ARR_ADDR";
+ case IrCmd::GET_SLOT_NODE_ADDR:
+ return "GET_SLOT_NODE_ADDR";
+ case IrCmd::GET_HASH_NODE_ADDR:
+ return "GET_HASH_NODE_ADDR";
+ case IrCmd::GET_CLOSURE_UPVAL_ADDR:
+ return "GET_CLOSURE_UPVAL_ADDR";
+ case IrCmd::STORE_TAG:
+ return "STORE_TAG";
+ case IrCmd::STORE_POINTER:
+ return "STORE_POINTER";
+ case IrCmd::STORE_DOUBLE:
+ return "STORE_DOUBLE";
+ case IrCmd::STORE_INT:
+ return "STORE_INT";
+ case IrCmd::STORE_VECTOR:
+ return "STORE_VECTOR";
+ case IrCmd::STORE_TVALUE:
+ return "STORE_TVALUE";
+ case IrCmd::STORE_SPLIT_TVALUE:
+ return "STORE_SPLIT_TVALUE";
+ case IrCmd::ADD_INT:
+ return "ADD_INT";
+ case IrCmd::SUB_INT:
+ return "SUB_INT";
+ case IrCmd::ADD_NUM:
+ return "ADD_NUM";
+ case IrCmd::SUB_NUM:
+ return "SUB_NUM";
+ case IrCmd::MUL_NUM:
+ return "MUL_NUM";
+ case IrCmd::DIV_NUM:
+ return "DIV_NUM";
+ case IrCmd::IDIV_NUM:
+ return "IDIV_NUM";
+ case IrCmd::MOD_NUM:
+ return "MOD_NUM";
+ case IrCmd::MIN_NUM:
+ return "MIN_NUM";
+ case IrCmd::MAX_NUM:
+ return "MAX_NUM";
+ case IrCmd::UNM_NUM:
+ return "UNM_NUM";
+ case IrCmd::FLOOR_NUM:
+ return "FLOOR_NUM";
+ case IrCmd::CEIL_NUM:
+ return "CEIL_NUM";
+ case IrCmd::ROUND_NUM:
+ return "ROUND_NUM";
+ case IrCmd::SQRT_NUM:
+ return "SQRT_NUM";
+ case IrCmd::ABS_NUM:
+ return "ABS_NUM";
+ case IrCmd::NOT_ANY:
+ return "NOT_ANY";
+ case IrCmd::CMP_ANY:
+ return "CMP_ANY";
+ case IrCmd::JUMP:
+ return "JUMP";
+ case IrCmd::JUMP_IF_TRUTHY:
+ return "JUMP_IF_TRUTHY";
+ case IrCmd::JUMP_IF_FALSY:
+ return "JUMP_IF_FALSY";
+ case IrCmd::JUMP_EQ_TAG:
+ return "JUMP_EQ_TAG";
+ case IrCmd::JUMP_CMP_INT:
+ return "JUMP_CMP_INT";
+ case IrCmd::JUMP_EQ_POINTER:
+ return "JUMP_EQ_POINTER";
+ case IrCmd::JUMP_CMP_NUM:
+ return "JUMP_CMP_NUM";
+ case IrCmd::JUMP_FORN_LOOP_COND:
+ return "JUMP_FORN_LOOP_COND";
+ case IrCmd::JUMP_SLOT_MATCH:
+ return "JUMP_SLOT_MATCH";
+ case IrCmd::TABLE_LEN:
+ return "TABLE_LEN";
+ case IrCmd::TABLE_SETNUM:
+ return "TABLE_SETNUM";
+ case IrCmd::STRING_LEN:
+ return "STRING_LEN";
+ case IrCmd::NEW_TABLE:
+ return "NEW_TABLE";
+ case IrCmd::DUP_TABLE:
+ return "DUP_TABLE";
+ case IrCmd::TRY_NUM_TO_INDEX:
+ return "TRY_NUM_TO_INDEX";
+ case IrCmd::TRY_CALL_FASTGETTM:
+ return "TRY_CALL_FASTGETTM";
+ case IrCmd::INT_TO_NUM:
+ return "INT_TO_NUM";
+ case IrCmd::UINT_TO_NUM:
+ return "UINT_TO_NUM";
+ case IrCmd::NUM_TO_INT:
+ return "NUM_TO_INT";
+ case IrCmd::NUM_TO_UINT:
+ return "NUM_TO_UINT";
+ case IrCmd::ADJUST_STACK_TO_REG:
+ return "ADJUST_STACK_TO_REG";
+ case IrCmd::ADJUST_STACK_TO_TOP:
+ return "ADJUST_STACK_TO_TOP";
+ case IrCmd::FASTCALL:
+ return "FASTCALL";
+ case IrCmd::INVOKE_FASTCALL:
+ return "INVOKE_FASTCALL";
+ case IrCmd::CHECK_FASTCALL_RES:
+ return "CHECK_FASTCALL_RES";
+ case IrCmd::DO_ARITH:
+ return "DO_ARITH";
+ case IrCmd::DO_LEN:
+ return "DO_LEN";
+ case IrCmd::GET_TABLE:
+ return "GET_TABLE";
+ case IrCmd::SET_TABLE:
+ return "SET_TABLE";
+ case IrCmd::GET_IMPORT:
+ return "GET_IMPORT";
+ case IrCmd::CONCAT:
+ return "CONCAT";
+ case IrCmd::GET_UPVALUE:
+ return "GET_UPVALUE";
+ case IrCmd::SET_UPVALUE:
+ return "SET_UPVALUE";
+ case IrCmd::CHECK_TAG:
+ return "CHECK_TAG";
+ case IrCmd::CHECK_TRUTHY:
+ return "CHECK_TRUTHY";
+ case IrCmd::CHECK_READONLY:
+ return "CHECK_READONLY";
+ case IrCmd::CHECK_NO_METATABLE:
+ return "CHECK_NO_METATABLE";
+ case IrCmd::CHECK_SAFE_ENV:
+ return "CHECK_SAFE_ENV";
+ case IrCmd::CHECK_ARRAY_SIZE:
+ return "CHECK_ARRAY_SIZE";
+ case IrCmd::CHECK_SLOT_MATCH:
+ return "CHECK_SLOT_MATCH";
+ case IrCmd::CHECK_NODE_NO_NEXT:
+ return "CHECK_NODE_NO_NEXT";
+ case IrCmd::CHECK_NODE_VALUE:
+ return "CHECK_NODE_VALUE";
+ case IrCmd::CHECK_BUFFER_LEN:
+ return "CHECK_BUFFER_LEN";
+ case IrCmd::INTERRUPT:
+ return "INTERRUPT";
+ case IrCmd::CHECK_GC:
+ return "CHECK_GC";
+ case IrCmd::BARRIER_OBJ:
+ return "BARRIER_OBJ";
+ case IrCmd::BARRIER_TABLE_BACK:
+ return "BARRIER_TABLE_BACK";
+ case IrCmd::BARRIER_TABLE_FORWARD:
+ return "BARRIER_TABLE_FORWARD";
+ case IrCmd::SET_SAVEDPC:
+ return "SET_SAVEDPC";
+ case IrCmd::CLOSE_UPVALS:
+ return "CLOSE_UPVALS";
+ case IrCmd::CAPTURE:
+ return "CAPTURE";
+ case IrCmd::SETLIST:
+ return "SETLIST";
+ case IrCmd::CALL:
+ return "CALL";
+ case IrCmd::RETURN:
+ return "RETURN";
+ case IrCmd::FORGLOOP:
+ return "FORGLOOP";
+ case IrCmd::FORGLOOP_FALLBACK:
+ return "FORGLOOP_FALLBACK";
+ case IrCmd::FORGPREP_XNEXT_FALLBACK:
+ return "FORGPREP_XNEXT_FALLBACK";
+ case IrCmd::COVERAGE:
+ return "COVERAGE";
+ case IrCmd::FALLBACK_GETGLOBAL:
+ return "FALLBACK_GETGLOBAL";
+ case IrCmd::FALLBACK_SETGLOBAL:
+ return "FALLBACK_SETGLOBAL";
+ case IrCmd::FALLBACK_GETTABLEKS:
+ return "FALLBACK_GETTABLEKS";
+ case IrCmd::FALLBACK_SETTABLEKS:
+ return "FALLBACK_SETTABLEKS";
+ case IrCmd::FALLBACK_NAMECALL:
+ return "FALLBACK_NAMECALL";
+ case IrCmd::FALLBACK_PREPVARARGS:
+ return "FALLBACK_PREPVARARGS";
+ case IrCmd::FALLBACK_GETVARARGS:
+ return "FALLBACK_GETVARARGS";
+ case IrCmd::NEWCLOSURE:
+ return "NEWCLOSURE";
+ case IrCmd::FALLBACK_DUPCLOSURE:
+ return "FALLBACK_DUPCLOSURE";
+ case IrCmd::FALLBACK_FORGPREP:
+ return "FALLBACK_FORGPREP";
+ case IrCmd::SUBSTITUTE:
+ return "SUBSTITUTE";
+ case IrCmd::BITAND_UINT:
+ return "BITAND_UINT";
+ case IrCmd::BITXOR_UINT:
+ return "BITXOR_UINT";
+ case IrCmd::BITOR_UINT:
+ return "BITOR_UINT";
+ case IrCmd::BITNOT_UINT:
+ return "BITNOT_UINT";
+ case IrCmd::BITLSHIFT_UINT:
+ return "BITLSHIFT_UINT";
+ case IrCmd::BITRSHIFT_UINT:
+ return "BITRSHIFT_UINT";
+ case IrCmd::BITARSHIFT_UINT:
+ return "BITARSHIFT_UINT";
+ case IrCmd::BITLROTATE_UINT:
+ return "BITLROTATE_UINT";
+ case IrCmd::BITRROTATE_UINT:
+ return "BITRROTATE_UINT";
+ case IrCmd::BITCOUNTLZ_UINT:
+ return "BITCOUNTLZ_UINT";
+ case IrCmd::BITCOUNTRZ_UINT:
+ return "BITCOUNTRZ_UINT";
+ case IrCmd::BYTESWAP_UINT:
+ return "BYTESWAP_UINT";
+ case IrCmd::INVOKE_LIBM:
+ return "INVOKE_LIBM";
+ case IrCmd::GET_TYPE:
+ return "GET_TYPE";
+ case IrCmd::GET_TYPEOF:
+ return "GET_TYPEOF";
+ case IrCmd::FINDUPVAL:
+ return "FINDUPVAL";
+ case IrCmd::BUFFER_READI8:
+ return "BUFFER_READI8";
+ case IrCmd::BUFFER_READU8:
+ return "BUFFER_READU8";
+ case IrCmd::BUFFER_WRITEI8:
+ return "BUFFER_WRITEI8";
+ case IrCmd::BUFFER_READI16:
+ return "BUFFER_READI16";
+ case IrCmd::BUFFER_READU16:
+ return "BUFFER_READU16";
+ case IrCmd::BUFFER_WRITEI16:
+ return "BUFFER_WRITEI16";
+ case IrCmd::BUFFER_READI32:
+ return "BUFFER_READI32";
+ case IrCmd::BUFFER_WRITEI32:
+ return "BUFFER_WRITEI32";
+ case IrCmd::BUFFER_READF32:
+ return "BUFFER_READF32";
+ case IrCmd::BUFFER_WRITEF32:
+ return "BUFFER_WRITEF32";
+ case IrCmd::BUFFER_READF64:
+ return "BUFFER_READF64";
+ case IrCmd::BUFFER_WRITEF64:
+ return "BUFFER_WRITEF64";
+ }
+ LUAU_UNREACHABLE();
+}
+const char* getBlockKindName(IrBlockKind kind)
+{
+ switch (kind)
+ {
+ case IrBlockKind::Bytecode:
+ return "bb_bytecode";
+ case IrBlockKind::Fallback:
+ return "bb_fallback";
+ case IrBlockKind::Internal:
+ return "bb";
+ case IrBlockKind::Linearized:
+ return "bb_linear";
+ case IrBlockKind::Dead:
+ return "dead";
+ }
+ LUAU_UNREACHABLE();
+}
+void toString(IrToStringContext& ctx, const IrInst& inst, uint32_t index)
+{
+ append(ctx.result, " ");
+ if (hasResult(inst.cmd))
+ append(ctx.result, "%%%u = ", index);
+ ctx.result.append(getCmdName(inst.cmd));
+ auto checkOp = [&ctx](IrOp op, const char* sep) {
+ if (op.kind != IrOpKind::None)
+ {
+ ctx.result.append(sep);
+ toString(ctx, op);
+ }
+ };
+ checkOp(inst.a, " ");
+ checkOp(inst.b, ", ");
+ checkOp(inst.c, ", ");
+ checkOp(inst.d, ", ");
+ checkOp(inst.e, ", ");
+ checkOp(inst.f, ", ");
+}
+void toString(IrToStringContext& ctx, const IrBlock& block, uint32_t index)
+{
+ append(ctx.result, "%s_%u", getBlockKindName(block.kind), index);
+}
+void toString(IrToStringContext& ctx, IrOp op)
+{
+ switch (op.kind)
+ {
+ case IrOpKind::None:
+ break;
+ case IrOpKind::Undef:
+ append(ctx.result, "undef");
+ break;
+ case IrOpKind::Constant:
+ toString(ctx.result, ctx.constants[op.index]);
+ break;
+ case IrOpKind::Condition:
+ LUAU_ASSERT(op.index < uint32_t(IrCondition::Count));
+ ctx.result.append(textForCondition[op.index]);
+ break;
+ case IrOpKind::Inst:
+ append(ctx.result, "%%%u", op.index);
+ break;
+ case IrOpKind::Block:
+ append(ctx.result, "%s_%u", getBlockKindName(ctx.blocks[op.index].kind), op.index);
+ break;
+ case IrOpKind::VmReg:
+ append(ctx.result, "R%d", vmRegOp(op));
+ break;
+ case IrOpKind::VmConst:
+ append(ctx.result, "K%d", vmConstOp(op));
+ break;
+ case IrOpKind::VmUpvalue:
+ append(ctx.result, "U%d", vmUpvalueOp(op));
+ break;
+ case IrOpKind::VmExit:
+ if (vmExitOp(op) == kVmExitEntryGuardPc)
+ append(ctx.result, "exit(entry)");
+ else
+ append(ctx.result, "exit(%d)", vmExitOp(op));
+ break;
+ }
+}
+void toString(std::string& result, IrConst constant)
+{
+ switch (constant.kind)
+ {
+ case IrConstKind::Int:
+ append(result, "%di", constant.valueInt);
+ break;
+ case IrConstKind::Uint:
+ append(result, "%uu", constant.valueUint);
+ break;
+ case IrConstKind::Double:
+ if (constant.valueDouble != constant.valueDouble)
+ append(result, "nan");
+ else
+ append(result, "%.17g", constant.valueDouble);
+ break;
+ case IrConstKind::Tag:
+ result.append(getTagName(constant.valueTag));
+ break;
+ }
+}
+const char* getBytecodeTypeName(uint8_t type)
+{
+ switch (type)
+ {
+ case LBC_TYPE_NIL:
+ return "nil";
+ case LBC_TYPE_BOOLEAN:
+ return "boolean";
+ case LBC_TYPE_NUMBER:
+ return "number";
+ case LBC_TYPE_STRING:
+ return "string";
+ case LBC_TYPE_TABLE:
+ return "table";
+ case LBC_TYPE_FUNCTION:
+ return "function";
+ case LBC_TYPE_THREAD:
+ return "thread";
+ case LBC_TYPE_USERDATA:
+ return "userdata";
+ case LBC_TYPE_VECTOR:
+ return "vector";
+ case LBC_TYPE_BUFFER:
+ return "buffer";
+ case LBC_TYPE_ANY:
+ return "any";
+ }
+ LUAU_ASSERT(!"Unhandled type in getBytecodeTypeName");
+ return nullptr;
+}
+void toString(std::string& result, const BytecodeTypes& bcTypes)
+{
+ if (bcTypes.c != LBC_TYPE_ANY)
+ append(result, "%s <- %s, %s, %s", getBytecodeTypeName(bcTypes.result), getBytecodeTypeName(bcTypes.a), getBytecodeTypeName(bcTypes.b),
+ getBytecodeTypeName(bcTypes.c));
+ else
+ append(result, "%s <- %s, %s", getBytecodeTypeName(bcTypes.result), getBytecodeTypeName(bcTypes.a), getBytecodeTypeName(bcTypes.b));
+}
+static void appendBlockSet(IrToStringContext& ctx, BlockIteratorWrapper blocks)
+{
+ bool comma = false;
+ for (uint32_t target : blocks)
+ {
+ if (comma)
+ append(ctx.result, ", ");
+ comma = true;
+ toString(ctx, ctx.blocks[target], target);
+ }
+}
+static void appendRegisterSet(IrToStringContext& ctx, const RegisterSet& rs, const char* separator)
+{
+ bool comma = false;
+ for (size_t i = 0; i < rs.regs.size(); i++)
+ {
+ if (rs.regs.test(i))
+ {
+ if (comma)
+ ctx.result.append(separator);
+ comma = true;
+ append(ctx.result, "R%d", int(i));
+ }
+ }
+ if (rs.varargSeq)
+ {
+ if (comma)
+ ctx.result.append(separator);
+ append(ctx.result, "R%d...", rs.varargStart);
+ }
+}
+static RegisterSet getJumpTargetExtraLiveIn(IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, const IrInst& inst)
+{
+ RegisterSet extraRs;
+ if (blockIdx >= ctx.cfg.in.size())
+ return extraRs;
+ const RegisterSet& defRs = ctx.cfg.in[blockIdx];
+ LUAU_ASSERT(isNonTerminatingJump(inst.cmd));
+ IrOp op = inst.a;
+ if (inst.b.kind == IrOpKind::Block)
+ op = inst.b;
+ else if (inst.c.kind == IrOpKind::Block)
+ op = inst.c;
+ else if (inst.d.kind == IrOpKind::Block)
+ op = inst.d;
+ else if (inst.e.kind == IrOpKind::Block)
+ op = inst.e;
+ else if (inst.f.kind == IrOpKind::Block)
+ op = inst.f;
+ if (op.kind == IrOpKind::Block && op.index < ctx.cfg.in.size())
+ {
+ const RegisterSet& inRs = ctx.cfg.in[op.index];
+ extraRs.regs = inRs.regs & ~defRs.regs;
+ if (inRs.varargSeq)
+ requireVariadicSequence(extraRs, defRs, inRs.varargStart);
+ }
+ return extraRs;
+}
+void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, const IrInst& inst, uint32_t instIdx, bool includeUseInfo)
+{
+ size_t start = ctx.result.size();
+ toString(ctx, inst, instIdx);
+ if (includeUseInfo)
+ {
+ padToDetailColumn(ctx.result, start);
+ if (inst.useCount == 0 && hasSideEffects(inst.cmd))
+ {
+ if (isNonTerminatingJump(inst.cmd))
+ {
+ RegisterSet extraRs = getJumpTargetExtraLiveIn(ctx, block, blockIdx, inst);
+ if (extraRs.regs.any() || extraRs.varargSeq)
+ {
+ append(ctx.result, "; %%%u, extra in: ", instIdx);
+ appendRegisterSet(ctx, extraRs, ", ");
+ ctx.result.append("\n");
+ }
+ else
+ {
+ append(ctx.result, "; %%%u\n", instIdx);
+ }
+ }
+ else
+ {
+ append(ctx.result, "; %%%u\n", instIdx);
+ }
+ }
+ else
+ {
+ append(ctx.result, "; useCount: %d, lastUse: %%%u\n", inst.useCount, inst.lastUse);
+ }
+ }
+ else
+ {
+ ctx.result.append("\n");
+ }
+}
+void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t index, bool includeUseInfo)
+{
+ if (block.useCount == 0 && block.kind != IrBlockKind::Dead && ctx.cfg.captured.regs.any())
+ {
+ append(ctx.result, "; captured regs: ");
+ appendRegisterSet(ctx, ctx.cfg.captured, ", ");
+ append(ctx.result, "\n\n");
+ }
+ size_t start = ctx.result.size();
+ toString(ctx, block, index);
+ append(ctx.result, ":");
+ if (includeUseInfo)
+ {
+ padToDetailColumn(ctx.result, start);
+ append(ctx.result, "; useCount: %d\n", block.useCount);
+ }
+ else
+ {
+ ctx.result.append("\n");
+ }
+ if (index < ctx.cfg.predecessorsOffsets.size())
+ {
+ BlockIteratorWrapper pred = predecessors(ctx.cfg, index);
+ if (!pred.empty())
+ {
+ append(ctx.result, "; predecessors: ");
+ appendBlockSet(ctx, pred);
+ append(ctx.result, "\n");
+ }
+ }
+ if (index < ctx.cfg.successorsOffsets.size())
+ {
+ BlockIteratorWrapper succ = successors(ctx.cfg, index);
+ if (!succ.empty())
+ {
+ append(ctx.result, "; successors: ");
+ appendBlockSet(ctx, succ);
+ append(ctx.result, "\n");
+ }
+ }
+ if (index < ctx.cfg.in.size())
+ {
+ const RegisterSet& in = ctx.cfg.in[index];
+ if (in.regs.any() || in.varargSeq)
+ {
+ append(ctx.result, "; in regs: ");
+ appendRegisterSet(ctx, in, ", ");
+ append(ctx.result, "\n");
+ }
+ }
+ if (index < ctx.cfg.out.size())
+ {
+ const RegisterSet& out = ctx.cfg.out[index];
+ if (out.regs.any() || out.varargSeq)
+ {
+ append(ctx.result, "; out regs: ");
+ appendRegisterSet(ctx, out, ", ");
+ append(ctx.result, "\n");
+ }
+ }
+}
+std::string toString(const IrFunction& function, bool includeUseInfo)
+{
+ std::string result;
+ IrToStringContext ctx{result, function.blocks, function.constants, function.cfg};
+ for (size_t i = 0; i < function.blocks.size(); i++)
+ {
+ const IrBlock& block = function.blocks[i];
+ if (block.kind == IrBlockKind::Dead)
+ continue;
+ toStringDetailed(ctx, block, uint32_t(i), includeUseInfo);
+ if (block.start == ~0u)
+ {
+ append(ctx.result, " *empty*\n\n");
+ continue;
+ }
+ for (uint32_t index = block.start; index <= block.finish && index < uint32_t(function.instructions.size()); index++)
+ {
+ const IrInst& inst = function.instructions[index];
+ if (isPseudo(inst.cmd) && inst.useCount == 0)
+ continue;
+ append(ctx.result, " ");
+ toStringDetailed(ctx, block, uint32_t(i), inst, index, includeUseInfo);
+ }
+ append(ctx.result, "\n");
+ }
+ return result;
+}
+std::string dump(const IrFunction& function)
+{
+ std::string result = toString(function, true);
+ printf("%s\n", result.c_str());
+ return result;
+}
+static void appendLabelRegset(IrToStringContext& ctx, const std::vector<RegisterSet>& regSets, size_t blockIdx, const char* name)
+{
+ if (blockIdx < regSets.size())
+ {
+ const RegisterSet& rs = regSets[blockIdx];
+ if (rs.regs.any() || rs.varargSeq)
+ {
+ append(ctx.result, "|{%s|", name);
+ appendRegisterSet(ctx, rs, "|");
+ append(ctx.result, "}");
+ }
+ }
+}
+static void appendBlocks(IrToStringContext& ctx, const IrFunction& function, bool includeInst, bool includeIn, bool includeOut, bool includeDef)
+{
+ for (size_t i = 0; i < function.blocks.size(); i++)
+ {
+ const IrBlock& block = function.blocks[i];
+ append(ctx.result, "b%u [", unsigned(i));
+ if (block.kind == IrBlockKind::Fallback)
+ append(ctx.result, "style=filled;fillcolor=salmon;");
+ else if (block.kind == IrBlockKind::Bytecode)
+ append(ctx.result, "style=filled;fillcolor=palegreen;");
+ append(ctx.result, "label=\"{");
+ toString(ctx, block, uint32_t(i));
+ if (includeIn)
+ appendLabelRegset(ctx, ctx.cfg.in, i, "in");
+ if (includeInst && block.start != ~0u)
+ {
+ for (uint32_t instIdx = block.start; instIdx <= block.finish; instIdx++)
+ {
+ const IrInst& inst = function.instructions[instIdx];
+ if (isPseudo(inst.cmd) && inst.useCount == 0)
+ continue;
+ append(ctx.result, "|");
+ toString(ctx, inst, instIdx);
+ }
+ }
+ if (includeDef)
+ appendLabelRegset(ctx, ctx.cfg.def, i, "def");
+ if (includeOut)
+ appendLabelRegset(ctx, ctx.cfg.out, i, "out");
+ append(ctx.result, "}\"];\n");
+ }
+}
+std::string toDot(const IrFunction& function, bool includeInst)
+{
+ std::string result;
+ IrToStringContext ctx{result, function.blocks, function.constants, function.cfg};
+ append(ctx.result, "digraph CFG {\n");
+ append(ctx.result, "node[shape=record]\n");
+ appendBlocks(ctx, function, includeInst, true, true, true);
+ for (size_t i = 0; i < function.blocks.size(); i++)
+ {
+ const IrBlock& block = function.blocks[i];
+ if (block.start == ~0u)
+ continue;
+ for (uint32_t instIdx = block.start; instIdx != ~0u && instIdx <= block.finish; instIdx++)
+ {
+ const IrInst& inst = function.instructions[instIdx];
+ auto checkOp = [&](IrOp op) {
+ if (op.kind == IrOpKind::Block)
+ {
+ if (function.blocks[op.index].kind != IrBlockKind::Fallback)
+ append(ctx.result, "b%u -> b%u [weight=10];\n", unsigned(i), op.index);
+ else
+ append(ctx.result, "b%u -> b%u;\n", unsigned(i), op.index);
+ }
+ };
+ checkOp(inst.a);
+ checkOp(inst.b);
+ checkOp(inst.c);
+ checkOp(inst.d);
+ checkOp(inst.e);
+ checkOp(inst.f);
+ }
+ }
+ append(ctx.result, "}\n");
+ return result;
+}
+std::string toDotCfg(const IrFunction& function)
+{
+ std::string result;
+ IrToStringContext ctx{result, function.blocks, function.constants, function.cfg};
+ append(ctx.result, "digraph CFG {\n");
+ append(ctx.result, "node[shape=record]\n");
+ appendBlocks(ctx, function, false, false, false, true);
+ for (size_t i = 0; i < function.blocks.size() && i < ctx.cfg.successorsOffsets.size(); i++)
+ {
+ BlockIteratorWrapper succ = successors(ctx.cfg, unsigned(i));
+ for (uint32_t target : succ)
+ append(ctx.result, "b%u -> b%u;\n", unsigned(i), target);
+ }
+ append(ctx.result, "}\n");
+ return result;
+}
+std::string toDotDjGraph(const IrFunction& function)
+{
+ std::string result;
+ IrToStringContext ctx{result, function.blocks, function.constants, function.cfg};
+ append(ctx.result, "digraph CFG {\n");
+ for (size_t i = 0; i < ctx.blocks.size(); i++)
+ {
+ const IrBlock& block = ctx.blocks[i];
+ append(ctx.result, "b%u [", unsigned(i));
+ if (block.kind == IrBlockKind::Fallback)
+ append(ctx.result, "style=filled;fillcolor=salmon;");
+ else if (block.kind == IrBlockKind::Bytecode)
+ append(ctx.result, "style=filled;fillcolor=palegreen;");
+ append(ctx.result, "label=\"");
+ toString(ctx, block, uint32_t(i));
+ append(ctx.result, "\"];\n");
+ }
+ uint32_t depth = 0;
+ bool found = true;
+ while (found)
+ {
+ found = false;
+ append(ctx.result, "{rank = same;");
+ for (size_t i = 0; i < ctx.cfg.domOrdering.size(); i++)
+ {
+ if (ctx.cfg.domOrdering[i].depth == depth)
+ {
+ append(ctx.result, "b%u;", unsigned(i));
+ found = true;
+ }
+ }
+ append(ctx.result, "}\n");
+ depth++;
+ }
+ for (size_t i = 0; i < ctx.cfg.domChildrenOffsets.size(); i++)
+ {
+ BlockIteratorWrapper dom = domChildren(ctx.cfg, unsigned(i));
+ for (uint32_t target : dom)
+ append(ctx.result, "b%u -> b%u;\n", unsigned(i), target);
+ BlockIteratorWrapper succ = successors(ctx.cfg, unsigned(i));
+ for (uint32_t successor : succ)
+ {
+ bool found = false;
+ for (uint32_t target : dom)
+ {
+ if (target == successor)
+ {
+ found = true;
+ break;
+ }
+ }
+ if (!found)
+ append(ctx.result, "b%u -> b%u [style=dotted];\n", unsigned(i), successor);
+ }
+ }
+ append(ctx.result, "}\n");
+ return result;
+}
+std::string dumpDot(const IrFunction& function, bool includeInst)
+{
+ std::string result = toDot(function, includeInst);
+ printf("%s\n", result.c_str());
+ return result;
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "IrLoweringA64.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+namespace A64
+{
+inline ConditionA64 getConditionFP(IrCondition cond)
+{
+ switch (cond)
+ {
+ case IrCondition::Equal:
+ return ConditionA64::Equal;
+ case IrCondition::NotEqual:
+ return ConditionA64::NotEqual;
+ case IrCondition::Less:
+ return ConditionA64::Minus;
+ case IrCondition::NotLess:
+ return ConditionA64::Plus;
+ case IrCondition::LessEqual:
+ return ConditionA64::UnsignedLessEqual;
+ case IrCondition::NotLessEqual:
+ return ConditionA64::UnsignedGreater;
+ case IrCondition::Greater:
+ return ConditionA64::Greater;
+ case IrCondition::NotGreater:
+ return ConditionA64::LessEqual;
+ case IrCondition::GreaterEqual:
+ return ConditionA64::GreaterEqual;
+ case IrCondition::NotGreaterEqual:
+ return ConditionA64::Less;
+ default:
+ LUAU_ASSERT(!"Unexpected condition code");
+ return ConditionA64::Always;
+ }
+}
+inline ConditionA64 getConditionInt(IrCondition cond)
+{
+ switch (cond)
+ {
+ case IrCondition::Equal:
+ return ConditionA64::Equal;
+ case IrCondition::NotEqual:
+ return ConditionA64::NotEqual;
+ case IrCondition::Less:
+ return ConditionA64::Minus;
+ case IrCondition::NotLess:
+ return ConditionA64::Plus;
+ case IrCondition::LessEqual:
+ return ConditionA64::LessEqual;
+ case IrCondition::NotLessEqual:
+ return ConditionA64::Greater;
+ case IrCondition::Greater:
+ return ConditionA64::Greater;
+ case IrCondition::NotGreater:
+ return ConditionA64::LessEqual;
+ case IrCondition::GreaterEqual:
+ return ConditionA64::GreaterEqual;
+ case IrCondition::NotGreaterEqual:
+ return ConditionA64::Less;
+ case IrCondition::UnsignedLess:
+ return ConditionA64::CarryClear;
+ case IrCondition::UnsignedLessEqual:
+ return ConditionA64::UnsignedLessEqual;
+ case IrCondition::UnsignedGreater:
+ return ConditionA64::UnsignedGreater;
+ case IrCondition::UnsignedGreaterEqual:
+ return ConditionA64::CarrySet;
+ default:
+ LUAU_ASSERT(!"Unexpected condition code");
+ return ConditionA64::Always;
+ }
+}
+static void emitAddOffset(AssemblyBuilderA64& build, RegisterA64 dst, RegisterA64 src, size_t offset)
+{
+ LUAU_ASSERT(dst != src);
+ LUAU_ASSERT(offset <= INT_MAX);
+ if (offset <= AssemblyBuilderA64::kMaxImmediate)
+ {
+ build.add(dst, src, uint16_t(offset));
+ }
+ else
+ {
+ build.mov(dst, int(offset));
+ build.add(dst, dst, src);
+ }
+}
+static void checkObjectBarrierConditions(AssemblyBuilderA64& build, RegisterA64 object, RegisterA64 temp, IrOp ra, int ratag, Label& skip)
+{
+ RegisterA64 tempw = castReg(KindA64::w, temp);
+ AddressA64 addr = temp;
+ if (ratag == -1 || !isGCO(ratag))
+ {
+ if (ra.kind == IrOpKind::VmReg)
+ addr = mem(rBase, vmRegOp(ra) * sizeof(TValue) + offsetof(TValue, tt));
+ else if (ra.kind == IrOpKind::VmConst)
+ emitAddOffset(build, temp, rConstants, vmConstOp(ra) * sizeof(TValue) + offsetof(TValue, tt));
+ build.ldr(tempw, addr);
+ build.cmp(tempw, LUA_TSTRING);
+ build.b(ConditionA64::Less, skip);
+ }
+ build.ldrb(tempw, mem(object, offsetof(GCheader, marked)));
+ build.tbz(tempw, BLACKBIT, skip);
+ if (ra.kind == IrOpKind::VmReg)
+ addr = mem(rBase, vmRegOp(ra) * sizeof(TValue) + offsetof(TValue, value));
+ else if (ra.kind == IrOpKind::VmConst)
+ emitAddOffset(build, temp, rConstants, vmConstOp(ra) * sizeof(TValue) + offsetof(TValue, value));
+ build.ldr(temp, addr);
+ build.ldrb(tempw, mem(temp, offsetof(GCheader, marked)));
+ build.tst(tempw, bit2mask(WHITE0BIT, WHITE1BIT));
+ build.b(ConditionA64::Equal, skip);
+}
+static void emitAbort(AssemblyBuilderA64& build, Label& abort)
+{
+ Label skip;
+ build.b(skip);
+ build.setLabel(abort);
+ build.udf();
+ build.setLabel(skip);
+}
+static void emitFallback(AssemblyBuilderA64& build, int offset, int pcpos)
+{
+ build.mov(x0, rState);
+ emitAddOffset(build, x1, rCode, pcpos * sizeof(Instruction));
+ build.mov(x2, rBase);
+ build.mov(x3, rConstants);
+ build.ldr(x4, mem(rNativeContext, offset));
+ build.blr(x4);
+ emitUpdateBase(build);
+}
+static void emitInvokeLibm1P(AssemblyBuilderA64& build, size_t func, int arg)
+{
+ LUAU_ASSERT(kTempSlots >= 1);
+ build.ldr(d0, mem(rBase, arg * sizeof(TValue) + offsetof(TValue, value.n)));
+ build.add(x0, sp, sTemporary.data);
+ build.ldr(x1, mem(rNativeContext, uint32_t(func)));
+ build.blr(x1);
+}
+static bool emitBuiltin(
+ AssemblyBuilderA64& build, IrFunction& function, IrRegAllocA64& regs, int bfid, int res, int arg, IrOp args, int nparams, int nresults)
+{
+ switch (bfid)
+ {
+ case LBF_MATH_FREXP:
+ LUAU_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
+ emitInvokeLibm1P(build, offsetof(NativeContext, libm_frexp), arg);
+ build.str(d0, mem(rBase, res * sizeof(TValue) + offsetof(TValue, value.n)));
+ if (nresults == 2)
+ {
+ build.ldr(w0, sTemporary);
+ build.scvtf(d1, w0);
+ build.str(d1, mem(rBase, (res + 1) * sizeof(TValue) + offsetof(TValue, value.n)));
+ }
+ return true;
+ case LBF_MATH_MODF:
+ LUAU_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
+ emitInvokeLibm1P(build, offsetof(NativeContext, libm_modf), arg);
+ build.ldr(d1, sTemporary);
+ build.str(d1, mem(rBase, res * sizeof(TValue) + offsetof(TValue, value.n)));
+ if (nresults == 2)
+ build.str(d0, mem(rBase, (res + 1) * sizeof(TValue) + offsetof(TValue, value.n)));
+ return true;
+ case LBF_MATH_SIGN:
+ LUAU_ASSERT(nparams == 1 && nresults == 1);
+ build.ldr(d0, mem(rBase, arg * sizeof(TValue) + offsetof(TValue, value.n)));
+ build.fcmpz(d0);
+ build.fmov(d0, 0.0);
+ build.fmov(d1, 1.0);
+ build.fcsel(d0, d1, d0, getConditionFP(IrCondition::Greater));
+ build.fmov(d1, -1.0);
+ build.fcsel(d0, d1, d0, getConditionFP(IrCondition::Less));
+ build.str(d0, mem(rBase, res * sizeof(TValue) + offsetof(TValue, value.n)));
+ return true;
+ default:
+ LUAU_ASSERT(!"Missing A64 lowering");
+ return false;
+ }
+}
+static uint64_t getDoubleBits(double value)
+{
+ uint64_t result;
+ static_assert(sizeof(result) == sizeof(value), "Expecting double to be 64-bit");
+ memcpy(&result, &value, sizeof(value));
+ return result;
+}
+IrLoweringA64::IrLoweringA64(AssemblyBuilderA64& build, ModuleHelpers& helpers, IrFunction& function, LoweringStats* stats)
+ : build(build)
+ , helpers(helpers)
+ , function(function)
+ , stats(stats)
+ , regs(function, stats, {{x0, x15}, {x16, x17}, {q0, q7}, {q16, q31}})
+ , valueTracker(function)
+ , exitHandlerMap(~0u)
+{
+ valueTracker.setRestoreCallack(this, [](void* context, IrInst& inst) {
+ IrLoweringA64* self = static_cast<IrLoweringA64*>(context);
+ self->regs.restoreReg(self->build, inst);
+ });
+}
+void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
+{
+ valueTracker.beforeInstLowering(inst);
+ switch (inst.cmd)
+ {
+ case IrCmd::LOAD_TAG:
+ {
+ inst.regA64 = regs.allocReg(KindA64::w, index);
+ AddressA64 addr = tempAddr(inst.a, offsetof(TValue, tt));
+ build.ldr(inst.regA64, addr);
+ break;
+ }
+ case IrCmd::LOAD_POINTER:
+ {
+ inst.regA64 = regs.allocReg(KindA64::x, index);
+ AddressA64 addr = tempAddr(inst.a, offsetof(TValue, value.gc));
+ build.ldr(inst.regA64, addr);
+ break;
+ }
+ case IrCmd::LOAD_DOUBLE:
+ {
+ inst.regA64 = regs.allocReg(KindA64::d, index);
+ AddressA64 addr = tempAddr(inst.a, offsetof(TValue, value.n));
+ build.ldr(inst.regA64, addr);
+ break;
+ }
+ case IrCmd::LOAD_INT:
+ {
+ inst.regA64 = regs.allocReg(KindA64::w, index);
+ AddressA64 addr = tempAddr(inst.a, offsetof(TValue, value));
+ build.ldr(inst.regA64, addr);
+ break;
+ }
+ case IrCmd::LOAD_TVALUE:
+ {
+ inst.regA64 = regs.allocReg(KindA64::q, index);
+ int addrOffset = inst.b.kind != IrOpKind::None ? intOp(inst.b) : 0;
+ AddressA64 addr = tempAddr(inst.a, addrOffset);
+ build.ldr(inst.regA64, addr);
+ break;
+ }
+ case IrCmd::LOAD_ENV:
+ inst.regA64 = regs.allocReg(KindA64::x, index);
+ build.ldr(inst.regA64, mem(rClosure, offsetof(Closure, env)));
+ break;
+ case IrCmd::GET_ARR_ADDR:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::x, index, {inst.a});
+ build.ldr(inst.regA64, mem(regOp(inst.a), offsetof(Table, array)));
+ if (inst.b.kind == IrOpKind::Inst)
+ {
+ build.add(inst.regA64, inst.regA64, regOp(inst.b), kTValueSizeLog2);
+ }
+ else if (inst.b.kind == IrOpKind::Constant)
+ {
+ if (intOp(inst.b) == 0)
+ {
+ }
+ else if (intOp(inst.b) * sizeof(TValue) <= AssemblyBuilderA64::kMaxImmediate)
+ {
+ build.add(inst.regA64, inst.regA64, uint16_t(intOp(inst.b) * sizeof(TValue)));
+ }
+ else
+ {
+ RegisterA64 temp = regs.allocTemp(KindA64::x);
+ build.mov(temp, intOp(inst.b) * sizeof(TValue));
+ build.add(inst.regA64, inst.regA64, temp);
+ }
+ }
+ else
+ LUAU_ASSERT(!"Unsupported instruction form");
+ break;
+ }
+ case IrCmd::GET_SLOT_NODE_ADDR:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::x, index, {inst.a});
+ RegisterA64 temp1 = regs.allocTemp(KindA64::x);
+ RegisterA64 temp1w = castReg(KindA64::w, temp1);
+ RegisterA64 temp2 = regs.allocTemp(KindA64::w);
+ RegisterA64 temp2x = castReg(KindA64::x, temp2);
+ if (uintOp(inst.b) <= AddressA64::kMaxOffset)
+ build.ldr(temp1w, mem(rCode, uintOp(inst.b) * sizeof(Instruction)));
+ else
+ {
+ build.mov(temp1, uintOp(inst.b) * sizeof(Instruction));
+ build.ldr(temp1w, mem(rCode, temp1));
+ }
+ LUAU_ASSERT(kOffsetOfInstructionC == 3);
+ build.ldrb(temp2, mem(regOp(inst.a), offsetof(Table, nodemask8)));
+ build.and_(temp2, temp2, temp1w, -24);
+ build.ldr(inst.regA64, mem(regOp(inst.a), offsetof(Table, node)));
+ build.add(inst.regA64, inst.regA64, temp2x, kLuaNodeSizeLog2);
+ break;
+ }
+ case IrCmd::GET_HASH_NODE_ADDR:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::x, index, {inst.a});
+ RegisterA64 temp1 = regs.allocTemp(KindA64::w);
+ RegisterA64 temp2 = regs.allocTemp(KindA64::w);
+ RegisterA64 temp2x = castReg(KindA64::x, temp2);
+ build.mov(temp1, -1);
+ build.ldrb(temp2, mem(regOp(inst.a), offsetof(Table, lsizenode)));
+ build.lsl(temp1, temp1, temp2);
+ build.mov(temp2, uintOp(inst.b));
+ build.bic(temp2, temp2, temp1);
+ build.ldr(inst.regA64, mem(regOp(inst.a), offsetof(Table, node)));
+ build.add(inst.regA64, inst.regA64, temp2x, kLuaNodeSizeLog2);
+ break;
+ }
+ case IrCmd::GET_CLOSURE_UPVAL_ADDR:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::x, index, {inst.a});
+ RegisterA64 cl = inst.a.kind == IrOpKind::Undef ? rClosure : regOp(inst.a);
+ build.add(inst.regA64, cl, uint16_t(offsetof(Closure, l.uprefs) + sizeof(TValue) * vmUpvalueOp(inst.b)));
+ break;
+ }
+ case IrCmd::STORE_TAG:
+ {
+ AddressA64 addr = tempAddr(inst.a, offsetof(TValue, tt));
+ if (tagOp(inst.b) == 0)
+ {
+ build.str(wzr, addr);
+ }
+ else
+ {
+ RegisterA64 temp = regs.allocTemp(KindA64::w);
+ build.mov(temp, tagOp(inst.b));
+ build.str(temp, addr);
+ }
+ break;
+ }
+ case IrCmd::STORE_POINTER:
+ {
+ AddressA64 addr = tempAddr(inst.a, offsetof(TValue, value));
+ if (inst.b.kind == IrOpKind::Constant)
+ {
+ LUAU_ASSERT(intOp(inst.b) == 0);
+ build.str(xzr, addr);
+ }
+ else
+ {
+ build.str(regOp(inst.b), addr);
+ }
+ break;
+ }
+ case IrCmd::STORE_DOUBLE:
+ {
+ AddressA64 addr = tempAddr(inst.a, offsetof(TValue, value));
+ if (inst.b.kind == IrOpKind::Constant && getDoubleBits(doubleOp(inst.b)) == 0)
+ {
+ build.str(xzr, addr);
+ }
+ else
+ {
+ RegisterA64 temp = tempDouble(inst.b);
+ build.str(temp, addr);
+ }
+ break;
+ }
+ case IrCmd::STORE_INT:
+ {
+ AddressA64 addr = tempAddr(inst.a, offsetof(TValue, value));
+ if (inst.b.kind == IrOpKind::Constant && intOp(inst.b) == 0)
+ {
+ build.str(wzr, addr);
+ }
+ else
+ {
+ RegisterA64 temp = tempInt(inst.b);
+ build.str(temp, addr);
+ }
+ break;
+ }
+ case IrCmd::STORE_VECTOR:
+ {
+ RegisterA64 temp1 = tempDouble(inst.b);
+ RegisterA64 temp2 = tempDouble(inst.c);
+ RegisterA64 temp3 = tempDouble(inst.d);
+ RegisterA64 temp4 = regs.allocTemp(KindA64::s);
+ AddressA64 addr = tempAddr(inst.a, offsetof(TValue, value));
+ LUAU_ASSERT(addr.kind == AddressKindA64::imm && addr.data % 4 == 0 && unsigned(addr.data + 8) / 4 <= AddressA64::kMaxOffset);
+ build.fcvt(temp4, temp1);
+ build.str(temp4, AddressA64(addr.base, addr.data + 0));
+ build.fcvt(temp4, temp2);
+ build.str(temp4, AddressA64(addr.base, addr.data + 4));
+ build.fcvt(temp4, temp3);
+ build.str(temp4, AddressA64(addr.base, addr.data + 8));
+ break;
+ }
+ case IrCmd::STORE_TVALUE:
+ {
+ int addrOffset = inst.c.kind != IrOpKind::None ? intOp(inst.c) : 0;
+ AddressA64 addr = tempAddr(inst.a, addrOffset);
+ build.str(regOp(inst.b), addr);
+ break;
+ }
+ case IrCmd::STORE_SPLIT_TVALUE:
+ {
+ int addrOffset = inst.d.kind != IrOpKind::None ? intOp(inst.d) : 0;
+ RegisterA64 tempt = regs.allocTemp(KindA64::w);
+ AddressA64 addrt = tempAddr(inst.a, offsetof(TValue, tt) + addrOffset);
+ build.mov(tempt, tagOp(inst.b));
+ build.str(tempt, addrt);
+ AddressA64 addr = tempAddr(inst.a, offsetof(TValue, value) + addrOffset);
+ if (tagOp(inst.b) == LUA_TBOOLEAN)
+ {
+ if (inst.c.kind == IrOpKind::Constant)
+ {
+ LUAU_ASSERT(LUA_TBOOLEAN == 1);
+ build.str(intOp(inst.c) ? tempt : wzr, addr);
+ }
+ else
+ build.str(regOp(inst.c), addr);
+ }
+ else if (tagOp(inst.b) == LUA_TNUMBER)
+ {
+ RegisterA64 temp = tempDouble(inst.c);
+ build.str(temp, addr);
+ }
+ else if (isGCO(tagOp(inst.b)))
+ {
+ build.str(regOp(inst.c), addr);
+ }
+ else
+ {
+ LUAU_ASSERT(!"Unsupported instruction form");
+ }
+ break;
+ }
+ case IrCmd::ADD_INT:
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.a, inst.b});
+ if (inst.b.kind == IrOpKind::Constant && unsigned(intOp(inst.b)) <= AssemblyBuilderA64::kMaxImmediate)
+ build.add(inst.regA64, regOp(inst.a), uint16_t(intOp(inst.b)));
+ else if (inst.a.kind == IrOpKind::Constant && unsigned(intOp(inst.a)) <= AssemblyBuilderA64::kMaxImmediate)
+ build.add(inst.regA64, regOp(inst.b), uint16_t(intOp(inst.a)));
+ else
+ {
+ RegisterA64 temp1 = tempInt(inst.a);
+ RegisterA64 temp2 = tempInt(inst.b);
+ build.add(inst.regA64, temp1, temp2);
+ }
+ break;
+ case IrCmd::SUB_INT:
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.a, inst.b});
+ if (inst.b.kind == IrOpKind::Constant && unsigned(intOp(inst.b)) <= AssemblyBuilderA64::kMaxImmediate)
+ build.sub(inst.regA64, regOp(inst.a), uint16_t(intOp(inst.b)));
+ else
+ {
+ RegisterA64 temp1 = tempInt(inst.a);
+ RegisterA64 temp2 = tempInt(inst.b);
+ build.sub(inst.regA64, temp1, temp2);
+ }
+ break;
+ case IrCmd::ADD_NUM:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::d, index, {inst.a, inst.b});
+ RegisterA64 temp1 = tempDouble(inst.a);
+ RegisterA64 temp2 = tempDouble(inst.b);
+ build.fadd(inst.regA64, temp1, temp2);
+ break;
+ }
+ case IrCmd::SUB_NUM:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::d, index, {inst.a, inst.b});
+ RegisterA64 temp1 = tempDouble(inst.a);
+ RegisterA64 temp2 = tempDouble(inst.b);
+ build.fsub(inst.regA64, temp1, temp2);
+ break;
+ }
+ case IrCmd::MUL_NUM:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::d, index, {inst.a, inst.b});
+ RegisterA64 temp1 = tempDouble(inst.a);
+ RegisterA64 temp2 = tempDouble(inst.b);
+ build.fmul(inst.regA64, temp1, temp2);
+ break;
+ }
+ case IrCmd::DIV_NUM:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::d, index, {inst.a, inst.b});
+ RegisterA64 temp1 = tempDouble(inst.a);
+ RegisterA64 temp2 = tempDouble(inst.b);
+ build.fdiv(inst.regA64, temp1, temp2);
+ break;
+ }
+ case IrCmd::IDIV_NUM:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::d, index, {inst.a, inst.b});
+ RegisterA64 temp1 = tempDouble(inst.a);
+ RegisterA64 temp2 = tempDouble(inst.b);
+ build.fdiv(inst.regA64, temp1, temp2);
+ build.frintm(inst.regA64, inst.regA64);
+ break;
+ }
+ case IrCmd::MOD_NUM:
+ {
+ inst.regA64 = regs.allocReg(KindA64::d, index);
+ RegisterA64 temp1 = tempDouble(inst.a);
+ RegisterA64 temp2 = tempDouble(inst.b);
+ build.fdiv(inst.regA64, temp1, temp2);
+ build.frintm(inst.regA64, inst.regA64);
+ build.fmul(inst.regA64, inst.regA64, temp2);
+ build.fsub(inst.regA64, temp1, inst.regA64);
+ break;
+ }
+ case IrCmd::MIN_NUM:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::d, index, {inst.a, inst.b});
+ RegisterA64 temp1 = tempDouble(inst.a);
+ RegisterA64 temp2 = tempDouble(inst.b);
+ build.fcmp(temp1, temp2);
+ build.fcsel(inst.regA64, temp1, temp2, getConditionFP(IrCondition::Less));
+ break;
+ }
+ case IrCmd::MAX_NUM:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::d, index, {inst.a, inst.b});
+ RegisterA64 temp1 = tempDouble(inst.a);
+ RegisterA64 temp2 = tempDouble(inst.b);
+ build.fcmp(temp1, temp2);
+ build.fcsel(inst.regA64, temp1, temp2, getConditionFP(IrCondition::Greater));
+ break;
+ }
+ case IrCmd::UNM_NUM:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::d, index, {inst.a});
+ RegisterA64 temp = tempDouble(inst.a);
+ build.fneg(inst.regA64, temp);
+ break;
+ }
+ case IrCmd::FLOOR_NUM:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::d, index, {inst.a});
+ RegisterA64 temp = tempDouble(inst.a);
+ build.frintm(inst.regA64, temp);
+ break;
+ }
+ case IrCmd::CEIL_NUM:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::d, index, {inst.a});
+ RegisterA64 temp = tempDouble(inst.a);
+ build.frintp(inst.regA64, temp);
+ break;
+ }
+ case IrCmd::ROUND_NUM:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::d, index, {inst.a});
+ RegisterA64 temp = tempDouble(inst.a);
+ build.frinta(inst.regA64, temp);
+ break;
+ }
+ case IrCmd::SQRT_NUM:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::d, index, {inst.a});
+ RegisterA64 temp = tempDouble(inst.a);
+ build.fsqrt(inst.regA64, temp);
+ break;
+ }
+ case IrCmd::ABS_NUM:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::d, index, {inst.a});
+ RegisterA64 temp = tempDouble(inst.a);
+ build.fabs(inst.regA64, temp);
+ break;
+ }
+ case IrCmd::NOT_ANY:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.a, inst.b});
+ if (inst.a.kind == IrOpKind::Constant)
+ {
+ LUAU_ASSERT(tagOp(inst.a) == LUA_TBOOLEAN);
+ build.eor(inst.regA64, regOp(inst.b), 1);
+ }
+ else
+ {
+ Label notbool, exit;
+ LUAU_ASSERT(LUA_TNIL == 0 && LUA_TBOOLEAN == 1);
+ build.cmp(regOp(inst.a), LUA_TBOOLEAN);
+ build.b(ConditionA64::NotEqual, notbool);
+ if (inst.b.kind == IrOpKind::Constant)
+ build.mov(inst.regA64, intOp(inst.b) == 0 ? 1 : 0);
+ else
+ build.eor(inst.regA64, regOp(inst.b), 1);
+ build.b(exit);
+ build.setLabel(notbool);
+ build.cset(inst.regA64, ConditionA64::Less);
+ build.setLabel(exit);
+ }
+ break;
+ }
+ case IrCmd::CMP_ANY:
+ {
+ IrCondition cond = conditionOp(inst.c);
+ regs.spill(build, index);
+ build.mov(x0, rState);
+ build.add(x1, rBase, uint16_t(vmRegOp(inst.a) * sizeof(TValue)));
+ build.add(x2, rBase, uint16_t(vmRegOp(inst.b) * sizeof(TValue)));
+ if (cond == IrCondition::LessEqual)
+ build.ldr(x3, mem(rNativeContext, offsetof(NativeContext, luaV_lessequal)));
+ else if (cond == IrCondition::Less)
+ build.ldr(x3, mem(rNativeContext, offsetof(NativeContext, luaV_lessthan)));
+ else if (cond == IrCondition::Equal)
+ build.ldr(x3, mem(rNativeContext, offsetof(NativeContext, luaV_equalval)));
+ else
+ LUAU_ASSERT(!"Unsupported condition");
+ build.blr(x3);
+ emitUpdateBase(build);
+ inst.regA64 = regs.takeReg(w0, index);
+ break;
+ }
+ case IrCmd::JUMP:
+ if (inst.a.kind == IrOpKind::Undef || inst.a.kind == IrOpKind::VmExit)
+ {
+ Label fresh;
+ build.b(getTargetLabel(inst.a, fresh));
+ finalizeTargetLabel(inst.a, fresh);
+ }
+ else
+ {
+ jumpOrFallthrough(blockOp(inst.a), next);
+ }
+ break;
+ case IrCmd::JUMP_IF_TRUTHY:
+ {
+ RegisterA64 temp = regs.allocTemp(KindA64::w);
+ build.ldr(temp, mem(rBase, vmRegOp(inst.a) * sizeof(TValue) + offsetof(TValue, tt)));
+ LUAU_ASSERT(LUA_TNIL == 0);
+ build.cbz(temp, labelOp(inst.c));
+ build.cmp(temp, LUA_TBOOLEAN);
+ build.b(ConditionA64::NotEqual, labelOp(inst.b));
+ build.ldr(temp, mem(rBase, vmRegOp(inst.a) * sizeof(TValue) + offsetof(TValue, value)));
+ build.cbnz(temp, labelOp(inst.b));
+ jumpOrFallthrough(blockOp(inst.c), next);
+ break;
+ }
+ case IrCmd::JUMP_IF_FALSY:
+ {
+ RegisterA64 temp = regs.allocTemp(KindA64::w);
+ build.ldr(temp, mem(rBase, vmRegOp(inst.a) * sizeof(TValue) + offsetof(TValue, tt)));
+ LUAU_ASSERT(LUA_TNIL == 0);
+ build.cbz(temp, labelOp(inst.b));
+ build.cmp(temp, LUA_TBOOLEAN);
+ build.b(ConditionA64::NotEqual, labelOp(inst.c));
+ build.ldr(temp, mem(rBase, vmRegOp(inst.a) * sizeof(TValue) + offsetof(TValue, value)));
+ build.cbz(temp, labelOp(inst.b));
+ jumpOrFallthrough(blockOp(inst.c), next);
+ break;
+ }
+ case IrCmd::JUMP_EQ_TAG:
+ {
+ RegisterA64 zr = noreg;
+ if (inst.a.kind == IrOpKind::Constant && tagOp(inst.a) == 0)
+ zr = regOp(inst.b);
+ else if (inst.b.kind == IrOpKind::Constant && tagOp(inst.b) == 0)
+ zr = regOp(inst.a);
+ else if (inst.a.kind == IrOpKind::Inst && inst.b.kind == IrOpKind::Constant)
+ build.cmp(regOp(inst.a), tagOp(inst.b));
+ else if (inst.a.kind == IrOpKind::Inst && inst.b.kind == IrOpKind::Inst)
+ build.cmp(regOp(inst.a), regOp(inst.b));
+ else if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Inst)
+ build.cmp(regOp(inst.b), tagOp(inst.a));
+ else
+ LUAU_ASSERT(!"Unsupported instruction form");
+ if (isFallthroughBlock(blockOp(inst.d), next))
+ {
+ if (zr != noreg)
+ build.cbz(zr, labelOp(inst.c));
+ else
+ build.b(ConditionA64::Equal, labelOp(inst.c));
+ jumpOrFallthrough(blockOp(inst.d), next);
+ }
+ else
+ {
+ if (zr != noreg)
+ build.cbnz(zr, labelOp(inst.d));
+ else
+ build.b(ConditionA64::NotEqual, labelOp(inst.d));
+ jumpOrFallthrough(blockOp(inst.c), next);
+ }
+ break;
+ }
+ case IrCmd::JUMP_CMP_INT:
+ {
+ IrCondition cond = conditionOp(inst.c);
+ if (cond == IrCondition::Equal && intOp(inst.b) == 0)
+ {
+ build.cbz(regOp(inst.a), labelOp(inst.d));
+ }
+ else if (cond == IrCondition::NotEqual && intOp(inst.b) == 0)
+ {
+ build.cbnz(regOp(inst.a), labelOp(inst.d));
+ }
+ else
+ {
+ LUAU_ASSERT(unsigned(intOp(inst.b)) <= AssemblyBuilderA64::kMaxImmediate);
+ build.cmp(regOp(inst.a), uint16_t(intOp(inst.b)));
+ build.b(getConditionInt(cond), labelOp(inst.d));
+ }
+ jumpOrFallthrough(blockOp(inst.e), next);
+ break;
+ }
+ case IrCmd::JUMP_EQ_POINTER:
+ build.cmp(regOp(inst.a), regOp(inst.b));
+ build.b(ConditionA64::Equal, labelOp(inst.c));
+ jumpOrFallthrough(blockOp(inst.d), next);
+ break;
+ case IrCmd::JUMP_CMP_NUM:
+ {
+ IrCondition cond = conditionOp(inst.c);
+ if (inst.b.kind == IrOpKind::Constant && doubleOp(inst.b) == 0.0)
+ {
+ RegisterA64 temp = tempDouble(inst.a);
+ build.fcmpz(temp);
+ }
+ else
+ {
+ RegisterA64 temp1 = tempDouble(inst.a);
+ RegisterA64 temp2 = tempDouble(inst.b);
+ build.fcmp(temp1, temp2);
+ }
+ build.b(getConditionFP(cond), labelOp(inst.d));
+ jumpOrFallthrough(blockOp(inst.e), next);
+ break;
+ }
+ case IrCmd::JUMP_FORN_LOOP_COND:
+ {
+ RegisterA64 index = tempDouble(inst.a);
+ RegisterA64 limit = tempDouble(inst.b);
+ RegisterA64 step = tempDouble(inst.c);
+ Label direct;
+ build.fcmpz(step);
+ build.b(getConditionFP(IrCondition::Greater), direct);
+ build.fcmp(limit, index);
+ build.b(getConditionFP(IrCondition::NotLessEqual), labelOp(inst.e));
+ build.b(labelOp(inst.d));
+ build.setLabel(direct);
+ build.fcmp(index, limit);
+ build.b(getConditionFP(IrCondition::NotLessEqual), labelOp(inst.e));
+ jumpOrFallthrough(blockOp(inst.d), next);
+ break;
+ }
+ case IrCmd::TABLE_LEN:
+ {
+ RegisterA64 reg = regOp(inst.a);
+ regs.spill(build, index, {reg});
+ build.mov(x0, reg);
+ build.ldr(x1, mem(rNativeContext, offsetof(NativeContext, luaH_getn)));
+ build.blr(x1);
+ inst.regA64 = regs.takeReg(w0, index);
+ break;
+ }
+ case IrCmd::STRING_LEN:
+ {
+ inst.regA64 = regs.allocReg(KindA64::w, index);
+ build.ldr(inst.regA64, mem(regOp(inst.a), offsetof(TString, len)));
+ break;
+ }
+ case IrCmd::TABLE_SETNUM:
+ {
+ RegisterA64 table = regOp(inst.a);
+ RegisterA64 key = regOp(inst.b);
+ RegisterA64 temp = regs.allocTemp(KindA64::w);
+ regs.spill(build, index, {table, key});
+ if (w1 != key)
+ {
+ build.mov(x1, table);
+ build.mov(w2, key);
+ }
+ else
+ {
+ build.mov(temp, w1);
+ build.mov(x1, table);
+ build.mov(w2, temp);
+ }
+ build.mov(x0, rState);
+ build.ldr(x3, mem(rNativeContext, offsetof(NativeContext, luaH_setnum)));
+ build.blr(x3);
+ inst.regA64 = regs.takeReg(x0, index);
+ break;
+ }
+ case IrCmd::NEW_TABLE:
+ {
+ regs.spill(build, index);
+ build.mov(x0, rState);
+ build.mov(x1, uintOp(inst.a));
+ build.mov(x2, uintOp(inst.b));
+ build.ldr(x3, mem(rNativeContext, offsetof(NativeContext, luaH_new)));
+ build.blr(x3);
+ inst.regA64 = regs.takeReg(x0, index);
+ break;
+ }
+ case IrCmd::DUP_TABLE:
+ {
+ RegisterA64 reg = regOp(inst.a);
+ regs.spill(build, index, {reg});
+ build.mov(x1, reg);
+ build.mov(x0, rState);
+ build.ldr(x2, mem(rNativeContext, offsetof(NativeContext, luaH_clone)));
+ build.blr(x2);
+ inst.regA64 = regs.takeReg(x0, index);
+ break;
+ }
+ case IrCmd::TRY_NUM_TO_INDEX:
+ {
+ inst.regA64 = regs.allocReg(KindA64::w, index);
+ RegisterA64 temp1 = tempDouble(inst.a);
+ if (build.features & Feature_JSCVT)
+ {
+ build.fjcvtzs(inst.regA64, temp1);
+ build.b(ConditionA64::NotEqual, labelOp(inst.b));
+ }
+ else
+ {
+ RegisterA64 temp2 = regs.allocTemp(KindA64::d);
+ build.fcvtzs(inst.regA64, temp1);
+ build.scvtf(temp2, inst.regA64);
+ build.fcmp(temp1, temp2);
+ build.b(ConditionA64::NotEqual, labelOp(inst.b));
+ }
+ break;
+ }
+ case IrCmd::TRY_CALL_FASTGETTM:
+ {
+ RegisterA64 temp1 = regs.allocTemp(KindA64::x);
+ RegisterA64 temp2 = regs.allocTemp(KindA64::w);
+ build.ldr(temp1, mem(regOp(inst.a), offsetof(Table, metatable)));
+ build.cbz(temp1, labelOp(inst.c));
+ build.ldrb(temp2, mem(temp1, offsetof(Table, tmcache)));
+ build.tst(temp2, 1 << intOp(inst.b));
+ build.b(ConditionA64::NotEqual, labelOp(inst.c)); // Equal = Zero after tst; tmcache caches *absence* of metamethods
+ regs.spill(build, index, {temp1});
+ build.mov(x0, temp1);
+ build.mov(w1, intOp(inst.b));
+ build.ldr(x2, mem(rGlobalState, offsetof(global_State, tmname) + intOp(inst.b) * sizeof(TString*)));
+ build.ldr(x3, mem(rNativeContext, offsetof(NativeContext, luaT_gettm)));
+ build.blr(x3);
+ build.cbz(x0, labelOp(inst.c));
+ inst.regA64 = regs.takeReg(x0, index);
+ break;
+ }
+ case IrCmd::INT_TO_NUM:
+ {
+ inst.regA64 = regs.allocReg(KindA64::d, index);
+ RegisterA64 temp = tempInt(inst.a);
+ build.scvtf(inst.regA64, temp);
+ break;
+ }
+ case IrCmd::UINT_TO_NUM:
+ {
+ inst.regA64 = regs.allocReg(KindA64::d, index);
+ RegisterA64 temp = tempInt(inst.a);
+ build.ucvtf(inst.regA64, temp);
+ break;
+ }
+ case IrCmd::NUM_TO_INT:
+ {
+ inst.regA64 = regs.allocReg(KindA64::w, index);
+ RegisterA64 temp = tempDouble(inst.a);
+ build.fcvtzs(inst.regA64, temp);
+ break;
+ }
+ case IrCmd::NUM_TO_UINT:
+ {
+ inst.regA64 = regs.allocReg(KindA64::w, index);
+ RegisterA64 temp = tempDouble(inst.a);
+ build.fcvtzs(castReg(KindA64::x, inst.regA64), temp);
+ break;
+ }
+ case IrCmd::ADJUST_STACK_TO_REG:
+ {
+ RegisterA64 temp = regs.allocTemp(KindA64::x);
+ if (inst.b.kind == IrOpKind::Constant)
+ {
+ build.add(temp, rBase, uint16_t((vmRegOp(inst.a) + intOp(inst.b)) * sizeof(TValue)));
+ build.str(temp, mem(rState, offsetof(lua_State, top)));
+ }
+ else if (inst.b.kind == IrOpKind::Inst)
+ {
+ build.add(temp, rBase, uint16_t(vmRegOp(inst.a) * sizeof(TValue)));
+ build.add(temp, temp, regOp(inst.b), kTValueSizeLog2);
+ build.str(temp, mem(rState, offsetof(lua_State, top)));
+ }
+ else
+ LUAU_ASSERT(!"Unsupported instruction form");
+ break;
+ }
+ case IrCmd::ADJUST_STACK_TO_TOP:
+ {
+ RegisterA64 temp = regs.allocTemp(KindA64::x);
+ build.ldr(temp, mem(rState, offsetof(lua_State, ci)));
+ build.ldr(temp, mem(temp, offsetof(CallInfo, top)));
+ build.str(temp, mem(rState, offsetof(lua_State, top)));
+ break;
+ }
+ case IrCmd::FASTCALL:
+ regs.spill(build, index);
+ error |= !emitBuiltin(build, function, regs, uintOp(inst.a), vmRegOp(inst.b), vmRegOp(inst.c), inst.d, intOp(inst.e), intOp(inst.f));
+ break;
+ case IrCmd::INVOKE_FASTCALL:
+ {
+ regs.spill(build, index);
+ build.mov(x0, rState);
+ build.add(x1, rBase, uint16_t(vmRegOp(inst.b) * sizeof(TValue)));
+ build.add(x2, rBase, uint16_t(vmRegOp(inst.c) * sizeof(TValue)));
+ build.mov(w3, intOp(inst.f));
+ if (inst.d.kind == IrOpKind::VmReg)
+ build.add(x4, rBase, uint16_t(vmRegOp(inst.d) * sizeof(TValue)));
+ else if (inst.d.kind == IrOpKind::VmConst)
+ emitAddOffset(build, x4, rConstants, vmConstOp(inst.d) * sizeof(TValue));
+ else
+ LUAU_ASSERT(inst.d.kind == IrOpKind::Undef);
+ if (intOp(inst.e) == LUA_MULTRET)
+ {
+ build.ldr(x5, mem(rState, offsetof(lua_State, top)));
+ build.sub(x5, x5, rBase);
+ build.sub(x5, x5, uint16_t((vmRegOp(inst.b) + 1) * sizeof(TValue)));
+ build.lsr(x5, x5, kTValueSizeLog2);
+ }
+ else
+ build.mov(w5, intOp(inst.e));
+ build.ldr(x6, mem(rNativeContext, offsetof(NativeContext, luauF_table) + uintOp(inst.a) * sizeof(luau_FastFunction)));
+ build.blr(x6);
+ inst.regA64 = regs.takeReg(w0, index);
+ break;
+ }
+ case IrCmd::CHECK_FASTCALL_RES:
+ build.cmp(regOp(inst.a), 0);
+ build.b(ConditionA64::Less, labelOp(inst.b));
+ break;
+ case IrCmd::DO_ARITH:
+ regs.spill(build, index);
+ build.mov(x0, rState);
+ build.add(x1, rBase, uint16_t(vmRegOp(inst.a) * sizeof(TValue)));
+ if (inst.b.kind == IrOpKind::VmConst)
+ emitAddOffset(build, x2, rConstants, vmConstOp(inst.b) * sizeof(TValue));
+ else
+ build.add(x2, rBase, uint16_t(vmRegOp(inst.b) * sizeof(TValue)));
+ if (inst.c.kind == IrOpKind::VmConst)
+ emitAddOffset(build, x3, rConstants, vmConstOp(inst.c) * sizeof(TValue));
+ else
+ build.add(x3, rBase, uint16_t(vmRegOp(inst.c) * sizeof(TValue)));
+ build.mov(w4, TMS(intOp(inst.d)));
+ build.ldr(x5, mem(rNativeContext, offsetof(NativeContext, luaV_doarith)));
+ build.blr(x5);
+ emitUpdateBase(build);
+ break;
+ case IrCmd::DO_LEN:
+ regs.spill(build, index);
+ build.mov(x0, rState);
+ build.add(x1, rBase, uint16_t(vmRegOp(inst.a) * sizeof(TValue)));
+ build.add(x2, rBase, uint16_t(vmRegOp(inst.b) * sizeof(TValue)));
+ build.ldr(x3, mem(rNativeContext, offsetof(NativeContext, luaV_dolen)));
+ build.blr(x3);
+ emitUpdateBase(build);
+ break;
+ case IrCmd::GET_TABLE:
+ regs.spill(build, index);
+ build.mov(x0, rState);
+ build.add(x1, rBase, uint16_t(vmRegOp(inst.b) * sizeof(TValue)));
+ if (inst.c.kind == IrOpKind::VmReg)
+ build.add(x2, rBase, uint16_t(vmRegOp(inst.c) * sizeof(TValue)));
+ else if (inst.c.kind == IrOpKind::Constant)
+ {
+ TValue n = {};
+ setnvalue(&n, uintOp(inst.c));
+ build.adr(x2, &n, sizeof(n));
+ }
+ else
+ LUAU_ASSERT(!"Unsupported instruction form");
+ build.add(x3, rBase, uint16_t(vmRegOp(inst.a) * sizeof(TValue)));
+ build.ldr(x4, mem(rNativeContext, offsetof(NativeContext, luaV_gettable)));
+ build.blr(x4);
+ emitUpdateBase(build);
+ break;
+ case IrCmd::SET_TABLE:
+ regs.spill(build, index);
+ build.mov(x0, rState);
+ build.add(x1, rBase, uint16_t(vmRegOp(inst.b) * sizeof(TValue)));
+ if (inst.c.kind == IrOpKind::VmReg)
+ build.add(x2, rBase, uint16_t(vmRegOp(inst.c) * sizeof(TValue)));
+ else if (inst.c.kind == IrOpKind::Constant)
+ {
+ TValue n = {};
+ setnvalue(&n, uintOp(inst.c));
+ build.adr(x2, &n, sizeof(n));
+ }
+ else
+ LUAU_ASSERT(!"Unsupported instruction form");
+ build.add(x3, rBase, uint16_t(vmRegOp(inst.a) * sizeof(TValue)));
+ build.ldr(x4, mem(rNativeContext, offsetof(NativeContext, luaV_settable)));
+ build.blr(x4);
+ emitUpdateBase(build);
+ break;
+ case IrCmd::GET_IMPORT:
+ regs.spill(build, index);
+ build.mov(x0, rState);
+ build.ldr(x1, mem(rClosure, offsetof(Closure, env)));
+ build.mov(x2, rConstants);
+ build.add(x3, rBase, uint16_t(vmRegOp(inst.a) * sizeof(TValue)));
+ build.mov(w4, uintOp(inst.b));
+ build.mov(w5, 0);
+ build.ldr(x6, mem(rNativeContext, offsetof(NativeContext, luaV_getimport)));
+ build.blr(x6);
+ emitUpdateBase(build);
+ break;
+ case IrCmd::CONCAT:
+ regs.spill(build, index);
+ build.mov(x0, rState);
+ build.mov(w1, uintOp(inst.b));
+ build.mov(w2, vmRegOp(inst.a) + uintOp(inst.b) - 1);
+ build.ldr(x3, mem(rNativeContext, offsetof(NativeContext, luaV_concat)));
+ build.blr(x3);
+ emitUpdateBase(build);
+ break;
+ case IrCmd::GET_UPVALUE:
+ {
+ RegisterA64 temp1 = regs.allocTemp(KindA64::x);
+ RegisterA64 temp2 = regs.allocTemp(KindA64::q);
+ RegisterA64 temp3 = regs.allocTemp(KindA64::w);
+ build.add(temp1, rClosure, uint16_t(offsetof(Closure, l.uprefs) + sizeof(TValue) * vmUpvalueOp(inst.b)));
+ Label skip;
+ build.ldr(temp3, mem(temp1, offsetof(TValue, tt)));
+ build.cmp(temp3, LUA_TUPVAL);
+ build.b(ConditionA64::NotEqual, skip);
+ build.ldr(temp1, mem(temp1, offsetof(TValue, value.gc)));
+ build.ldr(temp1, mem(temp1, offsetof(UpVal, v)));
+ build.setLabel(skip);
+ build.ldr(temp2, temp1);
+ build.str(temp2, mem(rBase, vmRegOp(inst.a) * sizeof(TValue)));
+ break;
+ }
+ case IrCmd::SET_UPVALUE:
+ {
+ RegisterA64 temp1 = regs.allocTemp(KindA64::x);
+ RegisterA64 temp2 = regs.allocTemp(KindA64::x);
+ RegisterA64 temp3 = regs.allocTemp(KindA64::q);
+ build.ldr(temp1, mem(rClosure, offsetof(Closure, l.uprefs) + sizeof(TValue) * vmUpvalueOp(inst.a) + offsetof(TValue, value.gc)));
+ build.ldr(temp2, mem(temp1, offsetof(UpVal, v)));
+ build.ldr(temp3, mem(rBase, vmRegOp(inst.b) * sizeof(TValue)));
+ build.str(temp3, temp2);
+ if (inst.c.kind == IrOpKind::Undef || isGCO(tagOp(inst.c)))
+ {
+ Label skip;
+ checkObjectBarrierConditions(build, temp1, temp2, inst.b, inst.c.kind == IrOpKind::Undef ? -1 : tagOp(inst.c), skip);
+ size_t spills = regs.spill(build, index, {temp1});
+ build.mov(x1, temp1);
+ build.mov(x0, rState);
+ build.ldr(x2, mem(rBase, vmRegOp(inst.b) * sizeof(TValue) + offsetof(TValue, value)));
+ build.ldr(x3, mem(rNativeContext, offsetof(NativeContext, luaC_barrierf)));
+ build.blr(x3);
+ regs.restore(build, spills);
+ build.setLabel(skip);
+ }
+ break;
+ }
+ case IrCmd::CHECK_TAG:
+ {
+ Label fresh;
+ Label& fail = getTargetLabel(inst.c, fresh);
+ RegisterA64 tag = inst.a.kind == IrOpKind::VmReg ? regs.allocTemp(KindA64::w) : regOp(inst.a);
+ if (inst.a.kind == IrOpKind::VmReg)
+ build.ldr(tag, mem(rBase, vmRegOp(inst.a) * sizeof(TValue) + offsetof(TValue, tt)));
+ if (tagOp(inst.b) == 0)
+ {
+ build.cbnz(tag, fail);
+ }
+ else
+ {
+ build.cmp(tag, tagOp(inst.b));
+ build.b(ConditionA64::NotEqual, fail);
+ }
+ finalizeTargetLabel(inst.c, fresh);
+ break;
+ }
+ case IrCmd::CHECK_TRUTHY:
+ {
+ LUAU_ASSERT(inst.a.kind != IrOpKind::Constant || tagOp(inst.a) == LUA_TBOOLEAN);
+ Label fresh;
+ Label& target = getTargetLabel(inst.c, fresh);
+ Label skip;
+ if (inst.a.kind != IrOpKind::Constant)
+ {
+ LUAU_ASSERT(LUA_TNIL == 0);
+ build.cbz(regOp(inst.a), target);
+ build.cmp(regOp(inst.a), LUA_TBOOLEAN);
+ build.b(ConditionA64::NotEqual, skip);
+ }
+ build.cbz(regOp(inst.b), target);
+ if (inst.a.kind != IrOpKind::Constant)
+ build.setLabel(skip);
+ finalizeTargetLabel(inst.c, fresh);
+ break;
+ }
+ case IrCmd::CHECK_READONLY:
+ {
+ Label fresh;
+ RegisterA64 temp = regs.allocTemp(KindA64::w);
+ build.ldrb(temp, mem(regOp(inst.a), offsetof(Table, readonly)));
+ build.cbnz(temp, getTargetLabel(inst.b, fresh));
+ finalizeTargetLabel(inst.b, fresh);
+ break;
+ }
+ case IrCmd::CHECK_NO_METATABLE:
+ {
+ Label fresh;
+ RegisterA64 temp = regs.allocTemp(KindA64::x);
+ build.ldr(temp, mem(regOp(inst.a), offsetof(Table, metatable)));
+ build.cbnz(temp, getTargetLabel(inst.b, fresh));
+ finalizeTargetLabel(inst.b, fresh);
+ break;
+ }
+ case IrCmd::CHECK_SAFE_ENV:
+ {
+ Label fresh;
+ RegisterA64 temp = regs.allocTemp(KindA64::x);
+ RegisterA64 tempw = castReg(KindA64::w, temp);
+ build.ldr(temp, mem(rClosure, offsetof(Closure, env)));
+ build.ldrb(tempw, mem(temp, offsetof(Table, safeenv)));
+ build.cbz(tempw, getTargetLabel(inst.a, fresh));
+ finalizeTargetLabel(inst.a, fresh);
+ break;
+ }
+ case IrCmd::CHECK_ARRAY_SIZE:
+ {
+ Label fresh;
+ Label& fail = getTargetLabel(inst.c, fresh);
+ RegisterA64 temp = regs.allocTemp(KindA64::w);
+ build.ldr(temp, mem(regOp(inst.a), offsetof(Table, sizearray)));
+ if (inst.b.kind == IrOpKind::Inst)
+ {
+ build.cmp(temp, regOp(inst.b));
+ build.b(ConditionA64::UnsignedLessEqual, fail);
+ }
+ else if (inst.b.kind == IrOpKind::Constant)
+ {
+ if (intOp(inst.b) == 0)
+ {
+ build.cbz(temp, fail);
+ }
+ else if (size_t(intOp(inst.b)) <= AssemblyBuilderA64::kMaxImmediate)
+ {
+ build.cmp(temp, uint16_t(intOp(inst.b)));
+ build.b(ConditionA64::UnsignedLessEqual, fail);
+ }
+ else
+ {
+ RegisterA64 temp2 = regs.allocTemp(KindA64::w);
+ build.mov(temp2, intOp(inst.b));
+ build.cmp(temp, temp2);
+ build.b(ConditionA64::UnsignedLessEqual, fail);
+ }
+ }
+ else
+ LUAU_ASSERT(!"Unsupported instruction form");
+ finalizeTargetLabel(inst.c, fresh);
+ break;
+ }
+ case IrCmd::JUMP_SLOT_MATCH:
+ case IrCmd::CHECK_SLOT_MATCH:
+ {
+ Label abort;
+ const IrOp& mismatchOp = inst.cmd == IrCmd::JUMP_SLOT_MATCH ? inst.d : inst.c;
+ Label& mismatch = mismatchOp.kind == IrOpKind::Undef ? abort : labelOp(mismatchOp);
+ RegisterA64 temp1 = regs.allocTemp(KindA64::x);
+ RegisterA64 temp1w = castReg(KindA64::w, temp1);
+ RegisterA64 temp2 = regs.allocTemp(KindA64::x);
+ LUAU_ASSERT(offsetof(LuaNode, key.value) == offsetof(LuaNode, key) && kOffsetOfTKeyTagNext >= 8 && kOffsetOfTKeyTagNext < 16);
+ build.ldp(temp1, temp2, mem(regOp(inst.a), offsetof(LuaNode, key)));
+ build.ubfx(temp2, temp2, (kOffsetOfTKeyTagNext - 8) * 8, kTKeyTagBits); // .tt is right before .next, and 8 bytes are skipped by ldp
+ build.cmp(temp2, LUA_TSTRING);
+ build.b(ConditionA64::NotEqual, mismatch);
+ AddressA64 addr = tempAddr(inst.b, offsetof(TValue, value));
+ build.ldr(temp2, addr);
+ build.cmp(temp1, temp2);
+ build.b(ConditionA64::NotEqual, mismatch);
+ build.ldr(temp1w, mem(regOp(inst.a), offsetof(LuaNode, val.tt)));
+ LUAU_ASSERT(LUA_TNIL == 0);
+ build.cbz(temp1w, mismatch);
+ if (inst.cmd == IrCmd::JUMP_SLOT_MATCH)
+ jumpOrFallthrough(blockOp(inst.c), next);
+ else if (abort.id)
+ emitAbort(build, abort);
+ break;
+ }
+ case IrCmd::CHECK_NODE_NO_NEXT:
+ {
+ Label fresh;
+ RegisterA64 temp = regs.allocTemp(KindA64::w);
+ build.ldr(temp, mem(regOp(inst.a), offsetof(LuaNode, key) + kOffsetOfTKeyTagNext));
+ build.lsr(temp, temp, kTKeyTagBits);
+ build.cbnz(temp, getTargetLabel(inst.b, fresh));
+ finalizeTargetLabel(inst.b, fresh);
+ break;
+ }
+ case IrCmd::CHECK_NODE_VALUE:
+ {
+ Label fresh;
+ RegisterA64 temp = regs.allocTemp(KindA64::w);
+ build.ldr(temp, mem(regOp(inst.a), offsetof(LuaNode, val.tt)));
+ LUAU_ASSERT(LUA_TNIL == 0);
+ build.cbz(temp, getTargetLabel(inst.b, fresh));
+ finalizeTargetLabel(inst.b, fresh);
+ break;
+ }
+ case IrCmd::CHECK_BUFFER_LEN:
+ {
+ int accessSize = intOp(inst.c);
+ LUAU_ASSERT(accessSize > 0 && accessSize <= int(AssemblyBuilderA64::kMaxImmediate));
+ Label fresh;
+ Label& target = getTargetLabel(inst.d, fresh);
+ RegisterA64 temp = regs.allocTemp(KindA64::w);
+ build.ldr(temp, mem(regOp(inst.a), offsetof(Buffer, len)));
+ if (inst.b.kind == IrOpKind::Inst)
+ {
+ if (accessSize == 1)
+ {
+ build.cmp(temp, regOp(inst.b));
+ build.b(ConditionA64::UnsignedLessEqual, target);
+ }
+ else
+ {
+ RegisterA64 tempx = castReg(KindA64::x, temp);
+ build.sub(tempx, tempx, regOp(inst.b));
+ build.cmp(tempx, uint16_t(accessSize));
+ build.b(ConditionA64::LessEqual, target);
+ }
+ }
+ else if (inst.b.kind == IrOpKind::Constant)
+ {
+ int offset = intOp(inst.b);
+ if (offset < 0 || unsigned(offset) + unsigned(accessSize) >= unsigned(INT_MAX))
+ {
+ build.b(target);
+ }
+ else if (offset + accessSize <= int(AssemblyBuilderA64::kMaxImmediate))
+ {
+ build.cmp(temp, uint16_t(offset + accessSize));
+ build.b(ConditionA64::UnsignedLessEqual, target);
+ }
+ else
+ {
+ RegisterA64 temp2 = regs.allocTemp(KindA64::w);
+ build.mov(temp2, offset + accessSize);
+ build.cmp(temp, temp2);
+ build.b(ConditionA64::UnsignedLessEqual, target);
+ }
+ }
+ else
+ {
+ LUAU_ASSERT(!"Unsupported instruction form");
+ }
+ finalizeTargetLabel(inst.d, fresh);
+ break;
+ }
+ case IrCmd::INTERRUPT:
+ {
+ regs.spill(build, index);
+ Label self;
+ build.ldr(x0, mem(rGlobalState, offsetof(global_State, cb.interrupt)));
+ build.cbnz(x0, self);
+ Label next = build.setLabel();
+ interruptHandlers.push_back({self, uintOp(inst.a), next});
+ break;
+ }
+ case IrCmd::CHECK_GC:
+ {
+ RegisterA64 temp1 = regs.allocTemp(KindA64::x);
+ RegisterA64 temp2 = regs.allocTemp(KindA64::x);
+ LUAU_ASSERT(offsetof(global_State, totalbytes) == offsetof(global_State, GCthreshold) + 8);
+ Label skip;
+ build.ldp(temp1, temp2, mem(rGlobalState, offsetof(global_State, GCthreshold)));
+ build.cmp(temp1, temp2);
+ build.b(ConditionA64::UnsignedGreater, skip);
+ size_t spills = regs.spill(build, index);
+ build.mov(x0, rState);
+ build.mov(w1, 1);
+ build.ldr(x2, mem(rNativeContext, offsetof(NativeContext, luaC_step)));
+ build.blr(x2);
+ emitUpdateBase(build);
+ regs.restore(build, spills);
+ build.setLabel(skip);
+ break;
+ }
+ case IrCmd::BARRIER_OBJ:
+ {
+ RegisterA64 temp = regs.allocTemp(KindA64::x);
+ Label skip;
+ checkObjectBarrierConditions(build, regOp(inst.a), temp, inst.b, inst.c.kind == IrOpKind::Undef ? -1 : tagOp(inst.c), skip);
+ RegisterA64 reg = regOp(inst.a);
+ size_t spills = regs.spill(build, index, {reg});
+ build.mov(x1, reg);
+ build.mov(x0, rState);
+ build.ldr(x2, mem(rBase, vmRegOp(inst.b) * sizeof(TValue) + offsetof(TValue, value)));
+ build.ldr(x3, mem(rNativeContext, offsetof(NativeContext, luaC_barrierf)));
+ build.blr(x3);
+ regs.restore(build, spills);
+ build.setLabel(skip);
+ break;
+ }
+ case IrCmd::BARRIER_TABLE_BACK:
+ {
+ Label skip;
+ RegisterA64 temp = regs.allocTemp(KindA64::w);
+ build.ldrb(temp, mem(regOp(inst.a), offsetof(GCheader, marked)));
+ build.tbz(temp, BLACKBIT, skip);
+ RegisterA64 reg = regOp(inst.a);
+ size_t spills = regs.spill(build, index, {reg});
+ build.mov(x1, reg);
+ build.mov(x0, rState);
+ build.add(x2, x1, uint16_t(offsetof(Table, gclist)));
+ build.ldr(x3, mem(rNativeContext, offsetof(NativeContext, luaC_barrierback)));
+ build.blr(x3);
+ regs.restore(build, spills);
+ build.setLabel(skip);
+ break;
+ }
+ case IrCmd::BARRIER_TABLE_FORWARD:
+ {
+ RegisterA64 temp = regs.allocTemp(KindA64::x);
+ Label skip;
+ checkObjectBarrierConditions(build, regOp(inst.a), temp, inst.b, inst.c.kind == IrOpKind::Undef ? -1 : tagOp(inst.c), skip);
+ RegisterA64 reg = regOp(inst.a);
+ AddressA64 addr = tempAddr(inst.b, offsetof(TValue, value));
+ size_t spills = regs.spill(build, index, {reg});
+ build.mov(x1, reg);
+ build.mov(x0, rState);
+ build.ldr(x2, addr);
+ build.ldr(x3, mem(rNativeContext, offsetof(NativeContext, luaC_barriertable)));
+ build.blr(x3);
+ regs.restore(build, spills);
+ build.setLabel(skip);
+ break;
+ }
+ case IrCmd::SET_SAVEDPC:
+ {
+ RegisterA64 temp1 = regs.allocTemp(KindA64::x);
+ RegisterA64 temp2 = regs.allocTemp(KindA64::x);
+ emitAddOffset(build, temp1, rCode, uintOp(inst.a) * sizeof(Instruction));
+ build.ldr(temp2, mem(rState, offsetof(lua_State, ci)));
+ build.str(temp1, mem(temp2, offsetof(CallInfo, savedpc)));
+ break;
+ }
+ case IrCmd::CLOSE_UPVALS:
+ {
+ Label skip;
+ RegisterA64 temp1 = regs.allocTemp(KindA64::x);
+ RegisterA64 temp2 = regs.allocTemp(KindA64::x);
+ build.ldr(temp1, mem(rState, offsetof(lua_State, openupval)));
+ build.cbz(temp1, skip);
+ build.ldr(temp1, mem(temp1, offsetof(UpVal, v)));
+ build.add(temp2, rBase, uint16_t(vmRegOp(inst.a) * sizeof(TValue)));
+ build.cmp(temp2, temp1);
+ build.b(ConditionA64::UnsignedGreater, skip);
+ size_t spills = regs.spill(build, index, {temp2});
+ build.mov(x1, temp2);
+ build.mov(x0, rState);
+ build.ldr(x2, mem(rNativeContext, offsetof(NativeContext, luaF_close)));
+ build.blr(x2);
+ regs.restore(build, spills);
+ build.setLabel(skip);
+ break;
+ }
+ case IrCmd::CAPTURE:
+ break;
+ case IrCmd::SETLIST:
+ regs.spill(build, index);
+ emitFallback(build, offsetof(NativeContext, executeSETLIST), uintOp(inst.a));
+ break;
+ case IrCmd::CALL:
+ regs.spill(build, index);
+ if (intOp(inst.b) == LUA_MULTRET)
+ build.ldr(x2, mem(rState, offsetof(lua_State, top)));
+ else
+ build.add(x2, rBase, uint16_t((vmRegOp(inst.a) + 1 + intOp(inst.b)) * sizeof(TValue)));
+ build.mov(x0, rState);
+ build.add(x1, rBase, uint16_t(vmRegOp(inst.a) * sizeof(TValue)));
+ build.mov(w3, intOp(inst.c));
+ build.ldr(x4, mem(rNativeContext, offsetof(NativeContext, callFallback)));
+ build.blr(x4);
+ emitUpdateBase(build);
+ build.cbnz(x0, helpers.continueCall);
+ break;
+ case IrCmd::RETURN:
+ regs.spill(build, index);
+ if (function.variadic)
+ {
+ build.ldr(x1, mem(rState, offsetof(lua_State, ci)));
+ build.ldr(x1, mem(x1, offsetof(CallInfo, func)));
+ }
+ else if (intOp(inst.b) != 1)
+ build.sub(x1, rBase, sizeof(TValue));
+ if (intOp(inst.b) == 0)
+ {
+ build.mov(w2, 0);
+ build.b(helpers.return_);
+ }
+ else if (intOp(inst.b) == 1 && !function.variadic)
+ {
+ build.ldr(q0, mem(rBase, vmRegOp(inst.a) * sizeof(TValue)));
+ build.str(q0, mem(rBase, -int(sizeof(TValue))));
+ build.mov(x1, rBase);
+ build.mov(w2, 1);
+ build.b(helpers.return_);
+ }
+ else if (intOp(inst.b) >= 1 && intOp(inst.b) <= 3)
+ {
+ for (int r = 0; r < intOp(inst.b); ++r)
+ {
+ build.ldr(q0, mem(rBase, (vmRegOp(inst.a) + r) * sizeof(TValue)));
+ build.str(q0, mem(x1, sizeof(TValue), AddressKindA64::post));
+ }
+ build.mov(w2, intOp(inst.b));
+ build.b(helpers.return_);
+ }
+ else
+ {
+ build.mov(w2, 0);
+ build.add(x3, rBase, uint16_t(vmRegOp(inst.a) * sizeof(TValue)));
+ if (intOp(inst.b) == LUA_MULTRET)
+ build.ldr(x4, mem(rState, offsetof(lua_State, top)));
+ else
+ build.add(x4, rBase, uint16_t((vmRegOp(inst.a) + intOp(inst.b)) * sizeof(TValue)));
+ Label repeatValueLoop, exitValueLoop;
+ if (intOp(inst.b) == LUA_MULTRET)
+ {
+ build.cmp(x3, x4);
+ build.b(ConditionA64::CarrySet, exitValueLoop);
+ }
+ build.setLabel(repeatValueLoop);
+ build.ldr(q0, mem(x3, sizeof(TValue), AddressKindA64::post));
+ build.str(q0, mem(x1, sizeof(TValue), AddressKindA64::post));
+ build.add(w2, w2, 1);
+ build.cmp(x3, x4);
+ build.b(ConditionA64::CarryClear, repeatValueLoop);
+ build.setLabel(exitValueLoop);
+ build.b(helpers.return_);
+ }
+ break;
+ case IrCmd::FORGLOOP:
+ regs.spill(build, index);
+ if (intOp(inst.b) > 2)
+ {
+ LUAU_ASSERT(LUA_TNIL == 0);
+ for (int i = 2; i < intOp(inst.b); ++i)
+ build.str(wzr, mem(rBase, (vmRegOp(inst.a) + 3 + i) * sizeof(TValue) + offsetof(TValue, tt)));
+ }
+ build.mov(x0, rState);
+ build.ldr(x1, mem(rBase, (vmRegOp(inst.a) + 1) * sizeof(TValue) + offsetof(TValue, value.gc)));
+ build.ldr(w2, mem(rBase, (vmRegOp(inst.a) + 2) * sizeof(TValue) + offsetof(TValue, value.p)));
+ build.add(x3, rBase, uint16_t(vmRegOp(inst.a) * sizeof(TValue)));
+ build.ldr(x4, mem(rNativeContext, offsetof(NativeContext, forgLoopTableIter)));
+ build.blr(x4);
+ build.cbnz(w0, labelOp(inst.c));
+ jumpOrFallthrough(blockOp(inst.d), next);
+ break;
+ case IrCmd::FORGLOOP_FALLBACK:
+ regs.spill(build, index);
+ build.mov(x0, rState);
+ build.mov(w1, vmRegOp(inst.a));
+ build.mov(w2, intOp(inst.b));
+ build.ldr(x3, mem(rNativeContext, offsetof(NativeContext, forgLoopNonTableFallback)));
+ build.blr(x3);
+ emitUpdateBase(build);
+ build.cbnz(w0, labelOp(inst.c));
+ jumpOrFallthrough(blockOp(inst.d), next);
+ break;
+ case IrCmd::FORGPREP_XNEXT_FALLBACK:
+ regs.spill(build, index);
+ build.mov(x0, rState);
+ build.add(x1, rBase, uint16_t(vmRegOp(inst.b) * sizeof(TValue)));
+ build.mov(w2, uintOp(inst.a) + 1);
+ build.ldr(x3, mem(rNativeContext, offsetof(NativeContext, forgPrepXnextFallback)));
+ build.blr(x3);
+ jumpOrFallthrough(blockOp(inst.c), next);
+ break;
+ case IrCmd::COVERAGE:
+ {
+ RegisterA64 temp1 = regs.allocTemp(KindA64::x);
+ RegisterA64 temp2 = regs.allocTemp(KindA64::w);
+ RegisterA64 temp3 = regs.allocTemp(KindA64::w);
+ build.mov(temp1, uintOp(inst.a) * sizeof(Instruction));
+ build.ldr(temp2, mem(rCode, temp1));
+ build.add(temp3, temp2, 256);
+ build.cmp(temp3, 0);
+ build.csel(temp2, temp2, temp3, ConditionA64::Less);
+ build.str(temp2, mem(rCode, temp1));
+ break;
+ }
+ case IrCmd::FALLBACK_GETGLOBAL:
+ LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.c.kind == IrOpKind::VmConst);
+ regs.spill(build, index);
+ emitFallback(build, offsetof(NativeContext, executeGETGLOBAL), uintOp(inst.a));
+ break;
+ case IrCmd::FALLBACK_SETGLOBAL:
+ LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.c.kind == IrOpKind::VmConst);
+ regs.spill(build, index);
+ emitFallback(build, offsetof(NativeContext, executeSETGLOBAL), uintOp(inst.a));
+ break;
+ case IrCmd::FALLBACK_GETTABLEKS:
+ LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.c.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.d.kind == IrOpKind::VmConst);
+ regs.spill(build, index);
+ emitFallback(build, offsetof(NativeContext, executeGETTABLEKS), uintOp(inst.a));
+ break;
+ case IrCmd::FALLBACK_SETTABLEKS:
+ LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.c.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.d.kind == IrOpKind::VmConst);
+ regs.spill(build, index);
+ emitFallback(build, offsetof(NativeContext, executeSETTABLEKS), uintOp(inst.a));
+ break;
+ case IrCmd::FALLBACK_NAMECALL:
+ LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.c.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.d.kind == IrOpKind::VmConst);
+ regs.spill(build, index);
+ emitFallback(build, offsetof(NativeContext, executeNAMECALL), uintOp(inst.a));
+ break;
+ case IrCmd::FALLBACK_PREPVARARGS:
+ LUAU_ASSERT(inst.b.kind == IrOpKind::Constant);
+ regs.spill(build, index);
+ emitFallback(build, offsetof(NativeContext, executePREPVARARGS), uintOp(inst.a));
+ break;
+ case IrCmd::FALLBACK_GETVARARGS:
+ LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.c.kind == IrOpKind::Constant);
+ regs.spill(build, index);
+ build.mov(x0, rState);
+ if (intOp(inst.c) == LUA_MULTRET)
+ {
+ emitAddOffset(build, x1, rCode, uintOp(inst.a) * sizeof(Instruction));
+ build.mov(x2, rBase);
+ build.mov(w3, vmRegOp(inst.b));
+ build.ldr(x4, mem(rNativeContext, offsetof(NativeContext, executeGETVARARGSMultRet)));
+ build.blr(x4);
+ emitUpdateBase(build);
+ }
+ else
+ {
+ build.mov(x1, rBase);
+ build.mov(w2, vmRegOp(inst.b));
+ build.mov(w3, intOp(inst.c));
+ build.ldr(x4, mem(rNativeContext, offsetof(NativeContext, executeGETVARARGSConst)));
+ build.blr(x4);
+ }
+ break;
+ case IrCmd::NEWCLOSURE:
+ {
+ RegisterA64 reg = regOp(inst.b);
+ regs.spill(build, index, {reg});
+ build.mov(x2, reg);
+ build.mov(x0, rState);
+ build.mov(w1, uintOp(inst.a));
+ build.ldr(x3, mem(rClosure, offsetof(Closure, l.p)));
+ build.ldr(x3, mem(x3, offsetof(Proto, p)));
+ build.ldr(x3, mem(x3, sizeof(Proto*) * uintOp(inst.c)));
+ build.ldr(x4, mem(rNativeContext, offsetof(NativeContext, luaF_newLclosure)));
+ build.blr(x4);
+ inst.regA64 = regs.takeReg(x0, index);
+ break;
+ }
+ case IrCmd::FALLBACK_DUPCLOSURE:
+ LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.c.kind == IrOpKind::VmConst);
+ regs.spill(build, index);
+ emitFallback(build, offsetof(NativeContext, executeDUPCLOSURE), uintOp(inst.a));
+ break;
+ case IrCmd::FALLBACK_FORGPREP:
+ regs.spill(build, index);
+ emitFallback(build, offsetof(NativeContext, executeFORGPREP), uintOp(inst.a));
+ jumpOrFallthrough(blockOp(inst.c), next);
+ break;
+ case IrCmd::NOP:
+ case IrCmd::SUBSTITUTE:
+ LUAU_ASSERT(!"Pseudo instructions should not be lowered");
+ break;
+ case IrCmd::BITAND_UINT:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.a, inst.b});
+ if (inst.a.kind == IrOpKind::Inst && inst.b.kind == IrOpKind::Constant && AssemblyBuilderA64::isMaskSupported(unsigned(intOp(inst.b))))
+ build.and_(inst.regA64, regOp(inst.a), unsigned(intOp(inst.b)));
+ else
+ {
+ RegisterA64 temp1 = tempUint(inst.a);
+ RegisterA64 temp2 = tempUint(inst.b);
+ build.and_(inst.regA64, temp1, temp2);
+ }
+ break;
+ }
+ case IrCmd::BITXOR_UINT:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.a, inst.b});
+ if (inst.a.kind == IrOpKind::Inst && inst.b.kind == IrOpKind::Constant && AssemblyBuilderA64::isMaskSupported(unsigned(intOp(inst.b))))
+ build.eor(inst.regA64, regOp(inst.a), unsigned(intOp(inst.b)));
+ else
+ {
+ RegisterA64 temp1 = tempUint(inst.a);
+ RegisterA64 temp2 = tempUint(inst.b);
+ build.eor(inst.regA64, temp1, temp2);
+ }
+ break;
+ }
+ case IrCmd::BITOR_UINT:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.a, inst.b});
+ if (inst.a.kind == IrOpKind::Inst && inst.b.kind == IrOpKind::Constant && AssemblyBuilderA64::isMaskSupported(unsigned(intOp(inst.b))))
+ build.orr(inst.regA64, regOp(inst.a), unsigned(intOp(inst.b)));
+ else
+ {
+ RegisterA64 temp1 = tempUint(inst.a);
+ RegisterA64 temp2 = tempUint(inst.b);
+ build.orr(inst.regA64, temp1, temp2);
+ }
+ break;
+ }
+ case IrCmd::BITNOT_UINT:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.a});
+ RegisterA64 temp = tempUint(inst.a);
+ build.mvn_(inst.regA64, temp);
+ break;
+ }
+ case IrCmd::BITLSHIFT_UINT:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.a, inst.b});
+ if (inst.a.kind == IrOpKind::Inst && inst.b.kind == IrOpKind::Constant)
+ build.lsl(inst.regA64, regOp(inst.a), uint8_t(unsigned(intOp(inst.b)) & 31));
+ else
+ {
+ RegisterA64 temp1 = tempUint(inst.a);
+ RegisterA64 temp2 = tempUint(inst.b);
+ build.lsl(inst.regA64, temp1, temp2);
+ }
+ break;
+ }
+ case IrCmd::BITRSHIFT_UINT:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.a, inst.b});
+ if (inst.a.kind == IrOpKind::Inst && inst.b.kind == IrOpKind::Constant)
+ build.lsr(inst.regA64, regOp(inst.a), uint8_t(unsigned(intOp(inst.b)) & 31));
+ else
+ {
+ RegisterA64 temp1 = tempUint(inst.a);
+ RegisterA64 temp2 = tempUint(inst.b);
+ build.lsr(inst.regA64, temp1, temp2);
+ }
+ break;
+ }
+ case IrCmd::BITARSHIFT_UINT:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.a, inst.b});
+ if (inst.a.kind == IrOpKind::Inst && inst.b.kind == IrOpKind::Constant)
+ build.asr(inst.regA64, regOp(inst.a), uint8_t(unsigned(intOp(inst.b)) & 31));
+ else
+ {
+ RegisterA64 temp1 = tempUint(inst.a);
+ RegisterA64 temp2 = tempUint(inst.b);
+ build.asr(inst.regA64, temp1, temp2);
+ }
+ break;
+ }
+ case IrCmd::BITLROTATE_UINT:
+ {
+ if (inst.a.kind == IrOpKind::Inst && inst.b.kind == IrOpKind::Constant)
+ {
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.a});
+ build.ror(inst.regA64, regOp(inst.a), uint8_t((32 - unsigned(intOp(inst.b))) & 31));
+ }
+ else
+ {
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.b});
+ RegisterA64 temp1 = tempUint(inst.a);
+ RegisterA64 temp2 = tempUint(inst.b);
+ build.neg(inst.regA64, temp2);
+ build.ror(inst.regA64, temp1, inst.regA64);
+ }
+ break;
+ }
+ case IrCmd::BITRROTATE_UINT:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.a, inst.b});
+ if (inst.a.kind == IrOpKind::Inst && inst.b.kind == IrOpKind::Constant)
+ build.ror(inst.regA64, regOp(inst.a), uint8_t(unsigned(intOp(inst.b)) & 31));
+ else
+ {
+ RegisterA64 temp1 = tempUint(inst.a);
+ RegisterA64 temp2 = tempUint(inst.b);
+ build.ror(inst.regA64, temp1, temp2);
+ }
+ break;
+ }
+ case IrCmd::BITCOUNTLZ_UINT:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.a});
+ RegisterA64 temp = tempUint(inst.a);
+ build.clz(inst.regA64, temp);
+ break;
+ }
+ case IrCmd::BITCOUNTRZ_UINT:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.a});
+ RegisterA64 temp = tempUint(inst.a);
+ build.rbit(inst.regA64, temp);
+ build.clz(inst.regA64, inst.regA64);
+ break;
+ }
+ case IrCmd::BYTESWAP_UINT:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.a});
+ RegisterA64 temp = tempUint(inst.a);
+ build.rev(inst.regA64, temp);
+ break;
+ }
+ case IrCmd::INVOKE_LIBM:
+ {
+ if (inst.c.kind != IrOpKind::None)
+ {
+ bool isInt = (inst.c.kind == IrOpKind::Constant) ? constOp(inst.c).kind == IrConstKind::Int
+ : getCmdValueKind(function.instOp(inst.c).cmd) == IrValueKind::Int;
+ RegisterA64 temp1 = tempDouble(inst.b);
+ RegisterA64 temp2 = isInt ? tempInt(inst.c) : tempDouble(inst.c);
+ RegisterA64 temp3 = isInt ? noreg : regs.allocTemp(KindA64::d);
+ regs.spill(build, index, {temp1, temp2});
+ if (isInt)
+ {
+ build.fmov(d0, temp1);
+ build.mov(w0, temp2);
+ }
+ else if (d0 != temp2)
+ {
+ build.fmov(d0, temp1);
+ build.fmov(d1, temp2);
+ }
+ else
+ {
+ build.fmov(temp3, d0);
+ build.fmov(d0, temp1);
+ build.fmov(d1, temp3);
+ }
+ }
+ else
+ {
+ RegisterA64 temp1 = tempDouble(inst.b);
+ regs.spill(build, index, {temp1});
+ build.fmov(d0, temp1);
+ }
+ build.ldr(x1, mem(rNativeContext, getNativeContextOffset(uintOp(inst.a))));
+ build.blr(x1);
+ inst.regA64 = regs.takeReg(d0, index);
+ break;
+ }
+ case IrCmd::GET_TYPE:
+ {
+ inst.regA64 = regs.allocReg(KindA64::x, index);
+ LUAU_ASSERT(sizeof(TString*) == 8);
+ if (inst.a.kind == IrOpKind::Inst)
+ build.add(inst.regA64, rGlobalState, regOp(inst.a), 3);
+ else if (inst.a.kind == IrOpKind::Constant)
+ build.add(inst.regA64, rGlobalState, uint16_t(tagOp(inst.a)) * 8);
+ else
+ LUAU_ASSERT(!"Unsupported instruction form");
+ build.ldr(inst.regA64, mem(inst.regA64, offsetof(global_State, ttname)));
+ break;
+ }
+ case IrCmd::GET_TYPEOF:
+ {
+ regs.spill(build, index);
+ build.mov(x0, rState);
+ build.add(x1, rBase, uint16_t(vmRegOp(inst.a) * sizeof(TValue)));
+ build.ldr(x2, mem(rNativeContext, offsetof(NativeContext, luaT_objtypenamestr)));
+ build.blr(x2);
+ inst.regA64 = regs.takeReg(x0, index);
+ break;
+ }
+ case IrCmd::FINDUPVAL:
+ {
+ regs.spill(build, index);
+ build.mov(x0, rState);
+ build.add(x1, rBase, uint16_t(vmRegOp(inst.a) * sizeof(TValue)));
+ build.ldr(x2, mem(rNativeContext, offsetof(NativeContext, luaF_findupval)));
+ build.blr(x2);
+ inst.regA64 = regs.takeReg(x0, index);
+ break;
+ }
+ case IrCmd::BUFFER_READI8:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.b});
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ build.ldrsb(inst.regA64, addr);
+ break;
+ }
+ case IrCmd::BUFFER_READU8:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.b});
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ build.ldrb(inst.regA64, addr);
+ break;
+ }
+ case IrCmd::BUFFER_WRITEI8:
+ {
+ RegisterA64 temp = tempInt(inst.c);
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ build.strb(temp, addr);
+ break;
+ }
+ case IrCmd::BUFFER_READI16:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.b});
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ build.ldrsh(inst.regA64, addr);
+ break;
+ }
+ case IrCmd::BUFFER_READU16:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.b});
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ build.ldrh(inst.regA64, addr);
+ break;
+ }
+ case IrCmd::BUFFER_WRITEI16:
+ {
+ RegisterA64 temp = tempInt(inst.c);
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ build.strh(temp, addr);
+ break;
+ }
+ case IrCmd::BUFFER_READI32:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.b});
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ build.ldr(inst.regA64, addr);
+ break;
+ }
+ case IrCmd::BUFFER_WRITEI32:
+ {
+ RegisterA64 temp = tempInt(inst.c);
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ build.str(temp, addr);
+ break;
+ }
+ case IrCmd::BUFFER_READF32:
+ {
+ inst.regA64 = regs.allocReg(KindA64::d, index);
+ RegisterA64 temp = castReg(KindA64::s, inst.regA64);
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ build.ldr(temp, addr);
+ build.fcvt(inst.regA64, temp);
+ break;
+ }
+ case IrCmd::BUFFER_WRITEF32:
+ {
+ RegisterA64 temp1 = tempDouble(inst.c);
+ RegisterA64 temp2 = regs.allocTemp(KindA64::s);
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ build.fcvt(temp2, temp1);
+ build.str(temp2, addr);
+ break;
+ }
+ case IrCmd::BUFFER_READF64:
+ {
+ inst.regA64 = regs.allocReg(KindA64::d, index);
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ build.ldr(inst.regA64, addr);
+ break;
+ }
+ case IrCmd::BUFFER_WRITEF64:
+ {
+ RegisterA64 temp = tempDouble(inst.c);
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ build.str(temp, addr);
+ break;
+ }
+ }
+ valueTracker.afterInstLowering(inst, index);
+ regs.freeLastUseRegs(inst, index);
+ regs.freeTempRegs();
+}
+void IrLoweringA64::finishBlock(const IrBlock& curr, const IrBlock& next)
+{
+ if (!regs.spills.empty())
+ {
+ for (uint32_t predIdx : predecessors(function.cfg, function.getBlockIndex(next)))
+ LUAU_ASSERT(predIdx == function.getBlockIndex(curr));
+ LUAU_ASSERT(next.useCount == 1);
+ }
+}
+void IrLoweringA64::finishFunction()
+{
+ if (build.logText)
+ build.logAppend("; interrupt handlers\n");
+ for (InterruptHandler& handler : interruptHandlers)
+ {
+ build.setLabel(handler.self);
+ build.mov(x0, (handler.pcpos + 1) * sizeof(Instruction));
+ build.adr(x1, handler.next);
+ build.b(helpers.interrupt);
+ }
+ if (build.logText)
+ build.logAppend("; exit handlers\n");
+ for (ExitHandler& handler : exitHandlers)
+ {
+ LUAU_ASSERT(handler.pcpos != kVmExitEntryGuardPc);
+ build.setLabel(handler.self);
+ build.mov(x0, handler.pcpos * sizeof(Instruction));
+ build.b(helpers.updatePcAndContinueInVm);
+ }
+ if (stats)
+ {
+ if (error)
+ stats->loweringErrors++;
+ if (regs.error)
+ stats->regAllocErrors++;
+ }
+}
+bool IrLoweringA64::hasError() const
+{
+ return error || regs.error;
+}
+bool IrLoweringA64::isFallthroughBlock(const IrBlock& target, const IrBlock& next)
+{
+ return target.start == next.start;
+}
+void IrLoweringA64::jumpOrFallthrough(IrBlock& target, const IrBlock& next)
+{
+ if (!isFallthroughBlock(target, next))
+ build.b(target.label);
+}
+Label& IrLoweringA64::getTargetLabel(IrOp op, Label& fresh)
+{
+ if (op.kind == IrOpKind::Undef)
+ return fresh;
+ if (op.kind == IrOpKind::VmExit)
+ {
+ if (vmExitOp(op) == kVmExitEntryGuardPc)
+ return helpers.exitContinueVmClearNativeFlag;
+ if (uint32_t* index = exitHandlerMap.find(vmExitOp(op)))
+ return exitHandlers[*index].self;
+ return fresh;
+ }
+ return labelOp(op);
+}
+void IrLoweringA64::finalizeTargetLabel(IrOp op, Label& fresh)
+{
+ if (op.kind == IrOpKind::Undef)
+ {
+ emitAbort(build, fresh);
+ }
+ else if (op.kind == IrOpKind::VmExit && fresh.id != 0 && fresh.id != helpers.exitContinueVmClearNativeFlag.id)
+ {
+ exitHandlerMap[vmExitOp(op)] = uint32_t(exitHandlers.size());
+ exitHandlers.push_back({fresh, vmExitOp(op)});
+ }
+}
+RegisterA64 IrLoweringA64::tempDouble(IrOp op)
+{
+ if (op.kind == IrOpKind::Inst)
+ return regOp(op);
+ else if (op.kind == IrOpKind::Constant)
+ {
+ double val = doubleOp(op);
+ if (AssemblyBuilderA64::isFmovSupported(val))
+ {
+ RegisterA64 temp = regs.allocTemp(KindA64::d);
+ build.fmov(temp, val);
+ return temp;
+ }
+ else
+ {
+ RegisterA64 temp1 = regs.allocTemp(KindA64::x);
+ RegisterA64 temp2 = regs.allocTemp(KindA64::d);
+ uint64_t vali = getDoubleBits(val);
+ if ((vali << 16) == 0)
+ {
+ build.movz(temp1, uint16_t(vali >> 48), 48);
+ build.fmov(temp2, temp1);
+ }
+ else if ((vali << 32) == 0)
+ {
+ build.movz(temp1, uint16_t(vali >> 48), 48);
+ build.movk(temp1, uint16_t(vali >> 32), 32);
+ build.fmov(temp2, temp1);
+ }
+ else
+ {
+ build.adr(temp1, val);
+ build.ldr(temp2, temp1);
+ }
+ return temp2;
+ }
+ }
+ else
+ {
+ LUAU_ASSERT(!"Unsupported instruction form");
+ return noreg;
+ }
+}
+RegisterA64 IrLoweringA64::tempInt(IrOp op)
+{
+ if (op.kind == IrOpKind::Inst)
+ return regOp(op);
+ else if (op.kind == IrOpKind::Constant)
+ {
+ RegisterA64 temp = regs.allocTemp(KindA64::w);
+ build.mov(temp, intOp(op));
+ return temp;
+ }
+ else
+ {
+ LUAU_ASSERT(!"Unsupported instruction form");
+ return noreg;
+ }
+}
+RegisterA64 IrLoweringA64::tempUint(IrOp op)
+{
+ if (op.kind == IrOpKind::Inst)
+ return regOp(op);
+ else if (op.kind == IrOpKind::Constant)
+ {
+ RegisterA64 temp = regs.allocTemp(KindA64::w);
+ build.mov(temp, unsigned(intOp(op)));
+ return temp;
+ }
+ else
+ {
+ LUAU_ASSERT(!"Unsupported instruction form");
+ return noreg;
+ }
+}
+AddressA64 IrLoweringA64::tempAddr(IrOp op, int offset)
+{
+ LUAU_ASSERT(offset % 4 == 0);
+ LUAU_ASSERT(offset >= 0 && unsigned(offset / 4) <= AssemblyBuilderA64::kMaxImmediate);
+ if (op.kind == IrOpKind::VmReg)
+ return mem(rBase, vmRegOp(op) * sizeof(TValue) + offset);
+ else if (op.kind == IrOpKind::VmConst)
+ {
+ size_t constantOffset = vmConstOp(op) * sizeof(TValue) + offset;
+ if (constantOffset / 4 <= AddressA64::kMaxOffset)
+ return mem(rConstants, int(constantOffset));
+ RegisterA64 temp = regs.allocTemp(KindA64::x);
+ emitAddOffset(build, temp, rConstants, constantOffset);
+ return temp;
+ }
+ else if (op.kind == IrOpKind::Inst)
+ return mem(regOp(op), offset);
+ else
+ {
+ LUAU_ASSERT(!"Unsupported instruction form");
+ return noreg;
+ }
+}
+AddressA64 IrLoweringA64::tempAddrBuffer(IrOp bufferOp, IrOp indexOp)
+{
+ if (indexOp.kind == IrOpKind::Inst)
+ {
+ RegisterA64 temp = regs.allocTemp(KindA64::x);
+ build.add(temp, regOp(bufferOp), regOp(indexOp));
+ return mem(temp, offsetof(Buffer, data));
+ }
+ else if (indexOp.kind == IrOpKind::Constant)
+ {
+ if (unsigned(intOp(indexOp)) + offsetof(Buffer, data) <= 255)
+ return mem(regOp(bufferOp), int(intOp(indexOp) + offsetof(Buffer, data)));
+ if (intOp(indexOp) < 0)
+ return mem(regOp(bufferOp), offsetof(Buffer, data));
+ RegisterA64 temp = regs.allocTemp(KindA64::x);
+ emitAddOffset(build, temp, regOp(bufferOp), size_t(intOp(indexOp)));
+ return mem(temp, offsetof(Buffer, data));
+ }
+ else
+ {
+ LUAU_ASSERT(!"Unsupported instruction form");
+ return noreg;
+ }
+}
+RegisterA64 IrLoweringA64::regOp(IrOp op)
+{
+ IrInst& inst = function.instOp(op);
+ if (inst.spilled || inst.needsReload)
+ regs.restoreReg(build, inst);
+ LUAU_ASSERT(inst.regA64 != noreg);
+ return inst.regA64;
+}
+IrConst IrLoweringA64::constOp(IrOp op) const
+{
+ return function.constOp(op);
+}
+uint8_t IrLoweringA64::tagOp(IrOp op) const
+{
+ return function.tagOp(op);
+}
+int IrLoweringA64::intOp(IrOp op) const
+{
+ return function.intOp(op);
+}
+unsigned IrLoweringA64::uintOp(IrOp op) const
+{
+ return function.uintOp(op);
+}
+double IrLoweringA64::doubleOp(IrOp op) const
+{
+ return function.doubleOp(op);
+}
+IrBlock& IrLoweringA64::blockOp(IrOp op) const
+{
+ return function.blockOp(op);
+}
+Label& IrLoweringA64::labelOp(IrOp op) const
+{
+ return blockOp(op).label;
+}
+}
+} // namespace CodeGen
+}
+#line __LINE__ ""
+#line __LINE__ "IrLoweringX64.cpp"
+LUAU_FASTFLAG(LuauCodeGenFixByteLower)
+namespace Luau
+{
+namespace CodeGen
+{
+namespace X64
+{
+IrLoweringX64::IrLoweringX64(AssemblyBuilderX64& build, ModuleHelpers& helpers, IrFunction& function, LoweringStats* stats)
+ : build(build)
+ , helpers(helpers)
+ , function(function)
+ , stats(stats)
+ , regs(build, function, stats)
+ , valueTracker(function)
+ , exitHandlerMap(~0u)
+{
+ valueTracker.setRestoreCallack(&regs, [](void* context, IrInst& inst) {
+ ((IrRegAllocX64*)context)->restore(inst, false);
+ });
+ build.align(kFunctionAlignment, X64::AlignmentDataX64::Ud2);
+}
+void IrLoweringX64::storeDoubleAsFloat(OperandX64 dst, IrOp src)
+{
+ ScopedRegX64 tmp{regs, SizeX64::xmmword};
+ if (src.kind == IrOpKind::Constant)
+ {
+ build.vmovss(tmp.reg, build.f32(float(doubleOp(src))));
+ }
+ else if (src.kind == IrOpKind::Inst)
+ {
+ build.vcvtsd2ss(tmp.reg, regOp(src), regOp(src));
+ }
+ else
+ {
+ LUAU_ASSERT(!"Unsupported instruction form");
+ }
+ build.vmovss(dst, tmp.reg);
+}
+void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
+{
+ regs.currInstIdx = index;
+ valueTracker.beforeInstLowering(inst);
+ switch (inst.cmd)
+ {
+ case IrCmd::LOAD_TAG:
+ inst.regX64 = regs.allocReg(SizeX64::dword, index);
+ if (inst.a.kind == IrOpKind::VmReg)
+ build.mov(inst.regX64, luauRegTag(vmRegOp(inst.a)));
+ else if (inst.a.kind == IrOpKind::VmConst)
+ build.mov(inst.regX64, luauConstantTag(vmConstOp(inst.a)));
+ else if (inst.a.kind == IrOpKind::Inst)
+ build.mov(inst.regX64, dword[regOp(inst.a) + offsetof(TValue, tt)]);
+ else
+ LUAU_ASSERT(!"Unsupported instruction form");
+ break;
+ case IrCmd::LOAD_POINTER:
+ inst.regX64 = regs.allocReg(SizeX64::qword, index);
+ if (inst.a.kind == IrOpKind::VmReg)
+ build.mov(inst.regX64, luauRegValue(vmRegOp(inst.a)));
+ else if (inst.a.kind == IrOpKind::VmConst)
+ build.mov(inst.regX64, luauConstantValue(vmConstOp(inst.a)));
+ else if (inst.a.kind == IrOpKind::Inst)
+ build.mov(inst.regX64, qword[regOp(inst.a) + offsetof(TValue, value)]);
+ else
+ LUAU_ASSERT(!"Unsupported instruction form");
+ break;
+ case IrCmd::LOAD_DOUBLE:
+ inst.regX64 = regs.allocReg(SizeX64::xmmword, index);
+ if (inst.a.kind == IrOpKind::VmReg)
+ build.vmovsd(inst.regX64, luauRegValue(vmRegOp(inst.a)));
+ else if (inst.a.kind == IrOpKind::VmConst)
+ build.vmovsd(inst.regX64, luauConstantValue(vmConstOp(inst.a)));
+ else
+ LUAU_ASSERT(!"Unsupported instruction form");
+ break;
+ case IrCmd::LOAD_INT:
+ inst.regX64 = regs.allocReg(SizeX64::dword, index);
+ build.mov(inst.regX64, luauRegValueInt(vmRegOp(inst.a)));
+ break;
+ case IrCmd::LOAD_TVALUE:
+ {
+ inst.regX64 = regs.allocReg(SizeX64::xmmword, index);
+ int addrOffset = inst.b.kind != IrOpKind::None ? intOp(inst.b) : 0;
+ if (inst.a.kind == IrOpKind::VmReg)
+ build.vmovups(inst.regX64, luauReg(vmRegOp(inst.a)));
+ else if (inst.a.kind == IrOpKind::VmConst)
+ build.vmovups(inst.regX64, luauConstant(vmConstOp(inst.a)));
+ else if (inst.a.kind == IrOpKind::Inst)
+ build.vmovups(inst.regX64, xmmword[regOp(inst.a) + addrOffset]);
+ else
+ LUAU_ASSERT(!"Unsupported instruction form");
+ break;
+ }
+ case IrCmd::LOAD_ENV:
+ inst.regX64 = regs.allocReg(SizeX64::qword, index);
+ build.mov(inst.regX64, sClosure);
+ build.mov(inst.regX64, qword[inst.regX64 + offsetof(Closure, env)]);
+ break;
+ case IrCmd::GET_ARR_ADDR:
+ if (inst.b.kind == IrOpKind::Inst)
+ {
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::qword, index, {inst.b});
+ if (dwordReg(inst.regX64) != regOp(inst.b))
+ build.mov(dwordReg(inst.regX64), regOp(inst.b));
+ build.shl(dwordReg(inst.regX64), kTValueSizeLog2);
+ build.add(inst.regX64, qword[regOp(inst.a) + offsetof(Table, array)]);
+ }
+ else if (inst.b.kind == IrOpKind::Constant)
+ {
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::qword, index, {inst.a});
+ build.mov(inst.regX64, qword[regOp(inst.a) + offsetof(Table, array)]);
+ if (intOp(inst.b) != 0)
+ build.lea(inst.regX64, addr[inst.regX64 + intOp(inst.b) * sizeof(TValue)]);
+ }
+ else
+ {
+ LUAU_ASSERT(!"Unsupported instruction form");
+ }
+ break;
+ case IrCmd::GET_SLOT_NODE_ADDR:
+ {
+ inst.regX64 = regs.allocReg(SizeX64::qword, index);
+ ScopedRegX64 tmp{regs, SizeX64::qword};
+ getTableNodeAtCachedSlot(build, tmp.reg, inst.regX64, regOp(inst.a), uintOp(inst.b));
+ break;
+ }
+ case IrCmd::GET_HASH_NODE_ADDR:
+ {
+ ScopedRegX64 shiftTmp{regs, regs.takeReg(rcx, kInvalidInstIdx)};
+ inst.regX64 = regs.allocReg(SizeX64::qword, index);
+ ScopedRegX64 tmp{regs, SizeX64::qword};
+ build.mov(inst.regX64, qword[regOp(inst.a) + offsetof(Table, node)]);
+ build.mov(dwordReg(tmp.reg), 1);
+ build.mov(byteReg(shiftTmp.reg), byte[regOp(inst.a) + offsetof(Table, lsizenode)]);
+ build.shl(dwordReg(tmp.reg), byteReg(shiftTmp.reg));
+ build.dec(dwordReg(tmp.reg));
+ build.and_(dwordReg(tmp.reg), uintOp(inst.b));
+ build.shl(tmp.reg, kLuaNodeSizeLog2);
+ build.add(inst.regX64, tmp.reg);
+ break;
+ };
+ case IrCmd::GET_CLOSURE_UPVAL_ADDR:
+ {
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::qword, index, {inst.a});
+ if (inst.a.kind == IrOpKind::Undef)
+ {
+ build.mov(inst.regX64, sClosure);
+ }
+ else
+ {
+ RegisterX64 cl = regOp(inst.a);
+ if (inst.regX64 != cl)
+ build.mov(inst.regX64, cl);
+ }
+ build.add(inst.regX64, offsetof(Closure, l.uprefs) + sizeof(TValue) * vmUpvalueOp(inst.b));
+ break;
+ }
+ case IrCmd::STORE_TAG:
+ if (inst.b.kind == IrOpKind::Constant)
+ {
+ if (inst.a.kind == IrOpKind::Inst)
+ build.mov(dword[regOp(inst.a) + offsetof(TValue, tt)], tagOp(inst.b));
+ else
+ build.mov(luauRegTag(vmRegOp(inst.a)), tagOp(inst.b));
+ }
+ else
+ LUAU_ASSERT(!"Unsupported instruction form");
+ break;
+ case IrCmd::STORE_POINTER:
+ {
+ OperandX64 valueLhs = inst.a.kind == IrOpKind::Inst ? qword[regOp(inst.a) + offsetof(TValue, value)] : luauRegValue(vmRegOp(inst.a));
+ if (inst.b.kind == IrOpKind::Constant)
+ {
+ LUAU_ASSERT(intOp(inst.b) == 0);
+ build.mov(valueLhs, 0);
+ }
+ else if (inst.b.kind == IrOpKind::Inst)
+ {
+ build.mov(valueLhs, regOp(inst.b));
+ }
+ else
+ {
+ LUAU_ASSERT(!"Unsupported instruction form");
+ }
+ break;
+ }
+ case IrCmd::STORE_DOUBLE:
+ {
+ OperandX64 valueLhs = inst.a.kind == IrOpKind::Inst ? qword[regOp(inst.a) + offsetof(TValue, value)] : luauRegValue(vmRegOp(inst.a));
+ if (inst.b.kind == IrOpKind::Constant)
+ {
+ ScopedRegX64 tmp{regs, SizeX64::xmmword};
+ build.vmovsd(tmp.reg, build.f64(doubleOp(inst.b)));
+ build.vmovsd(valueLhs, tmp.reg);
+ }
+ else if (inst.b.kind == IrOpKind::Inst)
+ {
+ build.vmovsd(valueLhs, regOp(inst.b));
+ }
+ else
+ {
+ LUAU_ASSERT(!"Unsupported instruction form");
+ }
+ break;
+ }
+ case IrCmd::STORE_INT:
+ if (inst.b.kind == IrOpKind::Constant)
+ build.mov(luauRegValueInt(vmRegOp(inst.a)), intOp(inst.b));
+ else if (inst.b.kind == IrOpKind::Inst)
+ build.mov(luauRegValueInt(vmRegOp(inst.a)), regOp(inst.b));
+ else
+ LUAU_ASSERT(!"Unsupported instruction form");
+ break;
+ case IrCmd::STORE_VECTOR:
+ storeDoubleAsFloat(luauRegValueVector(vmRegOp(inst.a), 0), inst.b);
+ storeDoubleAsFloat(luauRegValueVector(vmRegOp(inst.a), 1), inst.c);
+ storeDoubleAsFloat(luauRegValueVector(vmRegOp(inst.a), 2), inst.d);
+ break;
+ case IrCmd::STORE_TVALUE:
+ {
+ int addrOffset = inst.c.kind != IrOpKind::None ? intOp(inst.c) : 0;
+ if (inst.a.kind == IrOpKind::VmReg)
+ build.vmovups(luauReg(vmRegOp(inst.a)), regOp(inst.b));
+ else if (inst.a.kind == IrOpKind::Inst)
+ build.vmovups(xmmword[regOp(inst.a) + addrOffset], regOp(inst.b));
+ else
+ LUAU_ASSERT(!"Unsupported instruction form");
+ break;
+ }
+ case IrCmd::STORE_SPLIT_TVALUE:
+ {
+ int addrOffset = inst.d.kind != IrOpKind::None ? intOp(inst.d) : 0;
+ OperandX64 tagLhs = inst.a.kind == IrOpKind::Inst ? dword[regOp(inst.a) + offsetof(TValue, tt) + addrOffset] : luauRegTag(vmRegOp(inst.a));
+ build.mov(tagLhs, tagOp(inst.b));
+ if (tagOp(inst.b) == LUA_TBOOLEAN)
+ {
+ OperandX64 valueLhs =
+ inst.a.kind == IrOpKind::Inst ? dword[regOp(inst.a) + offsetof(TValue, value) + addrOffset] : luauRegValueInt(vmRegOp(inst.a));
+ build.mov(valueLhs, inst.c.kind == IrOpKind::Constant ? OperandX64(intOp(inst.c)) : regOp(inst.c));
+ }
+ else if (tagOp(inst.b) == LUA_TNUMBER)
+ {
+ OperandX64 valueLhs =
+ inst.a.kind == IrOpKind::Inst ? qword[regOp(inst.a) + offsetof(TValue, value) + addrOffset] : luauRegValue(vmRegOp(inst.a));
+ if (inst.c.kind == IrOpKind::Constant)
+ {
+ ScopedRegX64 tmp{regs, SizeX64::xmmword};
+ build.vmovsd(tmp.reg, build.f64(doubleOp(inst.c)));
+ build.vmovsd(valueLhs, tmp.reg);
+ }
+ else
+ {
+ build.vmovsd(valueLhs, regOp(inst.c));
+ }
+ }
+ else if (isGCO(tagOp(inst.b)))
+ {
+ OperandX64 valueLhs =
+ inst.a.kind == IrOpKind::Inst ? qword[regOp(inst.a) + offsetof(TValue, value) + addrOffset] : luauRegValue(vmRegOp(inst.a));
+ build.mov(valueLhs, regOp(inst.c));
+ }
+ else
+ {
+ LUAU_ASSERT(!"Unsupported instruction form");
+ }
+ break;
+ }
+ case IrCmd::ADD_INT:
+ {
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a});
+ if (inst.a.kind == IrOpKind::Constant)
+ {
+ build.lea(inst.regX64, addr[regOp(inst.b) + intOp(inst.a)]);
+ }
+ else if (inst.a.kind == IrOpKind::Inst)
+ {
+ if (inst.regX64 == regOp(inst.a))
+ {
+ if (inst.b.kind == IrOpKind::Inst)
+ build.add(inst.regX64, regOp(inst.b));
+ else if (intOp(inst.b) == 1)
+ build.inc(inst.regX64);
+ else
+ build.add(inst.regX64, intOp(inst.b));
+ }
+ else
+ {
+ if (inst.b.kind == IrOpKind::Inst)
+ build.lea(inst.regX64, addr[regOp(inst.a) + regOp(inst.b)]);
+ else
+ build.lea(inst.regX64, addr[regOp(inst.a) + intOp(inst.b)]);
+ }
+ }
+ else
+ {
+ LUAU_ASSERT(!"Unsupported instruction form");
+ }
+ break;
+ }
+ case IrCmd::SUB_INT:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a});
+ if (inst.regX64 == regOp(inst.a) && intOp(inst.b) == 1)
+ build.dec(inst.regX64);
+ else if (inst.regX64 == regOp(inst.a))
+ build.sub(inst.regX64, intOp(inst.b));
+ else
+ build.lea(inst.regX64, addr[regOp(inst.a) - intOp(inst.b)]);
+ break;
+ case IrCmd::ADD_NUM:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
+ if (inst.a.kind == IrOpKind::Constant)
+ {
+ ScopedRegX64 tmp{regs, SizeX64::xmmword};
+ build.vmovsd(tmp.reg, memRegDoubleOp(inst.a));
+ build.vaddsd(inst.regX64, tmp.reg, memRegDoubleOp(inst.b));
+ }
+ else
+ {
+ build.vaddsd(inst.regX64, regOp(inst.a), memRegDoubleOp(inst.b));
+ }
+ break;
+ case IrCmd::SUB_NUM:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
+ if (inst.a.kind == IrOpKind::Constant)
+ {
+ ScopedRegX64 tmp{regs, SizeX64::xmmword};
+ build.vmovsd(tmp.reg, memRegDoubleOp(inst.a));
+ build.vsubsd(inst.regX64, tmp.reg, memRegDoubleOp(inst.b));
+ }
+ else
+ {
+ build.vsubsd(inst.regX64, regOp(inst.a), memRegDoubleOp(inst.b));
+ }
+ break;
+ case IrCmd::MUL_NUM:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
+ if (inst.a.kind == IrOpKind::Constant)
+ {
+ ScopedRegX64 tmp{regs, SizeX64::xmmword};
+ build.vmovsd(tmp.reg, memRegDoubleOp(inst.a));
+ build.vmulsd(inst.regX64, tmp.reg, memRegDoubleOp(inst.b));
+ }
+ else
+ {
+ build.vmulsd(inst.regX64, regOp(inst.a), memRegDoubleOp(inst.b));
+ }
+ break;
+ case IrCmd::DIV_NUM:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
+ if (inst.a.kind == IrOpKind::Constant)
+ {
+ ScopedRegX64 tmp{regs, SizeX64::xmmword};
+ build.vmovsd(tmp.reg, memRegDoubleOp(inst.a));
+ build.vdivsd(inst.regX64, tmp.reg, memRegDoubleOp(inst.b));
+ }
+ else
+ {
+ build.vdivsd(inst.regX64, regOp(inst.a), memRegDoubleOp(inst.b));
+ }
+ break;
+ case IrCmd::IDIV_NUM:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
+ if (inst.a.kind == IrOpKind::Constant)
+ {
+ ScopedRegX64 tmp{regs, SizeX64::xmmword};
+ build.vmovsd(tmp.reg, memRegDoubleOp(inst.a));
+ build.vdivsd(inst.regX64, tmp.reg, memRegDoubleOp(inst.b));
+ }
+ else
+ {
+ build.vdivsd(inst.regX64, regOp(inst.a), memRegDoubleOp(inst.b));
+ }
+ build.vroundsd(inst.regX64, inst.regX64, inst.regX64, RoundingModeX64::RoundToNegativeInfinity);
+ break;
+ case IrCmd::MOD_NUM:
+ {
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
+ ScopedRegX64 optLhsTmp{regs};
+ RegisterX64 lhs;
+ if (inst.a.kind == IrOpKind::Constant)
+ {
+ optLhsTmp.alloc(SizeX64::xmmword);
+ build.vmovsd(optLhsTmp.reg, memRegDoubleOp(inst.a));
+ lhs = optLhsTmp.reg;
+ }
+ else
+ {
+ lhs = regOp(inst.a);
+ }
+ if (inst.b.kind == IrOpKind::Inst)
+ {
+ ScopedRegX64 tmp{regs, SizeX64::xmmword};
+ build.vdivsd(tmp.reg, lhs, memRegDoubleOp(inst.b));
+ build.vroundsd(tmp.reg, tmp.reg, tmp.reg, RoundingModeX64::RoundToNegativeInfinity);
+ build.vmulsd(tmp.reg, tmp.reg, memRegDoubleOp(inst.b));
+ build.vsubsd(inst.regX64, lhs, tmp.reg);
+ }
+ else
+ {
+ ScopedRegX64 tmp1{regs, SizeX64::xmmword};
+ ScopedRegX64 tmp2{regs, SizeX64::xmmword};
+ build.vmovsd(tmp1.reg, memRegDoubleOp(inst.b));
+ build.vdivsd(tmp2.reg, lhs, tmp1.reg);
+ build.vroundsd(tmp2.reg, tmp2.reg, tmp2.reg, RoundingModeX64::RoundToNegativeInfinity);
+ build.vmulsd(tmp1.reg, tmp2.reg, tmp1.reg);
+ build.vsubsd(inst.regX64, lhs, tmp1.reg);
+ }
+ break;
+ }
+ case IrCmd::MIN_NUM:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
+ if (inst.a.kind == IrOpKind::Constant)
+ {
+ ScopedRegX64 tmp{regs, SizeX64::xmmword};
+ build.vmovsd(tmp.reg, memRegDoubleOp(inst.a));
+ build.vminsd(inst.regX64, tmp.reg, memRegDoubleOp(inst.b));
+ }
+ else
+ {
+ build.vminsd(inst.regX64, regOp(inst.a), memRegDoubleOp(inst.b));
+ }
+ break;
+ case IrCmd::MAX_NUM:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
+ if (inst.a.kind == IrOpKind::Constant)
+ {
+ ScopedRegX64 tmp{regs, SizeX64::xmmword};
+ build.vmovsd(tmp.reg, memRegDoubleOp(inst.a));
+ build.vmaxsd(inst.regX64, tmp.reg, memRegDoubleOp(inst.b));
+ }
+ else
+ {
+ build.vmaxsd(inst.regX64, regOp(inst.a), memRegDoubleOp(inst.b));
+ }
+ break;
+ case IrCmd::UNM_NUM:
+ {
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a});
+ RegisterX64 src = regOp(inst.a);
+ if (inst.regX64 == src)
+ {
+ build.vxorpd(inst.regX64, inst.regX64, build.f64(-0.0));
+ }
+ else
+ {
+ build.vmovsd(inst.regX64, src, src);
+ build.vxorpd(inst.regX64, inst.regX64, build.f64(-0.0));
+ }
+ break;
+ }
+ case IrCmd::FLOOR_NUM:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a});
+ build.vroundsd(inst.regX64, inst.regX64, memRegDoubleOp(inst.a), RoundingModeX64::RoundToNegativeInfinity);
+ break;
+ case IrCmd::CEIL_NUM:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a});
+ build.vroundsd(inst.regX64, inst.regX64, memRegDoubleOp(inst.a), RoundingModeX64::RoundToPositiveInfinity);
+ break;
+ case IrCmd::ROUND_NUM:
+ {
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a});
+ ScopedRegX64 tmp1{regs, SizeX64::xmmword};
+ ScopedRegX64 tmp2{regs, SizeX64::xmmword};
+ if (inst.a.kind != IrOpKind::Inst)
+ build.vmovsd(inst.regX64, memRegDoubleOp(inst.a));
+ else if (regOp(inst.a) != inst.regX64)
+ build.vmovsd(inst.regX64, inst.regX64, regOp(inst.a));
+ build.vandpd(tmp1.reg, inst.regX64, build.f64x2(-0.0, -0.0));
+ build.vmovsd(tmp2.reg, build.i64(0x3fdfffffffffffff));
+ build.vorpd(tmp1.reg, tmp1.reg, tmp2.reg);
+ build.vaddsd(inst.regX64, inst.regX64, tmp1.reg);
+ build.vroundsd(inst.regX64, inst.regX64, inst.regX64, RoundingModeX64::RoundToZero);
+ break;
+ }
+ case IrCmd::SQRT_NUM:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a});
+ build.vsqrtsd(inst.regX64, inst.regX64, memRegDoubleOp(inst.a));
+ break;
+ case IrCmd::ABS_NUM:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a});
+ if (inst.a.kind != IrOpKind::Inst)
+ build.vmovsd(inst.regX64, memRegDoubleOp(inst.a));
+ else if (regOp(inst.a) != inst.regX64)
+ build.vmovsd(inst.regX64, inst.regX64, regOp(inst.a));
+ build.vandpd(inst.regX64, inst.regX64, build.i64(~(1LL << 63)));
+ break;
+ case IrCmd::NOT_ANY:
+ {
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a, inst.b});
+ Label saveone, savezero, exit;
+ if (inst.a.kind == IrOpKind::Constant)
+ {
+ LUAU_ASSERT(tagOp(inst.a) == LUA_TBOOLEAN);
+ }
+ else
+ {
+ build.cmp(regOp(inst.a), LUA_TNIL);
+ build.jcc(ConditionX64::Equal, saveone);
+ build.cmp(regOp(inst.a), LUA_TBOOLEAN);
+ build.jcc(ConditionX64::NotEqual, savezero);
+ }
+ if (inst.b.kind == IrOpKind::Constant)
+ {
+ if (intOp(inst.b) == 0)
+ build.jmp(saveone);
+ }
+ else
+ {
+ build.cmp(regOp(inst.b), 0);
+ build.jcc(ConditionX64::Equal, saveone);
+ }
+ build.setLabel(savezero);
+ build.mov(inst.regX64, 0);
+ build.jmp(exit);
+ build.setLabel(saveone);
+ build.mov(inst.regX64, 1);
+ build.setLabel(exit);
+ break;
+ }
+ case IrCmd::CMP_ANY:
+ {
+ IrCondition cond = conditionOp(inst.c);
+ IrCallWrapperX64 callWrap(regs, build);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::qword, luauRegAddress(vmRegOp(inst.a)));
+ callWrap.addArgument(SizeX64::qword, luauRegAddress(vmRegOp(inst.b)));
+ if (cond == IrCondition::LessEqual)
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_lessequal)]);
+ else if (cond == IrCondition::Less)
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_lessthan)]);
+ else if (cond == IrCondition::Equal)
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_equalval)]);
+ else
+ LUAU_ASSERT(!"Unsupported condition");
+ emitUpdateBase(build);
+ inst.regX64 = regs.takeReg(eax, index);
+ break;
+ }
+ case IrCmd::JUMP:
+ jumpOrAbortOnUndef(inst.a, next);
+ break;
+ case IrCmd::JUMP_IF_TRUTHY:
+ jumpIfTruthy(build, vmRegOp(inst.a), labelOp(inst.b), labelOp(inst.c));
+ jumpOrFallthrough(blockOp(inst.c), next);
+ break;
+ case IrCmd::JUMP_IF_FALSY:
+ jumpIfFalsy(build, vmRegOp(inst.a), labelOp(inst.b), labelOp(inst.c));
+ jumpOrFallthrough(blockOp(inst.c), next);
+ break;
+ case IrCmd::JUMP_EQ_TAG:
+ {
+ LUAU_ASSERT(inst.b.kind == IrOpKind::Inst || inst.b.kind == IrOpKind::Constant);
+ OperandX64 opb = inst.b.kind == IrOpKind::Inst ? regOp(inst.b) : OperandX64(tagOp(inst.b));
+ if (inst.a.kind == IrOpKind::Constant)
+ build.cmp(opb, tagOp(inst.a));
+ else
+ build.cmp(memRegTagOp(inst.a), opb);
+ if (isFallthroughBlock(blockOp(inst.d), next))
+ {
+ build.jcc(ConditionX64::Equal, labelOp(inst.c));
+ jumpOrFallthrough(blockOp(inst.d), next);
+ }
+ else
+ {
+ build.jcc(ConditionX64::NotEqual, labelOp(inst.d));
+ jumpOrFallthrough(blockOp(inst.c), next);
+ }
+ break;
+ }
+ case IrCmd::JUMP_CMP_INT:
+ {
+ IrCondition cond = conditionOp(inst.c);
+ if ((cond == IrCondition::Equal || cond == IrCondition::NotEqual) && intOp(inst.b) == 0)
+ {
+ bool invert = cond == IrCondition::NotEqual;
+ build.test(regOp(inst.a), regOp(inst.a));
+ if (isFallthroughBlock(blockOp(inst.d), next))
+ {
+ build.jcc(invert ? ConditionX64::Zero : ConditionX64::NotZero, labelOp(inst.e));
+ jumpOrFallthrough(blockOp(inst.d), next);
+ }
+ else
+ {
+ build.jcc(invert ? ConditionX64::NotZero : ConditionX64::Zero, labelOp(inst.d));
+ jumpOrFallthrough(blockOp(inst.e), next);
+ }
+ }
+ else
+ {
+ build.cmp(regOp(inst.a), intOp(inst.b));
+ build.jcc(getConditionInt(cond), labelOp(inst.d));
+ jumpOrFallthrough(blockOp(inst.e), next);
+ }
+ break;
+ }
+ case IrCmd::JUMP_EQ_POINTER:
+ build.cmp(regOp(inst.a), regOp(inst.b));
+ build.jcc(ConditionX64::Equal, labelOp(inst.c));
+ jumpOrFallthrough(blockOp(inst.d), next);
+ break;
+ case IrCmd::JUMP_CMP_NUM:
+ {
+ IrCondition cond = conditionOp(inst.c);
+ ScopedRegX64 tmp{regs, SizeX64::xmmword};
+ jumpOnNumberCmp(build, tmp.reg, memRegDoubleOp(inst.a), memRegDoubleOp(inst.b), cond, labelOp(inst.d));
+ jumpOrFallthrough(blockOp(inst.e), next);
+ break;
+ }
+ case IrCmd::JUMP_FORN_LOOP_COND:
+ {
+ ScopedRegX64 tmp1{regs, SizeX64::xmmword};
+ ScopedRegX64 tmp2{regs, SizeX64::xmmword};
+ ScopedRegX64 tmp3{regs, SizeX64::xmmword};
+ RegisterX64 index = inst.a.kind == IrOpKind::Inst ? regOp(inst.a) : tmp1.reg;
+ RegisterX64 limit = inst.b.kind == IrOpKind::Inst ? regOp(inst.b) : tmp2.reg;
+ if (inst.a.kind != IrOpKind::Inst)
+ build.vmovsd(tmp1.reg, memRegDoubleOp(inst.a));
+ if (inst.b.kind != IrOpKind::Inst)
+ build.vmovsd(tmp2.reg, memRegDoubleOp(inst.b));
+ Label direct;
+ jumpOnNumberCmp(build, tmp3.reg, memRegDoubleOp(inst.c), build.f64(0.0), IrCondition::Greater, direct);
+ jumpOnNumberCmp(build, noreg, limit, index, IrCondition::NotLessEqual, labelOp(inst.e));
+ build.jmp(labelOp(inst.d));
+ build.setLabel(direct);
+ jumpOnNumberCmp(build, noreg, index, limit, IrCondition::NotLessEqual, labelOp(inst.e));
+ jumpOrFallthrough(blockOp(inst.d), next);
+ break;
+ }
+ case IrCmd::TABLE_LEN:
+ {
+ IrCallWrapperX64 callWrap(regs, build, index);
+ callWrap.addArgument(SizeX64::qword, regOp(inst.a), inst.a);
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaH_getn)]);
+ inst.regX64 = regs.takeReg(eax, index);
+ break;
+ }
+ case IrCmd::TABLE_SETNUM:
+ {
+ IrCallWrapperX64 callWrap(regs, build, index);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::qword, regOp(inst.a), inst.a);
+ callWrap.addArgument(SizeX64::dword, regOp(inst.b), inst.b);
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaH_setnum)]);
+ inst.regX64 = regs.takeReg(rax, index);
+ break;
+ }
+ case IrCmd::STRING_LEN:
+ {
+ RegisterX64 ptr = regOp(inst.a);
+ inst.regX64 = regs.allocReg(SizeX64::dword, index);
+ build.mov(inst.regX64, dword[ptr + offsetof(TString, len)]);
+ break;
+ }
+ case IrCmd::NEW_TABLE:
+ {
+ IrCallWrapperX64 callWrap(regs, build, index);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::dword, int32_t(uintOp(inst.a)));
+ callWrap.addArgument(SizeX64::dword, int32_t(uintOp(inst.b)));
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaH_new)]);
+ inst.regX64 = regs.takeReg(rax, index);
+ break;
+ }
+ case IrCmd::DUP_TABLE:
+ {
+ IrCallWrapperX64 callWrap(regs, build, index);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::qword, regOp(inst.a), inst.a);
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaH_clone)]);
+ inst.regX64 = regs.takeReg(rax, index);
+ break;
+ }
+ case IrCmd::TRY_NUM_TO_INDEX:
+ {
+ inst.regX64 = regs.allocReg(SizeX64::dword, index);
+ ScopedRegX64 tmp{regs, SizeX64::xmmword};
+ convertNumberToIndexOrJump(build, tmp.reg, regOp(inst.a), inst.regX64, labelOp(inst.b));
+ break;
+ }
+ case IrCmd::TRY_CALL_FASTGETTM:
+ {
+ ScopedRegX64 tmp{regs, SizeX64::qword};
+ build.mov(tmp.reg, qword[regOp(inst.a) + offsetof(Table, metatable)]);
+ regs.freeLastUseReg(function.instOp(inst.a), index);
+ build.test(tmp.reg, tmp.reg);
+ build.jcc(ConditionX64::Zero, labelOp(inst.c));
+ build.test(byte[tmp.reg + offsetof(Table, tmcache)], 1 << intOp(inst.b));
+ build.jcc(ConditionX64::NotZero, labelOp(inst.c));
+ ScopedRegX64 tmp2{regs, SizeX64::qword};
+ build.mov(tmp2.reg, qword[rState + offsetof(lua_State, global)]);
+ {
+ ScopedSpills spillGuard(regs);
+ IrCallWrapperX64 callWrap(regs, build, index);
+ callWrap.addArgument(SizeX64::qword, tmp);
+ callWrap.addArgument(SizeX64::qword, intOp(inst.b));
+ callWrap.addArgument(SizeX64::qword, qword[tmp2.release() + offsetof(global_State, tmname) + intOp(inst.b) * sizeof(TString*)]);
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaT_gettm)]);
+ }
+ build.test(rax, rax);
+ build.jcc(ConditionX64::Zero, labelOp(inst.c));
+ inst.regX64 = regs.takeReg(rax, index);
+ break;
+ }
+ case IrCmd::INT_TO_NUM:
+ inst.regX64 = regs.allocReg(SizeX64::xmmword, index);
+ build.vcvtsi2sd(inst.regX64, inst.regX64, regOp(inst.a));
+ break;
+ case IrCmd::UINT_TO_NUM:
+ inst.regX64 = regs.allocReg(SizeX64::xmmword, index);
+ if (IrCmd source = function.instOp(inst.a).cmd; source == IrCmd::NUM_TO_UINT)
+ {
+ ScopedRegX64 tmp{regs, SizeX64::dword};
+ build.mov(tmp.reg, regOp(inst.a));
+ build.vcvtsi2sd(inst.regX64, inst.regX64, qwordReg(tmp.reg));
+ }
+ else
+ {
+ LUAU_ASSERT(source != IrCmd::SUBSTITUTE);
+ build.vcvtsi2sd(inst.regX64, inst.regX64, qwordReg(regOp(inst.a)));
+ }
+ break;
+ case IrCmd::NUM_TO_INT:
+ inst.regX64 = regs.allocReg(SizeX64::dword, index);
+ build.vcvttsd2si(inst.regX64, memRegDoubleOp(inst.a));
+ break;
+ case IrCmd::NUM_TO_UINT:
+ inst.regX64 = regs.allocReg(SizeX64::dword, index);
+ build.vcvttsd2si(qwordReg(inst.regX64), memRegDoubleOp(inst.a));
+ break;
+ case IrCmd::ADJUST_STACK_TO_REG:
+ {
+ ScopedRegX64 tmp{regs, SizeX64::qword};
+ if (inst.b.kind == IrOpKind::Constant)
+ {
+ build.lea(tmp.reg, addr[rBase + (vmRegOp(inst.a) + intOp(inst.b)) * sizeof(TValue)]);
+ build.mov(qword[rState + offsetof(lua_State, top)], tmp.reg);
+ }
+ else if (inst.b.kind == IrOpKind::Inst)
+ {
+ build.mov(dwordReg(tmp.reg), regOp(inst.b));
+ build.shl(tmp.reg, kTValueSizeLog2);
+ build.lea(tmp.reg, addr[rBase + tmp.reg + vmRegOp(inst.a) * sizeof(TValue)]);
+ build.mov(qword[rState + offsetof(lua_State, top)], tmp.reg);
+ }
+ else
+ {
+ LUAU_ASSERT(!"Unsupported instruction form");
+ }
+ break;
+ }
+ case IrCmd::ADJUST_STACK_TO_TOP:
+ {
+ ScopedRegX64 tmp{regs, SizeX64::qword};
+ build.mov(tmp.reg, qword[rState + offsetof(lua_State, ci)]);
+ build.mov(tmp.reg, qword[tmp.reg + offsetof(CallInfo, top)]);
+ build.mov(qword[rState + offsetof(lua_State, top)], tmp.reg);
+ break;
+ }
+ case IrCmd::FASTCALL:
+ {
+ OperandX64 arg2 = inst.d.kind != IrOpKind::Undef ? memRegDoubleOp(inst.d) : OperandX64{0};
+ emitBuiltin(regs, build, uintOp(inst.a), vmRegOp(inst.b), vmRegOp(inst.c), arg2, intOp(inst.e), intOp(inst.f));
+ break;
+ }
+ case IrCmd::INVOKE_FASTCALL:
+ {
+ unsigned bfid = uintOp(inst.a);
+ OperandX64 args = 0;
+ if (inst.d.kind == IrOpKind::VmReg)
+ args = luauRegAddress(vmRegOp(inst.d));
+ else if (inst.d.kind == IrOpKind::VmConst)
+ args = luauConstantAddress(vmConstOp(inst.d));
+ else
+ LUAU_ASSERT(inst.d.kind == IrOpKind::Undef);
+ int ra = vmRegOp(inst.b);
+ int arg = vmRegOp(inst.c);
+ int nparams = intOp(inst.e);
+ int nresults = intOp(inst.f);
+ IrCallWrapperX64 callWrap(regs, build, index);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::qword, luauRegAddress(ra));
+ callWrap.addArgument(SizeX64::qword, luauRegAddress(arg));
+ callWrap.addArgument(SizeX64::dword, nresults);
+ callWrap.addArgument(SizeX64::qword, args);
+ if (nparams == LUA_MULTRET)
+ {
+ RegisterX64 reg = callWrap.suggestNextArgumentRegister(SizeX64::qword);
+ ScopedRegX64 tmp{regs, SizeX64::qword};
+ build.mov(reg, qword[rState + offsetof(lua_State, top)]);
+ build.lea(tmp.reg, addr[rBase + (ra + 1) * sizeof(TValue)]);
+ build.sub(reg, tmp.reg);
+ build.shr(reg, kTValueSizeLog2);
+ callWrap.addArgument(SizeX64::dword, dwordReg(reg));
+ }
+ else
+ {
+ callWrap.addArgument(SizeX64::dword, nparams);
+ }
+ ScopedRegX64 func{regs, SizeX64::qword};
+ build.mov(func.reg, qword[rNativeContext + offsetof(NativeContext, luauF_table) + bfid * sizeof(luau_FastFunction)]);
+ callWrap.call(func.release());
+ inst.regX64 = regs.takeReg(eax, index);
+ break;
+ }
+ case IrCmd::CHECK_FASTCALL_RES:
+ {
+ RegisterX64 res = regOp(inst.a);
+ build.test(res, res);
+ build.jcc(ConditionX64::Less, labelOp(inst.b)); // jl jumps if SF != OF
+ break;
+ }
+ case IrCmd::DO_ARITH:
+ {
+ OperandX64 opb = inst.b.kind == IrOpKind::VmReg ? luauRegAddress(vmRegOp(inst.b)) : luauConstantAddress(vmConstOp(inst.b));
+ OperandX64 opc = inst.c.kind == IrOpKind::VmReg ? luauRegAddress(vmRegOp(inst.c)) : luauConstantAddress(vmConstOp(inst.c));
+ callArithHelper(regs, build, vmRegOp(inst.a), opb, opc, TMS(intOp(inst.d)));
+ break;
+ }
+ case IrCmd::DO_LEN:
+ callLengthHelper(regs, build, vmRegOp(inst.a), vmRegOp(inst.b));
+ break;
+ case IrCmd::GET_TABLE:
+ if (inst.c.kind == IrOpKind::VmReg)
+ {
+ callGetTable(regs, build, vmRegOp(inst.b), luauRegAddress(vmRegOp(inst.c)), vmRegOp(inst.a));
+ }
+ else if (inst.c.kind == IrOpKind::Constant)
+ {
+ TValue n = {};
+ setnvalue(&n, uintOp(inst.c));
+ callGetTable(regs, build, vmRegOp(inst.b), build.bytes(&n, sizeof(n)), vmRegOp(inst.a));
+ }
+ else
+ {
+ LUAU_ASSERT(!"Unsupported instruction form");
+ }
+ break;
+ case IrCmd::SET_TABLE:
+ if (inst.c.kind == IrOpKind::VmReg)
+ {
+ callSetTable(regs, build, vmRegOp(inst.b), luauRegAddress(vmRegOp(inst.c)), vmRegOp(inst.a));
+ }
+ else if (inst.c.kind == IrOpKind::Constant)
+ {
+ TValue n = {};
+ setnvalue(&n, uintOp(inst.c));
+ callSetTable(regs, build, vmRegOp(inst.b), build.bytes(&n, sizeof(n)), vmRegOp(inst.a));
+ }
+ else
+ {
+ LUAU_ASSERT(!"Unsupported instruction form");
+ }
+ break;
+ case IrCmd::GET_IMPORT:
+ {
+ ScopedRegX64 tmp1{regs, SizeX64::qword};
+ build.mov(tmp1.reg, sClosure);
+ IrCallWrapperX64 callWrap(regs, build, index);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::qword, qword[tmp1.release() + offsetof(Closure, env)]);
+ callWrap.addArgument(SizeX64::qword, rConstants);
+ callWrap.addArgument(SizeX64::qword, luauRegAddress(vmRegOp(inst.a)));
+ callWrap.addArgument(SizeX64::dword, uintOp(inst.b));
+ callWrap.addArgument(SizeX64::dword, 0);
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_getimport)]);
+ emitUpdateBase(build);
+ break;
+ }
+ case IrCmd::CONCAT:
+ {
+ IrCallWrapperX64 callWrap(regs, build, index);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::dword, int32_t(uintOp(inst.b)));
+ callWrap.addArgument(SizeX64::dword, int32_t(vmRegOp(inst.a) + uintOp(inst.b) - 1));
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_concat)]);
+ emitUpdateBase(build);
+ break;
+ }
+ case IrCmd::GET_UPVALUE:
+ {
+ ScopedRegX64 tmp1{regs, SizeX64::qword};
+ ScopedRegX64 tmp2{regs, SizeX64::xmmword};
+ build.mov(tmp1.reg, sClosure);
+ build.add(tmp1.reg, offsetof(Closure, l.uprefs) + sizeof(TValue) * vmUpvalueOp(inst.b));
+ Label skip;
+ build.cmp(dword[tmp1.reg + offsetof(TValue, tt)], LUA_TUPVAL);
+ build.jcc(ConditionX64::NotEqual, skip);
+ build.mov(tmp1.reg, qword[tmp1.reg + offsetof(TValue, value.gc)]);
+ build.mov(tmp1.reg, qword[tmp1.reg + offsetof(UpVal, v)]);
+ build.setLabel(skip);
+ build.vmovups(tmp2.reg, xmmword[tmp1.reg]);
+ build.vmovups(luauReg(vmRegOp(inst.a)), tmp2.reg);
+ break;
+ }
+ case IrCmd::SET_UPVALUE:
+ {
+ ScopedRegX64 tmp1{regs, SizeX64::qword};
+ ScopedRegX64 tmp2{regs, SizeX64::qword};
+ build.mov(tmp1.reg, sClosure);
+ build.mov(tmp2.reg, qword[tmp1.reg + offsetof(Closure, l.uprefs) + sizeof(TValue) * vmUpvalueOp(inst.a) + offsetof(TValue, value.gc)]);
+ build.mov(tmp1.reg, qword[tmp2.reg + offsetof(UpVal, v)]);
+ {
+ ScopedRegX64 tmp3{regs, SizeX64::xmmword};
+ build.vmovups(tmp3.reg, luauReg(vmRegOp(inst.b)));
+ build.vmovups(xmmword[tmp1.reg], tmp3.reg);
+ }
+ tmp1.free();
+ if (inst.c.kind == IrOpKind::Undef || isGCO(tagOp(inst.c)))
+ callBarrierObject(regs, build, tmp2.release(), {}, inst.b, inst.c.kind == IrOpKind::Undef ? -1 : tagOp(inst.c));
+ break;
+ }
+ case IrCmd::CHECK_TAG:
+ build.cmp(memRegTagOp(inst.a), tagOp(inst.b));
+ jumpOrAbortOnUndef(ConditionX64::NotEqual, inst.c, next);
+ break;
+ case IrCmd::CHECK_TRUTHY:
+ {
+ LUAU_ASSERT(inst.a.kind != IrOpKind::Constant || tagOp(inst.a) == LUA_TBOOLEAN);
+ Label skip;
+ if (inst.a.kind != IrOpKind::Constant)
+ {
+ build.cmp(memRegTagOp(inst.a), LUA_TNIL);
+ jumpOrAbortOnUndef(ConditionX64::Equal, inst.c, next);
+ build.cmp(memRegTagOp(inst.a), LUA_TBOOLEAN);
+ build.jcc(ConditionX64::NotEqual, skip);
+ }
+ build.cmp(memRegUintOp(inst.b), 0);
+ jumpOrAbortOnUndef(ConditionX64::Equal, inst.c, next);
+ if (inst.a.kind != IrOpKind::Constant)
+ build.setLabel(skip);
+ break;
+ }
+ case IrCmd::CHECK_READONLY:
+ build.cmp(byte[regOp(inst.a) + offsetof(Table, readonly)], 0);
+ jumpOrAbortOnUndef(ConditionX64::NotEqual, inst.b, next);
+ break;
+ case IrCmd::CHECK_NO_METATABLE:
+ build.cmp(qword[regOp(inst.a) + offsetof(Table, metatable)], 0);
+ jumpOrAbortOnUndef(ConditionX64::NotEqual, inst.b, next);
+ break;
+ case IrCmd::CHECK_SAFE_ENV:
+ {
+ ScopedRegX64 tmp{regs, SizeX64::qword};
+ build.mov(tmp.reg, sClosure);
+ build.mov(tmp.reg, qword[tmp.reg + offsetof(Closure, env)]);
+ build.cmp(byte[tmp.reg + offsetof(Table, safeenv)], 0);
+ jumpOrAbortOnUndef(ConditionX64::Equal, inst.a, next);
+ break;
+ }
+ case IrCmd::CHECK_ARRAY_SIZE:
+ if (inst.b.kind == IrOpKind::Inst)
+ build.cmp(dword[regOp(inst.a) + offsetof(Table, sizearray)], regOp(inst.b));
+ else if (inst.b.kind == IrOpKind::Constant)
+ build.cmp(dword[regOp(inst.a) + offsetof(Table, sizearray)], intOp(inst.b));
+ else
+ LUAU_ASSERT(!"Unsupported instruction form");
+ jumpOrAbortOnUndef(ConditionX64::BelowEqual, inst.c, next);
+ break;
+ case IrCmd::JUMP_SLOT_MATCH:
+ case IrCmd::CHECK_SLOT_MATCH:
+ {
+ Label abort;
+ const IrOp& mismatchOp = inst.cmd == IrCmd::JUMP_SLOT_MATCH ? inst.d : inst.c;
+ Label& mismatch = mismatchOp.kind == IrOpKind::Undef ? abort : labelOp(mismatchOp);
+ ScopedRegX64 tmp{regs, SizeX64::qword};
+ build.mov(dwordReg(tmp.reg), luauNodeKeyTag(regOp(inst.a)));
+ build.and_(dwordReg(tmp.reg), kTKeyTagMask);
+ build.cmp(dwordReg(tmp.reg), LUA_TSTRING);
+ build.jcc(ConditionX64::NotEqual, mismatch);
+ build.mov(tmp.reg, luauConstantValue(vmConstOp(inst.b)));
+ build.cmp(tmp.reg, luauNodeKeyValue(regOp(inst.a)));
+ build.jcc(ConditionX64::NotEqual, mismatch);
+ build.cmp(dword[regOp(inst.a) + offsetof(LuaNode, val) + offsetof(TValue, tt)], LUA_TNIL);
+ build.jcc(ConditionX64::Equal, mismatch);
+ if (inst.cmd == IrCmd::JUMP_SLOT_MATCH)
+ {
+ jumpOrFallthrough(blockOp(inst.c), next);
+ }
+ else if (mismatchOp.kind == IrOpKind::Undef)
+ {
+ Label skip;
+ build.jmp(skip);
+ build.setLabel(abort);
+ build.ud2();
+ build.setLabel(skip);
+ }
+ break;
+ }
+ case IrCmd::CHECK_NODE_NO_NEXT:
+ {
+ ScopedRegX64 tmp{regs, SizeX64::dword};
+ build.mov(tmp.reg, dword[regOp(inst.a) + offsetof(LuaNode, key) + kOffsetOfTKeyTagNext]);
+ build.shr(tmp.reg, kTKeyTagBits);
+ jumpOrAbortOnUndef(ConditionX64::NotZero, inst.b, next);
+ break;
+ }
+ case IrCmd::CHECK_NODE_VALUE:
+ {
+ build.cmp(dword[regOp(inst.a) + offsetof(LuaNode, val) + offsetof(TValue, tt)], LUA_TNIL);
+ jumpOrAbortOnUndef(ConditionX64::Equal, inst.b, next);
+ break;
+ }
+ case IrCmd::CHECK_BUFFER_LEN:
+ {
+ int accessSize = intOp(inst.c);
+ LUAU_ASSERT(accessSize > 0);
+ if (inst.b.kind == IrOpKind::Inst)
+ {
+ if (accessSize == 1)
+ {
+ build.cmp(dword[regOp(inst.a) + offsetof(Buffer, len)], regOp(inst.b));
+ jumpOrAbortOnUndef(ConditionX64::BelowEqual, inst.d, next);
+ }
+ else
+ {
+ ScopedRegX64 tmp1{regs, SizeX64::qword};
+ ScopedRegX64 tmp2{regs, SizeX64::dword};
+ if (IrCmd source = function.instOp(inst.b).cmd; source == IrCmd::NUM_TO_INT)
+ {
+ build.lea(tmp1.reg, addr[qwordReg(regOp(inst.b)) + accessSize]);
+ }
+ else
+ {
+ build.mov(dwordReg(tmp1.reg), regOp(inst.b));
+ build.add(tmp1.reg, accessSize);
+ }
+ build.mov(tmp2.reg, dword[regOp(inst.a) + offsetof(Buffer, len)]);
+ build.cmp(qwordReg(tmp2.reg), tmp1.reg);
+ jumpOrAbortOnUndef(ConditionX64::Below, inst.d, next);
+ }
+ }
+ else if (inst.b.kind == IrOpKind::Constant)
+ {
+ int offset = intOp(inst.b);
+ if (offset < 0 || unsigned(offset) + unsigned(accessSize) >= unsigned(INT_MAX))
+ jumpOrAbortOnUndef(inst.d, next);
+ else
+ build.cmp(dword[regOp(inst.a) + offsetof(Buffer, len)], offset + accessSize);
+ jumpOrAbortOnUndef(ConditionX64::Below, inst.d, next);
+ }
+ else
+ {
+ LUAU_ASSERT(!"Unsupported instruction form");
+ }
+ break;
+ }
+ case IrCmd::INTERRUPT:
+ {
+ unsigned pcpos = uintOp(inst.a);
+ regs.preserveAndFreeInstValues();
+ ScopedRegX64 tmp{regs, SizeX64::qword};
+ Label self;
+ build.mov(tmp.reg, qword[rState + offsetof(lua_State, global)]);
+ build.cmp(qword[tmp.reg + offsetof(global_State, cb.interrupt)], 0);
+ build.jcc(ConditionX64::NotEqual, self);
+ Label next = build.setLabel();
+ interruptHandlers.push_back({self, pcpos, next});
+ break;
+ }
+ case IrCmd::CHECK_GC:
+ callStepGc(regs, build);
+ break;
+ case IrCmd::BARRIER_OBJ:
+ callBarrierObject(regs, build, regOp(inst.a), inst.a, inst.b, inst.c.kind == IrOpKind::Undef ? -1 : tagOp(inst.c));
+ break;
+ case IrCmd::BARRIER_TABLE_BACK:
+ callBarrierTableFast(regs, build, regOp(inst.a), inst.a);
+ break;
+ case IrCmd::BARRIER_TABLE_FORWARD:
+ {
+ Label skip;
+ ScopedRegX64 tmp{regs, SizeX64::qword};
+ checkObjectBarrierConditions(build, tmp.reg, regOp(inst.a), inst.b, inst.c.kind == IrOpKind::Undef ? -1 : tagOp(inst.c), skip);
+ {
+ ScopedSpills spillGuard(regs);
+ IrCallWrapperX64 callWrap(regs, build, index);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::qword, regOp(inst.a), inst.a);
+ callWrap.addArgument(SizeX64::qword, tmp);
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaC_barriertable)]);
+ }
+ build.setLabel(skip);
+ break;
+ }
+ case IrCmd::SET_SAVEDPC:
+ {
+ ScopedRegX64 tmp1{regs, SizeX64::qword};
+ ScopedRegX64 tmp2{regs, SizeX64::qword};
+ build.mov(tmp2.reg, sCode);
+ build.add(tmp2.reg, uintOp(inst.a) * sizeof(Instruction));
+ build.mov(tmp1.reg, qword[rState + offsetof(lua_State, ci)]);
+ build.mov(qword[tmp1.reg + offsetof(CallInfo, savedpc)], tmp2.reg);
+ break;
+ }
+ case IrCmd::CLOSE_UPVALS:
+ {
+ Label next;
+ ScopedRegX64 tmp1{regs, SizeX64::qword};
+ ScopedRegX64 tmp2{regs, SizeX64::qword};
+ build.mov(tmp1.reg, qword[rState + offsetof(lua_State, openupval)]);
+ build.test(tmp1.reg, tmp1.reg);
+ build.jcc(ConditionX64::Zero, next);
+ build.lea(tmp2.reg, addr[rBase + vmRegOp(inst.a) * sizeof(TValue)]);
+ build.cmp(tmp2.reg, qword[tmp1.reg + offsetof(UpVal, v)]);
+ build.jcc(ConditionX64::Above, next);
+ tmp1.free();
+ {
+ ScopedSpills spillGuard(regs);
+ IrCallWrapperX64 callWrap(regs, build, index);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::qword, tmp2);
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaF_close)]);
+ }
+ build.setLabel(next);
+ break;
+ }
+ case IrCmd::CAPTURE:
+ break;
+ case IrCmd::SETLIST:
+ regs.assertAllFree();
+ emitInstSetList(
+ regs, build, vmRegOp(inst.b), vmRegOp(inst.c), intOp(inst.d), uintOp(inst.e), inst.f.kind == IrOpKind::Undef ? -1 : int(uintOp(inst.f)));
+ break;
+ case IrCmd::CALL:
+ regs.assertAllFree();
+ regs.assertNoSpills();
+ emitInstCall(build, helpers, vmRegOp(inst.a), intOp(inst.b), intOp(inst.c));
+ break;
+ case IrCmd::RETURN:
+ regs.assertAllFree();
+ regs.assertNoSpills();
+ emitInstReturn(build, helpers, vmRegOp(inst.a), intOp(inst.b), function.variadic);
+ break;
+ case IrCmd::FORGLOOP:
+ regs.assertAllFree();
+ emitInstForGLoop(build, vmRegOp(inst.a), intOp(inst.b), labelOp(inst.c));
+ jumpOrFallthrough(blockOp(inst.d), next);
+ break;
+ case IrCmd::FORGLOOP_FALLBACK:
+ {
+ IrCallWrapperX64 callWrap(regs, build, index);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::dword, vmRegOp(inst.a));
+ callWrap.addArgument(SizeX64::dword, intOp(inst.b));
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, forgLoopNonTableFallback)]);
+ emitUpdateBase(build);
+ build.test(al, al);
+ build.jcc(ConditionX64::NotZero, labelOp(inst.c));
+ jumpOrFallthrough(blockOp(inst.d), next);
+ break;
+ }
+ case IrCmd::FORGPREP_XNEXT_FALLBACK:
+ {
+ IrCallWrapperX64 callWrap(regs, build, index);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::qword, luauRegAddress(vmRegOp(inst.b)));
+ callWrap.addArgument(SizeX64::dword, uintOp(inst.a) + 1);
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, forgPrepXnextFallback)]);
+ jumpOrFallthrough(blockOp(inst.c), next);
+ break;
+ }
+ case IrCmd::COVERAGE:
+ {
+ ScopedRegX64 tmp1{regs, SizeX64::qword};
+ ScopedRegX64 tmp2{regs, SizeX64::dword};
+ ScopedRegX64 tmp3{regs, SizeX64::dword};
+ build.mov(tmp1.reg, sCode);
+ build.add(tmp1.reg, uintOp(inst.a) * sizeof(Instruction));
+ build.mov(tmp2.reg, dword[tmp1.reg]);
+ build.sar(tmp2.reg, 8);
+ build.xor_(tmp3.reg, tmp3.reg);
+ build.cmp(tmp2.reg, (1 << 23) - 1);
+ build.setcc(ConditionX64::NotEqual, byteReg(tmp3.reg));
+ build.add(tmp2.reg, tmp3.reg);
+ build.sal(tmp2.reg, 8);
+ build.movzx(tmp3.reg, byte[tmp1.reg]);
+ build.or_(tmp3.reg, tmp2.reg);
+ build.mov(dword[tmp1.reg], tmp3.reg);
+ break;
+ }
+ case IrCmd::FALLBACK_GETGLOBAL:
+ LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.c.kind == IrOpKind::VmConst);
+ emitFallback(regs, build, offsetof(NativeContext, executeGETGLOBAL), uintOp(inst.a));
+ break;
+ case IrCmd::FALLBACK_SETGLOBAL:
+ LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.c.kind == IrOpKind::VmConst);
+ emitFallback(regs, build, offsetof(NativeContext, executeSETGLOBAL), uintOp(inst.a));
+ break;
+ case IrCmd::FALLBACK_GETTABLEKS:
+ LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.c.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.d.kind == IrOpKind::VmConst);
+ emitFallback(regs, build, offsetof(NativeContext, executeGETTABLEKS), uintOp(inst.a));
+ break;
+ case IrCmd::FALLBACK_SETTABLEKS:
+ LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.c.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.d.kind == IrOpKind::VmConst);
+ emitFallback(regs, build, offsetof(NativeContext, executeSETTABLEKS), uintOp(inst.a));
+ break;
+ case IrCmd::FALLBACK_NAMECALL:
+ LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.c.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.d.kind == IrOpKind::VmConst);
+ emitFallback(regs, build, offsetof(NativeContext, executeNAMECALL), uintOp(inst.a));
+ break;
+ case IrCmd::FALLBACK_PREPVARARGS:
+ LUAU_ASSERT(inst.b.kind == IrOpKind::Constant);
+ emitFallback(regs, build, offsetof(NativeContext, executePREPVARARGS), uintOp(inst.a));
+ break;
+ case IrCmd::FALLBACK_GETVARARGS:
+ LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.c.kind == IrOpKind::Constant);
+ if (intOp(inst.c) == LUA_MULTRET)
+ {
+ IrCallWrapperX64 callWrap(regs, build);
+ callWrap.addArgument(SizeX64::qword, rState);
+ RegisterX64 reg = callWrap.suggestNextArgumentRegister(SizeX64::qword);
+ build.mov(reg, sCode);
+ callWrap.addArgument(SizeX64::qword, addr[reg + uintOp(inst.a) * sizeof(Instruction)]);
+ callWrap.addArgument(SizeX64::qword, rBase);
+ callWrap.addArgument(SizeX64::dword, vmRegOp(inst.b));
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, executeGETVARARGSMultRet)]);
+ emitUpdateBase(build);
+ }
+ else
+ {
+ IrCallWrapperX64 callWrap(regs, build);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::qword, rBase);
+ callWrap.addArgument(SizeX64::dword, vmRegOp(inst.b));
+ callWrap.addArgument(SizeX64::dword, intOp(inst.c));
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, executeGETVARARGSConst)]);
+ }
+ break;
+ case IrCmd::NEWCLOSURE:
+ {
+ ScopedRegX64 tmp2{regs, SizeX64::qword};
+ build.mov(tmp2.reg, sClosure);
+ build.mov(tmp2.reg, qword[tmp2.reg + offsetof(Closure, l.p)]);
+ build.mov(tmp2.reg, qword[tmp2.reg + offsetof(Proto, p)]);
+ build.mov(tmp2.reg, qword[tmp2.reg + sizeof(Proto*) * uintOp(inst.c)]);
+ IrCallWrapperX64 callWrap(regs, build, index);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::dword, uintOp(inst.a), inst.a);
+ callWrap.addArgument(SizeX64::qword, regOp(inst.b), inst.b);
+ callWrap.addArgument(SizeX64::qword, tmp2);
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaF_newLclosure)]);
+ inst.regX64 = regs.takeReg(rax, index);
+ break;
+ }
+ case IrCmd::FALLBACK_DUPCLOSURE:
+ LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(inst.c.kind == IrOpKind::VmConst);
+ emitFallback(regs, build, offsetof(NativeContext, executeDUPCLOSURE), uintOp(inst.a));
+ break;
+ case IrCmd::FALLBACK_FORGPREP:
+ emitFallback(regs, build, offsetof(NativeContext, executeFORGPREP), uintOp(inst.a));
+ jumpOrFallthrough(blockOp(inst.c), next);
+ break;
+ case IrCmd::BITAND_UINT:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a});
+ if (inst.a.kind != IrOpKind::Inst || inst.regX64 != regOp(inst.a))
+ build.mov(inst.regX64, memRegUintOp(inst.a));
+ build.and_(inst.regX64, memRegUintOp(inst.b));
+ break;
+ case IrCmd::BITXOR_UINT:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a});
+ if (inst.a.kind != IrOpKind::Inst || inst.regX64 != regOp(inst.a))
+ build.mov(inst.regX64, memRegUintOp(inst.a));
+ build.xor_(inst.regX64, memRegUintOp(inst.b));
+ break;
+ case IrCmd::BITOR_UINT:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a});
+ if (inst.a.kind != IrOpKind::Inst || inst.regX64 != regOp(inst.a))
+ build.mov(inst.regX64, memRegUintOp(inst.a));
+ build.or_(inst.regX64, memRegUintOp(inst.b));
+ break;
+ case IrCmd::BITNOT_UINT:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a});
+ if (inst.a.kind != IrOpKind::Inst || inst.regX64 != regOp(inst.a))
+ build.mov(inst.regX64, memRegUintOp(inst.a));
+ build.not_(inst.regX64);
+ break;
+ case IrCmd::BITLSHIFT_UINT:
+ {
+ ScopedRegX64 shiftTmp{regs};
+ if (inst.b.kind != IrOpKind::Constant)
+ shiftTmp.take(ecx);
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a});
+ if (inst.a.kind != IrOpKind::Inst || inst.regX64 != regOp(inst.a))
+ build.mov(inst.regX64, memRegUintOp(inst.a));
+ if (inst.b.kind == IrOpKind::Constant)
+ {
+ int8_t shift = int8_t(unsigned(intOp(inst.b)));
+ build.shl(inst.regX64, shift);
+ }
+ else
+ {
+ build.mov(shiftTmp.reg, memRegUintOp(inst.b));
+ build.shl(inst.regX64, byteReg(shiftTmp.reg));
+ }
+ break;
+ }
+ case IrCmd::BITRSHIFT_UINT:
+ {
+ ScopedRegX64 shiftTmp{regs};
+ if (inst.b.kind != IrOpKind::Constant)
+ shiftTmp.take(ecx);
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a});
+ if (inst.a.kind != IrOpKind::Inst || inst.regX64 != regOp(inst.a))
+ build.mov(inst.regX64, memRegUintOp(inst.a));
+ if (inst.b.kind == IrOpKind::Constant)
+ {
+ int8_t shift = int8_t(unsigned(intOp(inst.b)));
+ build.shr(inst.regX64, shift);
+ }
+ else
+ {
+ build.mov(shiftTmp.reg, memRegUintOp(inst.b));
+ build.shr(inst.regX64, byteReg(shiftTmp.reg));
+ }
+ break;
+ }
+ case IrCmd::BITARSHIFT_UINT:
+ {
+ ScopedRegX64 shiftTmp{regs};
+ if (inst.b.kind != IrOpKind::Constant)
+ shiftTmp.take(ecx);
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a});
+ if (inst.a.kind != IrOpKind::Inst || inst.regX64 != regOp(inst.a))
+ build.mov(inst.regX64, memRegUintOp(inst.a));
+ if (inst.b.kind == IrOpKind::Constant)
+ {
+ int8_t shift = int8_t(unsigned(intOp(inst.b)));
+ build.sar(inst.regX64, shift);
+ }
+ else
+ {
+ build.mov(shiftTmp.reg, memRegUintOp(inst.b));
+ build.sar(inst.regX64, byteReg(shiftTmp.reg));
+ }
+ break;
+ }
+ case IrCmd::BITLROTATE_UINT:
+ {
+ ScopedRegX64 shiftTmp{regs};
+ if (inst.b.kind != IrOpKind::Constant)
+ shiftTmp.take(ecx);
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a});
+ if (inst.a.kind != IrOpKind::Inst || inst.regX64 != regOp(inst.a))
+ build.mov(inst.regX64, memRegUintOp(inst.a));
+ if (inst.b.kind == IrOpKind::Constant)
+ {
+ int8_t shift = int8_t(unsigned(intOp(inst.b)));
+ build.rol(inst.regX64, shift);
+ }
+ else
+ {
+ build.mov(shiftTmp.reg, memRegUintOp(inst.b));
+ build.rol(inst.regX64, byteReg(shiftTmp.reg));
+ }
+ break;
+ }
+ case IrCmd::BITRROTATE_UINT:
+ {
+ ScopedRegX64 shiftTmp{regs};
+ if (inst.b.kind != IrOpKind::Constant)
+ shiftTmp.take(ecx);
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a});
+ if (inst.a.kind != IrOpKind::Inst || inst.regX64 != regOp(inst.a))
+ build.mov(inst.regX64, memRegUintOp(inst.a));
+ if (inst.b.kind == IrOpKind::Constant)
+ {
+ int8_t shift = int8_t(unsigned(intOp(inst.b)));
+ build.ror(inst.regX64, shift);
+ }
+ else
+ {
+ build.mov(shiftTmp.reg, memRegUintOp(inst.b));
+ build.ror(inst.regX64, byteReg(shiftTmp.reg));
+ }
+ break;
+ }
+ case IrCmd::BITCOUNTLZ_UINT:
+ {
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a});
+ Label zero, exit;
+ build.test(regOp(inst.a), regOp(inst.a));
+ build.jcc(ConditionX64::Equal, zero);
+ build.bsr(inst.regX64, regOp(inst.a));
+ build.xor_(inst.regX64, 0x1f);
+ build.jmp(exit);
+ build.setLabel(zero);
+ build.mov(inst.regX64, 32);
+ build.setLabel(exit);
+ break;
+ }
+ case IrCmd::BITCOUNTRZ_UINT:
+ {
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a});
+ Label zero, exit;
+ build.test(regOp(inst.a), regOp(inst.a));
+ build.jcc(ConditionX64::Equal, zero);
+ build.bsf(inst.regX64, regOp(inst.a));
+ build.jmp(exit);
+ build.setLabel(zero);
+ build.mov(inst.regX64, 32);
+ build.setLabel(exit);
+ break;
+ }
+ case IrCmd::BYTESWAP_UINT:
+ {
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a});
+ if (inst.a.kind != IrOpKind::Inst || inst.regX64 != regOp(inst.a))
+ build.mov(inst.regX64, memRegUintOp(inst.a));
+ build.bswap(inst.regX64);
+ break;
+ }
+ case IrCmd::INVOKE_LIBM:
+ {
+ IrCallWrapperX64 callWrap(regs, build, index);
+ callWrap.addArgument(SizeX64::xmmword, memRegDoubleOp(inst.b), inst.b);
+ if (inst.c.kind != IrOpKind::None)
+ {
+ bool isInt = (inst.c.kind == IrOpKind::Constant) ? constOp(inst.c).kind == IrConstKind::Int
+ : getCmdValueKind(function.instOp(inst.c).cmd) == IrValueKind::Int;
+ if (isInt)
+ callWrap.addArgument(SizeX64::dword, memRegUintOp(inst.c), inst.c);
+ else
+ callWrap.addArgument(SizeX64::xmmword, memRegDoubleOp(inst.c), inst.c);
+ }
+ callWrap.call(qword[rNativeContext + getNativeContextOffset(uintOp(inst.a))]);
+ inst.regX64 = regs.takeReg(xmm0, index);
+ break;
+ }
+ case IrCmd::GET_TYPE:
+ {
+ inst.regX64 = regs.allocReg(SizeX64::qword, index);
+ build.mov(inst.regX64, qword[rState + offsetof(lua_State, global)]);
+ if (inst.a.kind == IrOpKind::Inst)
+ build.mov(inst.regX64, qword[inst.regX64 + qwordReg(regOp(inst.a)) * sizeof(TString*) + offsetof(global_State, ttname)]);
+ else if (inst.a.kind == IrOpKind::Constant)
+ build.mov(inst.regX64, qword[inst.regX64 + tagOp(inst.a) * sizeof(TString*) + offsetof(global_State, ttname)]);
+ else
+ LUAU_ASSERT(!"Unsupported instruction form");
+ break;
+ }
+ case IrCmd::GET_TYPEOF:
+ {
+ IrCallWrapperX64 callWrap(regs, build);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::qword, luauRegAddress(vmRegOp(inst.a)));
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaT_objtypenamestr)]);
+ inst.regX64 = regs.takeReg(rax, index);
+ break;
+ }
+ case IrCmd::FINDUPVAL:
+ {
+ IrCallWrapperX64 callWrap(regs, build);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::qword, luauRegAddress(vmRegOp(inst.a)));
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaF_findupval)]);
+ inst.regX64 = regs.takeReg(rax, index);
+ break;
+ }
+ case IrCmd::BUFFER_READI8:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a, inst.b});
+ build.movsx(inst.regX64, byte[bufferAddrOp(inst.a, inst.b)]);
+ break;
+ case IrCmd::BUFFER_READU8:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a, inst.b});
+ build.movzx(inst.regX64, byte[bufferAddrOp(inst.a, inst.b)]);
+ break;
+ case IrCmd::BUFFER_WRITEI8:
+ {
+ if (FFlag::LuauCodeGenFixByteLower)
+ {
+ OperandX64 value = inst.c.kind == IrOpKind::Inst ? byteReg(regOp(inst.c)) : OperandX64(int8_t(intOp(inst.c)));
+ build.mov(byte[bufferAddrOp(inst.a, inst.b)], value);
+ }
+ else
+ {
+ OperandX64 value = inst.c.kind == IrOpKind::Inst ? byteReg(regOp(inst.c)) : OperandX64(intOp(inst.c));
+ build.mov(byte[bufferAddrOp(inst.a, inst.b)], value);
+ }
+ break;
+ }
+ case IrCmd::BUFFER_READI16:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a, inst.b});
+ build.movsx(inst.regX64, word[bufferAddrOp(inst.a, inst.b)]);
+ break;
+ case IrCmd::BUFFER_READU16:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a, inst.b});
+ build.movzx(inst.regX64, word[bufferAddrOp(inst.a, inst.b)]);
+ break;
+ case IrCmd::BUFFER_WRITEI16:
+ {
+ if (FFlag::LuauCodeGenFixByteLower)
+ {
+ OperandX64 value = inst.c.kind == IrOpKind::Inst ? wordReg(regOp(inst.c)) : OperandX64(int16_t(intOp(inst.c)));
+ build.mov(word[bufferAddrOp(inst.a, inst.b)], value);
+ }
+ else
+ {
+ OperandX64 value = inst.c.kind == IrOpKind::Inst ? wordReg(regOp(inst.c)) : OperandX64(intOp(inst.c));
+ build.mov(word[bufferAddrOp(inst.a, inst.b)], value);
+ }
+ break;
+ }
+ case IrCmd::BUFFER_READI32:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a, inst.b});
+ build.mov(inst.regX64, dword[bufferAddrOp(inst.a, inst.b)]);
+ break;
+ case IrCmd::BUFFER_WRITEI32:
+ {
+ OperandX64 value = inst.c.kind == IrOpKind::Inst ? regOp(inst.c) : OperandX64(intOp(inst.c));
+ build.mov(dword[bufferAddrOp(inst.a, inst.b)], value);
+ break;
+ }
+ case IrCmd::BUFFER_READF32:
+ inst.regX64 = regs.allocReg(SizeX64::xmmword, index);
+ build.vcvtss2sd(inst.regX64, inst.regX64, dword[bufferAddrOp(inst.a, inst.b)]);
+ break;
+ case IrCmd::BUFFER_WRITEF32:
+ storeDoubleAsFloat(dword[bufferAddrOp(inst.a, inst.b)], inst.c);
+ break;
+ case IrCmd::BUFFER_READF64:
+ inst.regX64 = regs.allocReg(SizeX64::xmmword, index);
+ build.vmovsd(inst.regX64, qword[bufferAddrOp(inst.a, inst.b)]);
+ break;
+ case IrCmd::BUFFER_WRITEF64:
+ if (inst.c.kind == IrOpKind::Constant)
+ {
+ ScopedRegX64 tmp{regs, SizeX64::xmmword};
+ build.vmovsd(tmp.reg, build.f64(doubleOp(inst.c)));
+ build.vmovsd(qword[bufferAddrOp(inst.a, inst.b)], tmp.reg);
+ }
+ else if (inst.c.kind == IrOpKind::Inst)
+ {
+ build.vmovsd(qword[bufferAddrOp(inst.a, inst.b)], regOp(inst.c));
+ }
+ else
+ {
+ LUAU_ASSERT(!"Unsupported instruction form");
+ }
+ break;
+ case IrCmd::NOP:
+ case IrCmd::SUBSTITUTE:
+ LUAU_ASSERT(!"Pseudo instructions should not be lowered");
+ break;
+ }
+ valueTracker.afterInstLowering(inst, index);
+ regs.freeLastUseRegs(inst, index);
+}
+void IrLoweringX64::finishBlock(const IrBlock& curr, const IrBlock& next)
+{
+ if (!regs.spills.empty())
+ {
+ for (uint32_t predIdx : predecessors(function.cfg, function.getBlockIndex(next)))
+ LUAU_ASSERT(predIdx == function.getBlockIndex(curr) || function.blocks[predIdx].kind == IrBlockKind::Dead);
+ LUAU_ASSERT(next.useCount == 1);
+ }
+}
+void IrLoweringX64::finishFunction()
+{
+ if (build.logText)
+ build.logAppend("; interrupt handlers\n");
+ for (InterruptHandler& handler : interruptHandlers)
+ {
+ build.setLabel(handler.self);
+ build.mov(eax, handler.pcpos + 1);
+ build.lea(rbx, handler.next);
+ build.jmp(helpers.interrupt);
+ }
+ if (build.logText)
+ build.logAppend("; exit handlers\n");
+ for (ExitHandler& handler : exitHandlers)
+ {
+ LUAU_ASSERT(handler.pcpos != kVmExitEntryGuardPc);
+ build.setLabel(handler.self);
+ build.mov(edx, handler.pcpos * sizeof(Instruction));
+ build.jmp(helpers.updatePcAndContinueInVm);
+ }
+ if (stats)
+ {
+ if (regs.maxUsedSlot > kSpillSlots)
+ stats->regAllocErrors++;
+ if (regs.maxUsedSlot > stats->maxSpillSlotsUsed)
+ stats->maxSpillSlotsUsed = regs.maxUsedSlot;
+ }
+}
+bool IrLoweringX64::hasError() const
+{
+ if (regs.maxUsedSlot > kSpillSlots)
+ return true;
+ return false;
+}
+bool IrLoweringX64::isFallthroughBlock(const IrBlock& target, const IrBlock& next)
+{
+ return target.start == next.start;
+}
+Label& IrLoweringX64::getTargetLabel(IrOp op, Label& fresh)
+{
+ if (op.kind == IrOpKind::Undef)
+ return fresh;
+ if (op.kind == IrOpKind::VmExit)
+ {
+ if (vmExitOp(op) == kVmExitEntryGuardPc)
+ return helpers.exitContinueVmClearNativeFlag;
+ if (uint32_t* index = exitHandlerMap.find(vmExitOp(op)))
+ return exitHandlers[*index].self;
+ return fresh;
+ }
+ return labelOp(op);
+}
+void IrLoweringX64::finalizeTargetLabel(IrOp op, Label& fresh)
+{
+ if (op.kind == IrOpKind::VmExit && fresh.id != 0 && fresh.id != helpers.exitContinueVmClearNativeFlag.id)
+ {
+ exitHandlerMap[vmExitOp(op)] = uint32_t(exitHandlers.size());
+ exitHandlers.push_back({fresh, vmExitOp(op)});
+ }
+}
+void IrLoweringX64::jumpOrFallthrough(IrBlock& target, const IrBlock& next)
+{
+ if (!isFallthroughBlock(target, next))
+ build.jmp(target.label);
+}
+void IrLoweringX64::jumpOrAbortOnUndef(ConditionX64 cond, IrOp target, const IrBlock& next)
+{
+ Label fresh;
+ Label& label = getTargetLabel(target, fresh);
+ if (target.kind == IrOpKind::Undef)
+ {
+ if (cond == ConditionX64::Count)
+ {
+ build.ud2();
+ }
+ else
+ {
+ build.jcc(getReverseCondition(cond), label);
+ build.ud2();
+ build.setLabel(label);
+ }
+ }
+ else if (cond == ConditionX64::Count)
+ {
+ if (target.kind == IrOpKind::VmExit || !isFallthroughBlock(blockOp(target), next))
+ build.jmp(label);
+ }
+ else
+ {
+ build.jcc(cond, label);
+ }
+ finalizeTargetLabel(target, fresh);
+}
+void IrLoweringX64::jumpOrAbortOnUndef(IrOp target, const IrBlock& next)
+{
+ jumpOrAbortOnUndef(ConditionX64::Count, target, next);
+}
+OperandX64 IrLoweringX64::memRegDoubleOp(IrOp op)
+{
+ switch (op.kind)
+ {
+ case IrOpKind::Inst:
+ return regOp(op);
+ case IrOpKind::Constant:
+ return build.f64(doubleOp(op));
+ case IrOpKind::VmReg:
+ return luauRegValue(vmRegOp(op));
+ case IrOpKind::VmConst:
+ return luauConstantValue(vmConstOp(op));
+ default:
+ LUAU_ASSERT(!"Unsupported operand kind");
+ }
+ return noreg;
+}
+OperandX64 IrLoweringX64::memRegUintOp(IrOp op)
+{
+ switch (op.kind)
+ {
+ case IrOpKind::Inst:
+ return regOp(op);
+ case IrOpKind::Constant:
+ return OperandX64(unsigned(intOp(op)));
+ case IrOpKind::VmReg:
+ return luauRegValueInt(vmRegOp(op));
+ default:
+ LUAU_ASSERT(!"Unsupported operand kind");
+ }
+ return noreg;
+}
+OperandX64 IrLoweringX64::memRegTagOp(IrOp op)
+{
+ switch (op.kind)
+ {
+ case IrOpKind::Inst:
+ return regOp(op);
+ case IrOpKind::VmReg:
+ return luauRegTag(vmRegOp(op));
+ case IrOpKind::VmConst:
+ return luauConstantTag(vmConstOp(op));
+ default:
+ LUAU_ASSERT(!"Unsupported operand kind");
+ }
+ return noreg;
+}
+RegisterX64 IrLoweringX64::regOp(IrOp op)
+{
+ IrInst& inst = function.instOp(op);
+ if (inst.spilled || inst.needsReload)
+ regs.restore(inst, false);
+ LUAU_ASSERT(inst.regX64 != noreg);
+ return inst.regX64;
+}
+OperandX64 IrLoweringX64::bufferAddrOp(IrOp bufferOp, IrOp indexOp)
+{
+ if (indexOp.kind == IrOpKind::Inst)
+ return regOp(bufferOp) + qwordReg(regOp(indexOp)) + offsetof(Buffer, data);
+ else if (indexOp.kind == IrOpKind::Constant)
+ return regOp(bufferOp) + intOp(indexOp) + offsetof(Buffer, data);
+ LUAU_ASSERT(!"Unsupported instruction form");
+ return noreg;
+}
+IrConst IrLoweringX64::constOp(IrOp op) const
+{
+ return function.constOp(op);
+}
+uint8_t IrLoweringX64::tagOp(IrOp op) const
+{
+ return function.tagOp(op);
+}
+int IrLoweringX64::intOp(IrOp op) const
+{
+ return function.intOp(op);
+}
+unsigned IrLoweringX64::uintOp(IrOp op) const
+{
+ return function.uintOp(op);
+}
+double IrLoweringX64::doubleOp(IrOp op) const
+{
+ return function.doubleOp(op);
+}
+IrBlock& IrLoweringX64::blockOp(IrOp op) const
+{
+ return function.blockOp(op);
+}
+Label& IrLoweringX64::labelOp(IrOp op) const
+{
+ return blockOp(op).label;
+}
+}
+} // namespace CodeGen
+}
+#line __LINE__ ""
+#line __LINE__ "IrRegAllocA64.cpp"
+LUAU_FASTFLAGVARIABLE(DebugCodegenChaosA64, false)
+namespace Luau
+{
+namespace CodeGen
+{
+namespace A64
+{
+static const int8_t kInvalidSpill = 64;
+static int allocSpill(uint32_t& free, KindA64 kind)
+{
+ LUAU_ASSERT(kStackSize <= 256);
+ int slot = countrz(kind == KindA64::q ? free & (free >> 1) : free);
+ if (slot == 32)
+ return -1;
+ uint32_t mask = (kind == KindA64::q ? 3u : 1u) << slot;
+ LUAU_ASSERT((free & mask) == mask);
+ free &= ~mask;
+ return slot;
+}
+static void freeSpill(uint32_t& free, KindA64 kind, uint8_t slot)
+{
+ uint32_t mask = (kind == KindA64::q ? 3u : 1u) << slot;
+ LUAU_ASSERT((free & mask) == 0);
+ free |= mask;
+}
+static int getReloadOffset(IrCmd cmd)
+{
+ switch (getCmdValueKind(cmd))
+ {
+ case IrValueKind::Unknown:
+ case IrValueKind::None:
+ LUAU_ASSERT(!"Invalid operand restore value kind");
+ break;
+ case IrValueKind::Tag:
+ return offsetof(TValue, tt);
+ case IrValueKind::Int:
+ return offsetof(TValue, value);
+ case IrValueKind::Pointer:
+ return offsetof(TValue, value.gc);
+ case IrValueKind::Double:
+ return offsetof(TValue, value.n);
+ case IrValueKind::Tvalue:
+ return 0;
+ }
+ LUAU_ASSERT(!"Invalid operand restore value kind");
+ LUAU_UNREACHABLE();
+}
+static AddressA64 getReloadAddress(const IrFunction& function, const IrInst& inst, bool limitToCurrentBlock)
+{
+ IrOp location = function.findRestoreOp(inst, limitToCurrentBlock);
+ if (location.kind == IrOpKind::VmReg)
+ return mem(rBase, vmRegOp(location) * sizeof(TValue) + getReloadOffset(inst.cmd));
+ if (location.kind == IrOpKind::VmConst && vmConstOp(location) * sizeof(TValue) <= AddressA64::kMaxOffset * 4)
+ return mem(rConstants, vmConstOp(location) * sizeof(TValue) + getReloadOffset(inst.cmd));
+ return AddressA64(xzr);
+}
+static void restoreInst(AssemblyBuilderA64& build, uint32_t& freeSpillSlots, IrFunction& function, const IrRegAllocA64::Spill& s, RegisterA64 reg)
+{
+ IrInst& inst = function.instructions[s.inst];
+ LUAU_ASSERT(inst.regA64 == noreg);
+ if (s.slot >= 0)
+ {
+ build.ldr(reg, mem(sp, sSpillArea.data + s.slot * 8));
+ if (s.slot != kInvalidSpill)
+ freeSpill(freeSpillSlots, reg.kind, s.slot);
+ }
+ else
+ {
+ LUAU_ASSERT(!inst.spilled && inst.needsReload);
+ AddressA64 addr = getReloadAddress(function, function.instructions[s.inst], false);
+ LUAU_ASSERT(addr.base != xzr);
+ build.ldr(reg, addr);
+ }
+ inst.spilled = false;
+ inst.needsReload = false;
+ inst.regA64 = reg;
+}
+IrRegAllocA64::IrRegAllocA64(IrFunction& function, LoweringStats* stats, std::initializer_list<std::pair<RegisterA64, RegisterA64>> regs)
+ : function(function)
+ , stats(stats)
+{
+ for (auto& p : regs)
+ {
+ LUAU_ASSERT(p.first.kind == p.second.kind && p.first.index <= p.second.index);
+ Set& set = getSet(p.first.kind);
+ for (int i = p.first.index; i <= p.second.index; ++i)
+ set.base |= 1u << i;
+ }
+ gpr.free = gpr.base;
+ simd.free = simd.base;
+ memset(gpr.defs, -1, sizeof(gpr.defs));
+ memset(simd.defs, -1, sizeof(simd.defs));
+ LUAU_ASSERT(kSpillSlots <= 32);
+ freeSpillSlots = (kSpillSlots == 32) ? ~0u : (1u << kSpillSlots) - 1;
+}
+RegisterA64 IrRegAllocA64::allocReg(KindA64 kind, uint32_t index)
+{
+ Set& set = getSet(kind);
+ if (set.free == 0)
+ {
+ error = true;
+ return RegisterA64{kind, 0};
+ }
+ int reg = 31 - countlz(set.free);
+ if (FFlag::DebugCodegenChaosA64)
+ reg = countrz(set.free);
+ set.free &= ~(1u << reg);
+ set.defs[reg] = index;
+ return RegisterA64{kind, uint8_t(reg)};
+}
+RegisterA64 IrRegAllocA64::allocTemp(KindA64 kind)
+{
+ Set& set = getSet(kind);
+ if (set.free == 0)
+ {
+ error = true;
+ return RegisterA64{kind, 0};
+ }
+ int reg = 31 - countlz(set.free);
+ if (FFlag::DebugCodegenChaosA64)
+ reg = countrz(set.free);
+ set.free &= ~(1u << reg);
+ set.temp |= 1u << reg;
+ LUAU_ASSERT(set.defs[reg] == kInvalidInstIdx);
+ return RegisterA64{kind, uint8_t(reg)};
+}
+RegisterA64 IrRegAllocA64::allocReuse(KindA64 kind, uint32_t index, std::initializer_list<IrOp> oprefs)
+{
+ for (IrOp op : oprefs)
+ {
+ if (op.kind != IrOpKind::Inst)
+ continue;
+ IrInst& source = function.instructions[op.index];
+ if (source.lastUse == index && !source.reusedReg && source.regA64 != noreg)
+ {
+ LUAU_ASSERT(!source.spilled && !source.needsReload);
+ LUAU_ASSERT(source.regA64.kind == kind);
+ Set& set = getSet(kind);
+ LUAU_ASSERT(set.defs[source.regA64.index] == op.index);
+ set.defs[source.regA64.index] = index;
+ source.reusedReg = true;
+ return source.regA64;
+ }
+ }
+ return allocReg(kind, index);
+}
+RegisterA64 IrRegAllocA64::takeReg(RegisterA64 reg, uint32_t index)
+{
+ Set& set = getSet(reg.kind);
+ LUAU_ASSERT(set.free & (1u << reg.index));
+ LUAU_ASSERT(set.defs[reg.index] == kInvalidInstIdx);
+ set.free &= ~(1u << reg.index);
+ set.defs[reg.index] = index;
+ return reg;
+}
+void IrRegAllocA64::freeReg(RegisterA64 reg)
+{
+ Set& set = getSet(reg.kind);
+ LUAU_ASSERT((set.base & (1u << reg.index)) != 0);
+ LUAU_ASSERT((set.free & (1u << reg.index)) == 0);
+ LUAU_ASSERT((set.temp & (1u << reg.index)) == 0);
+ set.free |= 1u << reg.index;
+ set.defs[reg.index] = kInvalidInstIdx;
+}
+void IrRegAllocA64::freeLastUseReg(IrInst& target, uint32_t index)
+{
+ if (target.lastUse == index && !target.reusedReg)
+ {
+ LUAU_ASSERT(!target.spilled && !target.needsReload);
+ if (target.regA64 == noreg)
+ return;
+ freeReg(target.regA64);
+ target.regA64 = noreg;
+ }
+}
+void IrRegAllocA64::freeLastUseRegs(const IrInst& inst, uint32_t index)
+{
+ auto checkOp = [this, index](IrOp op) {
+ if (op.kind == IrOpKind::Inst)
+ freeLastUseReg(function.instructions[op.index], index);
+ };
+ checkOp(inst.a);
+ checkOp(inst.b);
+ checkOp(inst.c);
+ checkOp(inst.d);
+ checkOp(inst.e);
+ checkOp(inst.f);
+}
+void IrRegAllocA64::freeTempRegs()
+{
+ LUAU_ASSERT((gpr.free & gpr.temp) == 0);
+ gpr.free |= gpr.temp;
+ gpr.temp = 0;
+ LUAU_ASSERT((simd.free & simd.temp) == 0);
+ simd.free |= simd.temp;
+ simd.temp = 0;
+}
+size_t IrRegAllocA64::spill(AssemblyBuilderA64& build, uint32_t index, std::initializer_list<RegisterA64> live)
+{
+ static const KindA64 sets[] = {KindA64::x, KindA64::q};
+ size_t start = spills.size();
+ uint32_t poisongpr = 0;
+ uint32_t poisonsimd = 0;
+ if (FFlag::DebugCodegenChaosA64)
+ {
+ poisongpr = gpr.base & ~gpr.free;
+ poisonsimd = simd.base & ~simd.free;
+ for (RegisterA64 reg : live)
+ {
+ Set& set = getSet(reg.kind);
+ (&set == &simd ? poisonsimd : poisongpr) &= ~(1u << reg.index);
+ }
+ }
+ for (KindA64 kind : sets)
+ {
+ Set& set = getSet(kind);
+ if (set.free == set.base)
+ continue;
+ LUAU_ASSERT((set.free & set.temp) == 0);
+ set.free |= set.temp;
+ set.temp = 0;
+ uint32_t regs = set.base & ~set.free;
+ while (regs)
+ {
+ int reg = 31 - countlz(regs);
+ uint32_t inst = set.defs[reg];
+ LUAU_ASSERT(inst != kInvalidInstIdx);
+ IrInst& def = function.instructions[inst];
+ LUAU_ASSERT(def.regA64.index == reg);
+ LUAU_ASSERT(!def.reusedReg);
+ LUAU_ASSERT(!def.spilled);
+ LUAU_ASSERT(!def.needsReload);
+ if (def.lastUse == index)
+ {
+ }
+ else if (getReloadAddress(function, def, true).base != xzr)
+ {
+ Spill s = {inst, def.regA64, -1};
+ spills.push_back(s);
+ def.needsReload = true;
+ if (stats)
+ stats->spillsToRestore++;
+ }
+ else
+ {
+ int slot = allocSpill(freeSpillSlots, def.regA64.kind);
+ if (slot < 0)
+ {
+ slot = kInvalidSpill;
+ error = true;
+ }
+ build.str(def.regA64, mem(sp, sSpillArea.data + slot * 8));
+ Spill s = {inst, def.regA64, int8_t(slot)};
+ spills.push_back(s);
+ def.spilled = true;
+ if (stats)
+ {
+ stats->spillsToSlot++;
+ if (slot != kInvalidSpill && unsigned(slot + 1) > stats->maxSpillSlotsUsed)
+ stats->maxSpillSlotsUsed = slot + 1;
+ }
+ }
+ def.regA64 = noreg;
+ regs &= ~(1u << reg);
+ set.free |= 1u << reg;
+ set.defs[reg] = kInvalidInstIdx;
+ }
+ LUAU_ASSERT(set.free == set.base);
+ }
+ if (FFlag::DebugCodegenChaosA64)
+ {
+ for (int reg = 0; reg < 32; ++reg)
+ {
+ if (poisongpr & (1u << reg))
+ build.mov(RegisterA64{KindA64::x, uint8_t(reg)}, 0xdead);
+ if (poisonsimd & (1u << reg))
+ build.fmov(RegisterA64{KindA64::d, uint8_t(reg)}, -0.125);
+ }
+ }
+ return start;
+}
+void IrRegAllocA64::restore(AssemblyBuilderA64& build, size_t start)
+{
+ LUAU_ASSERT(start <= spills.size());
+ if (start < spills.size())
+ {
+ for (size_t i = start; i < spills.size(); ++i)
+ {
+ Spill s = spills[i];
+ RegisterA64 reg = takeReg(s.origin, s.inst);
+ restoreInst(build, freeSpillSlots, function, s, reg);
+ }
+ spills.resize(start);
+ }
+}
+void IrRegAllocA64::restoreReg(AssemblyBuilderA64& build, IrInst& inst)
+{
+ uint32_t index = function.getInstIndex(inst);
+ for (size_t i = 0; i < spills.size(); ++i)
+ {
+ if (spills[i].inst == index)
+ {
+ Spill s = spills[i];
+ RegisterA64 reg = allocReg(s.origin.kind, index);
+ restoreInst(build, freeSpillSlots, function, s, reg);
+ spills[i] = spills.back();
+ spills.pop_back();
+ return;
+ }
+ }
+ LUAU_ASSERT(!"Expected to find a spill record");
+}
+IrRegAllocA64::Set& IrRegAllocA64::getSet(KindA64 kind)
+{
+ switch (kind)
+ {
+ case KindA64::x:
+ case KindA64::w:
+ return gpr;
+ case KindA64::s:
+ case KindA64::d:
+ case KindA64::q:
+ return simd;
+ default:
+ LUAU_ASSERT(!"Unexpected register kind");
+ LUAU_UNREACHABLE();
+ }
+}
+}
+} // namespace CodeGen
+}
+#line __LINE__ ""
+#line __LINE__ "IrRegAllocX64.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+namespace X64
+{
+static const RegisterX64 kGprAllocOrder[] = {rax, rdx, rcx, rbx, rsi, rdi, r8, r9, r10, r11};
+IrRegAllocX64::IrRegAllocX64(AssemblyBuilderX64& build, IrFunction& function, LoweringStats* stats)
+ : build(build)
+ , function(function)
+ , stats(stats)
+ , usableXmmRegCount(getXmmRegisterCount(build.abi))
+{
+ freeGprMap.fill(true);
+ gprInstUsers.fill(kInvalidInstIdx);
+ freeXmmMap.fill(true);
+ xmmInstUsers.fill(kInvalidInstIdx);
+}
+RegisterX64 IrRegAllocX64::allocReg(SizeX64 size, uint32_t instIdx)
+{
+ if (size == SizeX64::xmmword)
+ {
+ for (size_t i = 0; i < usableXmmRegCount; ++i)
+ {
+ if (freeXmmMap[i])
+ {
+ freeXmmMap[i] = false;
+ xmmInstUsers[i] = instIdx;
+ return RegisterX64{size, uint8_t(i)};
+ }
+ }
+ }
+ else
+ {
+ for (RegisterX64 reg : kGprAllocOrder)
+ {
+ if (freeGprMap[reg.index])
+ {
+ freeGprMap[reg.index] = false;
+ gprInstUsers[reg.index] = instIdx;
+ return RegisterX64{size, reg.index};
+ }
+ }
+ }
+ const std::array<uint32_t, 16>& regInstUsers = size == SizeX64::xmmword ? xmmInstUsers : gprInstUsers;
+ if (uint32_t furthestUseTarget = findInstructionWithFurthestNextUse(regInstUsers); furthestUseTarget != kInvalidInstIdx)
+ {
+ RegisterX64 reg = function.instructions[furthestUseTarget].regX64;
+ reg.size = size;
+ return takeReg(reg, instIdx);
+ }
+ LUAU_ASSERT(!"Out of registers to allocate");
+ return noreg;
+}
+RegisterX64 IrRegAllocX64::allocRegOrReuse(SizeX64 size, uint32_t instIdx, std::initializer_list<IrOp> oprefs)
+{
+ for (IrOp op : oprefs)
+ {
+ if (op.kind != IrOpKind::Inst)
+ continue;
+ IrInst& source = function.instructions[op.index];
+ if (source.lastUse == instIdx && !source.reusedReg && !source.spilled && !source.needsReload)
+ {
+ if ((size == SizeX64::xmmword) != (source.regX64.size == SizeX64::xmmword))
+ continue;
+ LUAU_ASSERT(source.regX64 != noreg);
+ source.reusedReg = true;
+ if (size == SizeX64::xmmword)
+ xmmInstUsers[source.regX64.index] = instIdx;
+ else
+ gprInstUsers[source.regX64.index] = instIdx;
+ return RegisterX64{size, source.regX64.index};
+ }
+ }
+ return allocReg(size, instIdx);
+}
+RegisterX64 IrRegAllocX64::takeReg(RegisterX64 reg, uint32_t instIdx)
+{
+ if (reg.size == SizeX64::xmmword)
+ {
+ if (!freeXmmMap[reg.index])
+ {
+ LUAU_ASSERT(xmmInstUsers[reg.index] != kInvalidInstIdx);
+ preserve(function.instructions[xmmInstUsers[reg.index]]);
+ }
+ LUAU_ASSERT(freeXmmMap[reg.index]);
+ freeXmmMap[reg.index] = false;
+ xmmInstUsers[reg.index] = instIdx;
+ }
+ else
+ {
+ if (!freeGprMap[reg.index])
+ {
+ LUAU_ASSERT(gprInstUsers[reg.index] != kInvalidInstIdx);
+ preserve(function.instructions[gprInstUsers[reg.index]]);
+ }
+ LUAU_ASSERT(freeGprMap[reg.index]);
+ freeGprMap[reg.index] = false;
+ gprInstUsers[reg.index] = instIdx;
+ }
+ return reg;
+}
+bool IrRegAllocX64::canTakeReg(RegisterX64 reg) const
+{
+ const std::array<bool, 16>& freeMap = reg.size == SizeX64::xmmword ? freeXmmMap : freeGprMap;
+ const std::array<uint32_t, 16>& instUsers = reg.size == SizeX64::xmmword ? xmmInstUsers : gprInstUsers;
+ return freeMap[reg.index] || instUsers[reg.index] != kInvalidInstIdx;
+}
+void IrRegAllocX64::freeReg(RegisterX64 reg)
+{
+ if (reg.size == SizeX64::xmmword)
+ {
+ LUAU_ASSERT(!freeXmmMap[reg.index]);
+ freeXmmMap[reg.index] = true;
+ xmmInstUsers[reg.index] = kInvalidInstIdx;
+ }
+ else
+ {
+ LUAU_ASSERT(!freeGprMap[reg.index]);
+ freeGprMap[reg.index] = true;
+ gprInstUsers[reg.index] = kInvalidInstIdx;
+ }
+}
+void IrRegAllocX64::freeLastUseReg(IrInst& target, uint32_t instIdx)
+{
+ if (isLastUseReg(target, instIdx))
+ {
+ LUAU_ASSERT(!target.spilled && !target.needsReload);
+ if (target.regX64 == noreg)
+ return;
+ freeReg(target.regX64);
+ target.regX64 = noreg;
+ }
+}
+void IrRegAllocX64::freeLastUseRegs(const IrInst& inst, uint32_t instIdx)
+{
+ auto checkOp = [this, instIdx](IrOp op) {
+ if (op.kind == IrOpKind::Inst)
+ freeLastUseReg(function.instructions[op.index], instIdx);
+ };
+ checkOp(inst.a);
+ checkOp(inst.b);
+ checkOp(inst.c);
+ checkOp(inst.d);
+ checkOp(inst.e);
+ checkOp(inst.f);
+}
+bool IrRegAllocX64::isLastUseReg(const IrInst& target, uint32_t instIdx) const
+{
+ return target.lastUse == instIdx && !target.reusedReg;
+}
+void IrRegAllocX64::preserve(IrInst& inst)
+{
+ IrSpillX64 spill;
+ spill.instIdx = function.getInstIndex(inst);
+ spill.valueKind = getCmdValueKind(inst.cmd);
+ spill.spillId = nextSpillId++;
+ spill.originalLoc = inst.regX64;
+ if (!hasRestoreOp(inst))
+ {
+ unsigned i = findSpillStackSlot(spill.valueKind);
+ if (spill.valueKind == IrValueKind::Tvalue)
+ build.vmovups(xmmword[sSpillArea + i * 8], inst.regX64);
+ else if (spill.valueKind == IrValueKind::Double)
+ build.vmovsd(qword[sSpillArea + i * 8], inst.regX64);
+ else if (spill.valueKind == IrValueKind::Pointer)
+ build.mov(qword[sSpillArea + i * 8], inst.regX64);
+ else if (spill.valueKind == IrValueKind::Tag || spill.valueKind == IrValueKind::Int)
+ build.mov(dword[sSpillArea + i * 8], inst.regX64);
+ else
+ LUAU_ASSERT(!"Unsupported value kind");
+ usedSpillSlots.set(i);
+ if (i + 1 > maxUsedSlot)
+ maxUsedSlot = i + 1;
+ if (spill.valueKind == IrValueKind::Tvalue)
+ {
+ usedSpillSlots.set(i + 1);
+ if (i + 2 > maxUsedSlot)
+ maxUsedSlot = i + 2;
+ }
+ spill.stackSlot = uint8_t(i);
+ inst.spilled = true;
+ if (stats)
+ stats->spillsToSlot++;
+ }
+ else
+ {
+ inst.needsReload = true;
+ if (stats)
+ stats->spillsToRestore++;
+ }
+ spills.push_back(spill);
+ freeReg(inst.regX64);
+ inst.regX64 = noreg;
+}
+void IrRegAllocX64::restore(IrInst& inst, bool intoOriginalLocation)
+{
+ uint32_t instIdx = function.getInstIndex(inst);
+ for (size_t i = 0; i < spills.size(); i++)
+ {
+ if (spills[i].instIdx == instIdx)
+ {
+ RegisterX64 reg = intoOriginalLocation ? takeReg(spills[i].originalLoc, instIdx) : allocReg(spills[i].originalLoc.size, instIdx);
+ OperandX64 restoreLocation = noreg;
+ const IrSpillX64& spill = spills[i];
+ if (spill.stackSlot != kNoStackSlot)
+ {
+ restoreLocation = addr[sSpillArea + spill.stackSlot * 8];
+ restoreLocation.memSize = reg.size;
+ usedSpillSlots.set(spill.stackSlot, false);
+ if (spill.valueKind == IrValueKind::Tvalue)
+ usedSpillSlots.set(spill.stackSlot + 1, false);
+ }
+ else
+ {
+ restoreLocation = getRestoreAddress(inst, getRestoreOp(inst));
+ }
+ if (spill.valueKind == IrValueKind::Tvalue)
+ build.vmovups(reg, restoreLocation);
+ else if (spill.valueKind == IrValueKind::Double)
+ build.vmovsd(reg, restoreLocation);
+ else
+ build.mov(reg, restoreLocation);
+ inst.regX64 = reg;
+ inst.spilled = false;
+ inst.needsReload = false;
+ spills[i] = spills.back();
+ spills.pop_back();
+ return;
+ }
+ }
+}
+void IrRegAllocX64::preserveAndFreeInstValues()
+{
+ for (uint32_t instIdx : gprInstUsers)
+ {
+ if (instIdx != kInvalidInstIdx)
+ preserve(function.instructions[instIdx]);
+ }
+ for (uint32_t instIdx : xmmInstUsers)
+ {
+ if (instIdx != kInvalidInstIdx)
+ preserve(function.instructions[instIdx]);
+ }
+}
+bool IrRegAllocX64::shouldFreeGpr(RegisterX64 reg) const
+{
+ if (reg == noreg)
+ return false;
+ LUAU_ASSERT(reg.size != SizeX64::xmmword);
+ for (RegisterX64 gpr : kGprAllocOrder)
+ {
+ if (reg.index == gpr.index)
+ return true;
+ }
+ return false;
+}
+unsigned IrRegAllocX64::findSpillStackSlot(IrValueKind valueKind)
+{
+ for (unsigned i = 0; i < unsigned(usedSpillSlots.size() - 1); ++i)
+ {
+ if (usedSpillSlots.test(i))
+ continue;
+ if (valueKind == IrValueKind::Tvalue && usedSpillSlots.test(i + 1))
+ {
+ ++i;
+ continue;
+ }
+ return i;
+ }
+ LUAU_ASSERT(!"Nowhere to spill");
+ return ~0u;
+}
+IrOp IrRegAllocX64::getRestoreOp(const IrInst& inst) const
+{
+ if (IrOp location = function.findRestoreOp(inst, false);
+ location.kind == IrOpKind::VmReg || location.kind == IrOpKind::VmConst)
+ return location;
+ return IrOp();
+}
+bool IrRegAllocX64::hasRestoreOp(const IrInst& inst) const
+{
+ IrOp location = function.findRestoreOp(inst, true);
+ return location.kind == IrOpKind::VmReg || location.kind == IrOpKind::VmConst;
+}
+OperandX64 IrRegAllocX64::getRestoreAddress(const IrInst& inst, IrOp restoreOp)
+{
+ LUAU_ASSERT(restoreOp.kind != IrOpKind::None);
+ switch (getCmdValueKind(inst.cmd))
+ {
+ case IrValueKind::Unknown:
+ case IrValueKind::None:
+ LUAU_ASSERT(!"Invalid operand restore value kind");
+ break;
+ case IrValueKind::Tag:
+ return restoreOp.kind == IrOpKind::VmReg ? luauRegTag(vmRegOp(restoreOp)) : luauConstantTag(vmConstOp(restoreOp));
+ case IrValueKind::Int:
+ LUAU_ASSERT(restoreOp.kind == IrOpKind::VmReg);
+ return luauRegValueInt(vmRegOp(restoreOp));
+ case IrValueKind::Pointer:
+ return restoreOp.kind == IrOpKind::VmReg ? luauRegValue(vmRegOp(restoreOp)) : luauConstantValue(vmConstOp(restoreOp));
+ case IrValueKind::Double:
+ return restoreOp.kind == IrOpKind::VmReg ? luauRegValue(vmRegOp(restoreOp)) : luauConstantValue(vmConstOp(restoreOp));
+ case IrValueKind::Tvalue:
+ return restoreOp.kind == IrOpKind::VmReg ? luauReg(vmRegOp(restoreOp)) : luauConstant(vmConstOp(restoreOp));
+ }
+ LUAU_ASSERT(!"Failed to find restore operand location");
+ return noreg;
+}
+uint32_t IrRegAllocX64::findInstructionWithFurthestNextUse(const std::array<uint32_t, 16>& regInstUsers) const
+{
+ uint32_t furthestUseTarget = kInvalidInstIdx;
+ uint32_t furthestUseLocation = 0;
+ for (uint32_t regInstUser : regInstUsers)
+ {
+ if (regInstUser == kInvalidInstIdx || regInstUser == currInstIdx)
+ continue;
+ uint32_t nextUse = getNextInstUse(function, regInstUser, currInstIdx);
+ if (nextUse == currInstIdx)
+ continue;
+ if (furthestUseTarget == kInvalidInstIdx || nextUse > furthestUseLocation)
+ {
+ furthestUseLocation = nextUse;
+ furthestUseTarget = regInstUser;
+ }
+ }
+ return furthestUseTarget;
+}
+void IrRegAllocX64::assertFree(RegisterX64 reg) const
+{
+ if (reg.size == SizeX64::xmmword)
+ LUAU_ASSERT(freeXmmMap[reg.index]);
+ else
+ LUAU_ASSERT(freeGprMap[reg.index]);
+}
+void IrRegAllocX64::assertAllFree() const
+{
+ for (RegisterX64 reg : kGprAllocOrder)
+ LUAU_ASSERT(freeGprMap[reg.index]);
+ for (bool free : freeXmmMap)
+ LUAU_ASSERT(free);
+}
+void IrRegAllocX64::assertNoSpills() const
+{
+ LUAU_ASSERT(spills.empty());
+}
+ScopedRegX64::ScopedRegX64(IrRegAllocX64& owner)
+ : owner(owner)
+ , reg(noreg)
+{
+}
+ScopedRegX64::ScopedRegX64(IrRegAllocX64& owner, SizeX64 size)
+ : owner(owner)
+ , reg(noreg)
+{
+ alloc(size);
+}
+ScopedRegX64::ScopedRegX64(IrRegAllocX64& owner, RegisterX64 reg)
+ : owner(owner)
+ , reg(reg)
+{
+}
+ScopedRegX64::~ScopedRegX64()
+{
+ if (reg != noreg)
+ owner.freeReg(reg);
+}
+void ScopedRegX64::take(RegisterX64 reg)
+{
+ LUAU_ASSERT(this->reg == noreg);
+ this->reg = owner.takeReg(reg, kInvalidInstIdx);
+}
+void ScopedRegX64::alloc(SizeX64 size)
+{
+ LUAU_ASSERT(reg == noreg);
+ reg = owner.allocReg(size, kInvalidInstIdx);
+}
+void ScopedRegX64::free()
+{
+ LUAU_ASSERT(reg != noreg);
+ owner.freeReg(reg);
+ reg = noreg;
+}
+RegisterX64 ScopedRegX64::release()
+{
+ RegisterX64 tmp = reg;
+ reg = noreg;
+ return tmp;
+}
+ScopedSpills::ScopedSpills(IrRegAllocX64& owner)
+ : owner(owner)
+{
+ startSpillId = owner.nextSpillId;
+}
+ScopedSpills::~ScopedSpills()
+{
+ unsigned endSpillId = owner.nextSpillId;
+ for (size_t i = 0; i < owner.spills.size();)
+ {
+ IrSpillX64& spill = owner.spills[i];
+ LUAU_ASSERT(spill.spillId < endSpillId);
+ if (spill.spillId >= startSpillId)
+ {
+ IrInst& inst = owner.function.instructions[spill.instIdx];
+ owner.restore(inst, true);
+ }
+ else
+ {
+ i++;
+ }
+ }
+}
+}
+} // namespace CodeGen
+}
+#line __LINE__ ""
+#line __LINE__ "IrTranslateBuiltins.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+struct IrBuilder;
+struct IrOp;
+enum class BuiltinImplType
+{
+ None,
+ UsesFallback,
+ Full, // Is either implemented in full, or exits to VM
+};
+struct BuiltinImplResult
+{
+ BuiltinImplType type;
+ int actualResultCount;
+};
+BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, IrOp args, int nparams, int nresults, IrOp fallback, int pcpos);
+}
+} // namespace Luau
+#line __LINE__ "IrTranslateBuiltins.cpp"
+LUAU_FASTFLAGVARIABLE(LuauBufferTranslateIr, false)
+static const int kMinMaxUnrolledParams = 5;
+static const int kBit32BinaryOpUnrolledParams = 5;
+namespace Luau
+{
+namespace CodeGen
+{
+static void builtinCheckDouble(IrBuilder& build, IrOp arg, int pcpos)
+{
+ if (arg.kind == IrOpKind::Constant)
+ LUAU_ASSERT(build.function.constOp(arg).kind == IrConstKind::Double);
+ else
+ build.loadAndCheckTag(arg, LUA_TNUMBER, build.vmExit(pcpos));
+}
+static IrOp builtinLoadDouble(IrBuilder& build, IrOp arg)
+{
+ if (arg.kind == IrOpKind::Constant)
+ return arg;
+ return build.inst(IrCmd::LOAD_DOUBLE, arg);
+}
+static BuiltinImplResult translateBuiltinNumberToNumber(
+ IrBuilder& build, LuauBuiltinFunction bfid, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+{
+ if (nparams < 1 || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ builtinCheckDouble(build, build.vmReg(arg), pcpos);
+ build.inst(IrCmd::FASTCALL, build.constUint(bfid), build.vmReg(ra), build.vmReg(arg), args, build.constInt(1), build.constInt(1));
+ if (ra != arg)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinNumberToNumberLibm(
+ IrBuilder& build, LuauBuiltinFunction bfid, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+{
+ if (nparams < 1 || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ builtinCheckDouble(build, build.vmReg(arg), pcpos);
+ IrOp va = builtinLoadDouble(build, build.vmReg(arg));
+ IrOp res = build.inst(IrCmd::INVOKE_LIBM, build.constUint(bfid), va);
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), res);
+ if (ra != arg)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltin2NumberToNumberLibm(
+ IrBuilder& build, LuauBuiltinFunction bfid, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+{
+ if (nparams < 2 || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ builtinCheckDouble(build, build.vmReg(arg), pcpos);
+ builtinCheckDouble(build, args, pcpos);
+ IrOp va = builtinLoadDouble(build, build.vmReg(arg));
+ IrOp vb = builtinLoadDouble(build, args);
+ if (bfid == LBF_MATH_LDEXP)
+ vb = build.inst(IrCmd::NUM_TO_INT, vb);
+ IrOp res = build.inst(IrCmd::INVOKE_LIBM, build.constUint(bfid), va, vb);
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), res);
+ if (ra != arg)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinNumberTo2Number(
+ IrBuilder& build, LuauBuiltinFunction bfid, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+{
+ if (nparams < 1 || nresults > 2)
+ return {BuiltinImplType::None, -1};
+ builtinCheckDouble(build, build.vmReg(arg), pcpos);
+ build.inst(
+ IrCmd::FASTCALL, build.constUint(bfid), build.vmReg(ra), build.vmReg(arg), args, build.constInt(1), build.constInt(nresults == 1 ? 1 : 2));
+ if (ra != arg)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ if (nresults != 1)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra + 1), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::Full, 2};
+}
+static BuiltinImplResult translateBuiltinAssert(IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+{
+ if (nparams < 1 || nresults != 0)
+ return {BuiltinImplType::None, -1};
+ IrOp tag = build.inst(IrCmd::LOAD_TAG, build.vmReg(arg));
+ IrOp value = build.inst(IrCmd::LOAD_INT, build.vmReg(arg));
+ build.inst(IrCmd::CHECK_TRUTHY, tag, value, build.vmExit(pcpos));
+ return {BuiltinImplType::UsesFallback, 0};
+}
+static BuiltinImplResult translateBuiltinMathDegRad(IrBuilder& build, IrCmd cmd, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+{
+ if (nparams < 1 || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ builtinCheckDouble(build, build.vmReg(arg), pcpos);
+ const double rpd = (3.14159265358979323846 / 180.0);
+ IrOp varg = builtinLoadDouble(build, build.vmReg(arg));
+ IrOp value = build.inst(cmd, varg, build.constDouble(rpd));
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), value);
+ if (ra != arg)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinMathLog(IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+{
+ if (nparams < 1 || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ int libmId = LBF_MATH_LOG;
+ std::optional<double> denom;
+ if (nparams != 1)
+ {
+ std::optional<double> y = build.function.asDoubleOp(args);
+ if (!y)
+ return {BuiltinImplType::None, -1};
+ if (*y == 2.0)
+ libmId = LBF_IR_MATH_LOG2;
+ else if (*y == 10.0)
+ libmId = LBF_MATH_LOG10;
+ else
+ denom = log(*y);
+ }
+ builtinCheckDouble(build, build.vmReg(arg), pcpos);
+ IrOp va = builtinLoadDouble(build, build.vmReg(arg));
+ IrOp res = build.inst(IrCmd::INVOKE_LIBM, build.constUint(libmId), va);
+ if (denom)
+ res = build.inst(IrCmd::DIV_NUM, res, build.constDouble(*denom));
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), res);
+ if (ra != arg)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinMathMinMax(IrBuilder& build, IrCmd cmd, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+{
+ if (nparams < 2 || nparams > kMinMaxUnrolledParams || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ builtinCheckDouble(build, build.vmReg(arg), pcpos);
+ builtinCheckDouble(build, args, pcpos);
+ for (int i = 3; i <= nparams; ++i)
+ builtinCheckDouble(build, build.vmReg(vmRegOp(args) + (i - 2)), pcpos);
+ IrOp varg1 = builtinLoadDouble(build, build.vmReg(arg));
+ IrOp varg2 = builtinLoadDouble(build, args);
+ IrOp res = build.inst(cmd, varg2, varg1);
+ for (int i = 3; i <= nparams; ++i)
+ {
+ IrOp arg = builtinLoadDouble(build, build.vmReg(vmRegOp(args) + (i - 2)));
+ res = build.inst(cmd, arg, res);
+ }
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), res);
+ if (ra != arg)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinMathClamp(IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, IrOp fallback, int pcpos)
+{
+ if (nparams < 3 || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ IrOp block = build.block(IrBlockKind::Internal);
+ LUAU_ASSERT(args.kind == IrOpKind::VmReg);
+ builtinCheckDouble(build, build.vmReg(arg), pcpos);
+ builtinCheckDouble(build, args, pcpos);
+ builtinCheckDouble(build, build.vmReg(vmRegOp(args) + 1), pcpos);
+ IrOp min = builtinLoadDouble(build, args);
+ IrOp max = builtinLoadDouble(build, build.vmReg(vmRegOp(args) + 1));
+ build.inst(IrCmd::JUMP_CMP_NUM, min, max, build.cond(IrCondition::NotLessEqual), fallback, block);
+ build.beginBlock(block);
+ IrOp v = builtinLoadDouble(build, build.vmReg(arg));
+ IrOp r = build.inst(IrCmd::MAX_NUM, min, v);
+ IrOp clamped = build.inst(IrCmd::MIN_NUM, max, r);
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), clamped);
+ if (ra != arg)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::UsesFallback, 1};
+}
+static BuiltinImplResult translateBuiltinMathUnary(IrBuilder& build, IrCmd cmd, int nparams, int ra, int arg, int nresults, int pcpos)
+{
+ if (nparams < 1 || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ builtinCheckDouble(build, build.vmReg(arg), pcpos);
+ IrOp varg = builtinLoadDouble(build, build.vmReg(arg));
+ IrOp result = build.inst(cmd, varg);
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), result);
+ if (ra != arg)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinType(IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults)
+{
+ if (nparams < 1 || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ IrOp tag = build.inst(IrCmd::LOAD_TAG, build.vmReg(arg));
+ IrOp name = build.inst(IrCmd::GET_TYPE, tag);
+ build.inst(IrCmd::STORE_POINTER, build.vmReg(ra), name);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TSTRING));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinTypeof(IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults)
+{
+ if (nparams < 1 || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ IrOp name = build.inst(IrCmd::GET_TYPEOF, build.vmReg(arg));
+ build.inst(IrCmd::STORE_POINTER, build.vmReg(ra), name);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TSTRING));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinBit32BinaryOp(
+ IrBuilder& build, IrCmd cmd, bool btest, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+{
+ if (nparams < 2 || nparams > kBit32BinaryOpUnrolledParams || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ builtinCheckDouble(build, build.vmReg(arg), pcpos);
+ builtinCheckDouble(build, args, pcpos);
+ for (int i = 3; i <= nparams; ++i)
+ builtinCheckDouble(build, build.vmReg(vmRegOp(args) + (i - 2)), pcpos);
+ IrOp va = builtinLoadDouble(build, build.vmReg(arg));
+ IrOp vb = builtinLoadDouble(build, args);
+ IrOp vaui = build.inst(IrCmd::NUM_TO_UINT, va);
+ IrOp vbui = build.inst(IrCmd::NUM_TO_UINT, vb);
+ IrOp res = build.inst(cmd, vaui, vbui);
+ for (int i = 3; i <= nparams; ++i)
+ {
+ IrOp vc = builtinLoadDouble(build, build.vmReg(vmRegOp(args) + (i - 2)));
+ IrOp arg = build.inst(IrCmd::NUM_TO_UINT, vc);
+ res = build.inst(cmd, res, arg);
+ }
+ if (btest)
+ {
+ IrOp falsey = build.block(IrBlockKind::Internal);
+ IrOp truthy = build.block(IrBlockKind::Internal);
+ IrOp exit = build.block(IrBlockKind::Internal);
+ build.inst(IrCmd::JUMP_CMP_INT, res, build.constInt(0), build.cond(IrCondition::Equal), falsey, truthy);
+ build.beginBlock(falsey);
+ build.inst(IrCmd::STORE_INT, build.vmReg(ra), build.constInt(0));
+ build.inst(IrCmd::JUMP, exit);
+ build.beginBlock(truthy);
+ build.inst(IrCmd::STORE_INT, build.vmReg(ra), build.constInt(1));
+ build.inst(IrCmd::JUMP, exit);
+ build.beginBlock(exit);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TBOOLEAN));
+ }
+ else
+ {
+ IrOp value = build.inst(IrCmd::UINT_TO_NUM, res);
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), value);
+ if (ra != arg)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ }
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinBit32Bnot(IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+{
+ if (nparams < 1 || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ builtinCheckDouble(build, build.vmReg(arg), pcpos);
+ IrOp va = builtinLoadDouble(build, build.vmReg(arg));
+ IrOp vaui = build.inst(IrCmd::NUM_TO_UINT, va);
+ IrOp not_ = build.inst(IrCmd::BITNOT_UINT, vaui);
+ IrOp value = build.inst(IrCmd::UINT_TO_NUM, not_);
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), value);
+ if (ra != arg)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinBit32Shift(
+ IrBuilder& build, IrCmd cmd, int nparams, int ra, int arg, IrOp args, int nresults, IrOp fallback, int pcpos)
+{
+ if (nparams < 2 || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ builtinCheckDouble(build, build.vmReg(arg), pcpos);
+ builtinCheckDouble(build, args, pcpos);
+ IrOp va = builtinLoadDouble(build, build.vmReg(arg));
+ IrOp vb = builtinLoadDouble(build, args);
+ IrOp vaui = build.inst(IrCmd::NUM_TO_UINT, va);
+ IrOp vbi;
+ if (std::optional<double> vbd = build.function.asDoubleOp(vb); vbd && *vbd >= INT_MIN && *vbd <= INT_MAX)
+ vbi = build.constInt(int(*vbd));
+ else
+ vbi = build.inst(IrCmd::NUM_TO_INT, vb);
+ bool knownGoodShift = unsigned(build.function.asIntOp(vbi).value_or(-1)) < 32u;
+ if (!knownGoodShift)
+ {
+ IrOp block = build.block(IrBlockKind::Internal);
+ build.inst(IrCmd::JUMP_CMP_INT, vbi, build.constInt(32), build.cond(IrCondition::UnsignedGreaterEqual), fallback, block);
+ build.beginBlock(block);
+ }
+ IrOp shift = build.inst(cmd, vaui, vbi);
+ IrOp value = build.inst(IrCmd::UINT_TO_NUM, shift);
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), value);
+ if (ra != arg)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::UsesFallback, 1};
+}
+static BuiltinImplResult translateBuiltinBit32Rotate(IrBuilder& build, IrCmd cmd, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+{
+ if (nparams < 2 || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ builtinCheckDouble(build, build.vmReg(arg), pcpos);
+ builtinCheckDouble(build, args, pcpos);
+ IrOp va = builtinLoadDouble(build, build.vmReg(arg));
+ IrOp vb = builtinLoadDouble(build, args);
+ IrOp vaui = build.inst(IrCmd::NUM_TO_UINT, va);
+ IrOp vbi = build.inst(IrCmd::NUM_TO_INT, vb);
+ IrOp shift = build.inst(cmd, vaui, vbi);
+ IrOp value = build.inst(IrCmd::UINT_TO_NUM, shift);
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), value);
+ if (ra != arg)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinBit32Extract(
+ IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, IrOp fallback, int pcpos)
+{
+ if (nparams < 2 || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ if (nparams == 2 && args.kind == IrOpKind::Constant && unsigned(int(build.function.doubleOp(args))) >= 32)
+ return {BuiltinImplType::None, -1};
+ builtinCheckDouble(build, build.vmReg(arg), pcpos);
+ builtinCheckDouble(build, args, pcpos);
+ IrOp va = builtinLoadDouble(build, build.vmReg(arg));
+ IrOp vb = builtinLoadDouble(build, args);
+ IrOp n = build.inst(IrCmd::NUM_TO_UINT, va);
+ IrOp value;
+ if (nparams == 2)
+ {
+ if (vb.kind == IrOpKind::Constant)
+ {
+ int f = int(build.function.doubleOp(vb));
+ LUAU_ASSERT(unsigned(f) < 32);
+ value = n;
+ if (f)
+ value = build.inst(IrCmd::BITRSHIFT_UINT, value, build.constInt(f));
+ if (f + 1 < 32)
+ value = build.inst(IrCmd::BITAND_UINT, value, build.constInt(1));
+ }
+ else
+ {
+ IrOp f = build.inst(IrCmd::NUM_TO_INT, vb);
+ IrOp block = build.block(IrBlockKind::Internal);
+ build.inst(IrCmd::JUMP_CMP_INT, f, build.constInt(32), build.cond(IrCondition::UnsignedGreaterEqual), fallback, block);
+ build.beginBlock(block);
+ IrOp shift = build.inst(IrCmd::BITRSHIFT_UINT, n, f);
+ value = build.inst(IrCmd::BITAND_UINT, shift, build.constInt(1));
+ }
+ }
+ else
+ {
+ IrOp f = build.inst(IrCmd::NUM_TO_INT, vb);
+ builtinCheckDouble(build, build.vmReg(args.index + 1), pcpos);
+ IrOp vc = builtinLoadDouble(build, build.vmReg(args.index + 1));
+ IrOp w = build.inst(IrCmd::NUM_TO_INT, vc);
+ IrOp block1 = build.block(IrBlockKind::Internal);
+ build.inst(IrCmd::JUMP_CMP_INT, f, build.constInt(0), build.cond(IrCondition::Less), fallback, block1);
+ build.beginBlock(block1);
+ IrOp block2 = build.block(IrBlockKind::Internal);
+ build.inst(IrCmd::JUMP_CMP_INT, w, build.constInt(1), build.cond(IrCondition::Less), fallback, block2);
+ build.beginBlock(block2);
+ IrOp block3 = build.block(IrBlockKind::Internal);
+ IrOp fw = build.inst(IrCmd::ADD_INT, f, w);
+ build.inst(IrCmd::JUMP_CMP_INT, fw, build.constInt(33), build.cond(IrCondition::Less), block3, fallback);
+ build.beginBlock(block3);
+ IrOp shift = build.inst(IrCmd::BITLSHIFT_UINT, build.constInt(0xfffffffe), build.inst(IrCmd::SUB_INT, w, build.constInt(1)));
+ IrOp m = build.inst(IrCmd::BITNOT_UINT, shift);
+ IrOp nf = build.inst(IrCmd::BITRSHIFT_UINT, n, f);
+ value = build.inst(IrCmd::BITAND_UINT, nf, m);
+ }
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), build.inst(IrCmd::UINT_TO_NUM, value));
+ if (ra != arg)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::UsesFallback, 1};
+}
+static BuiltinImplResult translateBuiltinBit32ExtractK(IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+{
+ if (nparams < 2 || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ builtinCheckDouble(build, build.vmReg(arg), pcpos);
+ IrOp va = builtinLoadDouble(build, build.vmReg(arg));
+ IrOp n = build.inst(IrCmd::NUM_TO_UINT, va);
+ double a2 = build.function.doubleOp(args);
+ int fw = int(a2);
+ int f = fw & 31;
+ int w1 = fw >> 5;
+ uint32_t m = ~(0xfffffffeu << w1);
+ IrOp result = n;
+ if (f)
+ result = build.inst(IrCmd::BITRSHIFT_UINT, result, build.constInt(f));
+ if ((f + w1 + 1) < 32)
+ result = build.inst(IrCmd::BITAND_UINT, result, build.constInt(m));
+ IrOp value = build.inst(IrCmd::UINT_TO_NUM, result);
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), value);
+ if (ra != arg)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinBit32Unary(IrBuilder& build, IrCmd cmd, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+{
+ if (nparams < 1 || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ builtinCheckDouble(build, build.vmReg(arg), pcpos);
+ IrOp va = builtinLoadDouble(build, build.vmReg(arg));
+ IrOp vaui = build.inst(IrCmd::NUM_TO_UINT, va);
+ IrOp bin = build.inst(cmd, vaui);
+ IrOp value = build.inst(IrCmd::UINT_TO_NUM, bin);
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), value);
+ if (ra != arg)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinBit32Replace(
+ IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, IrOp fallback, int pcpos)
+{
+ if (nparams < 3 || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ builtinCheckDouble(build, build.vmReg(arg), pcpos);
+ builtinCheckDouble(build, args, pcpos);
+ builtinCheckDouble(build, build.vmReg(args.index + 1), pcpos);
+ IrOp va = builtinLoadDouble(build, build.vmReg(arg));
+ IrOp vb = builtinLoadDouble(build, args);
+ IrOp vc = builtinLoadDouble(build, build.vmReg(args.index + 1));
+ IrOp n = build.inst(IrCmd::NUM_TO_UINT, va);
+ IrOp v = build.inst(IrCmd::NUM_TO_UINT, vb);
+ IrOp f = build.inst(IrCmd::NUM_TO_INT, vc);
+ IrOp value;
+ if (nparams == 3)
+ {
+ IrOp block = build.block(IrBlockKind::Internal);
+ build.inst(IrCmd::JUMP_CMP_INT, f, build.constInt(32), build.cond(IrCondition::UnsignedGreaterEqual), fallback, block);
+ build.beginBlock(block);
+ IrOp m = build.constInt(1);
+ IrOp shift = build.inst(IrCmd::BITLSHIFT_UINT, m, f);
+ IrOp not_ = build.inst(IrCmd::BITNOT_UINT, shift);
+ IrOp lhs = build.inst(IrCmd::BITAND_UINT, n, not_);
+ IrOp vm = build.inst(IrCmd::BITAND_UINT, v, m);
+ IrOp rhs = build.inst(IrCmd::BITLSHIFT_UINT, vm, f);
+ value = build.inst(IrCmd::BITOR_UINT, lhs, rhs);
+ }
+ else
+ {
+ builtinCheckDouble(build, build.vmReg(args.index + 2), pcpos);
+ IrOp vd = builtinLoadDouble(build, build.vmReg(args.index + 2));
+ IrOp w = build.inst(IrCmd::NUM_TO_INT, vd);
+ IrOp block1 = build.block(IrBlockKind::Internal);
+ build.inst(IrCmd::JUMP_CMP_INT, f, build.constInt(0), build.cond(IrCondition::Less), fallback, block1);
+ build.beginBlock(block1);
+ IrOp block2 = build.block(IrBlockKind::Internal);
+ build.inst(IrCmd::JUMP_CMP_INT, w, build.constInt(1), build.cond(IrCondition::Less), fallback, block2);
+ build.beginBlock(block2);
+ IrOp block3 = build.block(IrBlockKind::Internal);
+ IrOp fw = build.inst(IrCmd::ADD_INT, f, w);
+ build.inst(IrCmd::JUMP_CMP_INT, fw, build.constInt(33), build.cond(IrCondition::Less), block3, fallback);
+ build.beginBlock(block3);
+ IrOp shift1 = build.inst(IrCmd::BITLSHIFT_UINT, build.constInt(0xfffffffe), build.inst(IrCmd::SUB_INT, w, build.constInt(1)));
+ IrOp m = build.inst(IrCmd::BITNOT_UINT, shift1);
+ IrOp shift2 = build.inst(IrCmd::BITLSHIFT_UINT, m, f);
+ IrOp not_ = build.inst(IrCmd::BITNOT_UINT, shift2);
+ IrOp lhs = build.inst(IrCmd::BITAND_UINT, n, not_);
+ IrOp vm = build.inst(IrCmd::BITAND_UINT, v, m);
+ IrOp rhs = build.inst(IrCmd::BITLSHIFT_UINT, vm, f);
+ value = build.inst(IrCmd::BITOR_UINT, lhs, rhs);
+ }
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), build.inst(IrCmd::UINT_TO_NUM, value));
+ if (ra != arg)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::UsesFallback, 1};
+}
+static BuiltinImplResult translateBuiltinVector(IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+{
+ if (nparams < 3 || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ LUAU_ASSERT(LUA_VECTOR_SIZE == 3);
+ builtinCheckDouble(build, build.vmReg(arg), pcpos);
+ builtinCheckDouble(build, args, pcpos);
+ builtinCheckDouble(build, build.vmReg(vmRegOp(args) + 1), pcpos);
+ IrOp x = builtinLoadDouble(build, build.vmReg(arg));
+ IrOp y = builtinLoadDouble(build, args);
+ IrOp z = builtinLoadDouble(build, build.vmReg(vmRegOp(args) + 1));
+ build.inst(IrCmd::STORE_VECTOR, build.vmReg(ra), x, y, z);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TVECTOR));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinTableInsert(IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+{
+ if (nparams != 2 || nresults > 0)
+ return {BuiltinImplType::None, -1};
+ build.loadAndCheckTag(build.vmReg(arg), LUA_TTABLE, build.vmExit(pcpos));
+ IrOp table = build.inst(IrCmd::LOAD_POINTER, build.vmReg(arg));
+ build.inst(IrCmd::CHECK_READONLY, table, build.vmExit(pcpos));
+ IrOp pos = build.inst(IrCmd::ADD_INT, build.inst(IrCmd::TABLE_LEN, table), build.constInt(1));
+ IrOp setnum = build.inst(IrCmd::TABLE_SETNUM, table, pos);
+ if (args.kind == IrOpKind::Constant)
+ {
+ LUAU_ASSERT(build.function.constOp(args).kind == IrConstKind::Double);
+ build.inst(IrCmd::STORE_DOUBLE, setnum, args);
+ build.inst(IrCmd::STORE_TAG, setnum, build.constTag(LUA_TNUMBER));
+ }
+ else
+ {
+ IrOp va = build.inst(IrCmd::LOAD_TVALUE, args);
+ build.inst(IrCmd::STORE_TVALUE, setnum, va);
+ LUAU_ASSERT(build.function.proto);
+ IrOp argstag = args.kind == IrOpKind::VmConst ? build.constTag(build.function.proto->k[vmConstOp(args)].tt) : build.undef();
+ build.inst(IrCmd::BARRIER_TABLE_FORWARD, table, args, argstag);
+ }
+ return {BuiltinImplType::Full, 0};
+}
+static BuiltinImplResult translateBuiltinStringLen(IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+{
+ if (nparams < 1 || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ build.loadAndCheckTag(build.vmReg(arg), LUA_TSTRING, build.vmExit(pcpos));
+ IrOp ts = build.inst(IrCmd::LOAD_POINTER, build.vmReg(arg));
+ IrOp len = build.inst(IrCmd::STRING_LEN, ts);
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), build.inst(IrCmd::INT_TO_NUM, len));
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::Full, 1};
+}
+static void translateBufferArgsAndCheckBounds(IrBuilder& build, int nparams, int arg, IrOp args, int size, int pcpos, IrOp& buf, IrOp& intIndex)
+{
+ build.loadAndCheckTag(build.vmReg(arg), LUA_TBUFFER, build.vmExit(pcpos));
+ builtinCheckDouble(build, args, pcpos);
+ if (nparams == 3)
+ builtinCheckDouble(build, build.vmReg(vmRegOp(args) + 1), pcpos);
+ buf = build.inst(IrCmd::LOAD_POINTER, build.vmReg(arg));
+ IrOp numIndex = builtinLoadDouble(build, args);
+ intIndex = build.inst(IrCmd::NUM_TO_INT, numIndex);
+ build.inst(IrCmd::CHECK_BUFFER_LEN, buf, intIndex, build.constInt(size), build.vmExit(pcpos));
+}
+static BuiltinImplResult translateBuiltinBufferRead(
+ IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos, IrCmd readCmd, int size, IrCmd convCmd)
+{
+ if (!FFlag::LuauBufferTranslateIr)
+ return {BuiltinImplType::None, -1};
+ if (nparams < 2 || nresults > 1)
+ return {BuiltinImplType::None, -1};
+ IrOp buf, intIndex;
+ translateBufferArgsAndCheckBounds(build, nparams, arg, args, size, pcpos, buf, intIndex);
+ IrOp result = build.inst(readCmd, buf, intIndex);
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), convCmd == IrCmd::NOP ? result : build.inst(convCmd, result));
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinBufferWrite(
+ IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos, IrCmd writeCmd, int size, IrCmd convCmd)
+{
+ if (!FFlag::LuauBufferTranslateIr)
+ return {BuiltinImplType::None, -1};
+ if (nparams < 3 || nresults > 0)
+ return {BuiltinImplType::None, -1};
+ IrOp buf, intIndex;
+ translateBufferArgsAndCheckBounds(build, nparams, arg, args, size, pcpos, buf, intIndex);
+ IrOp numValue = builtinLoadDouble(build, build.vmReg(vmRegOp(args) + 1));
+ build.inst(writeCmd, buf, intIndex, convCmd == IrCmd::NOP ? numValue : build.inst(convCmd, numValue));
+ return {BuiltinImplType::Full, 0};
+}
+BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, IrOp args, int nparams, int nresults, IrOp fallback, int pcpos)
+{
+ if (nparams == LUA_MULTRET)
+ return {BuiltinImplType::None, -1};
+ switch (bfid)
+ {
+ case LBF_ASSERT:
+ return translateBuiltinAssert(build, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_MATH_DEG:
+ return translateBuiltinMathDegRad(build, IrCmd::DIV_NUM, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_MATH_RAD:
+ return translateBuiltinMathDegRad(build, IrCmd::MUL_NUM, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_MATH_LOG:
+ return translateBuiltinMathLog(build, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_MATH_MIN:
+ return translateBuiltinMathMinMax(build, IrCmd::MIN_NUM, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_MATH_MAX:
+ return translateBuiltinMathMinMax(build, IrCmd::MAX_NUM, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_MATH_CLAMP:
+ return translateBuiltinMathClamp(build, nparams, ra, arg, args, nresults, fallback, pcpos);
+ case LBF_MATH_FLOOR:
+ return translateBuiltinMathUnary(build, IrCmd::FLOOR_NUM, nparams, ra, arg, nresults, pcpos);
+ case LBF_MATH_CEIL:
+ return translateBuiltinMathUnary(build, IrCmd::CEIL_NUM, nparams, ra, arg, nresults, pcpos);
+ case LBF_MATH_SQRT:
+ return translateBuiltinMathUnary(build, IrCmd::SQRT_NUM, nparams, ra, arg, nresults, pcpos);
+ case LBF_MATH_ABS:
+ return translateBuiltinMathUnary(build, IrCmd::ABS_NUM, nparams, ra, arg, nresults, pcpos);
+ case LBF_MATH_ROUND:
+ return translateBuiltinMathUnary(build, IrCmd::ROUND_NUM, nparams, ra, arg, nresults, pcpos);
+ case LBF_MATH_EXP:
+ case LBF_MATH_ASIN:
+ case LBF_MATH_SIN:
+ case LBF_MATH_SINH:
+ case LBF_MATH_ACOS:
+ case LBF_MATH_COS:
+ case LBF_MATH_COSH:
+ case LBF_MATH_ATAN:
+ case LBF_MATH_TAN:
+ case LBF_MATH_TANH:
+ case LBF_MATH_LOG10:
+ return translateBuiltinNumberToNumberLibm(build, LuauBuiltinFunction(bfid), nparams, ra, arg, args, nresults, pcpos);
+ case LBF_MATH_SIGN:
+ return translateBuiltinNumberToNumber(build, LuauBuiltinFunction(bfid), nparams, ra, arg, args, nresults, pcpos);
+ case LBF_MATH_POW:
+ case LBF_MATH_FMOD:
+ case LBF_MATH_ATAN2:
+ case LBF_MATH_LDEXP:
+ return translateBuiltin2NumberToNumberLibm(build, LuauBuiltinFunction(bfid), nparams, ra, arg, args, nresults, pcpos);
+ case LBF_MATH_FREXP:
+ case LBF_MATH_MODF:
+ return translateBuiltinNumberTo2Number(build, LuauBuiltinFunction(bfid), nparams, ra, arg, args, nresults, pcpos);
+ case LBF_BIT32_BAND:
+ return translateBuiltinBit32BinaryOp(build, IrCmd::BITAND_UINT, false, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_BIT32_BOR:
+ return translateBuiltinBit32BinaryOp(build, IrCmd::BITOR_UINT, false, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_BIT32_BXOR:
+ return translateBuiltinBit32BinaryOp(build, IrCmd::BITXOR_UINT, false, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_BIT32_BTEST:
+ return translateBuiltinBit32BinaryOp(build, IrCmd::BITAND_UINT, true, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_BIT32_BNOT:
+ return translateBuiltinBit32Bnot(build, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_BIT32_LSHIFT:
+ return translateBuiltinBit32Shift(build, IrCmd::BITLSHIFT_UINT, nparams, ra, arg, args, nresults, fallback, pcpos);
+ case LBF_BIT32_RSHIFT:
+ return translateBuiltinBit32Shift(build, IrCmd::BITRSHIFT_UINT, nparams, ra, arg, args, nresults, fallback, pcpos);
+ case LBF_BIT32_ARSHIFT:
+ return translateBuiltinBit32Shift(build, IrCmd::BITARSHIFT_UINT, nparams, ra, arg, args, nresults, fallback, pcpos);
+ case LBF_BIT32_LROTATE:
+ return translateBuiltinBit32Rotate(build, IrCmd::BITLROTATE_UINT, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_BIT32_RROTATE:
+ return translateBuiltinBit32Rotate(build, IrCmd::BITRROTATE_UINT, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_BIT32_EXTRACT:
+ return translateBuiltinBit32Extract(build, nparams, ra, arg, args, nresults, fallback, pcpos);
+ case LBF_BIT32_EXTRACTK:
+ return translateBuiltinBit32ExtractK(build, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_BIT32_COUNTLZ:
+ return translateBuiltinBit32Unary(build, IrCmd::BITCOUNTLZ_UINT, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_BIT32_COUNTRZ:
+ return translateBuiltinBit32Unary(build, IrCmd::BITCOUNTRZ_UINT, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_BIT32_REPLACE:
+ return translateBuiltinBit32Replace(build, nparams, ra, arg, args, nresults, fallback, pcpos);
+ case LBF_TYPE:
+ return translateBuiltinType(build, nparams, ra, arg, args, nresults);
+ case LBF_TYPEOF:
+ return translateBuiltinTypeof(build, nparams, ra, arg, args, nresults);
+ case LBF_VECTOR:
+ return translateBuiltinVector(build, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_TABLE_INSERT:
+ return translateBuiltinTableInsert(build, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_STRING_LEN:
+ return translateBuiltinStringLen(build, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_BIT32_BYTESWAP:
+ return translateBuiltinBit32Unary(build, IrCmd::BYTESWAP_UINT, nparams, ra, arg, args, nresults, pcpos);
+ case LBF_BUFFER_READI8:
+ return translateBuiltinBufferRead(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_READI8, 1, IrCmd::INT_TO_NUM);
+ case LBF_BUFFER_READU8:
+ return translateBuiltinBufferRead(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_READU8, 1, IrCmd::INT_TO_NUM);
+ case LBF_BUFFER_WRITEU8:
+ return translateBuiltinBufferWrite(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_WRITEI8, 1, IrCmd::NUM_TO_UINT);
+ case LBF_BUFFER_READI16:
+ return translateBuiltinBufferRead(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_READI16, 2, IrCmd::INT_TO_NUM);
+ case LBF_BUFFER_READU16:
+ return translateBuiltinBufferRead(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_READU16, 2, IrCmd::INT_TO_NUM);
+ case LBF_BUFFER_WRITEU16:
+ return translateBuiltinBufferWrite(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_WRITEI16, 2, IrCmd::NUM_TO_UINT);
+ case LBF_BUFFER_READI32:
+ return translateBuiltinBufferRead(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_READI32, 4, IrCmd::INT_TO_NUM);
+ case LBF_BUFFER_READU32:
+ return translateBuiltinBufferRead(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_READI32, 4, IrCmd::UINT_TO_NUM);
+ case LBF_BUFFER_WRITEU32:
+ return translateBuiltinBufferWrite(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_WRITEI32, 4, IrCmd::NUM_TO_UINT);
+ case LBF_BUFFER_READF32:
+ return translateBuiltinBufferRead(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_READF32, 4, IrCmd::NOP);
+ case LBF_BUFFER_WRITEF32:
+ return translateBuiltinBufferWrite(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_WRITEF32, 4, IrCmd::NOP);
+ case LBF_BUFFER_READF64:
+ return translateBuiltinBufferRead(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_READF64, 8, IrCmd::NOP);
+ case LBF_BUFFER_WRITEF64:
+ return translateBuiltinBufferWrite(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_WRITEF64, 8, IrCmd::NOP);
+ default:
+ return {BuiltinImplType::None, -1};
+ }
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "IrTranslation.cpp"
+LUAU_FASTFLAGVARIABLE(LuauFullLoopLuserdata, false)
+LUAU_FASTFLAGVARIABLE(LuauLoopInterruptFix, false)
+namespace Luau
+{
+namespace CodeGen
+{
+struct FallbackStreamScope
+{
+ FallbackStreamScope(IrBuilder& build, IrOp fallback, IrOp next)
+ : build(build)
+ , next(next)
+ {
+ LUAU_ASSERT(fallback.kind == IrOpKind::Block);
+ LUAU_ASSERT(next.kind == IrOpKind::Block);
+ build.inst(IrCmd::JUMP, next);
+ build.beginBlock(fallback);
+ }
+ ~FallbackStreamScope()
+ {
+ build.beginBlock(next);
+ }
+ IrBuilder& build;
+ IrOp next;
+};
+static IrOp getInitializedFallback(IrBuilder& build, IrOp& fallback)
+{
+ if (fallback.kind == IrOpKind::None)
+ fallback = build.block(IrBlockKind::Fallback);
+ return fallback;
+}
+void translateInstLoadNil(IrBuilder& build, const Instruction* pc)
+{
+ int ra = LUAU_INSN_A(*pc);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNIL));
+}
+void translateInstLoadB(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ build.inst(IrCmd::STORE_INT, build.vmReg(ra), build.constInt(LUAU_INSN_B(*pc)));
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TBOOLEAN));
+ if (int target = LUAU_INSN_C(*pc))
+ build.inst(IrCmd::JUMP, build.blockAtInst(pcpos + 1 + target));
+}
+void translateInstLoadN(IrBuilder& build, const Instruction* pc)
+{
+ int ra = LUAU_INSN_A(*pc);
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), build.constDouble(double(LUAU_INSN_D(*pc))));
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+}
+static void translateInstLoadConstant(IrBuilder& build, int ra, int k)
+{
+ TValue protok = build.function.proto->k[k];
+ if (protok.tt == LUA_TNIL)
+ {
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNIL));
+ }
+ else if (protok.tt == LUA_TBOOLEAN)
+ {
+ build.inst(IrCmd::STORE_INT, build.vmReg(ra), build.constInt(protok.value.b));
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TBOOLEAN));
+ }
+ else if (protok.tt == LUA_TNUMBER)
+ {
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), build.constDouble(protok.value.n));
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ }
+ else
+ {
+ IrOp load = build.inst(IrCmd::LOAD_TVALUE, build.vmConst(k));
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), load);
+ }
+}
+void translateInstLoadK(IrBuilder& build, const Instruction* pc)
+{
+ translateInstLoadConstant(build, LUAU_INSN_A(*pc), LUAU_INSN_D(*pc));
+}
+void translateInstLoadKX(IrBuilder& build, const Instruction* pc)
+{
+ translateInstLoadConstant(build, LUAU_INSN_A(*pc), pc[1]);
+}
+void translateInstMove(IrBuilder& build, const Instruction* pc)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ IrOp load = build.inst(IrCmd::LOAD_TVALUE, build.vmReg(rb));
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), load);
+}
+void translateInstJump(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ build.inst(IrCmd::JUMP, build.blockAtInst(pcpos + 1 + LUAU_INSN_D(*pc)));
+}
+void translateInstJumpBack(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ build.inst(IrCmd::INTERRUPT, build.constUint(pcpos));
+ build.inst(IrCmd::JUMP, build.blockAtInst(pcpos + 1 + LUAU_INSN_D(*pc)));
+}
+void translateInstJumpIf(IrBuilder& build, const Instruction* pc, int pcpos, bool not_)
+{
+ int ra = LUAU_INSN_A(*pc);
+ IrOp target = build.blockAtInst(pcpos + 1 + LUAU_INSN_D(*pc));
+ IrOp next = build.blockAtInst(pcpos + 1);
+ if (not_)
+ build.inst(IrCmd::JUMP_IF_FALSY, build.vmReg(ra), target, next);
+ else
+ build.inst(IrCmd::JUMP_IF_TRUTHY, build.vmReg(ra), target, next);
+ if (build.isInternalBlock(next))
+ build.beginBlock(next);
+}
+void translateInstJumpIfEq(IrBuilder& build, const Instruction* pc, int pcpos, bool not_)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int rb = pc[1];
+ IrOp target = build.blockAtInst(pcpos + 1 + LUAU_INSN_D(*pc));
+ IrOp next = build.blockAtInst(pcpos + 2);
+ IrOp numberCheck = build.block(IrBlockKind::Internal);
+ IrOp fallback = build.block(IrBlockKind::Fallback);
+ IrOp ta = build.inst(IrCmd::LOAD_TAG, build.vmReg(ra));
+ IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
+ build.inst(IrCmd::JUMP_EQ_TAG, ta, tb, numberCheck, not_ ? target : next);
+ build.beginBlock(numberCheck);
+ build.inst(IrCmd::CHECK_TAG, ta, build.constTag(LUA_TNUMBER), fallback);
+ IrOp va = build.inst(IrCmd::LOAD_DOUBLE, build.vmReg(ra));
+ IrOp vb = build.inst(IrCmd::LOAD_DOUBLE, build.vmReg(rb));
+ build.inst(IrCmd::JUMP_CMP_NUM, va, vb, build.cond(IrCondition::NotEqual), not_ ? target : next, not_ ? next : target);
+ build.beginBlock(fallback);
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ IrOp result = build.inst(IrCmd::CMP_ANY, build.vmReg(ra), build.vmReg(rb), build.cond(IrCondition::Equal));
+ build.inst(IrCmd::JUMP_CMP_INT, result, build.constInt(0), build.cond(IrCondition::Equal), not_ ? target : next, not_ ? next : target);
+ build.beginBlock(next);
+}
+void translateInstJumpIfCond(IrBuilder& build, const Instruction* pc, int pcpos, IrCondition cond)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int rb = pc[1];
+ IrOp target = build.blockAtInst(pcpos + 1 + LUAU_INSN_D(*pc));
+ IrOp next = build.blockAtInst(pcpos + 2);
+ IrOp fallback = build.block(IrBlockKind::Fallback);
+ IrOp ta = build.inst(IrCmd::LOAD_TAG, build.vmReg(ra));
+ build.inst(IrCmd::CHECK_TAG, ta, build.constTag(LUA_TNUMBER), fallback);
+ IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
+ build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TNUMBER), fallback);
+ IrOp va = build.inst(IrCmd::LOAD_DOUBLE, build.vmReg(ra));
+ IrOp vb = build.inst(IrCmd::LOAD_DOUBLE, build.vmReg(rb));
+ build.inst(IrCmd::JUMP_CMP_NUM, va, vb, build.cond(cond), target, next);
+ build.beginBlock(fallback);
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ bool reverse = false;
+ if (cond == IrCondition::NotLessEqual)
+ {
+ reverse = true;
+ cond = IrCondition::LessEqual;
+ }
+ else if (cond == IrCondition::NotLess)
+ {
+ reverse = true;
+ cond = IrCondition::Less;
+ }
+ else if (cond == IrCondition::NotEqual)
+ {
+ reverse = true;
+ cond = IrCondition::Equal;
+ }
+ IrOp result = build.inst(IrCmd::CMP_ANY, build.vmReg(ra), build.vmReg(rb), build.cond(cond));
+ build.inst(IrCmd::JUMP_CMP_INT, result, build.constInt(0), build.cond(IrCondition::Equal), reverse ? target : next, reverse ? next : target);
+ build.beginBlock(next);
+}
+void translateInstJumpX(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ build.inst(IrCmd::INTERRUPT, build.constUint(pcpos));
+ build.inst(IrCmd::JUMP, build.blockAtInst(pcpos + 1 + LUAU_INSN_E(*pc)));
+}
+void translateInstJumpxEqNil(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ bool not_ = (pc[1] & 0x80000000) != 0;
+ IrOp target = build.blockAtInst(pcpos + 1 + LUAU_INSN_D(*pc));
+ IrOp next = build.blockAtInst(pcpos + 2);
+ IrOp ta = build.inst(IrCmd::LOAD_TAG, build.vmReg(ra));
+ build.inst(IrCmd::JUMP_EQ_TAG, ta, build.constTag(LUA_TNIL), not_ ? next : target, not_ ? target : next);
+ if (build.isInternalBlock(next))
+ build.beginBlock(next);
+}
+void translateInstJumpxEqB(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ uint32_t aux = pc[1];
+ bool not_ = (aux & 0x80000000) != 0;
+ IrOp target = build.blockAtInst(pcpos + 1 + LUAU_INSN_D(*pc));
+ IrOp next = build.blockAtInst(pcpos + 2);
+ IrOp checkValue = build.block(IrBlockKind::Internal);
+ IrOp ta = build.inst(IrCmd::LOAD_TAG, build.vmReg(ra));
+ build.inst(IrCmd::JUMP_EQ_TAG, ta, build.constTag(LUA_TBOOLEAN), checkValue, not_ ? target : next);
+ build.beginBlock(checkValue);
+ IrOp va = build.inst(IrCmd::LOAD_INT, build.vmReg(ra));
+ build.inst(IrCmd::JUMP_CMP_INT, va, build.constInt(aux & 0x1), build.cond(IrCondition::Equal), not_ ? next : target, not_ ? target : next);
+ if (build.isInternalBlock(next))
+ build.beginBlock(next);
+}
+void translateInstJumpxEqN(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ uint32_t aux = pc[1];
+ bool not_ = (aux & 0x80000000) != 0;
+ IrOp target = build.blockAtInst(pcpos + 1 + LUAU_INSN_D(*pc));
+ IrOp next = build.blockAtInst(pcpos + 2);
+ IrOp checkValue = build.block(IrBlockKind::Internal);
+ IrOp ta = build.inst(IrCmd::LOAD_TAG, build.vmReg(ra));
+ build.inst(IrCmd::JUMP_EQ_TAG, ta, build.constTag(LUA_TNUMBER), checkValue, not_ ? target : next);
+ build.beginBlock(checkValue);
+ IrOp va = build.inst(IrCmd::LOAD_DOUBLE, build.vmReg(ra));
+ LUAU_ASSERT(build.function.proto);
+ TValue protok = build.function.proto->k[aux & 0xffffff];
+ LUAU_ASSERT(protok.tt == LUA_TNUMBER);
+ IrOp vb = build.constDouble(protok.value.n);
+ build.inst(IrCmd::JUMP_CMP_NUM, va, vb, build.cond(IrCondition::NotEqual), not_ ? target : next, not_ ? next : target);
+ if (build.isInternalBlock(next))
+ build.beginBlock(next);
+}
+void translateInstJumpxEqS(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ uint32_t aux = pc[1];
+ bool not_ = (aux & 0x80000000) != 0;
+ IrOp target = build.blockAtInst(pcpos + 1 + LUAU_INSN_D(*pc));
+ IrOp next = build.blockAtInst(pcpos + 2);
+ IrOp checkValue = build.block(IrBlockKind::Internal);
+ IrOp ta = build.inst(IrCmd::LOAD_TAG, build.vmReg(ra));
+ build.inst(IrCmd::JUMP_EQ_TAG, ta, build.constTag(LUA_TSTRING), checkValue, not_ ? target : next);
+ build.beginBlock(checkValue);
+ IrOp va = build.inst(IrCmd::LOAD_POINTER, build.vmReg(ra));
+ IrOp vb = build.inst(IrCmd::LOAD_POINTER, build.vmConst(aux & 0xffffff));
+ build.inst(IrCmd::JUMP_EQ_POINTER, va, vb, not_ ? next : target, not_ ? target : next);
+ if (build.isInternalBlock(next))
+ build.beginBlock(next);
+}
+static void translateInstBinaryNumeric(IrBuilder& build, int ra, int rb, int rc, IrOp opb, IrOp opc, int pcpos, TMS tm)
+{
+ IrOp fallback;
+ BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
+ if (rb != -1)
+ {
+ IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
+ build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TNUMBER),
+ bcTypes.a == LBC_TYPE_NUMBER ? build.vmExit(pcpos) : getInitializedFallback(build, fallback));
+ }
+ if (rc != -1 && rc != rb)
+ {
+ IrOp tc = build.inst(IrCmd::LOAD_TAG, build.vmReg(rc));
+ build.inst(IrCmd::CHECK_TAG, tc, build.constTag(LUA_TNUMBER),
+ bcTypes.b == LBC_TYPE_NUMBER ? build.vmExit(pcpos) : getInitializedFallback(build, fallback));
+ }
+ IrOp vb, vc;
+ IrOp result;
+ if (opb.kind == IrOpKind::VmConst)
+ {
+ LUAU_ASSERT(build.function.proto);
+ TValue protok = build.function.proto->k[vmConstOp(opb)];
+ LUAU_ASSERT(protok.tt == LUA_TNUMBER);
+ vb = build.constDouble(protok.value.n);
+ }
+ else
+ {
+ vb = build.inst(IrCmd::LOAD_DOUBLE, opb);
+ }
+ if (opc.kind == IrOpKind::VmConst)
+ {
+ LUAU_ASSERT(build.function.proto);
+ TValue protok = build.function.proto->k[vmConstOp(opc)];
+ LUAU_ASSERT(protok.tt == LUA_TNUMBER);
+ if (tm == TM_POW && protok.value.n == 0.5)
+ result = build.inst(IrCmd::SQRT_NUM, vb);
+ else if (tm == TM_POW && protok.value.n == 2.0)
+ result = build.inst(IrCmd::MUL_NUM, vb, vb);
+ else if (tm == TM_POW && protok.value.n == 3.0)
+ result = build.inst(IrCmd::MUL_NUM, vb, build.inst(IrCmd::MUL_NUM, vb, vb));
+ else
+ vc = build.constDouble(protok.value.n);
+ }
+ else
+ {
+ vc = build.inst(IrCmd::LOAD_DOUBLE, opc);
+ }
+ if (result.kind == IrOpKind::None)
+ {
+ LUAU_ASSERT(vc.kind != IrOpKind::None);
+ switch (tm)
+ {
+ case TM_ADD:
+ result = build.inst(IrCmd::ADD_NUM, vb, vc);
+ break;
+ case TM_SUB:
+ result = build.inst(IrCmd::SUB_NUM, vb, vc);
+ break;
+ case TM_MUL:
+ result = build.inst(IrCmd::MUL_NUM, vb, vc);
+ break;
+ case TM_DIV:
+ result = build.inst(IrCmd::DIV_NUM, vb, vc);
+ break;
+ case TM_IDIV:
+ result = build.inst(IrCmd::IDIV_NUM, vb, vc);
+ break;
+ case TM_MOD:
+ result = build.inst(IrCmd::MOD_NUM, vb, vc);
+ break;
+ case TM_POW:
+ result = build.inst(IrCmd::INVOKE_LIBM, build.constUint(LBF_MATH_POW), vb, vc);
+ break;
+ default:
+ LUAU_ASSERT(!"Unsupported binary op");
+ }
+ }
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), result);
+ if (ra != rb && ra != rc)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ if (fallback.kind != IrOpKind::None)
+ {
+ IrOp next = build.blockAtInst(pcpos + 1);
+ FallbackStreamScope scope(build, fallback, next);
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ build.inst(IrCmd::DO_ARITH, build.vmReg(ra), opb, opc, build.constInt(tm));
+ build.inst(IrCmd::JUMP, next);
+ }
+}
+void translateInstBinary(IrBuilder& build, const Instruction* pc, int pcpos, TMS tm)
+{
+ translateInstBinaryNumeric(
+ build, LUAU_INSN_A(*pc), LUAU_INSN_B(*pc), LUAU_INSN_C(*pc), build.vmReg(LUAU_INSN_B(*pc)), build.vmReg(LUAU_INSN_C(*pc)), pcpos, tm);
+}
+void translateInstBinaryK(IrBuilder& build, const Instruction* pc, int pcpos, TMS tm)
+{
+ translateInstBinaryNumeric(
+ build, LUAU_INSN_A(*pc), LUAU_INSN_B(*pc), -1, build.vmReg(LUAU_INSN_B(*pc)), build.vmConst(LUAU_INSN_C(*pc)), pcpos, tm);
+}
+void translateInstBinaryRK(IrBuilder& build, const Instruction* pc, int pcpos, TMS tm)
+{
+ translateInstBinaryNumeric(
+ build, LUAU_INSN_A(*pc), -1, LUAU_INSN_C(*pc), build.vmConst(LUAU_INSN_B(*pc)), build.vmReg(LUAU_INSN_C(*pc)), pcpos, tm);
+}
+void translateInstNot(IrBuilder& build, const Instruction* pc)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
+ IrOp vb = build.inst(IrCmd::LOAD_INT, build.vmReg(rb));
+ IrOp va = build.inst(IrCmd::NOT_ANY, tb, vb);
+ build.inst(IrCmd::STORE_INT, build.vmReg(ra), va);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TBOOLEAN));
+}
+void translateInstMinus(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ IrOp fallback;
+ BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
+ build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TNUMBER),
+ bcTypes.a == LBC_TYPE_NUMBER ? build.vmExit(pcpos) : getInitializedFallback(build, fallback));
+ IrOp vb = build.inst(IrCmd::LOAD_DOUBLE, build.vmReg(rb));
+ IrOp va = build.inst(IrCmd::UNM_NUM, vb);
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), va);
+ if (ra != rb)
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ if (fallback.kind != IrOpKind::None)
+ {
+ IrOp next = build.blockAtInst(pcpos + 1);
+ FallbackStreamScope scope(build, fallback, next);
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ build.inst(
+ IrCmd::DO_ARITH, build.vmReg(LUAU_INSN_A(*pc)), build.vmReg(LUAU_INSN_B(*pc)), build.vmReg(LUAU_INSN_B(*pc)), build.constInt(TM_UNM));
+ build.inst(IrCmd::JUMP, next);
+ }
+}
+void translateInstLength(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ IrOp fallback = build.block(IrBlockKind::Fallback);
+ IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
+ build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TTABLE), bcTypes.a == LBC_TYPE_TABLE ? build.vmExit(pcpos) : fallback);
+ IrOp vb = build.inst(IrCmd::LOAD_POINTER, build.vmReg(rb));
+ build.inst(IrCmd::CHECK_NO_METATABLE, vb, fallback);
+ IrOp va = build.inst(IrCmd::TABLE_LEN, vb);
+ IrOp vai = build.inst(IrCmd::INT_TO_NUM, va);
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), vai);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ IrOp next = build.blockAtInst(pcpos + 1);
+ FallbackStreamScope scope(build, fallback, next);
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ build.inst(IrCmd::DO_LEN, build.vmReg(LUAU_INSN_A(*pc)), build.vmReg(LUAU_INSN_B(*pc)));
+ build.inst(IrCmd::JUMP, next);
+}
+void translateInstNewTable(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int b = LUAU_INSN_B(*pc);
+ uint32_t aux = pc[1];
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ IrOp va = build.inst(IrCmd::NEW_TABLE, build.constUint(aux), build.constUint(b == 0 ? 0 : 1 << (b - 1)));
+ build.inst(IrCmd::STORE_POINTER, build.vmReg(ra), va);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TTABLE));
+ build.inst(IrCmd::CHECK_GC);
+}
+void translateInstDupTable(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int k = LUAU_INSN_D(*pc);
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ IrOp table = build.inst(IrCmd::LOAD_POINTER, build.vmConst(k));
+ IrOp va = build.inst(IrCmd::DUP_TABLE, table);
+ build.inst(IrCmd::STORE_POINTER, build.vmReg(ra), va);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TTABLE));
+ build.inst(IrCmd::CHECK_GC);
+}
+void translateInstGetUpval(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int up = LUAU_INSN_B(*pc);
+ build.inst(IrCmd::GET_UPVALUE, build.vmReg(ra), build.vmUpvalue(up));
+}
+void translateInstSetUpval(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int up = LUAU_INSN_B(*pc);
+ build.inst(IrCmd::SET_UPVALUE, build.vmUpvalue(up), build.vmReg(ra), build.undef());
+}
+void translateInstCloseUpvals(IrBuilder& build, const Instruction* pc)
+{
+ int ra = LUAU_INSN_A(*pc);
+ build.inst(IrCmd::CLOSE_UPVALS, build.vmReg(ra));
+}
+IrOp translateFastCallN(IrBuilder& build, const Instruction* pc, int pcpos, bool customParams, int customParamCount, IrOp customArgs)
+{
+ LuauOpcode opcode = LuauOpcode(LUAU_INSN_OP(*pc));
+ int bfid = LUAU_INSN_A(*pc);
+ int skip = LUAU_INSN_C(*pc);
+ Instruction call = pc[skip + 1];
+ LUAU_ASSERT(LUAU_INSN_OP(call) == LOP_CALL);
+ int ra = LUAU_INSN_A(call);
+ int nparams = customParams ? customParamCount : LUAU_INSN_B(call) - 1;
+ int nresults = LUAU_INSN_C(call) - 1;
+ int arg = customParams ? LUAU_INSN_B(*pc) : ra + 1;
+ IrOp args = customParams ? customArgs : build.vmReg(ra + 2);
+ IrOp builtinArgs = args;
+ if (customArgs.kind == IrOpKind::VmConst)
+ {
+ LUAU_ASSERT(build.function.proto);
+ TValue protok = build.function.proto->k[vmConstOp(customArgs)];
+ if (protok.tt == LUA_TNUMBER)
+ builtinArgs = build.constDouble(protok.value.n);
+ }
+ IrOp fallback = build.block(IrBlockKind::Fallback);
+ build.inst(IrCmd::CHECK_SAFE_ENV, build.vmExit(pcpos + getOpLength(opcode)));
+ BuiltinImplResult br =
+ translateBuiltin(build, LuauBuiltinFunction(bfid), ra, arg, builtinArgs, nparams, nresults, fallback, pcpos + getOpLength(opcode));
+ if (br.type != BuiltinImplType::None)
+ {
+ LUAU_ASSERT(nparams != LUA_MULTRET && "builtins are not allowed to handle variadic arguments");
+ if (nresults == LUA_MULTRET)
+ build.inst(IrCmd::ADJUST_STACK_TO_REG, build.vmReg(ra), build.constInt(br.actualResultCount));
+ if (br.type != BuiltinImplType::UsesFallback)
+ {
+ build.function.blockOp(fallback).kind = IrBlockKind::Dead;
+ return build.undef();
+ }
+ }
+ else
+ {
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + getOpLength(opcode)));
+ IrOp res = build.inst(IrCmd::INVOKE_FASTCALL, build.constUint(bfid), build.vmReg(ra), build.vmReg(arg), args, build.constInt(nparams),
+ build.constInt(nresults));
+ build.inst(IrCmd::CHECK_FASTCALL_RES, res, fallback);
+ if (nresults == LUA_MULTRET)
+ build.inst(IrCmd::ADJUST_STACK_TO_REG, build.vmReg(ra), res);
+ else if (nparams == LUA_MULTRET)
+ build.inst(IrCmd::ADJUST_STACK_TO_TOP);
+ }
+ return fallback;
+}
+static IrOp getLoopStepK(IrBuilder& build, int ra)
+{
+ IrBlock& active = build.function.blocks[build.activeBlockIdx];
+ if (active.start + 2 < build.function.instructions.size())
+ {
+ IrInst& sv = build.function.instructions[build.function.instructions.size() - 2];
+ IrInst& st = build.function.instructions[build.function.instructions.size() - 1];
+ if (sv.cmd == IrCmd::STORE_DOUBLE && sv.a.kind == IrOpKind::VmReg && sv.a.index == ra + 1 && sv.b.kind == IrOpKind::Constant &&
+ st.cmd == IrCmd::STORE_TAG && st.a.kind == IrOpKind::VmReg && st.a.index == ra + 1 && build.function.tagOp(st.b) == LUA_TNUMBER)
+ return sv.b;
+ }
+ return build.undef();
+}
+void beforeInstForNPrep(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ IrOp stepK = getLoopStepK(build, ra);
+ build.numericLoopStack.push_back({stepK, pcpos + 1});
+}
+void afterInstForNLoop(IrBuilder& build, const Instruction* pc)
+{
+ LUAU_ASSERT(!build.numericLoopStack.empty());
+ build.numericLoopStack.pop_back();
+}
+void translateInstForNPrep(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ IrOp loopStart = build.blockAtInst(pcpos + getOpLength(LuauOpcode(LUAU_INSN_OP(*pc))));
+ IrOp loopExit = build.blockAtInst(getJumpTarget(*pc, pcpos));
+ LUAU_ASSERT(!build.numericLoopStack.empty());
+ IrOp stepK = build.numericLoopStack.back().step;
+ IrOp tagLimit = build.inst(IrCmd::LOAD_TAG, build.vmReg(ra + 0));
+ build.inst(IrCmd::CHECK_TAG, tagLimit, build.constTag(LUA_TNUMBER), build.vmExit(pcpos));
+ IrOp tagIdx = build.inst(IrCmd::LOAD_TAG, build.vmReg(ra + 2));
+ build.inst(IrCmd::CHECK_TAG, tagIdx, build.constTag(LUA_TNUMBER), build.vmExit(pcpos));
+ IrOp limit = build.inst(IrCmd::LOAD_DOUBLE, build.vmReg(ra + 0));
+ IrOp idx = build.inst(IrCmd::LOAD_DOUBLE, build.vmReg(ra + 2));
+ if (stepK.kind == IrOpKind::Undef)
+ {
+ IrOp tagStep = build.inst(IrCmd::LOAD_TAG, build.vmReg(ra + 1));
+ build.inst(IrCmd::CHECK_TAG, tagStep, build.constTag(LUA_TNUMBER), build.vmExit(pcpos));
+ IrOp step = build.inst(IrCmd::LOAD_DOUBLE, build.vmReg(ra + 1));
+ build.inst(IrCmd::JUMP_FORN_LOOP_COND, idx, limit, step, loopStart, loopExit);
+ }
+ else
+ {
+ double stepN = build.function.doubleOp(stepK);
+ if (stepN > 0)
+ build.inst(IrCmd::JUMP_CMP_NUM, idx, limit, build.cond(IrCondition::NotLessEqual), loopExit, loopStart);
+ else
+ build.inst(IrCmd::JUMP_CMP_NUM, limit, idx, build.cond(IrCondition::NotLessEqual), loopExit, loopStart);
+ }
+ if (build.isInternalBlock(loopStart))
+ build.beginBlock(loopStart);
+ build.interruptRequested = true;
+}
+void translateInstForNLoop(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int repeatJumpTarget = getJumpTarget(*pc, pcpos);
+ IrOp loopRepeat = build.blockAtInst(repeatJumpTarget);
+ IrOp loopExit = build.blockAtInst(pcpos + getOpLength(LuauOpcode(LUAU_INSN_OP(*pc))));
+ LUAU_ASSERT(!build.numericLoopStack.empty());
+ IrBuilder::LoopInfo loopInfo = build.numericLoopStack.back();
+ if (FFlag::LuauLoopInterruptFix)
+ {
+ if (repeatJumpTarget != loopInfo.startpc)
+ build.inst(IrCmd::INTERRUPT, build.constUint(pcpos));
+ }
+ else
+ {
+ if (build.function.blockOp(loopRepeat).start == build.function.instructions.size())
+ build.inst(IrCmd::INTERRUPT, build.constUint(pcpos));
+ }
+ IrOp stepK = loopInfo.step;
+ IrOp limit = build.inst(IrCmd::LOAD_DOUBLE, build.vmReg(ra + 0));
+ IrOp step = stepK.kind == IrOpKind::Undef ? build.inst(IrCmd::LOAD_DOUBLE, build.vmReg(ra + 1)) : stepK;
+ IrOp idx = build.inst(IrCmd::LOAD_DOUBLE, build.vmReg(ra + 2));
+ idx = build.inst(IrCmd::ADD_NUM, idx, step);
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra + 2), idx);
+ if (stepK.kind == IrOpKind::Undef)
+ {
+ build.inst(IrCmd::JUMP_FORN_LOOP_COND, idx, limit, step, loopRepeat, loopExit);
+ }
+ else
+ {
+ double stepN = build.function.doubleOp(stepK);
+ if (stepN > 0)
+ build.inst(IrCmd::JUMP_CMP_NUM, idx, limit, build.cond(IrCondition::LessEqual), loopRepeat, loopExit);
+ else
+ build.inst(IrCmd::JUMP_CMP_NUM, limit, idx, build.cond(IrCondition::LessEqual), loopRepeat, loopExit);
+ }
+ if (build.isInternalBlock(loopExit))
+ build.beginBlock(loopExit);
+}
+void translateInstForGPrepNext(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ IrOp target = build.blockAtInst(pcpos + 1 + LUAU_INSN_D(*pc));
+ IrOp fallback = build.block(IrBlockKind::Fallback);
+ build.inst(IrCmd::CHECK_SAFE_ENV, build.vmExit(pcpos));
+ IrOp tagB = build.inst(IrCmd::LOAD_TAG, build.vmReg(ra + 1));
+ build.inst(IrCmd::CHECK_TAG, tagB, build.constTag(LUA_TTABLE), fallback);
+ IrOp tagC = build.inst(IrCmd::LOAD_TAG, build.vmReg(ra + 2));
+ build.inst(IrCmd::CHECK_TAG, tagC, build.constTag(LUA_TNIL), fallback);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNIL));
+ build.inst(FFlag::LuauFullLoopLuserdata ? IrCmd::STORE_POINTER : IrCmd::STORE_INT, build.vmReg(ra + 2), build.constInt(0));
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra + 2), build.constTag(LUA_TLIGHTUSERDATA));
+ build.inst(IrCmd::JUMP, target);
+ build.beginBlock(fallback);
+ build.inst(IrCmd::FORGPREP_XNEXT_FALLBACK, build.constUint(pcpos), build.vmReg(ra), target);
+}
+void translateInstForGPrepInext(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ IrOp target = build.blockAtInst(pcpos + 1 + LUAU_INSN_D(*pc));
+ IrOp fallback = build.block(IrBlockKind::Fallback);
+ IrOp finish = build.block(IrBlockKind::Internal);
+ build.inst(IrCmd::CHECK_SAFE_ENV, build.vmExit(pcpos));
+ IrOp tagB = build.inst(IrCmd::LOAD_TAG, build.vmReg(ra + 1));
+ build.inst(IrCmd::CHECK_TAG, tagB, build.constTag(LUA_TTABLE), fallback);
+ IrOp tagC = build.inst(IrCmd::LOAD_TAG, build.vmReg(ra + 2));
+ build.inst(IrCmd::CHECK_TAG, tagC, build.constTag(LUA_TNUMBER), fallback);
+ IrOp numC = build.inst(IrCmd::LOAD_DOUBLE, build.vmReg(ra + 2));
+ build.inst(IrCmd::JUMP_CMP_NUM, numC, build.constDouble(0.0), build.cond(IrCondition::NotEqual), fallback, finish);
+ build.beginBlock(finish);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNIL));
+ build.inst(FFlag::LuauFullLoopLuserdata ? IrCmd::STORE_POINTER : IrCmd::STORE_INT, build.vmReg(ra + 2), build.constInt(0));
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra + 2), build.constTag(LUA_TLIGHTUSERDATA));
+ build.inst(IrCmd::JUMP, target);
+ build.beginBlock(fallback);
+ build.inst(IrCmd::FORGPREP_XNEXT_FALLBACK, build.constUint(pcpos), build.vmReg(ra), target);
+}
+void translateInstForGLoopIpairs(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ LUAU_ASSERT(int(pc[1]) < 0);
+ IrOp loopRepeat = build.blockAtInst(getJumpTarget(*pc, pcpos));
+ IrOp loopExit = build.blockAtInst(pcpos + getOpLength(LuauOpcode(LUAU_INSN_OP(*pc))));
+ IrOp fallback = build.block(IrBlockKind::Fallback);
+ IrOp hasElem = build.block(IrBlockKind::Internal);
+ build.inst(IrCmd::INTERRUPT, build.constUint(pcpos));
+ IrOp tagA = build.inst(IrCmd::LOAD_TAG, build.vmReg(ra));
+ build.inst(IrCmd::CHECK_TAG, tagA, build.constTag(LUA_TNIL), fallback);
+ IrOp table = build.inst(IrCmd::LOAD_POINTER, build.vmReg(ra + 1));
+ IrOp index = build.inst(IrCmd::LOAD_INT, build.vmReg(ra + 2));
+ IrOp elemPtr = build.inst(IrCmd::GET_ARR_ADDR, table, index);
+ build.inst(IrCmd::CHECK_ARRAY_SIZE, table, index, loopExit);
+ IrOp elemTag = build.inst(IrCmd::LOAD_TAG, elemPtr);
+ build.inst(IrCmd::JUMP_EQ_TAG, elemTag, build.constTag(LUA_TNIL), loopExit, hasElem);
+ build.beginBlock(hasElem);
+ IrOp nextIndex = build.inst(IrCmd::ADD_INT, index, build.constInt(1));
+ build.inst(IrCmd::STORE_INT, build.vmReg(ra + 2), nextIndex);
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra + 3), build.inst(IrCmd::INT_TO_NUM, nextIndex));
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra + 3), build.constTag(LUA_TNUMBER));
+ IrOp elemTV = build.inst(IrCmd::LOAD_TVALUE, elemPtr);
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra + 4), elemTV);
+ build.inst(IrCmd::JUMP, loopRepeat);
+ build.beginBlock(fallback);
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ build.inst(IrCmd::FORGLOOP_FALLBACK, build.vmReg(ra), build.constInt(int(pc[1])), loopRepeat, loopExit);
+ if (build.isInternalBlock(loopExit))
+ build.beginBlock(loopExit);
+}
+void translateInstGetTableN(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ int c = LUAU_INSN_C(*pc);
+ IrOp fallback = build.block(IrBlockKind::Fallback);
+ BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
+ IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
+ build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TTABLE), bcTypes.a == LBC_TYPE_TABLE ? build.vmExit(pcpos) : fallback);
+ IrOp vb = build.inst(IrCmd::LOAD_POINTER, build.vmReg(rb));
+ build.inst(IrCmd::CHECK_ARRAY_SIZE, vb, build.constInt(c), fallback);
+ build.inst(IrCmd::CHECK_NO_METATABLE, vb, fallback);
+ IrOp arrEl = build.inst(IrCmd::GET_ARR_ADDR, vb, build.constInt(0));
+ IrOp arrElTval = build.inst(IrCmd::LOAD_TVALUE, arrEl, build.constInt(c * sizeof(TValue)));
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), arrElTval);
+ IrOp next = build.blockAtInst(pcpos + 1);
+ FallbackStreamScope scope(build, fallback, next);
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ build.inst(IrCmd::GET_TABLE, build.vmReg(ra), build.vmReg(rb), build.constUint(c + 1));
+ build.inst(IrCmd::JUMP, next);
+}
+void translateInstSetTableN(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ int c = LUAU_INSN_C(*pc);
+ IrOp fallback = build.block(IrBlockKind::Fallback);
+ BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
+ IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
+ build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TTABLE), bcTypes.a == LBC_TYPE_TABLE ? build.vmExit(pcpos) : fallback);
+ IrOp vb = build.inst(IrCmd::LOAD_POINTER, build.vmReg(rb));
+ build.inst(IrCmd::CHECK_ARRAY_SIZE, vb, build.constInt(c), fallback);
+ build.inst(IrCmd::CHECK_NO_METATABLE, vb, fallback);
+ build.inst(IrCmd::CHECK_READONLY, vb, fallback);
+ IrOp arrEl = build.inst(IrCmd::GET_ARR_ADDR, vb, build.constInt(0));
+ IrOp tva = build.inst(IrCmd::LOAD_TVALUE, build.vmReg(ra));
+ build.inst(IrCmd::STORE_TVALUE, arrEl, tva, build.constInt(c * sizeof(TValue)));
+ build.inst(IrCmd::BARRIER_TABLE_FORWARD, vb, build.vmReg(ra), build.undef());
+ IrOp next = build.blockAtInst(pcpos + 1);
+ FallbackStreamScope scope(build, fallback, next);
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ build.inst(IrCmd::SET_TABLE, build.vmReg(ra), build.vmReg(rb), build.constUint(c + 1));
+ build.inst(IrCmd::JUMP, next);
+}
+void translateInstGetTable(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ int rc = LUAU_INSN_C(*pc);
+ IrOp fallback = build.block(IrBlockKind::Fallback);
+ BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
+ IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
+ build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TTABLE), bcTypes.a == LBC_TYPE_TABLE ? build.vmExit(pcpos) : fallback);
+ IrOp tc = build.inst(IrCmd::LOAD_TAG, build.vmReg(rc));
+ build.inst(IrCmd::CHECK_TAG, tc, build.constTag(LUA_TNUMBER), bcTypes.b == LBC_TYPE_NUMBER ? build.vmExit(pcpos) : fallback);
+ IrOp vb = build.inst(IrCmd::LOAD_POINTER, build.vmReg(rb));
+ IrOp vc = build.inst(IrCmd::LOAD_DOUBLE, build.vmReg(rc));
+ IrOp index = build.inst(IrCmd::TRY_NUM_TO_INDEX, vc, fallback);
+ index = build.inst(IrCmd::SUB_INT, index, build.constInt(1));
+ build.inst(IrCmd::CHECK_ARRAY_SIZE, vb, index, fallback);
+ build.inst(IrCmd::CHECK_NO_METATABLE, vb, fallback);
+ IrOp arrEl = build.inst(IrCmd::GET_ARR_ADDR, vb, index);
+ IrOp arrElTval = build.inst(IrCmd::LOAD_TVALUE, arrEl);
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), arrElTval);
+ IrOp next = build.blockAtInst(pcpos + 1);
+ FallbackStreamScope scope(build, fallback, next);
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ build.inst(IrCmd::GET_TABLE, build.vmReg(ra), build.vmReg(rb), build.vmReg(rc));
+ build.inst(IrCmd::JUMP, next);
+}
+void translateInstSetTable(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ int rc = LUAU_INSN_C(*pc);
+ IrOp fallback = build.block(IrBlockKind::Fallback);
+ BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
+ IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
+ build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TTABLE), bcTypes.a == LBC_TYPE_TABLE ? build.vmExit(pcpos) : fallback);
+ IrOp tc = build.inst(IrCmd::LOAD_TAG, build.vmReg(rc));
+ build.inst(IrCmd::CHECK_TAG, tc, build.constTag(LUA_TNUMBER), bcTypes.b == LBC_TYPE_NUMBER ? build.vmExit(pcpos) : fallback);
+ IrOp vb = build.inst(IrCmd::LOAD_POINTER, build.vmReg(rb));
+ IrOp vc = build.inst(IrCmd::LOAD_DOUBLE, build.vmReg(rc));
+ IrOp index = build.inst(IrCmd::TRY_NUM_TO_INDEX, vc, fallback);
+ index = build.inst(IrCmd::SUB_INT, index, build.constInt(1));
+ build.inst(IrCmd::CHECK_ARRAY_SIZE, vb, index, fallback);
+ build.inst(IrCmd::CHECK_NO_METATABLE, vb, fallback);
+ build.inst(IrCmd::CHECK_READONLY, vb, fallback);
+ IrOp arrEl = build.inst(IrCmd::GET_ARR_ADDR, vb, index);
+ IrOp tva = build.inst(IrCmd::LOAD_TVALUE, build.vmReg(ra));
+ build.inst(IrCmd::STORE_TVALUE, arrEl, tva);
+ build.inst(IrCmd::BARRIER_TABLE_FORWARD, vb, build.vmReg(ra), build.undef());
+ IrOp next = build.blockAtInst(pcpos + 1);
+ FallbackStreamScope scope(build, fallback, next);
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ build.inst(IrCmd::SET_TABLE, build.vmReg(ra), build.vmReg(rb), build.vmReg(rc));
+ build.inst(IrCmd::JUMP, next);
+}
+void translateInstGetImport(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int k = LUAU_INSN_D(*pc);
+ uint32_t aux = pc[1];
+ IrOp fastPath = build.block(IrBlockKind::Internal);
+ IrOp fallback = build.block(IrBlockKind::Fallback);
+ build.inst(IrCmd::CHECK_SAFE_ENV, build.vmExit(pcpos));
+ IrOp tk = build.inst(IrCmd::LOAD_TAG, build.vmConst(k));
+ build.inst(IrCmd::JUMP_EQ_TAG, tk, build.constTag(LUA_TNIL), fallback, fastPath);
+ build.beginBlock(fastPath);
+ IrOp tvk = build.inst(IrCmd::LOAD_TVALUE, build.vmConst(k));
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), tvk);
+ IrOp next = build.blockAtInst(pcpos + 2);
+ FallbackStreamScope scope(build, fallback, next);
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ build.inst(IrCmd::GET_IMPORT, build.vmReg(ra), build.constUint(aux));
+ build.inst(IrCmd::JUMP, next);
+}
+void translateInstGetTableKS(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ uint32_t aux = pc[1];
+ IrOp fallback = build.block(IrBlockKind::Fallback);
+ BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
+ IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
+ build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TTABLE), bcTypes.a == LBC_TYPE_TABLE ? build.vmExit(pcpos) : fallback);
+ IrOp vb = build.inst(IrCmd::LOAD_POINTER, build.vmReg(rb));
+ IrOp addrSlotEl = build.inst(IrCmd::GET_SLOT_NODE_ADDR, vb, build.constUint(pcpos), build.vmConst(aux));
+ build.inst(IrCmd::CHECK_SLOT_MATCH, addrSlotEl, build.vmConst(aux), fallback);
+ IrOp tvn = build.inst(IrCmd::LOAD_TVALUE, addrSlotEl, build.constInt(offsetof(LuaNode, val)));
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), tvn);
+ IrOp next = build.blockAtInst(pcpos + 2);
+ FallbackStreamScope scope(build, fallback, next);
+ build.inst(IrCmd::FALLBACK_GETTABLEKS, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
+ build.inst(IrCmd::JUMP, next);
+}
+void translateInstSetTableKS(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ uint32_t aux = pc[1];
+ IrOp fallback = build.block(IrBlockKind::Fallback);
+ BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
+ IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
+ build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TTABLE), bcTypes.a == LBC_TYPE_TABLE ? build.vmExit(pcpos) : fallback);
+ IrOp vb = build.inst(IrCmd::LOAD_POINTER, build.vmReg(rb));
+ IrOp addrSlotEl = build.inst(IrCmd::GET_SLOT_NODE_ADDR, vb, build.constUint(pcpos), build.vmConst(aux));
+ build.inst(IrCmd::CHECK_SLOT_MATCH, addrSlotEl, build.vmConst(aux), fallback);
+ build.inst(IrCmd::CHECK_READONLY, vb, fallback);
+ IrOp tva = build.inst(IrCmd::LOAD_TVALUE, build.vmReg(ra));
+ build.inst(IrCmd::STORE_TVALUE, addrSlotEl, tva, build.constInt(offsetof(LuaNode, val)));
+ build.inst(IrCmd::BARRIER_TABLE_FORWARD, vb, build.vmReg(ra), build.undef());
+ IrOp next = build.blockAtInst(pcpos + 2);
+ FallbackStreamScope scope(build, fallback, next);
+ build.inst(IrCmd::FALLBACK_SETTABLEKS, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
+ build.inst(IrCmd::JUMP, next);
+}
+void translateInstGetGlobal(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ uint32_t aux = pc[1];
+ IrOp fallback = build.block(IrBlockKind::Fallback);
+ IrOp env = build.inst(IrCmd::LOAD_ENV);
+ IrOp addrSlotEl = build.inst(IrCmd::GET_SLOT_NODE_ADDR, env, build.constUint(pcpos), build.vmConst(aux));
+ build.inst(IrCmd::CHECK_SLOT_MATCH, addrSlotEl, build.vmConst(aux), fallback);
+ IrOp tvn = build.inst(IrCmd::LOAD_TVALUE, addrSlotEl, build.constInt(offsetof(LuaNode, val)));
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), tvn);
+ IrOp next = build.blockAtInst(pcpos + 2);
+ FallbackStreamScope scope(build, fallback, next);
+ build.inst(IrCmd::FALLBACK_GETGLOBAL, build.constUint(pcpos), build.vmReg(ra), build.vmConst(aux));
+ build.inst(IrCmd::JUMP, next);
+}
+void translateInstSetGlobal(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ uint32_t aux = pc[1];
+ IrOp fallback = build.block(IrBlockKind::Fallback);
+ IrOp env = build.inst(IrCmd::LOAD_ENV);
+ IrOp addrSlotEl = build.inst(IrCmd::GET_SLOT_NODE_ADDR, env, build.constUint(pcpos), build.vmConst(aux));
+ build.inst(IrCmd::CHECK_SLOT_MATCH, addrSlotEl, build.vmConst(aux), fallback);
+ build.inst(IrCmd::CHECK_READONLY, env, fallback);
+ IrOp tva = build.inst(IrCmd::LOAD_TVALUE, build.vmReg(ra));
+ build.inst(IrCmd::STORE_TVALUE, addrSlotEl, tva, build.constInt(offsetof(LuaNode, val)));
+ build.inst(IrCmd::BARRIER_TABLE_FORWARD, env, build.vmReg(ra), build.undef());
+ IrOp next = build.blockAtInst(pcpos + 2);
+ FallbackStreamScope scope(build, fallback, next);
+ build.inst(IrCmd::FALLBACK_SETGLOBAL, build.constUint(pcpos), build.vmReg(ra), build.vmConst(aux));
+ build.inst(IrCmd::JUMP, next);
+}
+void translateInstConcat(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ int rc = LUAU_INSN_C(*pc);
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ build.inst(IrCmd::CONCAT, build.vmReg(rb), build.constUint(rc - rb + 1));
+ IrOp tvb = build.inst(IrCmd::LOAD_TVALUE, build.vmReg(rb));
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), tvb);
+ build.inst(IrCmd::CHECK_GC);
+}
+void translateInstCapture(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int type = LUAU_INSN_A(*pc);
+ int index = LUAU_INSN_B(*pc);
+ switch (type)
+ {
+ case LCT_VAL:
+ build.inst(IrCmd::CAPTURE, build.vmReg(index), build.constUint(0));
+ break;
+ case LCT_REF:
+ build.inst(IrCmd::CAPTURE, build.vmReg(index), build.constUint(1));
+ break;
+ case LCT_UPVAL:
+ build.inst(IrCmd::CAPTURE, build.vmUpvalue(index), build.constUint(0));
+ break;
+ default:
+ LUAU_ASSERT(!"Unknown upvalue capture type");
+ }
+}
+void translateInstNamecall(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ uint32_t aux = pc[1];
+ IrOp next = build.blockAtInst(pcpos + getOpLength(LOP_NAMECALL));
+ IrOp fallback = build.block(IrBlockKind::Fallback);
+ IrOp firstFastPathSuccess = build.block(IrBlockKind::Internal);
+ IrOp secondFastPath = build.block(IrBlockKind::Internal);
+ build.loadAndCheckTag(build.vmReg(rb), LUA_TTABLE, fallback);
+ IrOp table = build.inst(IrCmd::LOAD_POINTER, build.vmReg(rb));
+ LUAU_ASSERT(build.function.proto);
+ IrOp addrNodeEl = build.inst(IrCmd::GET_HASH_NODE_ADDR, table, build.constUint(tsvalue(&build.function.proto->k[aux])->hash));
+ build.inst(IrCmd::JUMP_SLOT_MATCH, addrNodeEl, build.vmConst(aux), firstFastPathSuccess, secondFastPath);
+ build.beginBlock(firstFastPathSuccess);
+ build.inst(IrCmd::STORE_POINTER, build.vmReg(ra + 1), table);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra + 1), build.constTag(LUA_TTABLE));
+ IrOp nodeEl = build.inst(IrCmd::LOAD_TVALUE, addrNodeEl, build.constInt(offsetof(LuaNode, val)));
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), nodeEl);
+ build.inst(IrCmd::JUMP, next);
+ build.beginBlock(secondFastPath);
+ build.inst(IrCmd::CHECK_NODE_NO_NEXT, addrNodeEl, fallback);
+ IrOp indexPtr = build.inst(IrCmd::TRY_CALL_FASTGETTM, table, build.constInt(TM_INDEX), fallback);
+ build.loadAndCheckTag(indexPtr, LUA_TTABLE, fallback);
+ IrOp index = build.inst(IrCmd::LOAD_POINTER, indexPtr);
+ IrOp addrIndexNodeEl = build.inst(IrCmd::GET_SLOT_NODE_ADDR, index, build.constUint(pcpos), build.vmConst(aux));
+ build.inst(IrCmd::CHECK_SLOT_MATCH, addrIndexNodeEl, build.vmConst(aux), fallback);
+ IrOp table2 = build.inst(IrCmd::LOAD_POINTER, build.vmReg(rb));
+ build.inst(IrCmd::STORE_POINTER, build.vmReg(ra + 1), table2);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra + 1), build.constTag(LUA_TTABLE));
+ IrOp indexNodeEl = build.inst(IrCmd::LOAD_TVALUE, addrIndexNodeEl, build.constInt(offsetof(LuaNode, val)));
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), indexNodeEl);
+ build.inst(IrCmd::JUMP, next);
+ build.beginBlock(fallback);
+ build.inst(IrCmd::FALLBACK_NAMECALL, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
+ build.inst(IrCmd::JUMP, next);
+ build.beginBlock(next);
+}
+void translateInstAndX(IrBuilder& build, const Instruction* pc, int pcpos, IrOp c)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ IrOp fallthrough = build.block(IrBlockKind::Internal);
+ IrOp next = build.blockAtInst(pcpos + 1);
+ IrOp target = (ra == rb) ? next : build.block(IrBlockKind::Internal);
+ build.inst(IrCmd::JUMP_IF_FALSY, build.vmReg(rb), target, fallthrough);
+ build.beginBlock(fallthrough);
+ IrOp load = build.inst(IrCmd::LOAD_TVALUE, c);
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), load);
+ build.inst(IrCmd::JUMP, next);
+ if (ra == rb)
+ {
+ build.beginBlock(next);
+ }
+ else
+ {
+ build.beginBlock(target);
+ IrOp load1 = build.inst(IrCmd::LOAD_TVALUE, build.vmReg(rb));
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), load1);
+ build.inst(IrCmd::JUMP, next);
+ build.beginBlock(next);
+ }
+}
+void translateInstOrX(IrBuilder& build, const Instruction* pc, int pcpos, IrOp c)
+{
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ IrOp fallthrough = build.block(IrBlockKind::Internal);
+ IrOp next = build.blockAtInst(pcpos + 1);
+ IrOp target = (ra == rb) ? next : build.block(IrBlockKind::Internal);
+ build.inst(IrCmd::JUMP_IF_TRUTHY, build.vmReg(rb), target, fallthrough);
+ build.beginBlock(fallthrough);
+ IrOp load = build.inst(IrCmd::LOAD_TVALUE, c);
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), load);
+ build.inst(IrCmd::JUMP, next);
+ if (ra == rb)
+ {
+ build.beginBlock(next);
+ }
+ else
+ {
+ build.beginBlock(target);
+ IrOp load1 = build.inst(IrCmd::LOAD_TVALUE, build.vmReg(rb));
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), load1);
+ build.inst(IrCmd::JUMP, next);
+ build.beginBlock(next);
+ }
+}
+void translateInstNewClosure(IrBuilder& build, const Instruction* pc, int pcpos)
+{
+ LUAU_ASSERT(unsigned(LUAU_INSN_D(*pc)) < unsigned(build.function.proto->sizep));
+ int ra = LUAU_INSN_A(*pc);
+ Proto* pv = build.function.proto->p[LUAU_INSN_D(*pc)];
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ IrOp env = build.inst(IrCmd::LOAD_ENV);
+ IrOp ncl = build.inst(IrCmd::NEWCLOSURE, build.constUint(pv->nups), env, build.constUint(LUAU_INSN_D(*pc)));
+ build.inst(IrCmd::STORE_POINTER, build.vmReg(ra), ncl);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TFUNCTION));
+ for (int ui = 0; ui < pv->nups; ++ui)
+ {
+ Instruction uinsn = pc[ui + 1];
+ LUAU_ASSERT(LUAU_INSN_OP(uinsn) == LOP_CAPTURE);
+ switch (LUAU_INSN_A(uinsn))
+ {
+ case LCT_VAL:
+ {
+ IrOp src = build.inst(IrCmd::LOAD_TVALUE, build.vmReg(LUAU_INSN_B(uinsn)));
+ IrOp dst = build.inst(IrCmd::GET_CLOSURE_UPVAL_ADDR, ncl, build.vmUpvalue(ui));
+ build.inst(IrCmd::STORE_TVALUE, dst, src);
+ break;
+ }
+ case LCT_REF:
+ {
+ IrOp src = build.inst(IrCmd::FINDUPVAL, build.vmReg(LUAU_INSN_B(uinsn)));
+ IrOp dst = build.inst(IrCmd::GET_CLOSURE_UPVAL_ADDR, ncl, build.vmUpvalue(ui));
+ build.inst(IrCmd::STORE_POINTER, dst, src);
+ build.inst(IrCmd::STORE_TAG, dst, build.constTag(LUA_TUPVAL));
+ break;
+ }
+ case LCT_UPVAL:
+ {
+ IrOp src = build.inst(IrCmd::GET_CLOSURE_UPVAL_ADDR, build.undef(), build.vmUpvalue(LUAU_INSN_B(uinsn)));
+ IrOp dst = build.inst(IrCmd::GET_CLOSURE_UPVAL_ADDR, ncl, build.vmUpvalue(ui));
+ IrOp load = build.inst(IrCmd::LOAD_TVALUE, src);
+ build.inst(IrCmd::STORE_TVALUE, dst, load);
+ break;
+ }
+ default:
+ LUAU_ASSERT(!"Unknown upvalue capture type");
+ LUAU_UNREACHABLE();
+ }
+ }
+ build.inst(IrCmd::CHECK_GC);
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "IrUtils.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+IrValueKind getCmdValueKind(IrCmd cmd)
+{
+ switch (cmd)
+ {
+ case IrCmd::NOP:
+ return IrValueKind::None;
+ case IrCmd::LOAD_TAG:
+ return IrValueKind::Tag;
+ case IrCmd::LOAD_POINTER:
+ return IrValueKind::Pointer;
+ case IrCmd::LOAD_DOUBLE:
+ return IrValueKind::Double;
+ case IrCmd::LOAD_INT:
+ return IrValueKind::Int;
+ case IrCmd::LOAD_TVALUE:
+ return IrValueKind::Tvalue;
+ case IrCmd::LOAD_ENV:
+ case IrCmd::GET_ARR_ADDR:
+ case IrCmd::GET_SLOT_NODE_ADDR:
+ case IrCmd::GET_HASH_NODE_ADDR:
+ case IrCmd::GET_CLOSURE_UPVAL_ADDR:
+ return IrValueKind::Pointer;
+ case IrCmd::STORE_TAG:
+ case IrCmd::STORE_POINTER:
+ case IrCmd::STORE_DOUBLE:
+ case IrCmd::STORE_INT:
+ case IrCmd::STORE_VECTOR:
+ case IrCmd::STORE_TVALUE:
+ case IrCmd::STORE_SPLIT_TVALUE:
+ return IrValueKind::None;
+ case IrCmd::ADD_INT:
+ case IrCmd::SUB_INT:
+ return IrValueKind::Int;
+ case IrCmd::ADD_NUM:
+ case IrCmd::SUB_NUM:
+ case IrCmd::MUL_NUM:
+ case IrCmd::DIV_NUM:
+ case IrCmd::IDIV_NUM:
+ case IrCmd::MOD_NUM:
+ case IrCmd::MIN_NUM:
+ case IrCmd::MAX_NUM:
+ case IrCmd::UNM_NUM:
+ case IrCmd::FLOOR_NUM:
+ case IrCmd::CEIL_NUM:
+ case IrCmd::ROUND_NUM:
+ case IrCmd::SQRT_NUM:
+ case IrCmd::ABS_NUM:
+ return IrValueKind::Double;
+ case IrCmd::NOT_ANY:
+ case IrCmd::CMP_ANY:
+ return IrValueKind::Int;
+ case IrCmd::JUMP:
+ case IrCmd::JUMP_IF_TRUTHY:
+ case IrCmd::JUMP_IF_FALSY:
+ case IrCmd::JUMP_EQ_TAG:
+ case IrCmd::JUMP_CMP_INT:
+ case IrCmd::JUMP_EQ_POINTER:
+ case IrCmd::JUMP_CMP_NUM:
+ case IrCmd::JUMP_FORN_LOOP_COND:
+ case IrCmd::JUMP_SLOT_MATCH:
+ return IrValueKind::None;
+ case IrCmd::TABLE_LEN:
+ return IrValueKind::Int;
+ case IrCmd::TABLE_SETNUM:
+ return IrValueKind::Pointer;
+ case IrCmd::STRING_LEN:
+ return IrValueKind::Int;
+ case IrCmd::NEW_TABLE:
+ case IrCmd::DUP_TABLE:
+ return IrValueKind::Pointer;
+ case IrCmd::TRY_NUM_TO_INDEX:
+ return IrValueKind::Int;
+ case IrCmd::TRY_CALL_FASTGETTM:
+ return IrValueKind::Pointer;
+ case IrCmd::INT_TO_NUM:
+ case IrCmd::UINT_TO_NUM:
+ return IrValueKind::Double;
+ case IrCmd::NUM_TO_INT:
+ case IrCmd::NUM_TO_UINT:
+ return IrValueKind::Int;
+ case IrCmd::ADJUST_STACK_TO_REG:
+ case IrCmd::ADJUST_STACK_TO_TOP:
+ return IrValueKind::None;
+ case IrCmd::FASTCALL:
+ return IrValueKind::None;
+ case IrCmd::INVOKE_FASTCALL:
+ return IrValueKind::Int;
+ case IrCmd::CHECK_FASTCALL_RES:
+ case IrCmd::DO_ARITH:
+ case IrCmd::DO_LEN:
+ case IrCmd::GET_TABLE:
+ case IrCmd::SET_TABLE:
+ case IrCmd::GET_IMPORT:
+ case IrCmd::CONCAT:
+ case IrCmd::GET_UPVALUE:
+ case IrCmd::SET_UPVALUE:
+ case IrCmd::CHECK_TAG:
+ case IrCmd::CHECK_TRUTHY:
+ case IrCmd::CHECK_READONLY:
+ case IrCmd::CHECK_NO_METATABLE:
+ case IrCmd::CHECK_SAFE_ENV:
+ case IrCmd::CHECK_ARRAY_SIZE:
+ case IrCmd::CHECK_SLOT_MATCH:
+ case IrCmd::CHECK_NODE_NO_NEXT:
+ case IrCmd::CHECK_NODE_VALUE:
+ case IrCmd::CHECK_BUFFER_LEN:
+ case IrCmd::INTERRUPT:
+ case IrCmd::CHECK_GC:
+ case IrCmd::BARRIER_OBJ:
+ case IrCmd::BARRIER_TABLE_BACK:
+ case IrCmd::BARRIER_TABLE_FORWARD:
+ case IrCmd::SET_SAVEDPC:
+ case IrCmd::CLOSE_UPVALS:
+ case IrCmd::CAPTURE:
+ case IrCmd::SETLIST:
+ case IrCmd::CALL:
+ case IrCmd::RETURN:
+ case IrCmd::FORGLOOP:
+ case IrCmd::FORGLOOP_FALLBACK:
+ case IrCmd::FORGPREP_XNEXT_FALLBACK:
+ case IrCmd::COVERAGE:
+ case IrCmd::FALLBACK_GETGLOBAL:
+ case IrCmd::FALLBACK_SETGLOBAL:
+ case IrCmd::FALLBACK_GETTABLEKS:
+ case IrCmd::FALLBACK_SETTABLEKS:
+ case IrCmd::FALLBACK_NAMECALL:
+ case IrCmd::FALLBACK_PREPVARARGS:
+ case IrCmd::FALLBACK_GETVARARGS:
+ return IrValueKind::None;
+ case IrCmd::NEWCLOSURE:
+ return IrValueKind::Pointer;
+ case IrCmd::FALLBACK_DUPCLOSURE:
+ case IrCmd::FALLBACK_FORGPREP:
+ return IrValueKind::None;
+ case IrCmd::SUBSTITUTE:
+ return IrValueKind::Unknown;
+ case IrCmd::BITAND_UINT:
+ case IrCmd::BITXOR_UINT:
+ case IrCmd::BITOR_UINT:
+ case IrCmd::BITNOT_UINT:
+ case IrCmd::BITLSHIFT_UINT:
+ case IrCmd::BITRSHIFT_UINT:
+ case IrCmd::BITARSHIFT_UINT:
+ case IrCmd::BITLROTATE_UINT:
+ case IrCmd::BITRROTATE_UINT:
+ case IrCmd::BITCOUNTLZ_UINT:
+ case IrCmd::BITCOUNTRZ_UINT:
+ case IrCmd::BYTESWAP_UINT:
+ return IrValueKind::Int;
+ case IrCmd::INVOKE_LIBM:
+ return IrValueKind::Double;
+ case IrCmd::GET_TYPE:
+ case IrCmd::GET_TYPEOF:
+ return IrValueKind::Pointer;
+ case IrCmd::FINDUPVAL:
+ return IrValueKind::Pointer;
+ case IrCmd::BUFFER_READI8:
+ case IrCmd::BUFFER_READU8:
+ case IrCmd::BUFFER_READI16:
+ case IrCmd::BUFFER_READU16:
+ case IrCmd::BUFFER_READI32:
+ return IrValueKind::Int;
+ case IrCmd::BUFFER_WRITEI8:
+ case IrCmd::BUFFER_WRITEI16:
+ case IrCmd::BUFFER_WRITEI32:
+ case IrCmd::BUFFER_WRITEF32:
+ case IrCmd::BUFFER_WRITEF64:
+ return IrValueKind::None;
+ case IrCmd::BUFFER_READF32:
+ case IrCmd::BUFFER_READF64:
+ return IrValueKind::Double;
+ }
+ LUAU_UNREACHABLE();
+}
+static void removeInstUse(IrFunction& function, uint32_t instIdx)
+{
+ IrInst& inst = function.instructions[instIdx];
+ LUAU_ASSERT(inst.useCount);
+ inst.useCount--;
+ if (inst.useCount == 0)
+ kill(function, inst);
+}
+static void removeBlockUse(IrFunction& function, uint32_t blockIdx)
+{
+ IrBlock& block = function.blocks[blockIdx];
+ LUAU_ASSERT(block.useCount);
+ block.useCount--;
+ if (block.useCount == 0 && blockIdx != 0)
+ kill(function, block);
+}
+void addUse(IrFunction& function, IrOp op)
+{
+ if (op.kind == IrOpKind::Inst)
+ function.instructions[op.index].useCount++;
+ else if (op.kind == IrOpKind::Block)
+ function.blocks[op.index].useCount++;
+}
+void removeUse(IrFunction& function, IrOp op)
+{
+ if (op.kind == IrOpKind::Inst)
+ removeInstUse(function, op.index);
+ else if (op.kind == IrOpKind::Block)
+ removeBlockUse(function, op.index);
+}
+bool isGCO(uint8_t tag)
+{
+ LUAU_ASSERT(tag < LUA_T_COUNT);
+ return tag >= LUA_TSTRING;
+}
+void kill(IrFunction& function, IrInst& inst)
+{
+ LUAU_ASSERT(inst.useCount == 0);
+ inst.cmd = IrCmd::NOP;
+ removeUse(function, inst.a);
+ removeUse(function, inst.b);
+ removeUse(function, inst.c);
+ removeUse(function, inst.d);
+ removeUse(function, inst.e);
+ removeUse(function, inst.f);
+ inst.a = {};
+ inst.b = {};
+ inst.c = {};
+ inst.d = {};
+ inst.e = {};
+ inst.f = {};
+}
+void kill(IrFunction& function, uint32_t start, uint32_t end)
+{
+ for (int i = int(end); i >= int(start); i--)
+ {
+ LUAU_ASSERT(unsigned(i) < function.instructions.size());
+ IrInst& curr = function.instructions[i];
+ if (curr.cmd == IrCmd::NOP)
+ continue;
+ kill(function, curr);
+ }
+}
+void kill(IrFunction& function, IrBlock& block)
+{
+ LUAU_ASSERT(block.useCount == 0);
+ block.kind = IrBlockKind::Dead;
+ kill(function, block.start, block.finish);
+ block.start = ~0u;
+ block.finish = ~0u;
+}
+void replace(IrFunction& function, IrOp& original, IrOp replacement)
+{
+ addUse(function, replacement);
+ removeUse(function, original);
+ original = replacement;
+}
+void replace(IrFunction& function, IrBlock& block, uint32_t instIdx, IrInst replacement)
+{
+ IrInst& inst = function.instructions[instIdx];
+ addUse(function, replacement.a);
+ addUse(function, replacement.b);
+ addUse(function, replacement.c);
+ addUse(function, replacement.d);
+ addUse(function, replacement.e);
+ addUse(function, replacement.f);
+ block.useCount++;
+ if (!isBlockTerminator(inst.cmd) && isBlockTerminator(replacement.cmd))
+ {
+ LUAU_ASSERT(block.finish != ~0u);
+ LUAU_ASSERT(instIdx + 1 <= block.finish);
+ kill(function, instIdx + 1, block.finish);
+ block.finish = instIdx;
+ }
+ removeUse(function, inst.a);
+ removeUse(function, inst.b);
+ removeUse(function, inst.c);
+ removeUse(function, inst.d);
+ removeUse(function, inst.e);
+ removeUse(function, inst.f);
+ replacement.useCount = inst.useCount;
+ inst = replacement;
+ block.useCount--;
+}
+void substitute(IrFunction& function, IrInst& inst, IrOp replacement)
+{
+ LUAU_ASSERT(!isBlockTerminator(inst.cmd));
+ inst.cmd = IrCmd::SUBSTITUTE;
+ addUse(function, replacement);
+ removeUse(function, inst.a);
+ removeUse(function, inst.b);
+ removeUse(function, inst.c);
+ removeUse(function, inst.d);
+ removeUse(function, inst.e);
+ removeUse(function, inst.f);
+ inst.a = replacement;
+ inst.b = {};
+ inst.c = {};
+ inst.d = {};
+ inst.e = {};
+ inst.f = {};
+}
+void applySubstitutions(IrFunction& function, IrOp& op)
+{
+ if (op.kind == IrOpKind::Inst)
+ {
+ IrInst& src = function.instructions[op.index];
+ if (src.cmd == IrCmd::SUBSTITUTE)
+ {
+ op.kind = src.a.kind;
+ op.index = src.a.index;
+ if (op.kind == IrOpKind::Inst)
+ {
+ IrInst& dst = function.instructions[op.index];
+ LUAU_ASSERT(dst.cmd != IrCmd::SUBSTITUTE && "chained substitutions are not allowed");
+ dst.useCount++;
+ }
+ LUAU_ASSERT(src.useCount > 0);
+ src.useCount--;
+ if (src.useCount == 0)
+ {
+ src.cmd = IrCmd::NOP;
+ removeUse(function, src.a);
+ src.a = {};
+ }
+ }
+ }
+}
+void applySubstitutions(IrFunction& function, IrInst& inst)
+{
+ applySubstitutions(function, inst.a);
+ applySubstitutions(function, inst.b);
+ applySubstitutions(function, inst.c);
+ applySubstitutions(function, inst.d);
+ applySubstitutions(function, inst.e);
+ applySubstitutions(function, inst.f);
+}
+bool compare(double a, double b, IrCondition cond)
+{
+ switch (cond)
+ {
+ case IrCondition::Equal:
+ return a == b;
+ case IrCondition::NotEqual:
+ return a != b;
+ case IrCondition::Less:
+ return a < b;
+ case IrCondition::NotLess:
+ return !bool(a < b);
+ case IrCondition::LessEqual:
+ return a <= b;
+ case IrCondition::NotLessEqual:
+ return !bool(a <= b);
+ case IrCondition::Greater:
+ return a > b;
+ case IrCondition::NotGreater:
+ return !bool(a > b);
+ case IrCondition::GreaterEqual:
+ return a >= b;
+ case IrCondition::NotGreaterEqual:
+ return !bool(a >= b);
+ default:
+ LUAU_ASSERT(!"Unsupported condition");
+ }
+ return false;
+}
+bool compare(int a, int b, IrCondition cond)
+{
+ switch (cond)
+ {
+ case IrCondition::Equal:
+ return a == b;
+ case IrCondition::NotEqual:
+ return a != b;
+ case IrCondition::Less:
+ return a < b;
+ case IrCondition::NotLess:
+ return !(a < b);
+ case IrCondition::LessEqual:
+ return a <= b;
+ case IrCondition::NotLessEqual:
+ return !(a <= b);
+ case IrCondition::Greater:
+ return a > b;
+ case IrCondition::NotGreater:
+ return !(a > b);
+ case IrCondition::GreaterEqual:
+ return a >= b;
+ case IrCondition::NotGreaterEqual:
+ return !(a >= b);
+ case IrCondition::UnsignedLess:
+ return unsigned(a) < unsigned(b);
+ case IrCondition::UnsignedLessEqual:
+ return unsigned(a) <= unsigned(b);
+ case IrCondition::UnsignedGreater:
+ return unsigned(a) > unsigned(b);
+ case IrCondition::UnsignedGreaterEqual:
+ return unsigned(a) >= unsigned(b);
+ default:
+ LUAU_ASSERT(!"Unsupported condition");
+ }
+ return false;
+}
+void foldConstants(IrBuilder& build, IrFunction& function, IrBlock& block, uint32_t index)
+{
+ IrInst& inst = function.instructions[index];
+ switch (inst.cmd)
+ {
+ case IrCmd::ADD_INT:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ {
+ int32_t lhs = function.intOp(inst.a);
+ int32_t rhs = function.intOp(inst.b);
+ int sum = int32_t(uint32_t(lhs) + uint32_t(rhs));
+ substitute(function, inst, build.constInt(sum));
+ }
+ break;
+ case IrCmd::SUB_INT:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ {
+ int32_t lhs = function.intOp(inst.a);
+ int32_t rhs = function.intOp(inst.b);
+ int sum = int32_t(uint32_t(lhs) - uint32_t(rhs));
+ substitute(function, inst, build.constInt(sum));
+ }
+ break;
+ case IrCmd::ADD_NUM:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constDouble(function.doubleOp(inst.a) + function.doubleOp(inst.b)));
+ break;
+ case IrCmd::SUB_NUM:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constDouble(function.doubleOp(inst.a) - function.doubleOp(inst.b)));
+ break;
+ case IrCmd::MUL_NUM:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constDouble(function.doubleOp(inst.a) * function.doubleOp(inst.b)));
+ break;
+ case IrCmd::DIV_NUM:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constDouble(function.doubleOp(inst.a) / function.doubleOp(inst.b)));
+ break;
+ case IrCmd::IDIV_NUM:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constDouble(luai_numidiv(function.doubleOp(inst.a), function.doubleOp(inst.b))));
+ break;
+ case IrCmd::MOD_NUM:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constDouble(luai_nummod(function.doubleOp(inst.a), function.doubleOp(inst.b))));
+ break;
+ case IrCmd::MIN_NUM:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ {
+ double a1 = function.doubleOp(inst.a);
+ double a2 = function.doubleOp(inst.b);
+ substitute(function, inst, build.constDouble(a1 < a2 ? a1 : a2));
+ }
+ break;
+ case IrCmd::MAX_NUM:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ {
+ double a1 = function.doubleOp(inst.a);
+ double a2 = function.doubleOp(inst.b);
+ substitute(function, inst, build.constDouble(a1 > a2 ? a1 : a2));
+ }
+ break;
+ case IrCmd::UNM_NUM:
+ if (inst.a.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constDouble(-function.doubleOp(inst.a)));
+ break;
+ case IrCmd::FLOOR_NUM:
+ if (inst.a.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constDouble(floor(function.doubleOp(inst.a))));
+ break;
+ case IrCmd::CEIL_NUM:
+ if (inst.a.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constDouble(ceil(function.doubleOp(inst.a))));
+ break;
+ case IrCmd::ROUND_NUM:
+ if (inst.a.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constDouble(round(function.doubleOp(inst.a))));
+ break;
+ case IrCmd::SQRT_NUM:
+ if (inst.a.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constDouble(sqrt(function.doubleOp(inst.a))));
+ break;
+ case IrCmd::ABS_NUM:
+ if (inst.a.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constDouble(fabs(function.doubleOp(inst.a))));
+ break;
+ case IrCmd::NOT_ANY:
+ if (inst.a.kind == IrOpKind::Constant)
+ {
+ uint8_t a = function.tagOp(inst.a);
+ if (a == LUA_TNIL)
+ substitute(function, inst, build.constInt(1));
+ else if (a != LUA_TBOOLEAN)
+ substitute(function, inst, build.constInt(0));
+ else if (inst.b.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constInt(function.intOp(inst.b) == 1 ? 0 : 1));
+ }
+ break;
+ case IrCmd::JUMP_EQ_TAG:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ {
+ if (function.tagOp(inst.a) == function.tagOp(inst.b))
+ replace(function, block, index, {IrCmd::JUMP, inst.c});
+ else
+ replace(function, block, index, {IrCmd::JUMP, inst.d});
+ }
+ break;
+ case IrCmd::JUMP_CMP_INT:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ {
+ if (compare(function.intOp(inst.a), function.intOp(inst.b), conditionOp(inst.c)))
+ replace(function, block, index, {IrCmd::JUMP, inst.d});
+ else
+ replace(function, block, index, {IrCmd::JUMP, inst.e});
+ }
+ break;
+ case IrCmd::JUMP_CMP_NUM:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ {
+ if (compare(function.doubleOp(inst.a), function.doubleOp(inst.b), conditionOp(inst.c)))
+ replace(function, block, index, {IrCmd::JUMP, inst.d});
+ else
+ replace(function, block, index, {IrCmd::JUMP, inst.e});
+ }
+ break;
+ case IrCmd::TRY_NUM_TO_INDEX:
+ if (inst.a.kind == IrOpKind::Constant)
+ {
+ double value = function.doubleOp(inst.a);
+ if (value >= INT_MIN && value <= INT_MAX)
+ {
+ int arrIndex = int(value);
+ if (double(arrIndex) == value)
+ substitute(function, inst, build.constInt(arrIndex));
+ else
+ replace(function, block, index, {IrCmd::JUMP, inst.b});
+ }
+ else
+ {
+ replace(function, block, index, {IrCmd::JUMP, inst.b});
+ }
+ }
+ break;
+ case IrCmd::INT_TO_NUM:
+ if (inst.a.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constDouble(double(function.intOp(inst.a))));
+ break;
+ case IrCmd::UINT_TO_NUM:
+ if (inst.a.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constDouble(double(unsigned(function.intOp(inst.a)))));
+ break;
+ case IrCmd::NUM_TO_INT:
+ if (inst.a.kind == IrOpKind::Constant)
+ {
+ double value = function.doubleOp(inst.a);
+ if (value >= INT_MIN && value <= INT_MAX)
+ substitute(function, inst, build.constInt(int(value)));
+ }
+ break;
+ case IrCmd::NUM_TO_UINT:
+ if (inst.a.kind == IrOpKind::Constant)
+ {
+ double value = function.doubleOp(inst.a);
+ if (value >= 0 && value <= UINT_MAX)
+ substitute(function, inst, build.constInt(unsigned(function.doubleOp(inst.a))));
+ }
+ break;
+ case IrCmd::CHECK_TAG:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ {
+ if (function.tagOp(inst.a) == function.tagOp(inst.b))
+ kill(function, inst);
+ else
+ replace(function, block, index, {IrCmd::JUMP, inst.c});
+ }
+ break;
+ case IrCmd::CHECK_TRUTHY:
+ if (inst.a.kind == IrOpKind::Constant)
+ {
+ if (function.tagOp(inst.a) == LUA_TNIL)
+ {
+ replace(function, block, index, {IrCmd::JUMP, inst.c});
+ }
+ else if (function.tagOp(inst.a) == LUA_TBOOLEAN)
+ {
+ if (inst.b.kind == IrOpKind::Constant)
+ {
+ if (function.intOp(inst.b) == 0)
+ replace(function, block, index, {IrCmd::JUMP, inst.c});
+ else
+ kill(function, inst);
+ }
+ }
+ else
+ {
+ kill(function, inst);
+ }
+ }
+ break;
+ case IrCmd::BITAND_UINT:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ {
+ unsigned op1 = unsigned(function.intOp(inst.a));
+ unsigned op2 = unsigned(function.intOp(inst.b));
+ substitute(function, inst, build.constInt(op1 & op2));
+ }
+ else
+ {
+ if (inst.a.kind == IrOpKind::Constant && function.intOp(inst.a) == 0)
+ substitute(function, inst, build.constInt(0));
+ else if (inst.a.kind == IrOpKind::Constant && function.intOp(inst.a) == -1)
+ substitute(function, inst, inst.b);
+ else if (inst.b.kind == IrOpKind::Constant && function.intOp(inst.b) == 0)
+ substitute(function, inst, build.constInt(0));
+ else if (inst.b.kind == IrOpKind::Constant && function.intOp(inst.b) == -1)
+ substitute(function, inst, inst.a);
+ }
+ break;
+ case IrCmd::BITXOR_UINT:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ {
+ unsigned op1 = unsigned(function.intOp(inst.a));
+ unsigned op2 = unsigned(function.intOp(inst.b));
+ substitute(function, inst, build.constInt(op1 ^ op2));
+ }
+ else
+ {
+ if (inst.a.kind == IrOpKind::Constant && function.intOp(inst.a) == 0)
+ substitute(function, inst, inst.b);
+ else if (inst.a.kind == IrOpKind::Constant && function.intOp(inst.a) == -1)
+ replace(function, block, index, {IrCmd::BITNOT_UINT, inst.b});
+ else if (inst.b.kind == IrOpKind::Constant && function.intOp(inst.b) == 0)
+ substitute(function, inst, inst.a);
+ else if (inst.b.kind == IrOpKind::Constant && function.intOp(inst.b) == -1)
+ replace(function, block, index, {IrCmd::BITNOT_UINT, inst.a});
+ }
+ break;
+ case IrCmd::BITOR_UINT:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ {
+ unsigned op1 = unsigned(function.intOp(inst.a));
+ unsigned op2 = unsigned(function.intOp(inst.b));
+ substitute(function, inst, build.constInt(op1 | op2));
+ }
+ else
+ {
+ if (inst.a.kind == IrOpKind::Constant && function.intOp(inst.a) == 0)
+ substitute(function, inst, inst.b);
+ else if (inst.a.kind == IrOpKind::Constant && function.intOp(inst.a) == -1)
+ substitute(function, inst, build.constInt(-1));
+ else if (inst.b.kind == IrOpKind::Constant && function.intOp(inst.b) == 0)
+ substitute(function, inst, inst.a);
+ else if (inst.b.kind == IrOpKind::Constant && function.intOp(inst.b) == -1)
+ substitute(function, inst, build.constInt(-1));
+ }
+ break;
+ case IrCmd::BITNOT_UINT:
+ if (inst.a.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constInt(~unsigned(function.intOp(inst.a))));
+ break;
+ case IrCmd::BITLSHIFT_UINT:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ {
+ unsigned op1 = unsigned(function.intOp(inst.a));
+ int op2 = function.intOp(inst.b);
+ substitute(function, inst, build.constInt(op1 << (op2 & 31)));
+ }
+ else if (inst.b.kind == IrOpKind::Constant && function.intOp(inst.b) == 0)
+ {
+ substitute(function, inst, inst.a);
+ }
+ break;
+ case IrCmd::BITRSHIFT_UINT:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ {
+ unsigned op1 = unsigned(function.intOp(inst.a));
+ int op2 = function.intOp(inst.b);
+ substitute(function, inst, build.constInt(op1 >> (op2 & 31)));
+ }
+ else if (inst.b.kind == IrOpKind::Constant && function.intOp(inst.b) == 0)
+ {
+ substitute(function, inst, inst.a);
+ }
+ break;
+ case IrCmd::BITARSHIFT_UINT:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ {
+ int op1 = function.intOp(inst.a);
+ int op2 = function.intOp(inst.b);
+ substitute(function, inst, build.constInt(op1 >> (op2 & 31)));
+ }
+ else if (inst.b.kind == IrOpKind::Constant && function.intOp(inst.b) == 0)
+ {
+ substitute(function, inst, inst.a);
+ }
+ break;
+ case IrCmd::BITLROTATE_UINT:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constInt(lrotate(unsigned(function.intOp(inst.a)), function.intOp(inst.b))));
+ else if (inst.b.kind == IrOpKind::Constant && function.intOp(inst.b) == 0)
+ substitute(function, inst, inst.a);
+ break;
+ case IrCmd::BITRROTATE_UINT:
+ if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constInt(rrotate(unsigned(function.intOp(inst.a)), function.intOp(inst.b))));
+ else if (inst.b.kind == IrOpKind::Constant && function.intOp(inst.b) == 0)
+ substitute(function, inst, inst.a);
+ break;
+ case IrCmd::BITCOUNTLZ_UINT:
+ if (inst.a.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constInt(countlz(unsigned(function.intOp(inst.a)))));
+ break;
+ case IrCmd::BITCOUNTRZ_UINT:
+ if (inst.a.kind == IrOpKind::Constant)
+ substitute(function, inst, build.constInt(countrz(unsigned(function.intOp(inst.a)))));
+ break;
+ default:
+ break;
+ }
+}
+uint32_t getNativeContextOffset(int bfid)
+{
+ switch (bfid)
+ {
+ case LBF_MATH_ACOS:
+ return offsetof(NativeContext, libm_acos);
+ case LBF_MATH_ASIN:
+ return offsetof(NativeContext, libm_asin);
+ case LBF_MATH_ATAN2:
+ return offsetof(NativeContext, libm_atan2);
+ case LBF_MATH_ATAN:
+ return offsetof(NativeContext, libm_atan);
+ case LBF_MATH_COSH:
+ return offsetof(NativeContext, libm_cosh);
+ case LBF_MATH_COS:
+ return offsetof(NativeContext, libm_cos);
+ case LBF_MATH_EXP:
+ return offsetof(NativeContext, libm_exp);
+ case LBF_MATH_LOG10:
+ return offsetof(NativeContext, libm_log10);
+ case LBF_MATH_LOG:
+ return offsetof(NativeContext, libm_log);
+ case LBF_MATH_SINH:
+ return offsetof(NativeContext, libm_sinh);
+ case LBF_MATH_SIN:
+ return offsetof(NativeContext, libm_sin);
+ case LBF_MATH_TANH:
+ return offsetof(NativeContext, libm_tanh);
+ case LBF_MATH_TAN:
+ return offsetof(NativeContext, libm_tan);
+ case LBF_MATH_FMOD:
+ return offsetof(NativeContext, libm_fmod);
+ case LBF_MATH_POW:
+ return offsetof(NativeContext, libm_pow);
+ case LBF_IR_MATH_LOG2:
+ return offsetof(NativeContext, libm_log2);
+ case LBF_MATH_LDEXP:
+ return offsetof(NativeContext, libm_ldexp);
+ default:
+ LUAU_ASSERT(!"Unsupported bfid");
+ }
+ return 0;
+}
+void killUnusedBlocks(IrFunction& function)
+{
+ for (unsigned i = 1; i < function.blocks.size(); i++)
+ {
+ IrBlock& block = function.blocks[i];
+ if (block.kind != IrBlockKind::Dead && block.useCount == 0)
+ kill(function, block);
+ }
+}
+std::vector<uint32_t> getSortedBlockOrder(IrFunction& function)
+{
+ std::vector<uint32_t> sortedBlocks;
+ sortedBlocks.reserve(function.blocks.size());
+ for (uint32_t i = 0; i < function.blocks.size(); i++)
+ sortedBlocks.push_back(i);
+ std::sort(sortedBlocks.begin(), sortedBlocks.end(), [&](uint32_t idxA, uint32_t idxB) {
+ const IrBlock& a = function.blocks[idxA];
+ const IrBlock& b = function.blocks[idxB];
+ if ((a.kind == IrBlockKind::Fallback) != (b.kind == IrBlockKind::Fallback))
+ return (a.kind == IrBlockKind::Fallback) < (b.kind == IrBlockKind::Fallback);
+ if (a.sortkey != b.sortkey)
+ return a.sortkey < b.sortkey;
+ return a.chainkey < b.chainkey;
+ });
+ return sortedBlocks;
+}
+IrBlock& getNextBlock(IrFunction& function, const std::vector<uint32_t>& sortedBlocks, IrBlock& dummy, size_t i)
+{
+ for (size_t j = i + 1; j < sortedBlocks.size(); ++j)
+ {
+ IrBlock& block = function.blocks[sortedBlocks[j]];
+ if (block.kind != IrBlockKind::Dead)
+ return block;
+ }
+ return dummy;
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "IrValueLocationTracking.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+IrValueLocationTracking::IrValueLocationTracking(IrFunction& function)
+ : function(function)
+{
+ vmRegValue.fill(kInvalidInstIdx);
+}
+void IrValueLocationTracking::setRestoreCallack(void* context, void (*callback)(void* context, IrInst& inst))
+{
+ restoreCallbackCtx = context;
+ restoreCallback = callback;
+}
+void IrValueLocationTracking::beforeInstLowering(IrInst& inst)
+{
+ switch (inst.cmd)
+ {
+ case IrCmd::STORE_TAG:
+ invalidateRestoreOp(inst.a, true);
+ break;
+ case IrCmd::STORE_POINTER:
+ case IrCmd::STORE_DOUBLE:
+ case IrCmd::STORE_INT:
+ case IrCmd::STORE_VECTOR:
+ case IrCmd::STORE_TVALUE:
+ case IrCmd::STORE_SPLIT_TVALUE:
+ invalidateRestoreOp(inst.a, false);
+ break;
+ case IrCmd::ADJUST_STACK_TO_REG:
+ invalidateRestoreVmRegs(vmRegOp(inst.a), -1);
+ break;
+ case IrCmd::FASTCALL:
+ invalidateRestoreVmRegs(vmRegOp(inst.b), function.intOp(inst.f));
+ break;
+ case IrCmd::INVOKE_FASTCALL:
+ if (int count = function.intOp(inst.f); count != -1)
+ invalidateRestoreVmRegs(vmRegOp(inst.b), count);
+ break;
+ case IrCmd::DO_ARITH:
+ case IrCmd::DO_LEN:
+ case IrCmd::GET_TABLE:
+ case IrCmd::GET_IMPORT:
+ invalidateRestoreOp(inst.a, false);
+ break;
+ case IrCmd::CONCAT:
+ invalidateRestoreVmRegs(vmRegOp(inst.a), function.uintOp(inst.b));
+ break;
+ case IrCmd::GET_UPVALUE:
+ invalidateRestoreOp(inst.a, false);
+ break;
+ case IrCmd::CALL:
+ invalidateRestoreVmRegs(vmRegOp(inst.a), -1);
+ break;
+ case IrCmd::FORGLOOP:
+ case IrCmd::FORGLOOP_FALLBACK:
+ invalidateRestoreVmRegs(vmRegOp(inst.a) + 2, -1);
+ break;
+ case IrCmd::FALLBACK_GETGLOBAL:
+ case IrCmd::FALLBACK_GETTABLEKS:
+ invalidateRestoreOp(inst.b, false);
+ break;
+ case IrCmd::FALLBACK_NAMECALL:
+ invalidateRestoreVmRegs(vmRegOp(inst.b), 2);
+ break;
+ case IrCmd::FALLBACK_GETVARARGS:
+ invalidateRestoreVmRegs(vmRegOp(inst.b), function.intOp(inst.c));
+ break;
+ case IrCmd::FALLBACK_DUPCLOSURE:
+ invalidateRestoreOp(inst.b, false);
+ break;
+ case IrCmd::FALLBACK_FORGPREP:
+ invalidateRestoreVmRegs(vmRegOp(inst.b), 3);
+ break;
+ case IrCmd::LOAD_TAG:
+ case IrCmd::LOAD_POINTER:
+ case IrCmd::LOAD_DOUBLE:
+ case IrCmd::LOAD_INT:
+ case IrCmd::LOAD_TVALUE:
+ case IrCmd::CMP_ANY:
+ case IrCmd::JUMP_IF_TRUTHY:
+ case IrCmd::JUMP_IF_FALSY:
+ case IrCmd::SET_TABLE:
+ case IrCmd::SET_UPVALUE:
+ case IrCmd::INTERRUPT:
+ case IrCmd::BARRIER_OBJ:
+ case IrCmd::BARRIER_TABLE_FORWARD:
+ case IrCmd::CLOSE_UPVALS:
+ case IrCmd::CAPTURE:
+ case IrCmd::SETLIST:
+ case IrCmd::RETURN:
+ case IrCmd::FORGPREP_XNEXT_FALLBACK:
+ case IrCmd::FALLBACK_SETGLOBAL:
+ case IrCmd::FALLBACK_SETTABLEKS:
+ case IrCmd::FALLBACK_PREPVARARGS:
+ case IrCmd::ADJUST_STACK_TO_TOP:
+ case IrCmd::GET_TYPEOF:
+ case IrCmd::NEWCLOSURE:
+ case IrCmd::FINDUPVAL:
+ break;
+ case IrCmd::CHECK_TAG:
+ case IrCmd::CHECK_TRUTHY:
+ case IrCmd::ADD_NUM:
+ case IrCmd::SUB_NUM:
+ case IrCmd::MUL_NUM:
+ case IrCmd::DIV_NUM:
+ case IrCmd::IDIV_NUM:
+ case IrCmd::MOD_NUM:
+ case IrCmd::MIN_NUM:
+ case IrCmd::MAX_NUM:
+ case IrCmd::JUMP_EQ_TAG:
+ case IrCmd::JUMP_CMP_NUM:
+ break;
+ default:
+ LUAU_ASSERT(inst.a.kind != IrOpKind::VmReg);
+ LUAU_ASSERT(inst.b.kind != IrOpKind::VmReg);
+ LUAU_ASSERT(inst.c.kind != IrOpKind::VmReg);
+ LUAU_ASSERT(inst.d.kind != IrOpKind::VmReg);
+ LUAU_ASSERT(inst.e.kind != IrOpKind::VmReg);
+ LUAU_ASSERT(inst.f.kind != IrOpKind::VmReg);
+ break;
+ }
+}
+void IrValueLocationTracking::afterInstLowering(IrInst& inst, uint32_t instIdx)
+{
+ switch (inst.cmd)
+ {
+ case IrCmd::LOAD_TAG:
+ case IrCmd::LOAD_POINTER:
+ case IrCmd::LOAD_DOUBLE:
+ case IrCmd::LOAD_INT:
+ case IrCmd::LOAD_TVALUE:
+ recordRestoreOp(instIdx, inst.a);
+ break;
+ case IrCmd::STORE_POINTER:
+ case IrCmd::STORE_DOUBLE:
+ case IrCmd::STORE_INT:
+ case IrCmd::STORE_TVALUE:
+ if (inst.b.kind == IrOpKind::Inst && function.instOp(inst.b).lastUse != instIdx)
+ recordRestoreOp(inst.b.index, inst.a);
+ break;
+ default:
+ break;
+ }
+}
+void IrValueLocationTracking::recordRestoreOp(uint32_t instIdx, IrOp location)
+{
+ if (location.kind == IrOpKind::VmReg)
+ {
+ int reg = vmRegOp(location);
+ if (reg > maxReg)
+ maxReg = reg;
+ if (!function.cfg.captured.regs.test(reg))
+ function.recordRestoreOp(instIdx, location);
+ vmRegValue[reg] = instIdx;
+ }
+ else if (location.kind == IrOpKind::VmConst)
+ {
+ function.recordRestoreOp(instIdx, location);
+ }
+}
+void IrValueLocationTracking::invalidateRestoreOp(IrOp location, bool skipValueInvalidation)
+{
+ if (location.kind == IrOpKind::VmReg)
+ {
+ uint32_t& instIdx = vmRegValue[vmRegOp(location)];
+ if (instIdx != kInvalidInstIdx)
+ {
+ IrInst& inst = function.instructions[instIdx];
+ if (skipValueInvalidation)
+ {
+ switch (getCmdValueKind(inst.cmd))
+ {
+ case IrValueKind::Double:
+ case IrValueKind::Pointer:
+ case IrValueKind::Int:
+ return;
+ default:
+ break;
+ }
+ }
+ if (inst.needsReload)
+ restoreCallback(restoreCallbackCtx, inst);
+ function.recordRestoreOp(instIdx, IrOp());
+ instIdx = kInvalidInstIdx;
+ }
+ }
+ else if (location.kind == IrOpKind::VmConst)
+ {
+ LUAU_ASSERT(!"VM constants are immutable");
+ }
+}
+void IrValueLocationTracking::invalidateRestoreVmRegs(int start, int count)
+{
+ int end = count == -1 ? 255 : start + count;
+ if (end > maxReg)
+ end = maxReg;
+ for (int reg = start; reg <= end; reg++)
+ invalidateRestoreOp(IrOp{IrOpKind::VmReg, uint8_t(reg)}, false);
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "lcodegen.cpp"
+int luau_codegen_supported()
+{
+ return Luau::CodeGen::isSupported();
+}
+void luau_codegen_create(lua_State* L)
+{
+ Luau::CodeGen::create(L);
+}
+void luau_codegen_compile(lua_State* L, int idx)
+{
+ Luau::CodeGen::compile(L, idx);
+}
+#line __LINE__ ""
+#line __LINE__ "NativeState.cpp"
+LUAU_FASTINTVARIABLE(LuauCodeGenBlockSize, 4 * 1024 * 1024)
+LUAU_FASTINTVARIABLE(LuauCodeGenMaxTotalSize, 256 * 1024 * 1024)
+namespace Luau
+{
+namespace CodeGen
+{
+NativeState::NativeState()
+ : NativeState(nullptr, nullptr)
+{
+}
+NativeState::NativeState(AllocationCallback* allocationCallback, void* allocationCallbackContext)
+ : codeAllocator{size_t(FInt::LuauCodeGenBlockSize), size_t(FInt::LuauCodeGenMaxTotalSize), allocationCallback, allocationCallbackContext}
+{
+}
+NativeState::~NativeState() = default;
+void initFunctions(NativeState& data)
+{
+ static_assert(sizeof(data.context.luauF_table) == sizeof(luauF_table), "fastcall tables are not of the same length");
+ memcpy(data.context.luauF_table, luauF_table, sizeof(luauF_table));
+ data.context.luaV_lessthan = luaV_lessthan;
+ data.context.luaV_lessequal = luaV_lessequal;
+ data.context.luaV_equalval = luaV_equalval;
+ data.context.luaV_doarith = luaV_doarith;
+ data.context.luaV_dolen = luaV_dolen;
+ data.context.luaV_gettable = luaV_gettable;
+ data.context.luaV_settable = luaV_settable;
+ data.context.luaV_getimport = luaV_getimport;
+ data.context.luaV_concat = luaV_concat;
+ data.context.luaH_getn = luaH_getn;
+ data.context.luaH_new = luaH_new;
+ data.context.luaH_clone = luaH_clone;
+ data.context.luaH_resizearray = luaH_resizearray;
+ data.context.luaH_setnum = luaH_setnum;
+ data.context.luaC_barriertable = luaC_barriertable;
+ data.context.luaC_barrierf = luaC_barrierf;
+ data.context.luaC_barrierback = luaC_barrierback;
+ data.context.luaC_step = luaC_step;
+ data.context.luaF_close = luaF_close;
+ data.context.luaF_findupval = luaF_findupval;
+ data.context.luaF_newLclosure = luaF_newLclosure;
+ data.context.luaT_gettm = luaT_gettm;
+ data.context.luaT_objtypenamestr = luaT_objtypenamestr;
+ data.context.libm_exp = exp;
+ data.context.libm_pow = pow;
+ data.context.libm_fmod = fmod;
+ data.context.libm_log = log;
+ data.context.libm_log2 = log2;
+ data.context.libm_log10 = log10;
+ data.context.libm_ldexp = ldexp;
+ data.context.libm_round = round;
+ data.context.libm_frexp = frexp;
+ data.context.libm_modf = modf;
+ data.context.libm_asin = asin;
+ data.context.libm_sin = sin;
+ data.context.libm_sinh = sinh;
+ data.context.libm_acos = acos;
+ data.context.libm_cos = cos;
+ data.context.libm_cosh = cosh;
+ data.context.libm_atan = atan;
+ data.context.libm_atan2 = atan2;
+ data.context.libm_tan = tan;
+ data.context.libm_tanh = tanh;
+ data.context.forgLoopTableIter = forgLoopTableIter;
+ data.context.forgLoopNodeIter = forgLoopNodeIter;
+ data.context.forgLoopNonTableFallback = forgLoopNonTableFallback;
+ data.context.forgPrepXnextFallback = forgPrepXnextFallback;
+ data.context.callProlog = callProlog;
+ data.context.callEpilogC = callEpilogC;
+ data.context.callFallback = callFallback;
+ data.context.executeGETGLOBAL = executeGETGLOBAL;
+ data.context.executeSETGLOBAL = executeSETGLOBAL;
+ data.context.executeGETTABLEKS = executeGETTABLEKS;
+ data.context.executeSETTABLEKS = executeSETTABLEKS;
+ data.context.executeNAMECALL = executeNAMECALL;
+ data.context.executeFORGPREP = executeFORGPREP;
+ data.context.executeGETVARARGSMultRet = executeGETVARARGSMultRet;
+ data.context.executeGETVARARGSConst = executeGETVARARGSConst;
+ data.context.executeDUPCLOSURE = executeDUPCLOSURE;
+ data.context.executePREPVARARGS = executePREPVARARGS;
+ data.context.executeSETLIST = executeSETLIST;
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "OptimizeConstProp.cpp"
+LUAU_FASTINTVARIABLE(LuauCodeGenMinLinearBlockPath, 3)
+LUAU_FASTINTVARIABLE(LuauCodeGenReuseSlotLimit, 64)
+LUAU_FASTFLAGVARIABLE(DebugLuauAbortingChecks, false)
+LUAU_FASTFLAGVARIABLE(LuauCodeGenFixByteLower, false)
+LUAU_FASTFLAGVARIABLE(LuauKeepVmapLinear2, false)
+LUAU_FASTFLAGVARIABLE(LuauReuseBufferChecks, false)
+namespace Luau
+{
+namespace CodeGen
+{
+struct RegisterInfo
+{
+ uint8_t tag = 0xff;
+ IrOp value;
+ uint32_t version = 0;
+ bool knownNotReadonly = false;
+ bool knownNoMetatable = false;
+ int knownTableArraySize = -1;
+};
+struct RegisterLink
+{
+ uint8_t reg = 0;
+ uint32_t version = 0;
+};
+struct ConstPropState
+{
+ ConstPropState(IrFunction& function)
+ : function(function)
+ , valueMap({})
+ {
+ }
+ uint8_t tryGetTag(IrOp op)
+ {
+ if (RegisterInfo* info = tryGetRegisterInfo(op))
+ return info->tag;
+ return 0xff;
+ }
+ void updateTag(IrOp op, uint8_t tag)
+ {
+ if (RegisterInfo* info = tryGetRegisterInfo(op))
+ info->tag = tag;
+ }
+ void saveTag(IrOp op, uint8_t tag)
+ {
+ if (RegisterInfo* info = tryGetRegisterInfo(op))
+ {
+ if (info->tag != tag)
+ {
+ info->tag = tag;
+ info->version++;
+ }
+ }
+ }
+ IrOp tryGetValue(IrOp op)
+ {
+ if (RegisterInfo* info = tryGetRegisterInfo(op))
+ return info->value;
+ return IrOp{IrOpKind::None, 0u};
+ }
+ void saveValue(IrOp op, IrOp value)
+ {
+ LUAU_ASSERT(value.kind == IrOpKind::Constant);
+ if (RegisterInfo* info = tryGetRegisterInfo(op))
+ {
+ if (info->value != value)
+ {
+ info->value = value;
+ info->knownNotReadonly = false;
+ info->knownNoMetatable = false;
+ info->knownTableArraySize = -1;
+ info->version++;
+ }
+ }
+ }
+ void invalidate(RegisterInfo& reg, bool invalidateTag, bool invalidateValue)
+ {
+ if (invalidateTag)
+ {
+ reg.tag = 0xff;
+ }
+ if (invalidateValue)
+ {
+ reg.value = {};
+ reg.knownNotReadonly = false;
+ reg.knownNoMetatable = false;
+ reg.knownTableArraySize = -1;
+ }
+ reg.version++;
+ }
+ void invalidateTag(IrOp regOp)
+ {
+ maxReg = vmRegOp(regOp) > maxReg ? vmRegOp(regOp) : maxReg;
+ invalidate(regs[vmRegOp(regOp)], true, false);
+ }
+ void invalidateValue(IrOp regOp)
+ {
+ maxReg = vmRegOp(regOp) > maxReg ? vmRegOp(regOp) : maxReg;
+ invalidate(regs[vmRegOp(regOp)], false, true);
+ }
+ void invalidate(IrOp regOp)
+ {
+ maxReg = vmRegOp(regOp) > maxReg ? vmRegOp(regOp) : maxReg;
+ invalidate(regs[vmRegOp(regOp)], true, true);
+ }
+ void invalidateRegistersFrom(int firstReg)
+ {
+ for (int i = firstReg; i <= maxReg; ++i)
+ invalidate(regs[i], true, true);
+ }
+ void invalidateRegisterRange(int firstReg, int count)
+ {
+ if (count == -1)
+ {
+ invalidateRegistersFrom(firstReg);
+ }
+ else
+ {
+ for (int i = firstReg; i < firstReg + count && i <= maxReg; ++i)
+ invalidate(regs[i], true, true);
+ }
+ }
+ void invalidateCapturedRegisters()
+ {
+ for (int i = 0; i <= maxReg; ++i)
+ {
+ if (function.cfg.captured.regs.test(i))
+ invalidate(regs[i], true, true);
+ }
+ }
+ void invalidateValuePropagation()
+ {
+ valueMap.clear();
+ tryNumToIndexCache.clear();
+ }
+ void invalidateHeapTableData()
+ {
+ getSlotNodeCache.clear();
+ checkSlotMatchCache.clear();
+ getArrAddrCache.clear();
+ checkArraySizeCache.clear();
+ }
+ void invalidateHeapBufferData()
+ {
+ checkBufferLenCache.clear();
+ }
+ void invalidateHeap()
+ {
+ for (int i = 0; i <= maxReg; ++i)
+ invalidateHeap(regs[i]);
+ invalidateHeapTableData();
+ }
+ void invalidateHeap(RegisterInfo& reg)
+ {
+ reg.knownNotReadonly = false;
+ reg.knownNoMetatable = false;
+ reg.knownTableArraySize = -1;
+ }
+ void invalidateUserCall()
+ {
+ invalidateHeap();
+ invalidateCapturedRegisters();
+ inSafeEnv = false;
+ }
+ void invalidateTableArraySize()
+ {
+ for (int i = 0; i <= maxReg; ++i)
+ invalidateTableArraySize(regs[i]);
+ invalidateHeapTableData();
+ }
+ void invalidateTableArraySize(RegisterInfo& reg)
+ {
+ reg.knownTableArraySize = -1;
+ }
+ void createRegLink(uint32_t instIdx, IrOp regOp)
+ {
+ LUAU_ASSERT(!instLink.contains(instIdx));
+ instLink[instIdx] = RegisterLink{uint8_t(vmRegOp(regOp)), regs[vmRegOp(regOp)].version};
+ }
+ RegisterInfo* tryGetRegisterInfo(IrOp op)
+ {
+ if (op.kind == IrOpKind::VmReg)
+ {
+ maxReg = vmRegOp(op) > maxReg ? vmRegOp(op) : maxReg;
+ return &regs[vmRegOp(op)];
+ }
+ if (RegisterLink* link = tryGetRegLink(op))
+ {
+ maxReg = int(link->reg) > maxReg ? int(link->reg) : maxReg;
+ return &regs[link->reg];
+ }
+ return nullptr;
+ }
+ RegisterLink* tryGetRegLink(IrOp instOp)
+ {
+ if (instOp.kind != IrOpKind::Inst)
+ return nullptr;
+ if (RegisterLink* link = instLink.find(instOp.index))
+ {
+ if (link->version < regs[link->reg].version)
+ return nullptr;
+ return link;
+ }
+ return nullptr;
+ }
+ IrInst versionedVmRegLoad(IrCmd loadCmd, IrOp op)
+ {
+ LUAU_ASSERT(op.kind == IrOpKind::VmReg);
+ uint32_t version = regs[vmRegOp(op)].version;
+ LUAU_ASSERT(version <= 0xffffff);
+ op.index = vmRegOp(op) | (version << 8);
+ return IrInst{loadCmd, op};
+ }
+ uint32_t* getPreviousInstIndex(const IrInst& inst)
+ {
+ LUAU_ASSERT(useValueNumbering);
+ if (uint32_t* prevIdx = valueMap.find(inst))
+ {
+ if (function.instructions[*prevIdx].useCount != 0)
+ return prevIdx;
+ }
+ return nullptr;
+ }
+ uint32_t* getPreviousVersionedLoadIndex(IrCmd cmd, IrOp vmReg)
+ {
+ LUAU_ASSERT(vmReg.kind == IrOpKind::VmReg);
+ return getPreviousInstIndex(versionedVmRegLoad(cmd, vmReg));
+ }
+ std::pair<IrCmd, uint32_t> getPreviousVersionedLoadForTag(uint8_t tag, IrOp vmReg)
+ {
+ if (useValueNumbering && !function.cfg.captured.regs.test(vmRegOp(vmReg)))
+ {
+ if (tag == LUA_TBOOLEAN)
+ {
+ if (uint32_t* prevIdx = getPreviousVersionedLoadIndex(IrCmd::LOAD_INT, vmReg))
+ return std::make_pair(IrCmd::LOAD_INT, *prevIdx);
+ }
+ else if (tag == LUA_TNUMBER)
+ {
+ if (uint32_t* prevIdx = getPreviousVersionedLoadIndex(IrCmd::LOAD_DOUBLE, vmReg))
+ return std::make_pair(IrCmd::LOAD_DOUBLE, *prevIdx);
+ }
+ else if (isGCO(tag))
+ {
+ if (uint32_t* prevIdx = getPreviousVersionedLoadIndex(IrCmd::LOAD_POINTER, vmReg))
+ return std::make_pair(IrCmd::LOAD_POINTER, *prevIdx);
+ }
+ }
+ return std::make_pair(IrCmd::NOP, kInvalidInstIdx);
+ }
+ void substituteOrRecord(IrInst& inst, uint32_t instIdx)
+ {
+ if (!useValueNumbering)
+ return;
+ if (uint32_t* prevIdx = getPreviousInstIndex(inst))
+ {
+ substitute(function, inst, IrOp{IrOpKind::Inst, *prevIdx});
+ return;
+ }
+ valueMap[inst] = instIdx;
+ }
+ void substituteOrRecordVmRegLoad(IrInst& loadInst)
+ {
+ LUAU_ASSERT(loadInst.a.kind == IrOpKind::VmReg);
+ if (!useValueNumbering)
+ return;
+ if (function.cfg.captured.regs.test(vmRegOp(loadInst.a)))
+ return;
+ IrInst versionedLoad = versionedVmRegLoad(loadInst.cmd, loadInst.a);
+ if (uint32_t* prevIdx = getPreviousInstIndex(versionedLoad))
+ {
+ if (!instLink.contains(*prevIdx))
+ createRegLink(*prevIdx, loadInst.a);
+ substitute(function, loadInst, IrOp{IrOpKind::Inst, *prevIdx});
+ return;
+ }
+ uint32_t instIdx = function.getInstIndex(loadInst);
+ valueMap[versionedLoad] = instIdx;
+ createRegLink(instIdx, loadInst.a);
+ }
+ void forwardVmRegStoreToLoad(const IrInst& storeInst, IrCmd loadCmd)
+ {
+ LUAU_ASSERT(storeInst.a.kind == IrOpKind::VmReg);
+ LUAU_ASSERT(storeInst.b.kind == IrOpKind::Inst);
+ if (!useValueNumbering)
+ return;
+ if (function.cfg.captured.regs.test(vmRegOp(storeInst.a)))
+ return;
+ valueMap[versionedVmRegLoad(loadCmd, storeInst.a)] = storeInst.b.index;
+ }
+ void clear()
+ {
+ for (int i = 0; i <= maxReg; ++i)
+ regs[i] = RegisterInfo();
+ maxReg = 0;
+ inSafeEnv = false;
+ checkedGc = false;
+ instLink.clear();
+ invalidateValuePropagation();
+ invalidateHeapTableData();
+ invalidateHeapBufferData();
+ }
+ IrFunction& function;
+ bool useValueNumbering = false;
+ std::array<RegisterInfo, 256> regs;
+ int maxReg = 0;
+ bool inSafeEnv = false;
+ bool checkedGc = false;
+ DenseHashMap<uint32_t, RegisterLink> instLink{~0u};
+ DenseHashMap<IrInst, uint32_t, IrInstHash, IrInstEq> valueMap;
+ std::vector<uint32_t> tryNumToIndexCache; // Fallback block argument might be different
+ std::vector<uint32_t> getSlotNodeCache; // Additionally, pcpos argument might be different
+ std::vector<uint32_t> checkSlotMatchCache;
+ std::vector<uint32_t> getArrAddrCache;
+ std::vector<uint32_t> checkArraySizeCache;
+ std::vector<uint32_t> checkBufferLenCache;
+};
+static void handleBuiltinEffects(ConstPropState& state, LuauBuiltinFunction bfid, uint32_t firstReturnReg, int nresults)
+{
+ switch (bfid)
+ {
+ case LBF_NONE:
+ case LBF_ASSERT:
+ case LBF_MATH_ABS:
+ case LBF_MATH_ACOS:
+ case LBF_MATH_ASIN:
+ case LBF_MATH_ATAN2:
+ case LBF_MATH_ATAN:
+ case LBF_MATH_CEIL:
+ case LBF_MATH_COSH:
+ case LBF_MATH_COS:
+ case LBF_MATH_DEG:
+ case LBF_MATH_EXP:
+ case LBF_MATH_FLOOR:
+ case LBF_MATH_FMOD:
+ case LBF_MATH_FREXP:
+ case LBF_MATH_LDEXP:
+ case LBF_MATH_LOG10:
+ case LBF_MATH_LOG:
+ case LBF_MATH_MAX:
+ case LBF_MATH_MIN:
+ case LBF_MATH_MODF:
+ case LBF_MATH_POW:
+ case LBF_MATH_RAD:
+ case LBF_MATH_SINH:
+ case LBF_MATH_SIN:
+ case LBF_MATH_SQRT:
+ case LBF_MATH_TANH:
+ case LBF_MATH_TAN:
+ case LBF_BIT32_ARSHIFT:
+ case LBF_BIT32_BAND:
+ case LBF_BIT32_BNOT:
+ case LBF_BIT32_BOR:
+ case LBF_BIT32_BXOR:
+ case LBF_BIT32_BTEST:
+ case LBF_BIT32_EXTRACT:
+ case LBF_BIT32_LROTATE:
+ case LBF_BIT32_LSHIFT:
+ case LBF_BIT32_REPLACE:
+ case LBF_BIT32_RROTATE:
+ case LBF_BIT32_RSHIFT:
+ case LBF_TYPE:
+ case LBF_STRING_BYTE:
+ case LBF_STRING_CHAR:
+ case LBF_STRING_LEN:
+ case LBF_TYPEOF:
+ case LBF_STRING_SUB:
+ case LBF_MATH_CLAMP:
+ case LBF_MATH_SIGN:
+ case LBF_MATH_ROUND:
+ case LBF_RAWGET:
+ case LBF_RAWEQUAL:
+ case LBF_TABLE_UNPACK:
+ case LBF_VECTOR:
+ case LBF_BIT32_COUNTLZ:
+ case LBF_BIT32_COUNTRZ:
+ case LBF_SELECT_VARARG:
+ case LBF_RAWLEN:
+ case LBF_BIT32_EXTRACTK:
+ case LBF_GETMETATABLE:
+ case LBF_TONUMBER:
+ case LBF_TOSTRING:
+ case LBF_BIT32_BYTESWAP:
+ case LBF_BUFFER_READI8:
+ case LBF_BUFFER_READU8:
+ case LBF_BUFFER_WRITEU8:
+ case LBF_BUFFER_READI16:
+ case LBF_BUFFER_READU16:
+ case LBF_BUFFER_WRITEU16:
+ case LBF_BUFFER_READI32:
+ case LBF_BUFFER_READU32:
+ case LBF_BUFFER_WRITEU32:
+ case LBF_BUFFER_READF32:
+ case LBF_BUFFER_WRITEF32:
+ case LBF_BUFFER_READF64:
+ case LBF_BUFFER_WRITEF64:
+ break;
+ case LBF_TABLE_INSERT:
+ state.invalidateHeap();
+ return;
+ case LBF_RAWSET:
+ state.invalidateHeap();
+ break;
+ case LBF_SETMETATABLE:
+ state.invalidateHeap();
+ break;
+ }
+ state.invalidateRegistersFrom(firstReturnReg);
+}
+static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction& function, IrBlock& block, IrInst& inst, uint32_t index)
+{
+ switch (inst.cmd)
+ {
+ case IrCmd::LOAD_TAG:
+ if (uint8_t tag = state.tryGetTag(inst.a); tag != 0xff)
+ {
+ substitute(function, inst, build.constTag(tag));
+ }
+ else if (inst.a.kind == IrOpKind::VmReg)
+ {
+ state.substituteOrRecordVmRegLoad(inst);
+ }
+ break;
+ case IrCmd::LOAD_POINTER:
+ if (inst.a.kind == IrOpKind::VmReg)
+ state.substituteOrRecordVmRegLoad(inst);
+ break;
+ case IrCmd::LOAD_DOUBLE:
+ {
+ IrOp value = state.tryGetValue(inst.a);
+ if (function.asDoubleOp(value))
+ substitute(function, inst, value);
+ else if (inst.a.kind == IrOpKind::VmReg)
+ state.substituteOrRecordVmRegLoad(inst);
+ break;
+ }
+ case IrCmd::LOAD_INT:
+ {
+ IrOp value = state.tryGetValue(inst.a);
+ if (function.asIntOp(value))
+ substitute(function, inst, value);
+ else if (inst.a.kind == IrOpKind::VmReg)
+ state.substituteOrRecordVmRegLoad(inst);
+ break;
+ }
+ case IrCmd::LOAD_TVALUE:
+ if (inst.a.kind == IrOpKind::VmReg)
+ state.substituteOrRecordVmRegLoad(inst);
+ break;
+ case IrCmd::STORE_TAG:
+ if (inst.a.kind == IrOpKind::VmReg)
+ {
+ const IrOp source = inst.a;
+ IrCmd activeLoadCmd = IrCmd::NOP;
+ uint32_t activeLoadValue = kInvalidInstIdx;
+ if (inst.b.kind == IrOpKind::Constant)
+ {
+ uint8_t value = function.tagOp(inst.b);
+ std::tie(activeLoadCmd, activeLoadValue) = state.getPreviousVersionedLoadForTag(value, source);
+ if (state.tryGetTag(source) == value)
+ {
+ if (FFlag::DebugLuauAbortingChecks)
+ replace(function, block, index, {IrCmd::CHECK_TAG, inst.a, inst.b, build.undef()});
+ else
+ kill(function, inst);
+ }
+ else
+ {
+ state.saveTag(source, value);
+ }
+ }
+ else
+ {
+ state.invalidateTag(source);
+ }
+ if (activeLoadValue != kInvalidInstIdx)
+ state.valueMap[state.versionedVmRegLoad(activeLoadCmd, source)] = activeLoadValue;
+ }
+ break;
+ case IrCmd::STORE_POINTER:
+ if (inst.a.kind == IrOpKind::VmReg)
+ {
+ state.invalidateValue(inst.a);
+ if (inst.b.kind == IrOpKind::Inst)
+ {
+ state.forwardVmRegStoreToLoad(inst, IrCmd::LOAD_POINTER);
+ if (IrInst* instOp = function.asInstOp(inst.b); instOp && instOp->cmd == IrCmd::NEW_TABLE)
+ {
+ if (RegisterInfo* info = state.tryGetRegisterInfo(inst.a))
+ {
+ info->knownNotReadonly = true;
+ info->knownNoMetatable = true;
+ info->knownTableArraySize = function.uintOp(instOp->a);
+ }
+ }
+ }
+ }
+ break;
+ case IrCmd::STORE_DOUBLE:
+ if (inst.a.kind == IrOpKind::VmReg)
+ {
+ if (inst.b.kind == IrOpKind::Constant)
+ {
+ if (state.tryGetValue(inst.a) == inst.b)
+ kill(function, inst);
+ else
+ state.saveValue(inst.a, inst.b);
+ }
+ else
+ {
+ state.invalidateValue(inst.a);
+ state.forwardVmRegStoreToLoad(inst, IrCmd::LOAD_DOUBLE);
+ }
+ }
+ break;
+ case IrCmd::STORE_INT:
+ if (inst.a.kind == IrOpKind::VmReg)
+ {
+ if (inst.b.kind == IrOpKind::Constant)
+ {
+ if (state.tryGetValue(inst.a) == inst.b)
+ kill(function, inst);
+ else
+ state.saveValue(inst.a, inst.b);
+ }
+ else
+ {
+ state.invalidateValue(inst.a);
+ state.forwardVmRegStoreToLoad(inst, IrCmd::LOAD_INT);
+ }
+ }
+ break;
+ case IrCmd::STORE_VECTOR:
+ state.invalidateValue(inst.a);
+ break;
+ case IrCmd::STORE_TVALUE:
+ if (inst.a.kind == IrOpKind::VmReg || inst.a.kind == IrOpKind::Inst)
+ {
+ if (inst.a.kind == IrOpKind::VmReg)
+ {
+ if (FFlag::LuauReuseBufferChecks && inst.b.kind == IrOpKind::Inst)
+ {
+ if (uint32_t* prevIdx = state.getPreviousVersionedLoadIndex(IrCmd::LOAD_TVALUE, inst.a))
+ {
+ if (*prevIdx == inst.b.index)
+ {
+ kill(function, inst);
+ break;
+ }
+ }
+ }
+ state.invalidate(inst.a);
+ }
+ uint8_t tag = state.tryGetTag(inst.b);
+ IrOp value = state.tryGetValue(inst.b);
+ if (inst.a.kind == IrOpKind::VmReg)
+ {
+ if (tag != 0xff)
+ state.saveTag(inst.a, tag);
+ if (value.kind != IrOpKind::None)
+ state.saveValue(inst.a, value);
+ }
+ IrCmd activeLoadCmd = IrCmd::NOP;
+ uint32_t activeLoadValue = kInvalidInstIdx;
+ if (tag != 0xff)
+ {
+ if (IrInst* arg = function.asInstOp(inst.b); arg && arg->cmd == IrCmd::LOAD_TVALUE && arg->a.kind == IrOpKind::VmReg)
+ {
+ std::tie(activeLoadCmd, activeLoadValue) = state.getPreviousVersionedLoadForTag(tag, arg->a);
+ if (activeLoadValue != kInvalidInstIdx)
+ value = IrOp{IrOpKind::Inst, activeLoadValue};
+ }
+ }
+ if (tag != 0xff && value.kind != IrOpKind::None && (tag == LUA_TBOOLEAN || tag == LUA_TNUMBER || isGCO(tag)))
+ {
+ replace(function, block, index, {IrCmd::STORE_SPLIT_TVALUE, inst.a, build.constTag(tag), value, inst.c});
+ if (inst.a.kind == IrOpKind::VmReg && activeLoadValue != kInvalidInstIdx)
+ state.valueMap[state.versionedVmRegLoad(activeLoadCmd, inst.a)] = activeLoadValue;
+ }
+ else if (inst.a.kind == IrOpKind::VmReg)
+ {
+ state.forwardVmRegStoreToLoad(inst, IrCmd::LOAD_TVALUE);
+ }
+ }
+ break;
+ case IrCmd::STORE_SPLIT_TVALUE:
+ if (inst.a.kind == IrOpKind::VmReg)
+ {
+ state.invalidate(inst.a);
+ state.saveTag(inst.a, function.tagOp(inst.b));
+ if (inst.c.kind == IrOpKind::Constant)
+ state.saveValue(inst.a, inst.c);
+ }
+ break;
+ case IrCmd::JUMP_IF_TRUTHY:
+ if (uint8_t tag = state.tryGetTag(inst.a); tag != 0xff)
+ {
+ if (tag == LUA_TNIL)
+ replace(function, block, index, {IrCmd::JUMP, inst.c});
+ else if (tag != LUA_TBOOLEAN)
+ replace(function, block, index, {IrCmd::JUMP, inst.b});
+ }
+ break;
+ case IrCmd::JUMP_IF_FALSY:
+ if (uint8_t tag = state.tryGetTag(inst.a); tag != 0xff)
+ {
+ if (tag == LUA_TNIL)
+ replace(function, block, index, {IrCmd::JUMP, inst.b});
+ else if (tag != LUA_TBOOLEAN)
+ replace(function, block, index, {IrCmd::JUMP, inst.c});
+ }
+ break;
+ case IrCmd::JUMP_EQ_TAG:
+ {
+ uint8_t tagA = inst.a.kind == IrOpKind::Constant ? function.tagOp(inst.a) : state.tryGetTag(inst.a);
+ uint8_t tagB = inst.b.kind == IrOpKind::Constant ? function.tagOp(inst.b) : state.tryGetTag(inst.b);
+ if (tagA != 0xff && tagB != 0xff)
+ {
+ if (tagA == tagB)
+ replace(function, block, index, {IrCmd::JUMP, inst.c});
+ else
+ replace(function, block, index, {IrCmd::JUMP, inst.d});
+ }
+ else if (inst.a == inst.b)
+ {
+ replace(function, block, index, {IrCmd::JUMP, inst.c});
+ }
+ break;
+ }
+ case IrCmd::JUMP_CMP_INT:
+ {
+ std::optional<int> valueA = function.asIntOp(inst.a.kind == IrOpKind::Constant ? inst.a : state.tryGetValue(inst.a));
+ std::optional<int> valueB = function.asIntOp(inst.b.kind == IrOpKind::Constant ? inst.b : state.tryGetValue(inst.b));
+ if (valueA && valueB)
+ {
+ if (compare(*valueA, *valueB, conditionOp(inst.c)))
+ replace(function, block, index, {IrCmd::JUMP, inst.c});
+ else
+ replace(function, block, index, {IrCmd::JUMP, inst.d});
+ }
+ break;
+ }
+ case IrCmd::JUMP_CMP_NUM:
+ {
+ std::optional<double> valueA = function.asDoubleOp(inst.a.kind == IrOpKind::Constant ? inst.a : state.tryGetValue(inst.a));
+ std::optional<double> valueB = function.asDoubleOp(inst.b.kind == IrOpKind::Constant ? inst.b : state.tryGetValue(inst.b));
+ if (valueA && valueB)
+ {
+ if (compare(*valueA, *valueB, conditionOp(inst.c)))
+ replace(function, block, index, {IrCmd::JUMP, inst.d});
+ else
+ replace(function, block, index, {IrCmd::JUMP, inst.e});
+ }
+ break;
+ }
+ case IrCmd::JUMP_FORN_LOOP_COND:
+ {
+ std::optional<double> step = function.asDoubleOp(inst.c.kind == IrOpKind::Constant ? inst.c : state.tryGetValue(inst.c));
+ if (!step)
+ break;
+ std::optional<double> idx = function.asDoubleOp(inst.a.kind == IrOpKind::Constant ? inst.a : state.tryGetValue(inst.a));
+ std::optional<double> limit = function.asDoubleOp(inst.b.kind == IrOpKind::Constant ? inst.b : state.tryGetValue(inst.b));
+ if (*step > 0)
+ {
+ if (idx && limit)
+ {
+ if (compare(*idx, *limit, IrCondition::NotLessEqual))
+ replace(function, block, index, {IrCmd::JUMP, inst.e});
+ else
+ replace(function, block, index, {IrCmd::JUMP, inst.d});
+ }
+ else
+ {
+ replace(function, block, index, IrInst{IrCmd::JUMP_CMP_NUM, inst.a, inst.b, build.cond(IrCondition::NotLessEqual), inst.e, inst.d});
+ }
+ }
+ else
+ {
+ if (idx && limit)
+ {
+ if (compare(*limit, *idx, IrCondition::NotLessEqual))
+ replace(function, block, index, {IrCmd::JUMP, inst.e});
+ else
+ replace(function, block, index, {IrCmd::JUMP, inst.d});
+ }
+ else
+ {
+ replace(function, block, index, IrInst{IrCmd::JUMP_CMP_NUM, inst.b, inst.a, build.cond(IrCondition::NotLessEqual), inst.e, inst.d});
+ }
+ }
+ break;
+ }
+ case IrCmd::GET_UPVALUE:
+ state.invalidate(inst.a);
+ break;
+ case IrCmd::SET_UPVALUE:
+ if (inst.b.kind == IrOpKind::VmReg)
+ {
+ if (uint8_t tag = state.tryGetTag(inst.b); tag != 0xff)
+ {
+ replace(function, inst.c, build.constTag(tag));
+ }
+ }
+ break;
+ case IrCmd::CHECK_TAG:
+ {
+ uint8_t b = function.tagOp(inst.b);
+ if (uint8_t tag = state.tryGetTag(inst.a); tag != 0xff)
+ {
+ if (tag == b)
+ {
+ if (FFlag::DebugLuauAbortingChecks)
+ replace(function, inst.c, build.undef());
+ else
+ kill(function, inst);
+ }
+ else
+ {
+ replace(function, block, index, {IrCmd::JUMP, inst.c});
+ }
+ }
+ else
+ {
+ state.updateTag(inst.a, b);
+ }
+ break;
+ }
+ case IrCmd::CHECK_TRUTHY:
+ break;
+ case IrCmd::CHECK_READONLY:
+ if (RegisterInfo* info = state.tryGetRegisterInfo(inst.a))
+ {
+ if (info->knownNotReadonly)
+ {
+ if (FFlag::DebugLuauAbortingChecks)
+ replace(function, inst.b, build.undef());
+ else
+ kill(function, inst);
+ }
+ else
+ {
+ info->knownNotReadonly = true;
+ }
+ }
+ break;
+ case IrCmd::CHECK_NO_METATABLE:
+ if (RegisterInfo* info = state.tryGetRegisterInfo(inst.a))
+ {
+ if (info->knownNoMetatable)
+ {
+ if (FFlag::DebugLuauAbortingChecks)
+ replace(function, inst.b, build.undef());
+ else
+ kill(function, inst);
+ }
+ else
+ {
+ info->knownNoMetatable = true;
+ }
+ }
+ break;
+ case IrCmd::CHECK_SAFE_ENV:
+ if (state.inSafeEnv)
+ {
+ if (FFlag::DebugLuauAbortingChecks)
+ replace(function, inst.a, build.undef());
+ else
+ kill(function, inst);
+ }
+ else
+ {
+ state.inSafeEnv = true;
+ }
+ break;
+ case IrCmd::CHECK_BUFFER_LEN:
+ {
+ if (!FFlag::LuauReuseBufferChecks)
+ break;
+ std::optional<int> bufferOffset = function.asIntOp(inst.b.kind == IrOpKind::Constant ? inst.b : state.tryGetValue(inst.b));
+ int accessSize = function.intOp(inst.c);
+ LUAU_ASSERT(accessSize > 0);
+ if (bufferOffset)
+ {
+ if (*bufferOffset < 0 || unsigned(*bufferOffset) + unsigned(accessSize) >= unsigned(INT_MAX))
+ {
+ replace(function, block, index, {IrCmd::JUMP, inst.d});
+ break;
+ }
+ }
+ for (uint32_t prevIdx : state.checkBufferLenCache)
+ {
+ IrInst& prev = function.instructions[prevIdx];
+ if (prev.a != inst.a || prev.c != inst.c)
+ continue;
+ if (prev.b == inst.b)
+ {
+ if (FFlag::DebugLuauAbortingChecks)
+ replace(function, inst.d, build.undef());
+ else
+ kill(function, inst);
+ return;
+ }
+ else if (inst.b.kind == IrOpKind::Constant && prev.b.kind == IrOpKind::Constant)
+ {
+ int currBound = function.intOp(inst.b);
+ int prevBound = function.intOp(prev.b);
+ LUAU_ASSERT(currBound >= 0);
+ LUAU_ASSERT(prevBound >= 0);
+ if (unsigned(currBound) >= unsigned(prevBound))
+ replace(function, prev.b, inst.b);
+ if (FFlag::DebugLuauAbortingChecks)
+ replace(function, inst.d, build.undef());
+ else
+ kill(function, inst);
+ return;
+ }
+ }
+ if (int(state.checkBufferLenCache.size()) < FInt::LuauCodeGenReuseSlotLimit)
+ state.checkBufferLenCache.push_back(index);
+ break;
+ }
+ case IrCmd::BUFFER_READI8:
+ case IrCmd::BUFFER_READU8:
+ case IrCmd::BUFFER_WRITEI8:
+ case IrCmd::BUFFER_READI16:
+ case IrCmd::BUFFER_READU16:
+ case IrCmd::BUFFER_WRITEI16:
+ case IrCmd::BUFFER_READI32:
+ case IrCmd::BUFFER_WRITEI32:
+ case IrCmd::BUFFER_READF32:
+ case IrCmd::BUFFER_WRITEF32:
+ case IrCmd::BUFFER_READF64:
+ case IrCmd::BUFFER_WRITEF64:
+ break;
+ case IrCmd::CHECK_GC:
+ if (state.checkedGc)
+ kill(function, inst);
+ else
+ state.checkedGc = true;
+ break;
+ case IrCmd::BARRIER_OBJ:
+ case IrCmd::BARRIER_TABLE_FORWARD:
+ if (inst.b.kind == IrOpKind::VmReg)
+ {
+ if (uint8_t tag = state.tryGetTag(inst.b); tag != 0xff)
+ {
+ if (!isGCO(tag))
+ kill(function, inst);
+ else
+ replace(function, inst.c, build.constTag(tag));
+ }
+ }
+ break;
+ case IrCmd::FASTCALL:
+ case IrCmd::INVOKE_FASTCALL:
+ handleBuiltinEffects(state, LuauBuiltinFunction(function.uintOp(inst.a)), vmRegOp(inst.b), function.intOp(inst.f));
+ break;
+ case IrCmd::NOP:
+ case IrCmd::LOAD_ENV:
+ break;
+ case IrCmd::GET_ARR_ADDR:
+ for (uint32_t prevIdx : state.getArrAddrCache)
+ {
+ const IrInst& prev = function.instructions[prevIdx];
+ if (prev.a == inst.a && prev.b == inst.b)
+ {
+ substitute(function, inst, IrOp{IrOpKind::Inst, prevIdx});
+ return;
+ }
+ }
+ if (int(state.getArrAddrCache.size()) < FInt::LuauCodeGenReuseSlotLimit)
+ state.getArrAddrCache.push_back(index);
+ break;
+ case IrCmd::GET_SLOT_NODE_ADDR:
+ for (uint32_t prevIdx : state.getSlotNodeCache)
+ {
+ const IrInst& prev = function.instructions[prevIdx];
+ if (prev.a == inst.a && prev.c == inst.c)
+ {
+ substitute(function, inst, IrOp{IrOpKind::Inst, prevIdx});
+ return;
+ }
+ }
+ if (int(state.getSlotNodeCache.size()) < FInt::LuauCodeGenReuseSlotLimit)
+ state.getSlotNodeCache.push_back(index);
+ break;
+ case IrCmd::GET_HASH_NODE_ADDR:
+ case IrCmd::GET_CLOSURE_UPVAL_ADDR:
+ break;
+ case IrCmd::ADD_INT:
+ case IrCmd::SUB_INT:
+ case IrCmd::ADD_NUM:
+ case IrCmd::SUB_NUM:
+ case IrCmd::MUL_NUM:
+ case IrCmd::DIV_NUM:
+ case IrCmd::IDIV_NUM:
+ case IrCmd::MOD_NUM:
+ case IrCmd::MIN_NUM:
+ case IrCmd::MAX_NUM:
+ case IrCmd::UNM_NUM:
+ case IrCmd::FLOOR_NUM:
+ case IrCmd::CEIL_NUM:
+ case IrCmd::ROUND_NUM:
+ case IrCmd::SQRT_NUM:
+ case IrCmd::ABS_NUM:
+ case IrCmd::NOT_ANY:
+ state.substituteOrRecord(inst, index);
+ break;
+ case IrCmd::CMP_ANY:
+ state.invalidateUserCall();
+ break;
+ case IrCmd::JUMP:
+ case IrCmd::JUMP_EQ_POINTER:
+ case IrCmd::JUMP_SLOT_MATCH:
+ case IrCmd::TABLE_LEN:
+ break;
+ case IrCmd::TABLE_SETNUM:
+ state.invalidateTableArraySize();
+ break;
+ case IrCmd::STRING_LEN:
+ case IrCmd::NEW_TABLE:
+ case IrCmd::DUP_TABLE:
+ break;
+ case IrCmd::TRY_NUM_TO_INDEX:
+ for (uint32_t prevIdx : state.tryNumToIndexCache)
+ {
+ const IrInst& prev = function.instructions[prevIdx];
+ if (prev.a == inst.a)
+ {
+ substitute(function, inst, IrOp{IrOpKind::Inst, prevIdx});
+ return;
+ }
+ }
+ if (int(state.tryNumToIndexCache.size()) < FInt::LuauCodeGenReuseSlotLimit)
+ state.tryNumToIndexCache.push_back(index);
+ break;
+ case IrCmd::TRY_CALL_FASTGETTM:
+ break;
+ case IrCmd::INT_TO_NUM:
+ case IrCmd::UINT_TO_NUM:
+ state.substituteOrRecord(inst, index);
+ break;
+ case IrCmd::NUM_TO_INT:
+ if (IrInst* src = function.asInstOp(inst.a); src && src->cmd == IrCmd::INT_TO_NUM)
+ substitute(function, inst, src->a);
+ else
+ state.substituteOrRecord(inst, index);
+ break;
+ case IrCmd::NUM_TO_UINT:
+ if (IrInst* src = function.asInstOp(inst.a); src && src->cmd == IrCmd::UINT_TO_NUM)
+ substitute(function, inst, src->a);
+ else
+ state.substituteOrRecord(inst, index);
+ break;
+ case IrCmd::CHECK_ARRAY_SIZE:
+ {
+ std::optional<int> arrayIndex = function.asIntOp(inst.b.kind == IrOpKind::Constant ? inst.b : state.tryGetValue(inst.b));
+ if (arrayIndex && *arrayIndex < 0)
+ {
+ replace(function, block, index, {IrCmd::JUMP, inst.c});
+ break;
+ }
+ if (RegisterInfo* info = state.tryGetRegisterInfo(inst.a); info && arrayIndex)
+ {
+ if (info->knownTableArraySize >= 0)
+ {
+ if (unsigned(*arrayIndex) < unsigned(info->knownTableArraySize))
+ {
+ if (FFlag::DebugLuauAbortingChecks)
+ replace(function, inst.c, build.undef());
+ else
+ kill(function, inst);
+ }
+ else
+ {
+ replace(function, block, index, {IrCmd::JUMP, inst.c});
+ }
+ break;
+ }
+ }
+ for (uint32_t prevIdx : state.checkArraySizeCache)
+ {
+ const IrInst& prev = function.instructions[prevIdx];
+ if (prev.a != inst.a)
+ continue;
+ bool sameBoundary = prev.b == inst.b;
+ if (!sameBoundary && inst.b.kind == IrOpKind::Constant && prev.b.kind == IrOpKind::Constant &&
+ unsigned(function.intOp(inst.b)) < unsigned(function.intOp(prev.b)))
+ sameBoundary = true;
+ if (sameBoundary)
+ {
+ if (FFlag::DebugLuauAbortingChecks)
+ replace(function, inst.c, build.undef());
+ else
+ kill(function, inst);
+ return;
+ }
+ }
+ if (int(state.checkArraySizeCache.size()) < FInt::LuauCodeGenReuseSlotLimit)
+ state.checkArraySizeCache.push_back(index);
+ break;
+ }
+ case IrCmd::CHECK_SLOT_MATCH:
+ for (uint32_t prevIdx : state.checkSlotMatchCache)
+ {
+ const IrInst& prev = function.instructions[prevIdx];
+ if (prev.a == inst.a && prev.b == inst.b)
+ {
+ replace(function, block, index, {IrCmd::CHECK_NODE_VALUE, inst.a, inst.c});
+ return;
+ }
+ }
+ if (int(state.checkSlotMatchCache.size()) < FInt::LuauCodeGenReuseSlotLimit)
+ state.checkSlotMatchCache.push_back(index);
+ break;
+ case IrCmd::CHECK_NODE_NO_NEXT:
+ case IrCmd::CHECK_NODE_VALUE:
+ case IrCmd::BARRIER_TABLE_BACK:
+ case IrCmd::RETURN:
+ case IrCmd::COVERAGE:
+ case IrCmd::SET_SAVEDPC:
+ case IrCmd::CLOSE_UPVALS: // Doesn't change memory that we track
+ case IrCmd::CAPTURE:
+ case IrCmd::SUBSTITUTE:
+ case IrCmd::ADJUST_STACK_TO_REG:
+ case IrCmd::ADJUST_STACK_TO_TOP: // Changes stack top, but not the values
+ case IrCmd::CHECK_FASTCALL_RES:
+ case IrCmd::BITAND_UINT:
+ case IrCmd::BITXOR_UINT:
+ case IrCmd::BITOR_UINT:
+ case IrCmd::BITNOT_UINT:
+ break;
+ case IrCmd::BITLSHIFT_UINT:
+ case IrCmd::BITRSHIFT_UINT:
+ case IrCmd::BITARSHIFT_UINT:
+ case IrCmd::BITRROTATE_UINT:
+ case IrCmd::BITLROTATE_UINT:
+ case IrCmd::BITCOUNTLZ_UINT:
+ case IrCmd::BITCOUNTRZ_UINT:
+ case IrCmd::BYTESWAP_UINT:
+ case IrCmd::INVOKE_LIBM:
+ case IrCmd::GET_TYPE:
+ case IrCmd::GET_TYPEOF:
+ case IrCmd::FINDUPVAL:
+ break;
+ case IrCmd::DO_ARITH:
+ state.invalidate(inst.a);
+ state.invalidateUserCall();
+ break;
+ case IrCmd::DO_LEN:
+ state.invalidate(inst.a);
+ state.invalidateUserCall();
+ state.saveTag(inst.a, LUA_TNUMBER);
+ break;
+ case IrCmd::GET_TABLE:
+ state.invalidate(inst.a);
+ state.invalidateUserCall();
+ break;
+ case IrCmd::SET_TABLE:
+ state.invalidateUserCall();
+ break;
+ case IrCmd::GET_IMPORT:
+ state.invalidate(inst.a);
+ state.invalidateUserCall();
+ break;
+ case IrCmd::CONCAT:
+ state.invalidateRegisterRange(vmRegOp(inst.a), function.uintOp(inst.b));
+ state.invalidateUserCall();
+ break;
+ case IrCmd::INTERRUPT:
+ state.invalidateUserCall();
+ break;
+ case IrCmd::SETLIST:
+ if (RegisterInfo* info = state.tryGetRegisterInfo(inst.b); info && info->knownTableArraySize >= 0)
+ replace(function, inst.f, build.constUint(info->knownTableArraySize));
+ state.invalidateValuePropagation();
+ state.invalidateHeapTableData();
+ state.invalidateHeapBufferData();
+ break;
+ case IrCmd::CALL:
+ state.invalidateRegistersFrom(vmRegOp(inst.a));
+ state.invalidateUserCall();
+ state.invalidateValuePropagation();
+ break;
+ case IrCmd::FORGLOOP:
+ state.invalidateRegistersFrom(vmRegOp(inst.a) + 2);
+ state.invalidateValuePropagation();
+ state.invalidateHeapTableData();
+ state.invalidateHeapBufferData();
+ break;
+ case IrCmd::FORGLOOP_FALLBACK:
+ state.invalidateRegistersFrom(vmRegOp(inst.a) + 2);
+ state.invalidateUserCall();
+ break;
+ case IrCmd::FORGPREP_XNEXT_FALLBACK:
+ break;
+ case IrCmd::FALLBACK_GETGLOBAL:
+ state.invalidate(inst.b);
+ state.invalidateUserCall();
+ break;
+ case IrCmd::FALLBACK_SETGLOBAL:
+ state.invalidateUserCall();
+ break;
+ case IrCmd::FALLBACK_GETTABLEKS:
+ state.invalidate(inst.b);
+ state.invalidateUserCall();
+ break;
+ case IrCmd::FALLBACK_SETTABLEKS:
+ state.invalidateUserCall();
+ break;
+ case IrCmd::FALLBACK_NAMECALL:
+ state.invalidate(IrOp{inst.b.kind, vmRegOp(inst.b) + 0u});
+ state.invalidate(IrOp{inst.b.kind, vmRegOp(inst.b) + 1u});
+ state.invalidateUserCall();
+ break;
+ case IrCmd::FALLBACK_PREPVARARGS:
+ break;
+ case IrCmd::FALLBACK_GETVARARGS:
+ state.invalidateRegisterRange(vmRegOp(inst.b), function.intOp(inst.c));
+ break;
+ case IrCmd::NEWCLOSURE:
+ break;
+ case IrCmd::FALLBACK_DUPCLOSURE:
+ state.invalidate(inst.b);
+ break;
+ case IrCmd::FALLBACK_FORGPREP:
+ state.invalidate(IrOp{inst.b.kind, vmRegOp(inst.b) + 0u});
+ state.invalidate(IrOp{inst.b.kind, vmRegOp(inst.b) + 1u});
+ state.invalidate(IrOp{inst.b.kind, vmRegOp(inst.b) + 2u});
+ break;
+ }
+}
+static void constPropInBlock(IrBuilder& build, IrBlock& block, ConstPropState& state)
+{
+ IrFunction& function = build.function;
+ for (uint32_t index = block.start; index <= block.finish; index++)
+ {
+ LUAU_ASSERT(index < function.instructions.size());
+ IrInst& inst = function.instructions[index];
+ applySubstitutions(function, inst);
+ foldConstants(build, function, block, index);
+ constPropInInst(state, build, function, block, inst, index);
+ }
+ if (!FFlag::LuauKeepVmapLinear2)
+ {
+ state.invalidateValuePropagation();
+ state.invalidateHeapTableData();
+ state.invalidateHeapBufferData();
+ }
+}
+static void constPropInBlockChain(IrBuilder& build, std::vector<uint8_t>& visited, IrBlock* block, ConstPropState& state)
+{
+ IrFunction& function = build.function;
+ state.clear();
+ const uint32_t startSortkey = block->sortkey;
+ uint32_t chainPos = 0;
+ while (block)
+ {
+ uint32_t blockIdx = function.getBlockIndex(*block);
+ LUAU_ASSERT(!visited[blockIdx]);
+ visited[blockIdx] = true;
+ constPropInBlock(build, *block, state);
+ if (FFlag::LuauKeepVmapLinear2)
+ {
+ state.invalidateValuePropagation();
+ state.invalidateHeapTableData();
+ state.invalidateHeapBufferData();
+ }
+ block->sortkey = startSortkey;
+ block->chainkey = chainPos++;
+ IrInst& termInst = function.instructions[block->finish];
+ IrBlock* nextBlock = nullptr;
+ if (termInst.cmd == IrCmd::JUMP && termInst.a.kind == IrOpKind::Block)
+ {
+ IrBlock& target = function.blockOp(termInst.a);
+ uint32_t targetIdx = function.getBlockIndex(target);
+ if (target.useCount == 1 && !visited[targetIdx] && target.kind != IrBlockKind::Fallback)
+ {
+ if (getLiveOutValueCount(function, target) != 0)
+ break;
+ block->expectedNextBlock = function.getBlockIndex(target);
+ nextBlock = &target;
+ }
+ }
+ block = nextBlock;
+ }
+}
+static std::vector<uint32_t> collectDirectBlockJumpPath(IrFunction& function, std::vector<uint8_t>& visited, IrBlock* block)
+{
+ LUAU_ASSERT(getLiveOutValueCount(function, *block) == 0);
+ std::vector<uint32_t> path;
+ while (block)
+ {
+ IrInst& termInst = function.instructions[block->finish];
+ IrBlock* nextBlock = nullptr;
+ if (termInst.cmd == IrCmd::JUMP && termInst.a.kind == IrOpKind::Block)
+ {
+ IrBlock& target = function.blockOp(termInst.a);
+ uint32_t targetIdx = function.getBlockIndex(target);
+ if (!visited[targetIdx] && target.kind == IrBlockKind::Internal)
+ {
+ auto [liveIns, liveOuts] = getLiveInOutValueCount(function, target);
+ if (liveIns == 0 && liveOuts == 0)
+ {
+ visited[targetIdx] = true;
+ path.push_back(targetIdx);
+ nextBlock = &target;
+ }
+ }
+ }
+ block = nextBlock;
+ }
+ return path;
+}
+static void tryCreateLinearBlock(IrBuilder& build, std::vector<uint8_t>& visited, IrBlock& startingBlock, ConstPropState& state)
+{
+ IrFunction& function = build.function;
+ uint32_t blockIdx = function.getBlockIndex(startingBlock);
+ LUAU_ASSERT(!visited[blockIdx]);
+ visited[blockIdx] = true;
+ IrInst& termInst = function.instructions[startingBlock.finish];
+ if (termInst.cmd != IrCmd::JUMP)
+ return;
+ if (termInst.a.kind != IrOpKind::Block)
+ return;
+ if (function.blockOp(termInst.a).useCount == 1)
+ return;
+ uint32_t targetBlockIdx = termInst.a.index;
+ std::vector<uint32_t> path = collectDirectBlockJumpPath(function, visited, &startingBlock);
+ if (int(path.size()) < FInt::LuauCodeGenMinLinearBlockPath)
+ return;
+ state.clear();
+ constPropInBlock(build, startingBlock, state);
+ LUAU_ASSERT(function.instructions[startingBlock.finish].a.index == targetBlockIdx);
+ const uint32_t startingSortKey = startingBlock.sortkey;
+ const uint32_t startingChainKey = startingBlock.chainkey;
+ IrOp newBlock = build.block(IrBlockKind::Linearized);
+ visited.push_back(false);
+ build.beginBlock(newBlock);
+ function.blocks[newBlock.index].sortkey = startingSortKey;
+ function.blocks[newBlock.index].chainkey = startingChainKey + 1;
+ function.blocks[blockIdx].expectedNextBlock = newBlock.index;
+ replace(function, termInst.a, newBlock);
+ for (uint32_t pathBlockIdx : path)
+ build.clone(function.blocks[pathBlockIdx], true);
+ if (function.cfg.in.size() == newBlock.index)
+ {
+ LUAU_ASSERT(function.cfg.in.size() == function.cfg.out.size());
+ LUAU_ASSERT(function.cfg.in.size() == function.cfg.def.size());
+ function.cfg.in.push_back(function.cfg.in[path.front()]);
+ function.cfg.out.push_back(function.cfg.out[path.back()]);
+ function.cfg.def.push_back({});
+ RegisterSet& def = function.cfg.def.back();
+ for (uint32_t pathBlockIdx : path)
+ {
+ const RegisterSet& pathDef = function.cfg.def[pathBlockIdx];
+ def.regs |= pathDef.regs;
+ if (pathDef.varargSeq && function.cfg.out.back().varargSeq)
+ {
+ def.varargSeq = true;
+ def.varargStart = pathDef.varargStart;
+ }
+ }
+ function.cfg.predecessorsOffsets.push_back(uint32_t(function.cfg.predecessors.size()));
+ function.cfg.predecessors.push_back(blockIdx);
+ }
+ IrBlock& linearBlock = function.blockOp(newBlock);
+ constPropInBlock(build, linearBlock, state);
+}
+void constPropInBlockChains(IrBuilder& build, bool useValueNumbering)
+{
+ IrFunction& function = build.function;
+ ConstPropState state{function};
+ state.useValueNumbering = useValueNumbering;
+ std::vector<uint8_t> visited(function.blocks.size(), false);
+ for (IrBlock& block : function.blocks)
+ {
+ if (block.kind == IrBlockKind::Fallback || block.kind == IrBlockKind::Dead)
+ continue;
+ if (visited[function.getBlockIndex(block)])
+ continue;
+ constPropInBlockChain(build, visited, &block, state);
+ }
+}
+void createLinearBlocks(IrBuilder& build, bool useValueNumbering)
+{
+ IrFunction& function = build.function;
+ ConstPropState state{function};
+ state.useValueNumbering = useValueNumbering;
+ std::vector<uint8_t> visited(function.blocks.size(), false);
+ size_t originalBlockCount = function.blocks.size();
+ for (size_t i = 0; i < originalBlockCount; i++)
+ {
+ IrBlock& block = function.blocks[i];
+ if (block.kind == IrBlockKind::Fallback || block.kind == IrBlockKind::Dead)
+ continue;
+ if (visited[function.getBlockIndex(block)])
+ continue;
+ tryCreateLinearBlock(build, visited, block, state);
+ }
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "OptimizeFinalX64.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+static void optimizeMemoryOperandsX64(IrFunction& function, IrBlock& block)
+{
+ LUAU_ASSERT(block.kind != IrBlockKind::Dead);
+ for (uint32_t index = block.start; index <= block.finish; index++)
+ {
+ LUAU_ASSERT(index < function.instructions.size());
+ IrInst& inst = function.instructions[index];
+ switch (inst.cmd)
+ {
+ case IrCmd::CHECK_TAG:
+ {
+ if (inst.a.kind == IrOpKind::Inst)
+ {
+ IrInst& tag = function.instOp(inst.a);
+ if (tag.useCount == 1 && tag.cmd == IrCmd::LOAD_TAG && (tag.a.kind == IrOpKind::VmReg || tag.a.kind == IrOpKind::VmConst))
+ replace(function, inst.a, tag.a);
+ }
+ break;
+ }
+ case IrCmd::CHECK_TRUTHY:
+ {
+ if (inst.a.kind == IrOpKind::Inst)
+ {
+ IrInst& tag = function.instOp(inst.a);
+ if (tag.useCount == 1 && tag.cmd == IrCmd::LOAD_TAG && (tag.a.kind == IrOpKind::VmReg || tag.a.kind == IrOpKind::VmConst))
+ replace(function, inst.a, tag.a);
+ }
+ if (inst.b.kind == IrOpKind::Inst)
+ {
+ IrInst& value = function.instOp(inst.b);
+ if (value.useCount == 1 && value.cmd == IrCmd::LOAD_INT)
+ replace(function, inst.b, value.a);
+ }
+ break;
+ }
+ case IrCmd::ADD_NUM:
+ case IrCmd::SUB_NUM:
+ case IrCmd::MUL_NUM:
+ case IrCmd::DIV_NUM:
+ case IrCmd::IDIV_NUM:
+ case IrCmd::MOD_NUM:
+ case IrCmd::MIN_NUM:
+ case IrCmd::MAX_NUM:
+ {
+ if (inst.b.kind == IrOpKind::Inst)
+ {
+ IrInst& rhs = function.instOp(inst.b);
+ if (rhs.useCount == 1 && rhs.cmd == IrCmd::LOAD_DOUBLE && (rhs.a.kind == IrOpKind::VmReg || rhs.a.kind == IrOpKind::VmConst))
+ replace(function, inst.b, rhs.a);
+ }
+ break;
+ }
+ case IrCmd::JUMP_EQ_TAG:
+ {
+ if (inst.a.kind == IrOpKind::Inst)
+ {
+ IrInst& tagA = function.instOp(inst.a);
+ if (tagA.useCount == 1 && tagA.cmd == IrCmd::LOAD_TAG && (tagA.a.kind == IrOpKind::VmReg || tagA.a.kind == IrOpKind::VmConst))
+ {
+ replace(function, inst.a, tagA.a);
+ break;
+ }
+ }
+ if (inst.b.kind == IrOpKind::Inst)
+ {
+ IrInst& tagB = function.instOp(inst.b);
+ if (tagB.useCount == 1 && tagB.cmd == IrCmd::LOAD_TAG && (tagB.a.kind == IrOpKind::VmReg || tagB.a.kind == IrOpKind::VmConst))
+ {
+ std::swap(inst.a, inst.b);
+ replace(function, inst.a, tagB.a);
+ }
+ }
+ break;
+ }
+ case IrCmd::JUMP_CMP_NUM:
+ {
+ if (inst.a.kind == IrOpKind::Inst)
+ {
+ IrInst& num = function.instOp(inst.a);
+ if (num.useCount == 1 && num.cmd == IrCmd::LOAD_DOUBLE)
+ replace(function, inst.a, num.a);
+ }
+ break;
+ }
+ default:
+ break;
+ }
+ }
+}
+void optimizeMemoryOperandsX64(IrFunction& function)
+{
+ for (IrBlock& block : function.blocks)
+ {
+ if (block.kind == IrBlockKind::Dead)
+ continue;
+ optimizeMemoryOperandsX64(function, block);
+ }
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "UnwindBuilderDwarf2.cpp"
+#define DW_CFA_advance_loc 0x40
+#define DW_CFA_offset 0x80
+#define DW_CFA_restore 0xc0
+#define DW_CFA_set_loc 0x01
+#define DW_CFA_advance_loc1 0x02
+#define DW_CFA_advance_loc2 0x03
+#define DW_CFA_advance_loc4 0x04
+#define DW_CFA_offset_extended 0x05
+#define DW_CFA_restore_extended 0x06
+#define DW_CFA_undefined 0x07
+#define DW_CFA_same_value 0x08
+#define DW_CFA_register 0x09
+#define DW_CFA_remember_state 0x0a
+#define DW_CFA_restore_state 0x0b
+#define DW_CFA_def_cfa 0x0c
+#define DW_CFA_def_cfa_register 0x0d
+#define DW_CFA_def_cfa_offset 0x0e
+#define DW_CFA_def_cfa_expression 0x0f
+#define DW_CFA_nop 0x00
+#define DW_CFA_lo_user 0x1c
+#define DW_CFA_hi_user 0x3f
+#define DW_REG_X64_RAX 0
+#define DW_REG_X64_RDX 1
+#define DW_REG_X64_RCX 2
+#define DW_REG_X64_RBX 3
+#define DW_REG_X64_RSI 4
+#define DW_REG_X64_RDI 5
+#define DW_REG_X64_RBP 6
+#define DW_REG_X64_RSP 7
+#define DW_REG_X64_RA 16
+#define DW_REG_A64_FP 29
+#define DW_REG_A64_LR 30
+#define DW_REG_A64_SP 31
+const int regIndexToDwRegX64[16] = {DW_REG_X64_RAX, DW_REG_X64_RCX, DW_REG_X64_RDX, DW_REG_X64_RBX, DW_REG_X64_RSP, DW_REG_X64_RBP, DW_REG_X64_RSI,
+ DW_REG_X64_RDI, 8, 9, 10, 11, 12, 13, 14, 15};
+const int kCodeAlignFactor = 1;
+const int kDataAlignFactor = 8;
+const int kDwarfAlign = 8;
+const int kFdeInitialLocationOffset = 8;
+const int kFdeAddressRangeOffset = 16;
+static uint8_t* defineCfaExpression(uint8_t* pos, int dwReg, uint32_t stackOffset)
+{
+ pos = writeu8(pos, DW_CFA_def_cfa);
+ pos = writeuleb128(pos, dwReg);
+ pos = writeuleb128(pos, stackOffset);
+ return pos;
+}
+static uint8_t* defineCfaExpressionOffset(uint8_t* pos, uint32_t stackOffset)
+{
+ pos = writeu8(pos, DW_CFA_def_cfa_offset);
+ pos = writeuleb128(pos, stackOffset);
+ return pos;
+}
+static uint8_t* defineSavedRegisterLocation(uint8_t* pos, int dwReg, uint32_t stackOffset)
+{
+ LUAU_ASSERT(stackOffset % kDataAlignFactor == 0 && "stack offsets have to be measured in kDataAlignFactor units");
+ if (dwReg <= 0x3f)
+ {
+ pos = writeu8(pos, DW_CFA_offset + dwReg);
+ }
+ else
+ {
+ pos = writeu8(pos, DW_CFA_offset_extended);
+ pos = writeuleb128(pos, dwReg);
+ }
+ pos = writeuleb128(pos, stackOffset / kDataAlignFactor);
+ return pos;
+}
+static uint8_t* advanceLocation(uint8_t* pos, unsigned int offset)
+{
+ LUAU_ASSERT(offset < 256);
+ pos = writeu8(pos, DW_CFA_advance_loc1);
+ pos = writeu8(pos, offset);
+ return pos;
+}
+static uint8_t* alignPosition(uint8_t* start, uint8_t* pos)
+{
+ size_t size = pos - start;
+ size_t pad = ((size + kDwarfAlign - 1) & ~(kDwarfAlign - 1)) - size;
+ for (size_t i = 0; i < pad; i++)
+ pos = writeu8(pos, DW_CFA_nop);
+ return pos;
+}
+namespace Luau
+{
+namespace CodeGen
+{
+void UnwindBuilderDwarf2::setBeginOffset(size_t beginOffset)
+{
+ this->beginOffset = beginOffset;
+}
+size_t UnwindBuilderDwarf2::getBeginOffset() const
+{
+ return beginOffset;
+}
+void UnwindBuilderDwarf2::startInfo(Arch arch)
+{
+ LUAU_ASSERT(arch == A64 || arch == X64);
+ uint8_t* cieLength = pos;
+ pos = writeu32(pos, 0);
+ pos = writeu32(pos, 0);
+ pos = writeu8(pos, 1); // Version
+ pos = writeu8(pos, 0);
+ int ra = arch == A64 ? DW_REG_A64_LR : DW_REG_X64_RA;
+ pos = writeuleb128(pos, kCodeAlignFactor);
+ pos = writeuleb128(pos, -kDataAlignFactor & 0x7f); // Data align factor of (as signed LEB128)
+ pos = writeu8(pos, ra);
+ if (arch == A64)
+ {
+ pos = defineCfaExpression(pos, DW_REG_A64_SP, 0);
+ }
+ else
+ {
+ pos = defineCfaExpression(pos, DW_REG_X64_RSP, 8);
+ pos = defineSavedRegisterLocation(pos, DW_REG_X64_RA, 8); // Define return address register (RA) to be located at CFA - 8
+ }
+ pos = alignPosition(cieLength, pos);
+ writeu32(cieLength, unsigned(pos - cieLength - 4));
+}
+void UnwindBuilderDwarf2::startFunction()
+{
+ UnwindFunctionDwarf2 func;
+ func.beginOffset = 0;
+ func.endOffset = 0;
+ func.fdeEntryStartPos = uint32_t(pos - rawData);
+ unwindFunctions.push_back(func);
+ fdeEntryStart = pos;
+ pos = writeu32(pos, 0); // Length (to be filled later)
+ pos = writeu32(pos, unsigned(pos - rawData));
+ pos = writeu64(pos, 0); // Initial location (to be filled later)
+ pos = writeu64(pos, 0);
+}
+void UnwindBuilderDwarf2::finishFunction(uint32_t beginOffset, uint32_t endOffset)
+{
+ unwindFunctions.back().beginOffset = beginOffset;
+ unwindFunctions.back().endOffset = endOffset;
+ LUAU_ASSERT(fdeEntryStart != nullptr);
+ pos = alignPosition(fdeEntryStart, pos);
+ writeu32(fdeEntryStart, unsigned(pos - fdeEntryStart - 4));
+}
+void UnwindBuilderDwarf2::finishInfo()
+{
+ pos = writeu32(pos, 0);
+ LUAU_ASSERT(getSize() <= kRawDataLimit);
+}
+void UnwindBuilderDwarf2::prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs)
+{
+ LUAU_ASSERT(stackSize % 16 == 0);
+ LUAU_ASSERT(regs.size() >= 2 && regs.begin()[0] == A64::x29 && regs.begin()[1] == A64::x30);
+ LUAU_ASSERT(regs.size() * 8 <= stackSize);
+ pos = advanceLocation(pos, 4);
+ pos = defineCfaExpressionOffset(pos, stackSize);
+ pos = advanceLocation(pos, prologueSize - 4);
+ for (size_t i = 0; i < regs.size(); ++i)
+ {
+ LUAU_ASSERT(regs.begin()[i].kind == A64::KindA64::x);
+ pos = defineSavedRegisterLocation(pos, regs.begin()[i].index, stackSize - unsigned(i * 8));
+ }
+}
+void UnwindBuilderDwarf2::prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame, std::initializer_list<X64::RegisterX64> gpr,
+ const std::vector<X64::RegisterX64>& simd)
+{
+ LUAU_ASSERT(stackSize > 0 && stackSize < 4096 && stackSize % 8 == 0);
+ unsigned int stackOffset = 8;
+ unsigned int prologueOffset = 0;
+ if (setupFrame)
+ {
+ stackOffset += 8;
+ prologueOffset += 2;
+ pos = advanceLocation(pos, 2);
+ pos = defineCfaExpressionOffset(pos, stackOffset);
+ pos = defineSavedRegisterLocation(pos, DW_REG_X64_RBP, stackOffset);
+ prologueOffset += 3;
+ pos = advanceLocation(pos, 3);
+ }
+ for (X64::RegisterX64 reg : gpr)
+ {
+ LUAU_ASSERT(reg.size == X64::SizeX64::qword);
+ stackOffset += 8;
+ prologueOffset += 2;
+ pos = advanceLocation(pos, 2);
+ pos = defineCfaExpressionOffset(pos, stackOffset);
+ pos = defineSavedRegisterLocation(pos, regIndexToDwRegX64[reg.index], stackOffset);
+ }
+ LUAU_ASSERT(simd.empty());
+ stackOffset += stackSize;
+ prologueOffset += stackSize >= 128 ? 7 : 4;
+ pos = advanceLocation(pos, 4);
+ pos = defineCfaExpressionOffset(pos, stackOffset);
+ LUAU_ASSERT(stackOffset % 16 == 0);
+ LUAU_ASSERT(prologueOffset == prologueSize);
+}
+size_t UnwindBuilderDwarf2::getSize() const
+{
+ return size_t(pos - rawData);
+}
+size_t UnwindBuilderDwarf2::getFunctionCount() const
+{
+ return unwindFunctions.size();
+}
+void UnwindBuilderDwarf2::finalize(char* target, size_t offset, void* funcAddress, size_t funcSize) const
+{
+ memcpy(target, rawData, getSize());
+ for (const UnwindFunctionDwarf2& func : unwindFunctions)
+ {
+ uint8_t* fdeEntry = (uint8_t*)target + func.fdeEntryStartPos;
+ writeu64(fdeEntry + kFdeInitialLocationOffset, uintptr_t(funcAddress) + offset + func.beginOffset);
+ if (func.endOffset == kFullBlockFuncton)
+ writeu64(fdeEntry + kFdeAddressRangeOffset, funcSize - offset);
+ else
+ writeu64(fdeEntry + kFdeAddressRangeOffset, func.endOffset - func.beginOffset);
+ }
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "UnwindBuilderWin.cpp"
+#define UWOP_PUSH_NONVOL 0
+#define UWOP_ALLOC_LARGE 1
+#define UWOP_ALLOC_SMALL 2
+#define UWOP_SET_FPREG 3
+#define UWOP_SAVE_NONVOL 4
+#define UWOP_SAVE_NONVOL_FAR 5
+#define UWOP_SAVE_XMM128 8
+#define UWOP_SAVE_XMM128_FAR 9
+#define UWOP_PUSH_MACHFRAME 10
+namespace Luau
+{
+namespace CodeGen
+{
+void UnwindBuilderWin::setBeginOffset(size_t beginOffset)
+{
+ this->beginOffset = beginOffset;
+}
+size_t UnwindBuilderWin::getBeginOffset() const
+{
+ return beginOffset;
+}
+void UnwindBuilderWin::startInfo(Arch arch)
+{
+ LUAU_ASSERT(arch == X64);
+}
+void UnwindBuilderWin::startFunction()
+{
+ UnwindFunctionWin func;
+ func.beginOffset = 0;
+ func.endOffset = 0;
+ func.unwindInfoOffset = uint32_t(rawDataPos - rawData);
+ unwindFunctions.push_back(func);
+ unwindCodes.clear();
+ unwindCodes.reserve(16);
+ prologSize = 0;
+ frameReg = X64::rax;
+ frameRegOffset = 0;
+}
+void UnwindBuilderWin::finishFunction(uint32_t beginOffset, uint32_t endOffset)
+{
+ unwindFunctions.back().beginOffset = beginOffset;
+ unwindFunctions.back().endOffset = endOffset;
+ LUAU_ASSERT(unwindCodes.size() < 256);
+ UnwindInfoWin info;
+ info.version = 1;
+ info.flags = 0;
+ info.prologsize = prologSize;
+ info.unwindcodecount = uint8_t(unwindCodes.size());
+ LUAU_ASSERT(frameReg.index < 16);
+ info.framereg = frameReg.index;
+ LUAU_ASSERT(frameRegOffset < 16);
+ info.frameregoff = frameRegOffset;
+ LUAU_ASSERT(rawDataPos + sizeof(info) <= rawData + kRawDataLimit);
+ memcpy(rawDataPos, &info, sizeof(info));
+ rawDataPos += sizeof(info);
+ if (!unwindCodes.empty())
+ {
+ uint8_t* unwindCodePos = rawDataPos + sizeof(UnwindCodeWin) * (unwindCodes.size() - 1);
+ LUAU_ASSERT(unwindCodePos <= rawData + kRawDataLimit);
+ for (size_t i = 0; i < unwindCodes.size(); i++)
+ {
+ memcpy(unwindCodePos, &unwindCodes[i], sizeof(UnwindCodeWin));
+ unwindCodePos -= sizeof(UnwindCodeWin);
+ }
+ }
+ rawDataPos += sizeof(UnwindCodeWin) * unwindCodes.size();
+ if (unwindCodes.size() % 2 != 0)
+ rawDataPos += sizeof(UnwindCodeWin);
+ LUAU_ASSERT(rawDataPos <= rawData + kRawDataLimit);
+}
+void UnwindBuilderWin::finishInfo() {}
+void UnwindBuilderWin::prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs)
+{
+ LUAU_ASSERT(!"Not implemented");
+}
+void UnwindBuilderWin::prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame, std::initializer_list<X64::RegisterX64> gpr,
+ const std::vector<X64::RegisterX64>& simd)
+{
+ LUAU_ASSERT(stackSize > 0 && stackSize < 4096 && stackSize % 8 == 0);
+ LUAU_ASSERT(prologueSize < 256);
+ unsigned int stackOffset = 8;
+ unsigned int prologueOffset = 0;
+ if (setupFrame)
+ {
+ stackOffset += 8;
+ prologueOffset += 2;
+ unwindCodes.push_back({uint8_t(prologueOffset), UWOP_PUSH_NONVOL, X64::rbp.index});
+ prologueOffset += 3;
+ frameReg = X64::rbp;
+ frameRegOffset = 0;
+ unwindCodes.push_back({uint8_t(prologueOffset), UWOP_SET_FPREG, frameRegOffset});
+ }
+ for (X64::RegisterX64 reg : gpr)
+ {
+ LUAU_ASSERT(reg.size == X64::SizeX64::qword);
+ stackOffset += 8;
+ prologueOffset += 2;
+ unwindCodes.push_back({uint8_t(prologueOffset), UWOP_PUSH_NONVOL, reg.index});
+ }
+ LUAU_ASSERT(!setupFrame || simd.size() == 0);
+ unsigned int simdStorageSize = unsigned(simd.size()) * 16;
+ if (!simd.empty() && stackOffset % 16 == 8)
+ simdStorageSize += 8;
+ if (stackSize <= 128)
+ {
+ stackOffset += stackSize;
+ prologueOffset += stackSize == 128 ? 7 : 4;
+ unwindCodes.push_back({uint8_t(prologueOffset), UWOP_ALLOC_SMALL, uint8_t((stackSize - 8) / 8)});
+ }
+ else
+ {
+ LUAU_ASSERT(stackSize < 4096);
+ stackOffset += stackSize;
+ prologueOffset += 7;
+ uint16_t encodedOffset = stackSize / 8;
+ unwindCodes.push_back(UnwindCodeWin());
+ memcpy(&unwindCodes.back(), &encodedOffset, sizeof(encodedOffset));
+ unwindCodes.push_back({uint8_t(prologueOffset), UWOP_ALLOC_LARGE, 0});
+ }
+ unsigned int xmmStoreOffset = stackSize - simdStorageSize;
+ for (X64::RegisterX64 reg : simd)
+ {
+ LUAU_ASSERT(reg.size == X64::SizeX64::xmmword);
+ LUAU_ASSERT(xmmStoreOffset % 16 == 0 && "simd stores have to be performed to aligned locations");
+ prologueOffset += xmmStoreOffset >= 128 ? 10 : 7;
+ unwindCodes.push_back({uint8_t(xmmStoreOffset / 16), 0, 0});
+ unwindCodes.push_back({uint8_t(prologueOffset), UWOP_SAVE_XMM128, reg.index});
+ xmmStoreOffset += 16;
+ }
+ LUAU_ASSERT(stackOffset % 16 == 0);
+ LUAU_ASSERT(prologueOffset == prologueSize);
+ this->prologSize = prologueSize;
+}
+size_t UnwindBuilderWin::getSize() const
+{
+ return sizeof(UnwindFunctionWin) * unwindFunctions.size() + size_t(rawDataPos - rawData);
+}
+size_t UnwindBuilderWin::getFunctionCount() const
+{
+ return unwindFunctions.size();
+}
+void UnwindBuilderWin::finalize(char* target, size_t offset, void* funcAddress, size_t funcSize) const
+{
+ for (UnwindFunctionWin func : unwindFunctions)
+ {
+ func.beginOffset += uint32_t(offset);
+ if (func.endOffset == kFullBlockFuncton)
+ func.endOffset = uint32_t(funcSize);
+ else
+ func.endOffset += uint32_t(offset);
+ func.unwindInfoOffset += uint32_t(sizeof(UnwindFunctionWin) * unwindFunctions.size());
+ memcpy(target, &func, sizeof(func));
+ target += sizeof(func);
+ }
+ memcpy(target, rawData, size_t(rawDataPos - rawData));
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#endif
 #endif

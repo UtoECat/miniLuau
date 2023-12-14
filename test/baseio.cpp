@@ -15,6 +15,7 @@
 
 #include <string>
 lua_CompileOptions opts = {0};
+int docodegen = 0;
 
 /*
  * RAW. Must not be used directly in your programs.
@@ -23,6 +24,9 @@ static int rawloadcode(lua_State* L, CodeBuffer& B, int env) {
 	size_t len = 0;
 	char* c = luau_compile(B.data, B.len, &opts, &len);
 	int status = luau_load(L, B.name, c, len, env);
+	if (luau_codegen_supported() && status == LUA_OK && docodegen) {
+		luau_codegen_compile(L, -1);
+	}
 	free(c);
 	return status;
 }
@@ -561,6 +565,11 @@ static const luaL_Reg extra_funcs[] = {
 
 int luaopen_extra(lua_State *L) {
 	lua_pushvalue(L, LUA_GLOBALSINDEX);
+	if (luau_codegen_supported()) {
+		luau_codegen_create(L);
+		lua_pushboolean(L, 1);
+		lua_setfield(L, -2, "_CODEGEN");
+	}
 	luaL_register(L, nullptr, extra_funcs);
 	opts.vectorCtor = "vector";
 	if (lua_getfield(L, LUA_GLOBALSINDEX, "table") != LUA_TTABLE) {

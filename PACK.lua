@@ -9,6 +9,7 @@ NO ANY WARRIANTY!
 local modules = {
 	"Ast", 
 	"Compiler",
+	"CodeGen", -- let's go
 	"VM"
 }
 
@@ -86,6 +87,8 @@ end
 local included = {}
 local INCLUDE_PATTERN = '\n?%s*#%s*include%s+["<](.-)[">]'
 
+local curr = ""
+
 -- recursive :D
 local function includefile(oname)
 	-- get only filename without path separator at the beginning
@@ -96,7 +99,14 @@ local function includefile(oname)
 		included[name] = 0
 		if stat then
 			-- parse included file for more inclusions
-			return ("\n"..txt):gsub(INCLUDE_PATTERN, includefile)
+
+			local str = ('#line __LINE__ "%s"\n%s'):format(name, txt)
+			local old = curr
+			curr = name
+			str = str:gsub(INCLUDE_PATTERN, includefile)
+			curr = old
+			str = str..('#line __LINE__ "%s"\n'):format(curr)
+			return str
 		else
 			included[name] = -1;
 			return "\n"..txt -- include error :(
@@ -159,7 +169,7 @@ local COPYRIGHT = [[/*
 Luau programming language. (Packed version using PACK.LUA)
 MIT License
 
-Copyright (c) 2019-2022 Roblox Corporation
+Copyright (c) 2019-2023 Roblox Corporation
 Copyright (c) 1994–2019 Lua.org, PUC-Rio.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -185,9 +195,11 @@ SOFTWARE. */
 module_dir = "VM"
 includeFiles(lsdir('VM/include/'))
 includeFiles(lsdir('Compiler/include/'))
+includeFiles(lsdir('CodeGen/include/'))
 donefile('luau.hpp', COPYRIGHT..[[
 // Comment this out to not build AST and Compiler
 #define LUAU_ENABLE_COMPILER 1
+#define LUAU_ENABLE_CODEGEN 1
 ]])
 
 -- then do luau.c with optional Compiler + AST
@@ -210,12 +222,44 @@ includeFiles(lsdir('Ast/src'))
 module_dir = "Compiler"
 includeFiles(lsdir('Compiler/src'))
 
+-- optional 
+buf[#buf+1] = "#ifdef LUAU_ENABLE_CODEGEN"
+
+-- issues with macros names collisions
+buf[#buf+1] = "#undef VM_INTERRUPT"
+-- issue with log2 being not defined (TODO: REMOVE)
+buf[#buf+1] = "#undef log2"
+buf[#buf+1] = [[
+double log2_custom( double n )  
+{  
+    // log(n)/log(2) is log2.  
+    return log( n ) / log( 2 );  
+}
+]]
+buf[#buf+1] = "#define log2 log2_custom"
+-- issues with variable names
+buf[#buf+1] = "#undef kPageSize"
+buf[#buf+1] = "#define kPageSize kPageSize_2"
+
+module_dir = "CodeGen"
+
+-- TODO FIXME hasTypedParameters function is duplicated, so here we do some shit
+-- it would be better to write an issue at some point...
+buf[#buf+1] = includefile('CodeGen/src/IrBuilder.cpp')
+buf[#buf+1] = "#undef hasTypedParameters"
+buf[#buf+1] = "#define hasTypedParameters hasTypedParameters_2"
+
+includeFiles(lsdir('CodeGen/src'))
+
 -- endif
+buf[#buf+1] = "#endif"
 buf[#buf+1] = "#endif"
 
 -- manually insert "#include luau.h" here.
 donefile('luau.cpp', COPYRIGHT..[[
 #include "luau.hpp"
+// hack around some variable collision issues, redefined later
+#define kPageSize kPageSize
+#define hasTypedParameters hasTypedParameters
 ]])
-
 

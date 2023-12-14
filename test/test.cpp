@@ -57,6 +57,7 @@ static void initLuaState (lua_State* L) {
 	opts.debugLevel=1;
 }
 
+extern int docodegen;
 
 static void parseargs (int argc, char** argv) {
 	for (char** p = argv+1; p < argv + argc; p++) {
@@ -81,17 +82,26 @@ static void parseargs (int argc, char** argv) {
 				printf("reading from stdin is not supported :(\n");
 				throw ExpectedException();
 			case 'O' : {
-				int kind = arg[2] - 0;
-				if (kind < 0 || kind > 2)
+				int kind = arg[2] - '0';
+				if (kind < 0 || kind > 3)
 					throw Exception("Bad optimisation level requested");
+				if (kind == 3) {
+					kind = 2;
+					docodegen = true;
+				} else {
+					docodegen = false;
+				}
 				opts.optimizationLevel = kind;
 			}
 			break;
 			case 'i':
 				repl = true;
 			break;
+			case 'e':
+				repl = false;
+			break;
 			case 'g' : {
-				int kind = arg[2] - 0;
+				int kind = arg[2] - '0';
 				if (kind < 0 || kind > 2)
 					throw Exception("Bad debug level requested");
 				opts.optimizationLevel = kind;

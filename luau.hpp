@@ -2,7 +2,7 @@
 Luau programming language. (Packed version using PACK.LUA)
 MIT License
 
-Copyright (c) 2019-2022 Roblox Corporation
+Copyright (c) 2019-2023 Roblox Corporation
 Copyright (c) 1994–2019 Lua.org, PUC-Rio.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -24,10 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 // Comment this out to not build AST and Compiler
 #define LUAU_ENABLE_COMPILER 1
-
-#include <stdarg.h>
-#include <stddef.h>
-#include <stdint.h>
+#define LUAU_ENABLE_CODEGEN 1
+#line __LINE__ "luaconf.h"
 #if defined(_MSC_VER) && !defined(__clang__)
 #define LUAU_FASTMATH_BEGIN __pragma(float_control(precise, off, push))
 #define LUAU_FASTMATH_END __pragma(float_control(pop))
@@ -106,6 +104,11 @@ SOFTWARE. */
 #define LUA_VECTOR_SIZE 3
 #endif
 #define LUA_EXTRA_SIZE (LUA_VECTOR_SIZE - 2)
+#line __LINE__ ""
+#line __LINE__ "lua.h"
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdint.h>
 #define LUA_MULTRET (-1)
 #define LUA_REGISTRYINDEX (-LUAI_MAXCSTACK - 2000)
 #define LUA_ENVIRONINDEX (-LUAI_MAXCSTACK - 2001)
@@ -351,6 +354,8 @@ struct lua_Callbacks
 };
 typedef struct lua_Callbacks lua_Callbacks;
 LUA_API lua_Callbacks* lua_callbacks(lua_State* L);
+#line __LINE__ ""
+#line __LINE__ "lualib.h"
 #define luaL_error(L, fmt, ...) luaL_errorL(L, fmt, ##__VA_ARGS__)
 #define luaL_typeerror(L, narg, tname) luaL_typeerrorL(L, narg, tname)
 #define luaL_argerror(L, narg, extramsg) luaL_argerrorL(L, narg, extramsg)
@@ -438,6 +443,8 @@ LUALIB_API int luaopen_debug(lua_State* L);
 LUALIB_API void luaL_openlibs(lua_State* L);
 LUALIB_API void luaL_sandbox(lua_State* L);
 LUALIB_API void luaL_sandboxthread(lua_State* L);
+#line __LINE__ ""
+#line __LINE__ "luacode.h"
 #ifndef LUACODE_API
 #define LUACODE_API extern
 #endif
@@ -453,3 +460,13 @@ struct lua_CompileOptions
  const char* const* mutableGlobals;
 };
 LUACODE_API char* luau_compile(const char* source, size_t size, lua_CompileOptions* options, size_t* outsize);
+#line __LINE__ ""
+#line __LINE__ "luacodegen.h"
+#ifndef LUACODEGEN_API
+#define LUACODEGEN_API extern
+#endif
+typedef struct lua_State lua_State;
+LUACODEGEN_API int luau_codegen_supported(void);
+LUACODEGEN_API void luau_codegen_create(lua_State* L);
+LUACODEGEN_API void luau_codegen_compile(lua_State* L, int idx);
+#line __LINE__ ""

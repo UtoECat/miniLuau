@@ -10,6 +10,14 @@ local tests = {
 "spectral-norm.lua"
 }
 
+if not typeof then
+	typeof = type
+end
+
+if jit then
+	jit = nil
+end
+
 local clock = clock or os.clock
 
 local bench = {}
@@ -34,6 +42,7 @@ for _,item in pairs(tests) do
 	local safe = {}
 	safe._G = safe
 	safe.require = require
+	safe.typeof = typeof
 	safe.os = osemu
 	setmetatable(safe, mt)
 	local f, err = loadfile('bench/'..item, 't', safe)

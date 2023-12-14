@@ -5,12 +5,12 @@ CXXFLAGS =  -Wall -Wsign-compare -Wno-unused -I./ -I../
 DEBUG=1
 
 ifeq ($(MODE),1)
-CXXFLAGS += -O0 -g -Wextra  -DLUAU_ENABLE_ASSERT
+CXXFLAGS += -O0 -g -Wall -Wextra -DLUAU_ENABLE_ASSERT
 UNIFLAGS  = -fsanitize=address -fsanitize=undefined
 else
-CXXFLAGS += -DNDEBUG -O2 -g0 
+CXXFLAGS += -DNDEBUG -O2 -g0 -Wall
 CXXFLAGS += -fno-math-errno -I.
-UNIFLAGS  = -s # strip debug
+UNIFLAGS  = -s -flto # strip debug
 endif
 
 SRCS := ./luau.o ./baseio.cpp ./test.cpp ./linenoise.o
