@@ -1,8 +1,7 @@
 MiniLuau
 ====
 
-This repository implements the `PACK.lua` lua script for packing official Luau sources.
-*(only compiler and vm at the moment)* into **TWO FILES**: `luau.hpp` and `luau.cpp`, which you can simply drag and drop into your C++ project.
+This repository implements the `PACK.lua` lua script for packing official Luau sources *(only compiler, native code generation and vm at the moment)* into **TWO FILES**: `luau.hpp` and `luau.cpp`, which you can simply drag and drop into your C++ project.
 
 # Building
 **Note: luau.h and luau.c are ALREADY AUTOMATICLY packed in this repository! Do manual packaging only if you really want to change this process in some way or speed up getting the latest version of Luau.**
@@ -19,6 +18,11 @@ $ lua5.4 ../PACK.lua
 During the build process, you will see errors about `<string.h>` or `<vector>` not found, this is normal.
 At the end you will get your packaged luau sources :)
 
+# Usage
+- Put packed files in your project, compile as any other source file
+- Add `-lm` to your linker flags (if not done yet)
+- Modify definitions at the top of luau.hpp file (disable compiler or native code generation)
+- include `luau.hpp` everywhere you need to work with lua.
 # Dependencies
 
 Luau uses C++ as its implementation language. The runtime requires C++11, whereas the compiler and analysis components require C++17. It should build without issues using Microsoft Visual Studio 2017 or later, or gcc-7 or clang-7 or later.
