@@ -31282,25 +31282,6 @@ int getTripCount(double from, double to, double step)
 }
 } // namespace Luau
 #line __LINE__ ""
-#line __LINE__ "lcode.cpp"
-char* luau_compile(const char* source, size_t size, lua_CompileOptions* options, size_t* outsize)
-{
- LUAU_ASSERT(outsize);
- Luau::CompileOptions opts;
- if (options)
- {
- static_assert(sizeof(lua_CompileOptions) == sizeof(Luau::CompileOptions), "C and C++ interface must match");
- memcpy(static_cast<void*>(&opts), options, sizeof(opts));
- }
- std::string result = compile(std::string(source, size), opts);
- char* copy = static_cast<char*>(malloc(result.size()));
- if (!copy)
- return nullptr;
- memcpy(copy, result.data(), result.size());
- *outsize = result.size();
- return copy;
-}
-#line __LINE__ ""
 #line __LINE__ "TableShape.cpp"
 namespace Luau
 {
@@ -31681,6 +31662,25 @@ void trackValues(DenseHashMap<AstName, Global>& globals, DenseHashMap<AstLocal*,
 }
 }
 } // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "lcode.cpp"
+char* luau_compile(const char* source, size_t size, lua_CompileOptions* options, size_t* outsize)
+{
+ LUAU_ASSERT(outsize);
+ Luau::CompileOptions opts;
+ if (options)
+ {
+ static_assert(sizeof(lua_CompileOptions) == sizeof(Luau::CompileOptions), "C and C++ interface must match");
+ memcpy(static_cast<void*>(&opts), options, sizeof(opts));
+ }
+ std::string result = compile(std::string(source, size), opts);
+ char* copy = static_cast<char*>(malloc(result.size()));
+ if (!copy)
+ return nullptr;
+ memcpy(copy, result.data(), result.size());
+ *outsize = result.size();
+ return copy;
+}
 #line __LINE__ ""
 #ifdef LUAU_ENABLE_CODEGEN
 #undef VM_INTERRUPT
@@ -38851,537 +38851,6 @@ bool isUnwindSupported()
 }
 } // namespace Luau
 #line __LINE__ ""
-#line __LINE__ "CodeGenA64.cpp"
-namespace Luau
-{
-namespace CodeGen
-{
-struct NativeState;
-struct ModuleHelpers;
-namespace A64
-{
-class AssemblyBuilderA64;
-bool initHeaderFunctions(NativeState& data);
-void assembleHelpers(AssemblyBuilderA64& build, ModuleHelpers& helpers);
-}
-} // namespace CodeGen
-}
-#line __LINE__ "CodeGenA64.cpp"
-#line __LINE__ "CodeGenUtils.h"
-namespace Luau
-{
-namespace CodeGen
-{
-bool forgLoopTableIter(lua_State* L, Table* h, int index, TValue* ra);
-bool forgLoopNodeIter(lua_State* L, Table* h, int index, TValue* ra);
-bool forgLoopNonTableFallback(lua_State* L, int insnA, int aux);
-void forgPrepXnextFallback(lua_State* L, TValue* ra, int pc);
-Closure* callProlog(lua_State* L, TValue* ra, StkId argtop, int nresults);
-void callEpilogC(lua_State* L, int nresults, int n);
-#define CALL_FALLBACK_YIELD 1
-Closure* callFallback(lua_State* L, StkId ra, StkId argtop, int nresults);
-const Instruction* executeGETGLOBAL(lua_State* L, const Instruction* pc, StkId base, TValue* k);
-const Instruction* executeSETGLOBAL(lua_State* L, const Instruction* pc, StkId base, TValue* k);
-const Instruction* executeGETTABLEKS(lua_State* L, const Instruction* pc, StkId base, TValue* k);
-const Instruction* executeSETTABLEKS(lua_State* L, const Instruction* pc, StkId base, TValue* k);
-const Instruction* executeNAMECALL(lua_State* L, const Instruction* pc, StkId base, TValue* k);
-const Instruction* executeSETLIST(lua_State* L, const Instruction* pc, StkId base, TValue* k);
-const Instruction* executeFORGPREP(lua_State* L, const Instruction* pc, StkId base, TValue* k);
-void executeGETVARARGSMultRet(lua_State* L, const Instruction* pc, StkId base, int rai);
-void executeGETVARARGSConst(lua_State* L, StkId base, int rai, int b);
-const Instruction* executeDUPCLOSURE(lua_State* L, const Instruction* pc, StkId base, TValue* k);
-const Instruction* executePREPVARARGS(lua_State* L, const Instruction* pc, StkId base, TValue* k);
-}
-} // namespace Luau
-#line __LINE__ "CodeGenA64.cpp"
-#line __LINE__ "NativeState.h"
-typedef int (*luau_FastFunction)(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams);
-namespace Luau
-{
-namespace CodeGen
-{
-class UnwindBuilder;
-struct NativeContext
-{
- uint8_t* gateEntry = nullptr;
- uint8_t* gateExit = nullptr;
- int (*luaV_lessthan)(lua_State* L, const TValue* l, const TValue* r) = nullptr;
- int (*luaV_lessequal)(lua_State* L, const TValue* l, const TValue* r) = nullptr;
- int (*luaV_equalval)(lua_State* L, const TValue* t1, const TValue* t2) = nullptr;
- void (*luaV_doarith)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc, TMS op) = nullptr;
- void (*luaV_dolen)(lua_State* L, StkId ra, const TValue* rb) = nullptr;
- void (*luaV_gettable)(lua_State* L, const TValue* t, TValue* key, StkId val) = nullptr;
- void (*luaV_settable)(lua_State* L, const TValue* t, TValue* key, StkId val) = nullptr;
- void (*luaV_getimport)(lua_State* L, Table* env, TValue* k, StkId res, uint32_t id, bool propagatenil) = nullptr;
- void (*luaV_concat)(lua_State* L, int total, int last) = nullptr;
- int (*luaH_getn)(Table* t) = nullptr;
- Table* (*luaH_new)(lua_State* L, int narray, int lnhash) = nullptr;
- Table* (*luaH_clone)(lua_State* L, Table* tt) = nullptr;
- void (*luaH_resizearray)(lua_State* L, Table* t, int nasize) = nullptr;
- TValue* (*luaH_setnum)(lua_State* L, Table* t, int key);
- void (*luaC_barriertable)(lua_State* L, Table* t, GCObject* v) = nullptr;
- void (*luaC_barrierf)(lua_State* L, GCObject* o, GCObject* v) = nullptr;
- void (*luaC_barrierback)(lua_State* L, GCObject* o, GCObject** gclist) = nullptr;
- size_t (*luaC_step)(lua_State* L, bool assist) = nullptr;
- void (*luaF_close)(lua_State* L, StkId level) = nullptr;
- UpVal* (*luaF_findupval)(lua_State* L, StkId level) = nullptr;
- Closure* (*luaF_newLclosure)(lua_State* L, int nelems, Table* e, Proto* p) = nullptr;
- const TValue* (*luaT_gettm)(Table* events, TMS event, TString* ename) = nullptr;
- const TString* (*luaT_objtypenamestr)(lua_State* L, const TValue* o) = nullptr;
- double (*libm_exp)(double) = nullptr;
- double (*libm_pow)(double, double) = nullptr;
- double (*libm_fmod)(double, double) = nullptr;
- double (*libm_asin)(double) = nullptr;
- double (*libm_sin)(double) = nullptr;
- double (*libm_sinh)(double) = nullptr;
- double (*libm_acos)(double) = nullptr;
- double (*libm_cos)(double) = nullptr;
- double (*libm_cosh)(double) = nullptr;
- double (*libm_atan)(double) = nullptr;
- double (*libm_atan2)(double, double) = nullptr;
- double (*libm_tan)(double) = nullptr;
- double (*libm_tanh)(double) = nullptr;
- double (*libm_log)(double) = nullptr;
- double (*libm_log2)(double) = nullptr;
- double (*libm_log10)(double) = nullptr;
- double (*libm_ldexp)(double, int) = nullptr;
- double (*libm_round)(double) = nullptr;
- double (*libm_frexp)(double, int*) = nullptr;
- double (*libm_modf)(double, double*) = nullptr;
- bool (*forgLoopTableIter)(lua_State* L, Table* h, int index, TValue* ra) = nullptr;
- bool (*forgLoopNodeIter)(lua_State* L, Table* h, int index, TValue* ra) = nullptr;
- bool (*forgLoopNonTableFallback)(lua_State* L, int insnA, int aux) = nullptr;
- void (*forgPrepXnextFallback)(lua_State* L, TValue* ra, int pc) = nullptr;
- Closure* (*callProlog)(lua_State* L, TValue* ra, StkId argtop, int nresults) = nullptr;
- void (*callEpilogC)(lua_State* L, int nresults, int n) = nullptr;
- Closure* (*callFallback)(lua_State* L, StkId ra, StkId argtop, int nresults) = nullptr;
- const Instruction* (*executeGETGLOBAL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
- const Instruction* (*executeSETGLOBAL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
- const Instruction* (*executeGETTABLEKS)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
- const Instruction* (*executeSETTABLEKS)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
- const Instruction* (*executeNAMECALL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
- const Instruction* (*executeSETLIST)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
- const Instruction* (*executeFORGPREP)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
- void (*executeGETVARARGSMultRet)(lua_State* L, const Instruction* pc, StkId base, int rai) = nullptr;
- void (*executeGETVARARGSConst)(lua_State* L, StkId base, int rai, int b) = nullptr;
- const Instruction* (*executeDUPCLOSURE)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
- const Instruction* (*executePREPVARARGS)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
- luau_FastFunction luauF_table[256] = {};
-};
-using GateFn = int (*)(lua_State*, Proto*, uintptr_t, NativeContext*);
-struct NativeState
-{
- NativeState();
- NativeState(AllocationCallback* allocationCallback, void* allocationCallbackContext);
- ~NativeState();
- CodeAllocator codeAllocator;
- std::unique_ptr<UnwindBuilder> unwindBuilder;
- uint8_t* gateData = nullptr;
- size_t gateDataSize = 0;
- NativeContext context;
-};
-void initFunctions(NativeState& data);
-}
-} // namespace Luau
-#line __LINE__ "CodeGenA64.cpp"
-#line __LINE__ "EmitCommonA64.h"
-namespace Luau
-{
-namespace CodeGen
-{
-struct NativeState;
-namespace A64
-{
-constexpr RegisterA64 rState = x19;
-constexpr RegisterA64 rNativeContext = x20; // NativeContext* context
-constexpr RegisterA64 rGlobalState = x21;
-constexpr RegisterA64 rConstants = x22; // TValue* k
-constexpr RegisterA64 rClosure = x23;
-constexpr RegisterA64 rCode = x24; // Instruction* code
-constexpr RegisterA64 rBase = x25;
-constexpr unsigned kStashSlots = 9;
-constexpr unsigned kTempSlots = 1; // 8 bytes of temporary space, such luxury!
-constexpr unsigned kSpillSlots = 22;
-constexpr unsigned kStackSize = (kStashSlots + kTempSlots + kSpillSlots) * 8;
-constexpr AddressA64 sSpillArea = mem(sp, (kStashSlots + kTempSlots) * 8);
-constexpr AddressA64 sTemporary = mem(sp, kStashSlots * 8);
-inline void emitUpdateBase(AssemblyBuilderA64& build)
-{
- build.ldr(rBase, mem(rState, offsetof(lua_State, base)));
-}
-}
-} // namespace CodeGen
-}
-#line __LINE__ "CodeGenA64.cpp"
-namespace Luau
-{
-namespace CodeGen
-{
-namespace A64
-{
-struct EntryLocations
-{
- Label start;
- Label prologueEnd;
- Label epilogueStart;
-};
-static void emitExit(AssemblyBuilderA64& build, bool continueInVm)
-{
- build.mov(x0, continueInVm);
- build.ldr(x1, mem(rNativeContext, offsetof(NativeContext, gateExit)));
- build.br(x1);
-}
-static void emitUpdatePcForExit(AssemblyBuilderA64& build)
-{
- build.add(x0, rCode, x0);
- build.ldr(x1, mem(rState, offsetof(lua_State, ci)));
- build.str(x0, mem(x1, offsetof(CallInfo, savedpc)));
-}
-static void emitClearNativeFlag(AssemblyBuilderA64& build)
-{
- build.ldr(x0, mem(rState, offsetof(lua_State, ci)));
- build.ldr(w1, mem(x0, offsetof(CallInfo, flags)));
- build.mov(w2, ~LUA_CALLINFO_NATIVE);
- build.and_(w1, w1, w2);
- build.str(w1, mem(x0, offsetof(CallInfo, flags)));
-}
-static void emitInterrupt(AssemblyBuilderA64& build)
-{
- Label skip;
- build.mov(rBase, x1);
- build.ldr(x2, mem(rState, offsetof(lua_State, global)));
- build.ldr(x2, mem(x2, offsetof(global_State, cb.interrupt)));
- build.cbz(x2, skip);
- build.add(x0, rCode, x0);
- build.ldr(x1, mem(rState, offsetof(lua_State, ci)));
- build.str(x0, mem(x1, offsetof(CallInfo, savedpc)));
- build.mov(x0, rState);
- build.mov(w1, -1);
- build.blr(x2);
- build.ldrb(w0, mem(rState, offsetof(lua_State, status)));
- build.cbz(w0, skip);
- build.ldr(x1, mem(rState, offsetof(lua_State, ci)));
- build.ldr(x0, mem(x1, offsetof(CallInfo, savedpc)));
- build.sub(x0, x0, sizeof(Instruction));
- build.str(x0, mem(x1, offsetof(CallInfo, savedpc)));
- emitExit(build, false);
- build.setLabel(skip);
- build.mov(x0, rBase);
- emitUpdateBase(build);
- build.br(x0);
-}
-static void emitContinueCall(AssemblyBuilderA64& build, ModuleHelpers& helpers)
-{
- LUAU_ASSERT(CALL_FALLBACK_YIELD == 1);
- build.tbnz(x0, 0, helpers.exitNoContinueVm);
- build.ldr(x1, mem(x0, offsetof(Closure, l.p))); // cl->l.p aka proto
- build.ldr(x2, mem(x1, offsetof(Proto, exectarget)));
- build.cbz(x2, helpers.exitContinueVm);
- build.mov(rClosure, x0);
- LUAU_ASSERT(offsetof(Proto, code) == offsetof(Proto, k) + 8);
- build.ldp(rConstants, rCode, mem(x1, offsetof(Proto, k)));
- build.br(x2);
-}
-void emitReturn(AssemblyBuilderA64& build, ModuleHelpers& helpers)
-{
- build.ldr(x0, mem(rState, offsetof(lua_State, ci)));
- build.ldr(w3, mem(x0, offsetof(CallInfo, nresults)));
- Label skipResultCopy;
- build.cmp(w2, w3);
- build.b(ConditionA64::GreaterEqual, skipResultCopy);
- build.sub(w2, w3, w2); // counter = nresults - written
- build.mov(w4, LUA_TNIL);
- Label repeatNilLoop = build.setLabel();
- build.str(w4, mem(x1, offsetof(TValue, tt)));
- build.add(x1, x1, sizeof(TValue));
- build.sub(w2, w2, 1);
- build.cbnz(w2, repeatNilLoop);
- build.setLabel(skipResultCopy);
- build.sub(x2, x0, sizeof(CallInfo));
- Label skipFixedRetTop;
- build.tbnz(w3, 31, skipFixedRetTop);
- build.ldr(x1, mem(x2, offsetof(CallInfo, top)));
- build.setLabel(skipFixedRetTop);
- build.str(x2, mem(rState, offsetof(lua_State, ci))); // L->ci = cip
- build.ldr(rBase, mem(x2, offsetof(CallInfo, base)));
- build.str(rBase, mem(rState, offsetof(lua_State, base))); // L->base = cip->base
- build.str(x1, mem(rState, offsetof(lua_State, top)));
- build.ldr(w4, mem(x0, offsetof(CallInfo, flags)));
- build.tbnz(w4, countrz(LUA_CALLINFO_RETURN), helpers.exitNoContinueVm);
- build.ldr(w4, mem(x2, offsetof(CallInfo, flags)));
- build.tbz(w4, countrz(LUA_CALLINFO_NATIVE), helpers.exitContinueVm);
- build.ldr(rClosure, mem(x2, offsetof(CallInfo, func)));
- build.ldr(rClosure, mem(rClosure, offsetof(TValue, value.gc)));
- build.ldr(x1, mem(rClosure, offsetof(Closure, l.p)));
- LUAU_ASSERT(offsetof(Proto, code) == offsetof(Proto, k) + 8);
- build.ldp(rConstants, rCode, mem(x1, offsetof(Proto, k)));
- build.ldr(x2, mem(x2, offsetof(CallInfo, savedpc))); // cip->savedpc
- build.sub(x2, x2, rCode);
- LUAU_ASSERT(offsetof(Proto, exectarget) == offsetof(Proto, execdata) + 8);
- build.ldp(x3, x4, mem(x1, offsetof(Proto, execdata)));
- build.ldr(w2, mem(x3, x2));
- build.add(x4, x4, x2);
- build.br(x4);
-}
-static EntryLocations buildEntryFunction(AssemblyBuilderA64& build, UnwindBuilder& unwind)
-{
- EntryLocations locations;
- locations.start = build.setLabel();
- build.sub(sp, sp, kStackSize);
- build.stp(x29, x30, mem(sp));
- build.stp(x19, x20, mem(sp, 16));
- build.stp(x21, x22, mem(sp, 32));
- build.stp(x23, x24, mem(sp, 48));
- build.str(x25, mem(sp, 64));
- build.mov(x29, sp);
- locations.prologueEnd = build.setLabel();
- uint32_t prologueSize = build.getLabelOffset(locations.prologueEnd) - build.getLabelOffset(locations.start);
- build.mov(rState, x0);
- build.mov(rNativeContext, x3);
- build.ldr(rGlobalState, mem(x0, offsetof(lua_State, global)));
- build.ldr(rBase, mem(x0, offsetof(lua_State, base)));
- LUAU_ASSERT(offsetof(Proto, code) == offsetof(Proto, k) + 8);
- build.ldp(rConstants, rCode, mem(x1, offsetof(Proto, k)));
- build.ldr(x9, mem(x0, offsetof(lua_State, ci)));
- build.ldr(x9, mem(x9, offsetof(CallInfo, func))); // L->ci->func
- build.ldr(rClosure, mem(x9, offsetof(TValue, value.gc)));
- build.br(x2);
- locations.epilogueStart = build.setLabel();
- build.ldr(x25, mem(sp, 64));
- build.ldp(x23, x24, mem(sp, 48));
- build.ldp(x21, x22, mem(sp, 32));
- build.ldp(x19, x20, mem(sp, 16));
- build.ldp(x29, x30, mem(sp));
- build.add(sp, sp, kStackSize);
- build.ret();
- unwind.startFunction();
- unwind.prologueA64(prologueSize, kStackSize, {x29, x30, x19, x20, x21, x22, x23, x24, x25});
- unwind.finishFunction(build.getLabelOffset(locations.start), kFullBlockFuncton);
- return locations;
-}
-bool initHeaderFunctions(NativeState& data)
-{
- AssemblyBuilderA64 build( false);
- UnwindBuilder& unwind = *data.unwindBuilder.get();
- unwind.startInfo(UnwindBuilder::A64);
- EntryLocations entryLocations = buildEntryFunction(build, unwind);
- build.finalize();
- unwind.finishInfo();
- LUAU_ASSERT(build.data.empty());
- uint8_t* codeStart = nullptr;
- if (!data.codeAllocator.allocate(build.data.data(), int(build.data.size()), reinterpret_cast<const uint8_t*>(build.code.data()),
- int(build.code.size() * sizeof(build.code[0])), data.gateData, data.gateDataSize, codeStart))
- {
- LUAU_ASSERT(!"Failed to create entry function");
- return false;
- }
- unwind.setBeginOffset(build.getLabelOffset(entryLocations.prologueEnd));
- data.context.gateEntry = codeStart + build.getLabelOffset(entryLocations.start);
- data.context.gateExit = codeStart + build.getLabelOffset(entryLocations.epilogueStart);
- return true;
-}
-void assembleHelpers(AssemblyBuilderA64& build, ModuleHelpers& helpers)
-{
- if (build.logText)
- build.logAppend("; updatePcAndContinueInVm\n");
- build.setLabel(helpers.updatePcAndContinueInVm);
- emitUpdatePcForExit(build);
- if (build.logText)
- build.logAppend("; exitContinueVmClearNativeFlag\n");
- build.setLabel(helpers.exitContinueVmClearNativeFlag);
- emitClearNativeFlag(build);
- if (build.logText)
- build.logAppend("; exitContinueVm\n");
- build.setLabel(helpers.exitContinueVm);
- emitExit(build, true);
- if (build.logText)
- build.logAppend("; exitNoContinueVm\n");
- build.setLabel(helpers.exitNoContinueVm);
- emitExit(build, false);
- if (build.logText)
- build.logAppend("; interrupt\n");
- build.setLabel(helpers.interrupt);
- emitInterrupt(build);
- if (build.logText)
- build.logAppend("; return\n");
- build.setLabel(helpers.return_);
- emitReturn(build, helpers);
- if (build.logText)
- build.logAppend("; continueCall\n");
- build.setLabel(helpers.continueCall);
- emitContinueCall(build, helpers);
-}
-}
-} // namespace CodeGen
-}
-#line __LINE__ ""
-#line __LINE__ "CodeGenAssembly.cpp"
-#line __LINE__ "CodeGenX64.h"
-namespace Luau
-{
-namespace CodeGen
-{
-struct NativeState;
-struct ModuleHelpers;
-namespace X64
-{
-class AssemblyBuilderX64;
-bool initHeaderFunctions(NativeState& data);
-void assembleHelpers(AssemblyBuilderX64& build, ModuleHelpers& helpers);
-}
-} // namespace CodeGen
-}
-#line __LINE__ "CodeGenAssembly.cpp"
-namespace Luau
-{
-namespace CodeGen
-{
-template<typename AssemblyBuilder>
-static void logFunctionHeader(AssemblyBuilder& build, Proto* proto)
-{
- if (proto->debugname)
- build.logAppend("; function %s(", getstr(proto->debugname));
- else
- build.logAppend("; function(");
- for (int i = 0; i < proto->numparams; i++)
- {
- LocVar* var = proto->locvars ? &proto->locvars[proto->sizelocvars - proto->numparams + i] : nullptr;
- if (var && var->varname)
- build.logAppend("%s%s", i == 0 ? "" : ", ", getstr(var->varname));
- else
- build.logAppend("%s$arg%d", i == 0 ? "" : ", ", i);
- }
- if (proto->numparams != 0 && proto->is_vararg)
- build.logAppend(", ...)");
- else
- build.logAppend(")");
- if (proto->linedefined >= 0)
- build.logAppend(" line %d\n", proto->linedefined);
- else
- build.logAppend("\n");
-}
-unsigned getInstructionCount(const Instruction* insns, const unsigned size)
-{
- unsigned count = 0;
- for (unsigned i = 0; i < size;)
- {
- ++count;
- i += Luau::getOpLength(LuauOpcode(LUAU_INSN_OP(insns[i])));
- }
- return count;
-}
-template<typename AssemblyBuilder>
-static std::string getAssemblyImpl(AssemblyBuilder& build, const TValue* func, AssemblyOptions options, LoweringStats* stats)
-{
- Proto* root = clvalue(func)->l.p;
- if ((options.flags & CodeGen_OnlyNativeModules) != 0 && (root->flags & LPF_NATIVE_MODULE) == 0)
- return std::string();
- std::vector<Proto*> protos;
- gatherFunctions(protos, root, options.flags);
- protos.erase(std::remove_if(protos.begin(), protos.end(),
- [](Proto* p) {
- return p == nullptr;
- }),
- protos.end());
- if (stats)
- stats->totalFunctions += unsigned(protos.size());
- if (protos.empty())
- {
- build.finalize();
- return std::string();
- }
- ModuleHelpers helpers;
- assembleHelpers(build, helpers);
- if (!options.includeOutlinedCode && options.includeAssembly)
- {
- build.text.clear();
- build.logAppend("; skipping %u bytes of outlined helpers\n", unsigned(build.getCodeSize() * sizeof(build.code[0])));
- }
- for (Proto* p : protos)
- {
- IrBuilder ir;
- ir.buildFunctionIr(p);
- unsigned asmCount = build.getCodeSize();
- if (options.includeAssembly || options.includeIr)
- logFunctionHeader(build, p);
- if (!lowerFunction(ir, build, helpers, p, options, stats))
- {
- if (build.logText)
- build.logAppend("; skipping (can't lower)\n");
- asmCount = 0;
- if (stats)
- stats->skippedFunctions += 1;
- }
- else
- {
- asmCount = build.getCodeSize() - asmCount;
- }
- if (stats && stats->collectFunctionStats)
- {
- const char* name = p->debugname ? getstr(p->debugname) : "";
- int line = p->linedefined;
- unsigned bcodeCount = getInstructionCount(p->code, p->sizecode);
- unsigned irCount = unsigned(ir.function.instructions.size());
- stats->functions.push_back({name, line, bcodeCount, irCount, asmCount});
- }
- if (build.logText)
- build.logAppend("\n");
- }
- if (!build.finalize())
- return std::string();
- if (options.outputBinary)
- return std::string(reinterpret_cast<const char*>(build.code.data()), reinterpret_cast<const char*>(build.code.data() + build.code.size())) +
- std::string(build.data.begin(), build.data.end());
- else
- return build.text;
-}
-#if defined(__aarch64__)
-unsigned int getCpuFeaturesA64();
-#endif
-std::string getAssembly(lua_State* L, int idx, AssemblyOptions options, LoweringStats* stats)
-{
- LUAU_ASSERT(lua_isLfunction(L, idx));
- const TValue* func = luaA_toobject(L, idx);
- switch (options.target)
- {
- case AssemblyOptions::Host:
- {
-#if defined(__aarch64__)
- static unsigned int cpuFeatures = getCpuFeaturesA64();
- A64::AssemblyBuilderA64 build( options.includeAssembly, cpuFeatures);
-#else
- X64::AssemblyBuilderX64 build( options.includeAssembly);
-#endif
- return getAssemblyImpl(build, func, options, stats);
- }
- case AssemblyOptions::A64:
- {
- A64::AssemblyBuilderA64 build( options.includeAssembly, A64::Feature_JSCVT);
- return getAssemblyImpl(build, func, options, stats);
- }
- case AssemblyOptions::A64_NoFeatures:
- {
- A64::AssemblyBuilderA64 build( options.includeAssembly, 0);
- return getAssemblyImpl(build, func, options, stats);
- }
- case AssemblyOptions::X64_Windows:
- {
- X64::AssemblyBuilderX64 build( options.includeAssembly, X64::ABIX64::Windows);
- return getAssemblyImpl(build, func, options, stats);
- }
- case AssemblyOptions::X64_SystemV:
- {
- X64::AssemblyBuilderX64 build( options.includeAssembly, X64::ABIX64::SystemV);
- return getAssemblyImpl(build, func, options, stats);
- }
- default:
- LUAU_ASSERT(!"Unknown target");
- return std::string();
- }
-}
-}
-} // namespace Luau
-#line __LINE__ ""
 #line __LINE__ "CodeGen.cpp"
 #line __LINE__ "UnwindBuilderDwarf2.h"
 namespace Luau
@@ -39474,6 +38943,128 @@ private:
 };
 }
 } // namespace Luau
+#line __LINE__ "CodeGen.cpp"
+#line __LINE__ "NativeState.h"
+typedef int (*luau_FastFunction)(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams);
+namespace Luau
+{
+namespace CodeGen
+{
+class UnwindBuilder;
+struct NativeContext
+{
+ uint8_t* gateEntry = nullptr;
+ uint8_t* gateExit = nullptr;
+ int (*luaV_lessthan)(lua_State* L, const TValue* l, const TValue* r) = nullptr;
+ int (*luaV_lessequal)(lua_State* L, const TValue* l, const TValue* r) = nullptr;
+ int (*luaV_equalval)(lua_State* L, const TValue* t1, const TValue* t2) = nullptr;
+ void (*luaV_doarith)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc, TMS op) = nullptr;
+ void (*luaV_dolen)(lua_State* L, StkId ra, const TValue* rb) = nullptr;
+ void (*luaV_gettable)(lua_State* L, const TValue* t, TValue* key, StkId val) = nullptr;
+ void (*luaV_settable)(lua_State* L, const TValue* t, TValue* key, StkId val) = nullptr;
+ void (*luaV_getimport)(lua_State* L, Table* env, TValue* k, StkId res, uint32_t id, bool propagatenil) = nullptr;
+ void (*luaV_concat)(lua_State* L, int total, int last) = nullptr;
+ int (*luaH_getn)(Table* t) = nullptr;
+ Table* (*luaH_new)(lua_State* L, int narray, int lnhash) = nullptr;
+ Table* (*luaH_clone)(lua_State* L, Table* tt) = nullptr;
+ void (*luaH_resizearray)(lua_State* L, Table* t, int nasize) = nullptr;
+ TValue* (*luaH_setnum)(lua_State* L, Table* t, int key);
+ void (*luaC_barriertable)(lua_State* L, Table* t, GCObject* v) = nullptr;
+ void (*luaC_barrierf)(lua_State* L, GCObject* o, GCObject* v) = nullptr;
+ void (*luaC_barrierback)(lua_State* L, GCObject* o, GCObject** gclist) = nullptr;
+ size_t (*luaC_step)(lua_State* L, bool assist) = nullptr;
+ void (*luaF_close)(lua_State* L, StkId level) = nullptr;
+ UpVal* (*luaF_findupval)(lua_State* L, StkId level) = nullptr;
+ Closure* (*luaF_newLclosure)(lua_State* L, int nelems, Table* e, Proto* p) = nullptr;
+ const TValue* (*luaT_gettm)(Table* events, TMS event, TString* ename) = nullptr;
+ const TString* (*luaT_objtypenamestr)(lua_State* L, const TValue* o) = nullptr;
+ double (*libm_exp)(double) = nullptr;
+ double (*libm_pow)(double, double) = nullptr;
+ double (*libm_fmod)(double, double) = nullptr;
+ double (*libm_asin)(double) = nullptr;
+ double (*libm_sin)(double) = nullptr;
+ double (*libm_sinh)(double) = nullptr;
+ double (*libm_acos)(double) = nullptr;
+ double (*libm_cos)(double) = nullptr;
+ double (*libm_cosh)(double) = nullptr;
+ double (*libm_atan)(double) = nullptr;
+ double (*libm_atan2)(double, double) = nullptr;
+ double (*libm_tan)(double) = nullptr;
+ double (*libm_tanh)(double) = nullptr;
+ double (*libm_log)(double) = nullptr;
+ double (*libm_log2)(double) = nullptr;
+ double (*libm_log10)(double) = nullptr;
+ double (*libm_ldexp)(double, int) = nullptr;
+ double (*libm_round)(double) = nullptr;
+ double (*libm_frexp)(double, int*) = nullptr;
+ double (*libm_modf)(double, double*) = nullptr;
+ bool (*forgLoopTableIter)(lua_State* L, Table* h, int index, TValue* ra) = nullptr;
+ bool (*forgLoopNodeIter)(lua_State* L, Table* h, int index, TValue* ra) = nullptr;
+ bool (*forgLoopNonTableFallback)(lua_State* L, int insnA, int aux) = nullptr;
+ void (*forgPrepXnextFallback)(lua_State* L, TValue* ra, int pc) = nullptr;
+ Closure* (*callProlog)(lua_State* L, TValue* ra, StkId argtop, int nresults) = nullptr;
+ void (*callEpilogC)(lua_State* L, int nresults, int n) = nullptr;
+ Closure* (*callFallback)(lua_State* L, StkId ra, StkId argtop, int nresults) = nullptr;
+ const Instruction* (*executeGETGLOBAL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executeSETGLOBAL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executeGETTABLEKS)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executeSETTABLEKS)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executeNAMECALL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executeSETLIST)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executeFORGPREP)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ void (*executeGETVARARGSMultRet)(lua_State* L, const Instruction* pc, StkId base, int rai) = nullptr;
+ void (*executeGETVARARGSConst)(lua_State* L, StkId base, int rai, int b) = nullptr;
+ const Instruction* (*executeDUPCLOSURE)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executePREPVARARGS)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ luau_FastFunction luauF_table[256] = {};
+};
+using GateFn = int (*)(lua_State*, Proto*, uintptr_t, NativeContext*);
+struct NativeState
+{
+ NativeState();
+ NativeState(AllocationCallback* allocationCallback, void* allocationCallbackContext);
+ ~NativeState();
+ CodeAllocator codeAllocator;
+ std::unique_ptr<UnwindBuilder> unwindBuilder;
+ uint8_t* gateData = nullptr;
+ size_t gateDataSize = 0;
+ NativeContext context;
+};
+void initFunctions(NativeState& data);
+}
+} // namespace Luau
+#line __LINE__ "CodeGen.cpp"
+#line __LINE__ "CodeGenA64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct NativeState;
+struct ModuleHelpers;
+namespace A64
+{
+class AssemblyBuilderA64;
+bool initHeaderFunctions(NativeState& data);
+void assembleHelpers(AssemblyBuilderA64& build, ModuleHelpers& helpers);
+}
+} // namespace CodeGen
+}
+#line __LINE__ "CodeGen.cpp"
+#line __LINE__ "CodeGenX64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct NativeState;
+struct ModuleHelpers;
+namespace X64
+{
+class AssemblyBuilderX64;
+bool initHeaderFunctions(NativeState& data);
+void assembleHelpers(AssemblyBuilderX64& build, ModuleHelpers& helpers);
+}
+} // namespace CodeGen
+}
 #line __LINE__ "CodeGen.cpp"
 #if defined(__x86_64__) || defined(_M_X64)
 #ifdef _MSC_VER
@@ -39734,6 +39325,416 @@ void setPerfLog(void* context, PerfLogFn logFn)
 {
  gPerfLogContext = context;
  gPerfLogFn = logFn;
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "CodeGenA64.cpp"
+#line __LINE__ "CodeGenUtils.h"
+namespace Luau
+{
+namespace CodeGen
+{
+bool forgLoopTableIter(lua_State* L, Table* h, int index, TValue* ra);
+bool forgLoopNodeIter(lua_State* L, Table* h, int index, TValue* ra);
+bool forgLoopNonTableFallback(lua_State* L, int insnA, int aux);
+void forgPrepXnextFallback(lua_State* L, TValue* ra, int pc);
+Closure* callProlog(lua_State* L, TValue* ra, StkId argtop, int nresults);
+void callEpilogC(lua_State* L, int nresults, int n);
+#define CALL_FALLBACK_YIELD 1
+Closure* callFallback(lua_State* L, StkId ra, StkId argtop, int nresults);
+const Instruction* executeGETGLOBAL(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executeSETGLOBAL(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executeGETTABLEKS(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executeSETTABLEKS(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executeNAMECALL(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executeSETLIST(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executeFORGPREP(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+void executeGETVARARGSMultRet(lua_State* L, const Instruction* pc, StkId base, int rai);
+void executeGETVARARGSConst(lua_State* L, StkId base, int rai, int b);
+const Instruction* executeDUPCLOSURE(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executePREPVARARGS(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+}
+} // namespace Luau
+#line __LINE__ "CodeGenA64.cpp"
+#line __LINE__ "EmitCommonA64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct NativeState;
+namespace A64
+{
+constexpr RegisterA64 rState = x19;
+constexpr RegisterA64 rNativeContext = x20; // NativeContext* context
+constexpr RegisterA64 rGlobalState = x21;
+constexpr RegisterA64 rConstants = x22; // TValue* k
+constexpr RegisterA64 rClosure = x23;
+constexpr RegisterA64 rCode = x24; // Instruction* code
+constexpr RegisterA64 rBase = x25;
+constexpr unsigned kStashSlots = 9;
+constexpr unsigned kTempSlots = 1; // 8 bytes of temporary space, such luxury!
+constexpr unsigned kSpillSlots = 22;
+constexpr unsigned kStackSize = (kStashSlots + kTempSlots + kSpillSlots) * 8;
+constexpr AddressA64 sSpillArea = mem(sp, (kStashSlots + kTempSlots) * 8);
+constexpr AddressA64 sTemporary = mem(sp, kStashSlots * 8);
+inline void emitUpdateBase(AssemblyBuilderA64& build)
+{
+ build.ldr(rBase, mem(rState, offsetof(lua_State, base)));
+}
+}
+} // namespace CodeGen
+}
+#line __LINE__ "CodeGenA64.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+namespace A64
+{
+struct EntryLocations
+{
+ Label start;
+ Label prologueEnd;
+ Label epilogueStart;
+};
+static void emitExit(AssemblyBuilderA64& build, bool continueInVm)
+{
+ build.mov(x0, continueInVm);
+ build.ldr(x1, mem(rNativeContext, offsetof(NativeContext, gateExit)));
+ build.br(x1);
+}
+static void emitUpdatePcForExit(AssemblyBuilderA64& build)
+{
+ build.add(x0, rCode, x0);
+ build.ldr(x1, mem(rState, offsetof(lua_State, ci)));
+ build.str(x0, mem(x1, offsetof(CallInfo, savedpc)));
+}
+static void emitClearNativeFlag(AssemblyBuilderA64& build)
+{
+ build.ldr(x0, mem(rState, offsetof(lua_State, ci)));
+ build.ldr(w1, mem(x0, offsetof(CallInfo, flags)));
+ build.mov(w2, ~LUA_CALLINFO_NATIVE);
+ build.and_(w1, w1, w2);
+ build.str(w1, mem(x0, offsetof(CallInfo, flags)));
+}
+static void emitInterrupt(AssemblyBuilderA64& build)
+{
+ Label skip;
+ build.mov(rBase, x1);
+ build.ldr(x2, mem(rState, offsetof(lua_State, global)));
+ build.ldr(x2, mem(x2, offsetof(global_State, cb.interrupt)));
+ build.cbz(x2, skip);
+ build.add(x0, rCode, x0);
+ build.ldr(x1, mem(rState, offsetof(lua_State, ci)));
+ build.str(x0, mem(x1, offsetof(CallInfo, savedpc)));
+ build.mov(x0, rState);
+ build.mov(w1, -1);
+ build.blr(x2);
+ build.ldrb(w0, mem(rState, offsetof(lua_State, status)));
+ build.cbz(w0, skip);
+ build.ldr(x1, mem(rState, offsetof(lua_State, ci)));
+ build.ldr(x0, mem(x1, offsetof(CallInfo, savedpc)));
+ build.sub(x0, x0, sizeof(Instruction));
+ build.str(x0, mem(x1, offsetof(CallInfo, savedpc)));
+ emitExit(build, false);
+ build.setLabel(skip);
+ build.mov(x0, rBase);
+ emitUpdateBase(build);
+ build.br(x0);
+}
+static void emitContinueCall(AssemblyBuilderA64& build, ModuleHelpers& helpers)
+{
+ LUAU_ASSERT(CALL_FALLBACK_YIELD == 1);
+ build.tbnz(x0, 0, helpers.exitNoContinueVm);
+ build.ldr(x1, mem(x0, offsetof(Closure, l.p))); // cl->l.p aka proto
+ build.ldr(x2, mem(x1, offsetof(Proto, exectarget)));
+ build.cbz(x2, helpers.exitContinueVm);
+ build.mov(rClosure, x0);
+ LUAU_ASSERT(offsetof(Proto, code) == offsetof(Proto, k) + 8);
+ build.ldp(rConstants, rCode, mem(x1, offsetof(Proto, k)));
+ build.br(x2);
+}
+void emitReturn(AssemblyBuilderA64& build, ModuleHelpers& helpers)
+{
+ build.ldr(x0, mem(rState, offsetof(lua_State, ci)));
+ build.ldr(w3, mem(x0, offsetof(CallInfo, nresults)));
+ Label skipResultCopy;
+ build.cmp(w2, w3);
+ build.b(ConditionA64::GreaterEqual, skipResultCopy);
+ build.sub(w2, w3, w2); // counter = nresults - written
+ build.mov(w4, LUA_TNIL);
+ Label repeatNilLoop = build.setLabel();
+ build.str(w4, mem(x1, offsetof(TValue, tt)));
+ build.add(x1, x1, sizeof(TValue));
+ build.sub(w2, w2, 1);
+ build.cbnz(w2, repeatNilLoop);
+ build.setLabel(skipResultCopy);
+ build.sub(x2, x0, sizeof(CallInfo));
+ Label skipFixedRetTop;
+ build.tbnz(w3, 31, skipFixedRetTop);
+ build.ldr(x1, mem(x2, offsetof(CallInfo, top)));
+ build.setLabel(skipFixedRetTop);
+ build.str(x2, mem(rState, offsetof(lua_State, ci))); // L->ci = cip
+ build.ldr(rBase, mem(x2, offsetof(CallInfo, base)));
+ build.str(rBase, mem(rState, offsetof(lua_State, base))); // L->base = cip->base
+ build.str(x1, mem(rState, offsetof(lua_State, top)));
+ build.ldr(w4, mem(x0, offsetof(CallInfo, flags)));
+ build.tbnz(w4, countrz(LUA_CALLINFO_RETURN), helpers.exitNoContinueVm);
+ build.ldr(w4, mem(x2, offsetof(CallInfo, flags)));
+ build.tbz(w4, countrz(LUA_CALLINFO_NATIVE), helpers.exitContinueVm);
+ build.ldr(rClosure, mem(x2, offsetof(CallInfo, func)));
+ build.ldr(rClosure, mem(rClosure, offsetof(TValue, value.gc)));
+ build.ldr(x1, mem(rClosure, offsetof(Closure, l.p)));
+ LUAU_ASSERT(offsetof(Proto, code) == offsetof(Proto, k) + 8);
+ build.ldp(rConstants, rCode, mem(x1, offsetof(Proto, k)));
+ build.ldr(x2, mem(x2, offsetof(CallInfo, savedpc))); // cip->savedpc
+ build.sub(x2, x2, rCode);
+ LUAU_ASSERT(offsetof(Proto, exectarget) == offsetof(Proto, execdata) + 8);
+ build.ldp(x3, x4, mem(x1, offsetof(Proto, execdata)));
+ build.ldr(w2, mem(x3, x2));
+ build.add(x4, x4, x2);
+ build.br(x4);
+}
+static EntryLocations buildEntryFunction(AssemblyBuilderA64& build, UnwindBuilder& unwind)
+{
+ EntryLocations locations;
+ locations.start = build.setLabel();
+ build.sub(sp, sp, kStackSize);
+ build.stp(x29, x30, mem(sp));
+ build.stp(x19, x20, mem(sp, 16));
+ build.stp(x21, x22, mem(sp, 32));
+ build.stp(x23, x24, mem(sp, 48));
+ build.str(x25, mem(sp, 64));
+ build.mov(x29, sp);
+ locations.prologueEnd = build.setLabel();
+ uint32_t prologueSize = build.getLabelOffset(locations.prologueEnd) - build.getLabelOffset(locations.start);
+ build.mov(rState, x0);
+ build.mov(rNativeContext, x3);
+ build.ldr(rGlobalState, mem(x0, offsetof(lua_State, global)));
+ build.ldr(rBase, mem(x0, offsetof(lua_State, base)));
+ LUAU_ASSERT(offsetof(Proto, code) == offsetof(Proto, k) + 8);
+ build.ldp(rConstants, rCode, mem(x1, offsetof(Proto, k)));
+ build.ldr(x9, mem(x0, offsetof(lua_State, ci)));
+ build.ldr(x9, mem(x9, offsetof(CallInfo, func))); // L->ci->func
+ build.ldr(rClosure, mem(x9, offsetof(TValue, value.gc)));
+ build.br(x2);
+ locations.epilogueStart = build.setLabel();
+ build.ldr(x25, mem(sp, 64));
+ build.ldp(x23, x24, mem(sp, 48));
+ build.ldp(x21, x22, mem(sp, 32));
+ build.ldp(x19, x20, mem(sp, 16));
+ build.ldp(x29, x30, mem(sp));
+ build.add(sp, sp, kStackSize);
+ build.ret();
+ unwind.startFunction();
+ unwind.prologueA64(prologueSize, kStackSize, {x29, x30, x19, x20, x21, x22, x23, x24, x25});
+ unwind.finishFunction(build.getLabelOffset(locations.start), kFullBlockFuncton);
+ return locations;
+}
+bool initHeaderFunctions(NativeState& data)
+{
+ AssemblyBuilderA64 build( false);
+ UnwindBuilder& unwind = *data.unwindBuilder.get();
+ unwind.startInfo(UnwindBuilder::A64);
+ EntryLocations entryLocations = buildEntryFunction(build, unwind);
+ build.finalize();
+ unwind.finishInfo();
+ LUAU_ASSERT(build.data.empty());
+ uint8_t* codeStart = nullptr;
+ if (!data.codeAllocator.allocate(build.data.data(), int(build.data.size()), reinterpret_cast<const uint8_t*>(build.code.data()),
+ int(build.code.size() * sizeof(build.code[0])), data.gateData, data.gateDataSize, codeStart))
+ {
+ LUAU_ASSERT(!"Failed to create entry function");
+ return false;
+ }
+ unwind.setBeginOffset(build.getLabelOffset(entryLocations.prologueEnd));
+ data.context.gateEntry = codeStart + build.getLabelOffset(entryLocations.start);
+ data.context.gateExit = codeStart + build.getLabelOffset(entryLocations.epilogueStart);
+ return true;
+}
+void assembleHelpers(AssemblyBuilderA64& build, ModuleHelpers& helpers)
+{
+ if (build.logText)
+ build.logAppend("; updatePcAndContinueInVm\n");
+ build.setLabel(helpers.updatePcAndContinueInVm);
+ emitUpdatePcForExit(build);
+ if (build.logText)
+ build.logAppend("; exitContinueVmClearNativeFlag\n");
+ build.setLabel(helpers.exitContinueVmClearNativeFlag);
+ emitClearNativeFlag(build);
+ if (build.logText)
+ build.logAppend("; exitContinueVm\n");
+ build.setLabel(helpers.exitContinueVm);
+ emitExit(build, true);
+ if (build.logText)
+ build.logAppend("; exitNoContinueVm\n");
+ build.setLabel(helpers.exitNoContinueVm);
+ emitExit(build, false);
+ if (build.logText)
+ build.logAppend("; interrupt\n");
+ build.setLabel(helpers.interrupt);
+ emitInterrupt(build);
+ if (build.logText)
+ build.logAppend("; return\n");
+ build.setLabel(helpers.return_);
+ emitReturn(build, helpers);
+ if (build.logText)
+ build.logAppend("; continueCall\n");
+ build.setLabel(helpers.continueCall);
+ emitContinueCall(build, helpers);
+}
+}
+} // namespace CodeGen
+}
+#line __LINE__ ""
+#line __LINE__ "CodeGenAssembly.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+template<typename AssemblyBuilder>
+static void logFunctionHeader(AssemblyBuilder& build, Proto* proto)
+{
+ if (proto->debugname)
+ build.logAppend("; function %s(", getstr(proto->debugname));
+ else
+ build.logAppend("; function(");
+ for (int i = 0; i < proto->numparams; i++)
+ {
+ LocVar* var = proto->locvars ? &proto->locvars[proto->sizelocvars - proto->numparams + i] : nullptr;
+ if (var && var->varname)
+ build.logAppend("%s%s", i == 0 ? "" : ", ", getstr(var->varname));
+ else
+ build.logAppend("%s$arg%d", i == 0 ? "" : ", ", i);
+ }
+ if (proto->numparams != 0 && proto->is_vararg)
+ build.logAppend(", ...)");
+ else
+ build.logAppend(")");
+ if (proto->linedefined >= 0)
+ build.logAppend(" line %d\n", proto->linedefined);
+ else
+ build.logAppend("\n");
+}
+unsigned getInstructionCount(const Instruction* insns, const unsigned size)
+{
+ unsigned count = 0;
+ for (unsigned i = 0; i < size;)
+ {
+ ++count;
+ i += Luau::getOpLength(LuauOpcode(LUAU_INSN_OP(insns[i])));
+ }
+ return count;
+}
+template<typename AssemblyBuilder>
+static std::string getAssemblyImpl(AssemblyBuilder& build, const TValue* func, AssemblyOptions options, LoweringStats* stats)
+{
+ Proto* root = clvalue(func)->l.p;
+ if ((options.flags & CodeGen_OnlyNativeModules) != 0 && (root->flags & LPF_NATIVE_MODULE) == 0)
+ return std::string();
+ std::vector<Proto*> protos;
+ gatherFunctions(protos, root, options.flags);
+ protos.erase(std::remove_if(protos.begin(), protos.end(),
+ [](Proto* p) {
+ return p == nullptr;
+ }),
+ protos.end());
+ if (stats)
+ stats->totalFunctions += unsigned(protos.size());
+ if (protos.empty())
+ {
+ build.finalize();
+ return std::string();
+ }
+ ModuleHelpers helpers;
+ assembleHelpers(build, helpers);
+ if (!options.includeOutlinedCode && options.includeAssembly)
+ {
+ build.text.clear();
+ build.logAppend("; skipping %u bytes of outlined helpers\n", unsigned(build.getCodeSize() * sizeof(build.code[0])));
+ }
+ for (Proto* p : protos)
+ {
+ IrBuilder ir;
+ ir.buildFunctionIr(p);
+ unsigned asmCount = build.getCodeSize();
+ if (options.includeAssembly || options.includeIr)
+ logFunctionHeader(build, p);
+ if (!lowerFunction(ir, build, helpers, p, options, stats))
+ {
+ if (build.logText)
+ build.logAppend("; skipping (can't lower)\n");
+ asmCount = 0;
+ if (stats)
+ stats->skippedFunctions += 1;
+ }
+ else
+ {
+ asmCount = build.getCodeSize() - asmCount;
+ }
+ if (stats && stats->collectFunctionStats)
+ {
+ const char* name = p->debugname ? getstr(p->debugname) : "";
+ int line = p->linedefined;
+ unsigned bcodeCount = getInstructionCount(p->code, p->sizecode);
+ unsigned irCount = unsigned(ir.function.instructions.size());
+ stats->functions.push_back({name, line, bcodeCount, irCount, asmCount});
+ }
+ if (build.logText)
+ build.logAppend("\n");
+ }
+ if (!build.finalize())
+ return std::string();
+ if (options.outputBinary)
+ return std::string(reinterpret_cast<const char*>(build.code.data()), reinterpret_cast<const char*>(build.code.data() + build.code.size())) +
+ std::string(build.data.begin(), build.data.end());
+ else
+ return build.text;
+}
+#if defined(__aarch64__)
+unsigned int getCpuFeaturesA64();
+#endif
+std::string getAssembly(lua_State* L, int idx, AssemblyOptions options, LoweringStats* stats)
+{
+ LUAU_ASSERT(lua_isLfunction(L, idx));
+ const TValue* func = luaA_toobject(L, idx);
+ switch (options.target)
+ {
+ case AssemblyOptions::Host:
+ {
+#if defined(__aarch64__)
+ static unsigned int cpuFeatures = getCpuFeaturesA64();
+ A64::AssemblyBuilderA64 build( options.includeAssembly, cpuFeatures);
+#else
+ X64::AssemblyBuilderX64 build( options.includeAssembly);
+#endif
+ return getAssemblyImpl(build, func, options, stats);
+ }
+ case AssemblyOptions::A64:
+ {
+ A64::AssemblyBuilderA64 build( options.includeAssembly, A64::Feature_JSCVT);
+ return getAssemblyImpl(build, func, options, stats);
+ }
+ case AssemblyOptions::A64_NoFeatures:
+ {
+ A64::AssemblyBuilderA64 build( options.includeAssembly, 0);
+ return getAssemblyImpl(build, func, options, stats);
+ }
+ case AssemblyOptions::X64_Windows:
+ {
+ X64::AssemblyBuilderX64 build( options.includeAssembly, X64::ABIX64::Windows);
+ return getAssemblyImpl(build, func, options, stats);
+ }
+ case AssemblyOptions::X64_SystemV:
+ {
+ X64::AssemblyBuilderX64 build( options.includeAssembly, X64::ABIX64::SystemV);
+ return getAssemblyImpl(build, func, options, stats);
+ }
+ default:
+ LUAU_ASSERT(!"Unknown target");
+ return std::string();
+ }
 }
 }
 } // namespace Luau
@@ -50611,20 +50612,6 @@ void IrValueLocationTracking::invalidateRestoreVmRegs(int start, int count)
 }
 } // namespace Luau
 #line __LINE__ ""
-#line __LINE__ "lcodegen.cpp"
-int luau_codegen_supported()
-{
- return Luau::CodeGen::isSupported();
-}
-void luau_codegen_create(lua_State* L)
-{
- Luau::CodeGen::create(L);
-}
-void luau_codegen_compile(lua_State* L, int idx)
-{
- Luau::CodeGen::compile(L, idx);
-}
-#line __LINE__ ""
 #line __LINE__ "NativeState.cpp"
 LUAU_FASTINTVARIABLE(LuauCodeGenBlockSize, 4 * 1024 * 1024)
 LUAU_FASTINTVARIABLE(LuauCodeGenMaxTotalSize, 256 * 1024 * 1024)
@@ -52496,6 +52483,20 @@ void UnwindBuilderWin::finalize(char* target, size_t offset, void* funcAddress, 
 }
 }
 } // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "lcodegen.cpp"
+int luau_codegen_supported()
+{
+ return Luau::CodeGen::isSupported();
+}
+void luau_codegen_create(lua_State* L)
+{
+ Luau::CodeGen::create(L);
+}
+void luau_codegen_compile(lua_State* L, int idx)
+{
+ Luau::CodeGen::compile(L, idx);
+}
 #line __LINE__ ""
 #endif
 #endif

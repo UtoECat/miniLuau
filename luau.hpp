@@ -25,6 +25,10 @@ SOFTWARE. */
 // Comment this out to not build AST and Compiler
 #define LUAU_ENABLE_COMPILER 1
 #define LUAU_ENABLE_CODEGEN 1
+#line __LINE__ "lua.h"
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdint.h>
 #line __LINE__ "luaconf.h"
 #if defined(_MSC_VER) && !defined(__clang__)
 #define LUAU_FASTMATH_BEGIN __pragma(float_control(precise, off, push))
@@ -104,11 +108,7 @@ SOFTWARE. */
 #define LUA_VECTOR_SIZE 3
 #endif
 #define LUA_EXTRA_SIZE (LUA_VECTOR_SIZE - 2)
-#line __LINE__ ""
 #line __LINE__ "lua.h"
-#include <stdarg.h>
-#include <stddef.h>
-#include <stdint.h>
 #define LUA_MULTRET (-1)
 #define LUA_REGISTRYINDEX (-LUAI_MAXCSTACK - 2000)
 #define LUA_ENVIRONINDEX (-LUAI_MAXCSTACK - 2001)
