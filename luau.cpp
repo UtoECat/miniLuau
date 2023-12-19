@@ -363,6 +363,7 @@ FValue<T>* FValue<T>::list = nullptr;
 #endif
 #line __LINE__ ""
 #line __LINE__ "DenseHash.h"
+#include <cstddef>
 #include <functional>
 #include <utility>
 #include <type_traits>
@@ -578,9 +579,8 @@ public:
  using value_type = Item;
  using reference = Item&;
  using pointer = Item*;
- using iterator = pointer;
- using difference_type = size_t;
- using iterator_category = std::input_iterator_tag;
+ using difference_type = ptrdiff_t;
+ using iterator_category = std::forward_iterator_tag;
  const_iterator()
  : set(0)
  , index(0)
@@ -629,6 +629,11 @@ public:
  class iterator
  {
  public:
+ using value_type = MutableItem;
+ using reference = MutableItem&;
+ using pointer = MutableItem*;
+ using difference_type = ptrdiff_t;
+ using iterator_category = std::forward_iterator_tag;
  iterator()
  : set(0)
  , index(0)
@@ -919,6 +924,7 @@ typedef uint32_t Instruction;
 #define condhardmemtests(x, l) ((void)0)
 #endif
 #line __LINE__ "lobject.h"
+LUAU_FASTFLAG(LuauTaggedLuData)
 typedef union GCObject GCObject;
 #define CommonHeader uint8_t tt; uint8_t marked; uint8_t memcat
 typedef struct GCheader
@@ -965,6 +971,8 @@ typedef struct lua_TValue
 #define bufvalue(o) check_exp(ttisbuffer(o), &(o)->value.gc->buf)
 #define upvalue(o) check_exp(ttisupval(o), &(o)->value.gc->uv)
 #define l_isfalse(o) (ttisnil(o) || (ttisboolean(o) && bvalue(o) == 0))
+#define lightuserdatatag(o) check_exp(ttislightuserdata(o), (o)->extra[0])
+#define LU_TAG_ITERATOR LUA_UTAG_LIMIT
 #define checkconsistency(obj) LUAU_ASSERT(!iscollectable(obj) || (ttype(obj) == (obj)->value.gc->gch.tt))
 #define checkliveness(g, obj) LUAU_ASSERT(!iscollectable(obj) || ((ttype(obj) == (obj)->value.gc->gch.tt) && !isdead(g, (obj)->value.gc)))
 #define setnilvalue(obj) ((obj)->tt = LUA_TNIL)
@@ -974,7 +982,7 @@ typedef struct lua_TValue
 #else
 #define setvvalue(obj, x, y, z, w) { TValue* i_o = (obj); float* i_v = i_o->value.v; i_v[0] = (x); i_v[1] = (y); i_v[2] = (z); i_o->tt = LUA_TVECTOR; }
 #endif
-#define setpvalue(obj, x) { TValue* i_o = (obj); i_o->value.p = (x); i_o->tt = LUA_TLIGHTUSERDATA; }
+#define setpvalue(obj, x, tag) { TValue* i_o = (obj); i_o->value.p = (x); i_o->extra[0] = (tag); i_o->tt = LUA_TLIGHTUSERDATA; }
 #define setbvalue(obj, x) { TValue* i_o = (obj); i_o->value.b = (x); i_o->tt = LUA_TBOOLEAN; }
 #define setsvalue(L, obj, x) { TValue* i_o = (obj); i_o->value.gc = cast_to(GCObject*, (x)); i_o->tt = LUA_TSTRING; checkliveness(L->global, i_o); }
 #define setuvalue(L, obj, x) { TValue* i_o = (obj); i_o->value.gc = cast_to(GCObject*, (x)); i_o->tt = LUA_TUSERDATA; checkliveness(L->global, i_o); }
@@ -1317,6 +1325,7 @@ typedef struct global_State
  lua_Callbacks cb;
  lua_ExecutionCallbacks ecb;
  void (*udatagc[LUA_UTAG_LIMIT])(lua_State*, void*);
+ TString* lightuserdataname[LUA_LUTAG_LIMIT];
  GCStats gcstats;
 #ifdef LUAI_GCMETRICS
  GCMetrics gcmetrics;
@@ -2020,6 +2029,11 @@ void* lua_tolightuserdata(lua_State* L, int idx)
  StkId o = index2addr(L, idx);
  return (!ttislightuserdata(o)) ? NULL : pvalue(o);
 }
+void* lua_tolightuserdatatagged(lua_State* L, int idx, int tag)
+{
+ StkId o = index2addr(L, idx);
+ return (!ttislightuserdata(o) || lightuserdatatag(o) != tag) ? NULL : pvalue(o);
+}
 void* lua_touserdata(lua_State* L, int idx)
 {
  StkId o = index2addr(L, idx);
@@ -2040,6 +2054,13 @@ int lua_userdatatag(lua_State* L, int idx)
  StkId o = index2addr(L, idx);
  if (ttisuserdata(o))
  return uvalue(o)->tag;
+ return -1;
+}
+int lua_lightuserdatatag(lua_State* L, int idx)
+{
+ StkId o = index2addr(L, idx);
+ if (ttislightuserdata(o))
+ return lightuserdatatag(o);
  return -1;
 }
 lua_State* lua_tothread(lua_State* L, int idx)
@@ -2155,9 +2176,10 @@ void lua_pushboolean(lua_State* L, int b)
  setbvalue(L->top, (b != 0));
  api_incr_top(L);
 }
-void lua_pushlightuserdata(lua_State* L, void* p)
+void lua_pushlightuserdatatagged(lua_State* L, void* p, int tag)
 {
- setpvalue(L->top, p);
+ api_check(L, unsigned(tag) < LUA_LUTAG_LIMIT);
+ setpvalue(L->top, p, tag);
  api_incr_top(L);
 }
 int lua_pushthread(lua_State* L)
@@ -2787,6 +2809,22 @@ lua_Destructor lua_getuserdatadtor(lua_State* L, int tag)
 {
  api_check(L, unsigned(tag) < LUA_UTAG_LIMIT);
  return L->global->udatagc[tag];
+}
+void lua_setlightuserdataname(lua_State* L, int tag, const char* name)
+{
+ api_check(L, unsigned(tag) < LUA_LUTAG_LIMIT);
+ api_check(L, !L->global->lightuserdataname[tag]);
+ if (!L->global->lightuserdataname[tag])
+ {
+ L->global->lightuserdataname[tag] = luaS_new(L, name);
+ luaS_fix(L->global->lightuserdataname[tag]);
+ }
+}
+const char* lua_getlightuserdataname(lua_State* L, int tag)
+{
+ api_check(L, unsigned(tag) < LUA_LUTAG_LIMIT);
+ const TString* name = L->global->lightuserdataname[tag];
+ return name ? getstr(name) : nullptr;
 }
 void lua_clonefunction(lua_State* L, int idx)
 {
@@ -9590,7 +9628,7 @@ int luaO_rawequalObj(const TValue* t1, const TValue* t2)
  case LUA_TBOOLEAN:
  return bvalue(t1) == bvalue(t2);
  case LUA_TLIGHTUSERDATA:
- return pvalue(t1) == pvalue(t2);
+ return pvalue(t1) == pvalue(t2) && (!FFlag::LuauTaggedLuData || lightuserdatatag(t1) == lightuserdatatag(t2));
  default:
  LUAU_ASSERT(iscollectable(t1));
  return gcvalue(t1) == gcvalue(t2);
@@ -9612,7 +9650,7 @@ int luaO_rawequalKey(const TKey* t1, const TValue* t2)
  case LUA_TBOOLEAN:
  return bvalue(t1) == bvalue(t2);
  case LUA_TLIGHTUSERDATA:
- return pvalue(t1) == pvalue(t2);
+ return pvalue(t1) == pvalue(t2) && (!FFlag::LuauTaggedLuData || lightuserdatatag(t1) == lightuserdatatag(t2));
  default:
  LUAU_ASSERT(iscollectable(t1));
  return gcvalue(t1) == gcvalue(t2);
@@ -10093,6 +10131,8 @@ lua_State* lua_newstate(lua_Alloc f, void* ud)
  g->mt[i] = NULL;
  for (i = 0; i < LUA_UTAG_LIMIT; i++)
  g->udatagc[i] = NULL;
+ for (i = 0; i < LUA_LUTAG_LIMIT; i++)
+ g->lightuserdataname[i] = NULL;
  for (i = 0; i < LUA_MEMORY_CATEGORIES; i++)
  g->memcatbytes[i] = 0;
  g->memcatbytes[0] = sizeof(LG);
@@ -12945,6 +12985,16 @@ const TString* luaT_objtypenamestr(lua_State* L, const TValue* o)
  if (ttisstring(type))
  return tsvalue(type);
  }
+ else if (FFlag::LuauTaggedLuData && ttislightuserdata(o))
+ {
+ int tag = lightuserdatatag(o);
+ if (unsigned(tag) < LUA_LUTAG_LIMIT)
+ {
+ const TString* name = L->global->lightuserdataname[tag];
+ if (name)
+ return name;
+ }
+ }
  else if (Table* mt = L->global->mt[ttype(o)])
  {
  const TValue* type = luaH_getstr(mt, L->global->tmname[TM_TYPE]);
@@ -13265,6 +13315,7 @@ int luaopen_utf8(lua_State* L)
 #define VM_CONTINUE(op) dispatchOp = uint8_t(op); goto dispatchContinue
 #endif
 #define VM_HAS_NATIVE 1
+LUAU_FASTFLAGVARIABLE(LuauTaggedLuData, false)
 LUAU_NOINLINE void luau_callhook(lua_State* L, lua_Hook hook, void* userdata)
 {
  ptrdiff_t base = savestack(L, L->base);
@@ -13988,7 +14039,7 @@ reentry:
  LUAU_ASSERT(unsigned(pc - cl->l.p->code) < unsigned(cl->l.p->sizecode));
  VM_NEXT();
  case LUA_TLIGHTUSERDATA:
- pc += pvalue(ra) == pvalue(rb) ? LUAU_INSN_D(insn) : 1;
+ pc += (pvalue(ra) == pvalue(rb) && (!FFlag::LuauTaggedLuData || lightuserdatatag(ra) == lightuserdatatag(rb))) ? LUAU_INSN_D(insn) : 1;
  LUAU_ASSERT(unsigned(pc - cl->l.p->code) < unsigned(cl->l.p->sizecode));
  VM_NEXT();
  case LUA_TNUMBER:
@@ -14080,7 +14131,7 @@ reentry:
  LUAU_ASSERT(unsigned(pc - cl->l.p->code) < unsigned(cl->l.p->sizecode));
  VM_NEXT();
  case LUA_TLIGHTUSERDATA:
- pc += pvalue(ra) != pvalue(rb) ? LUAU_INSN_D(insn) : 1;
+ pc += (pvalue(ra) != pvalue(rb) || (FFlag::LuauTaggedLuData && lightuserdatatag(ra) != lightuserdatatag(rb))) ? LUAU_INSN_D(insn) : 1;
  LUAU_ASSERT(unsigned(pc - cl->l.p->code) < unsigned(cl->l.p->sizecode));
  VM_NEXT();
  case LUA_TNUMBER:
@@ -14954,7 +15005,7 @@ reentry:
  else if (ttistable(ra))
  {
  setobj2s(L, ra + 1, ra);
- setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(0)));
+ setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(0)), LU_TAG_ITERATOR);
  setnilvalue(ra);
  }
  else
@@ -14991,7 +15042,7 @@ reentry:
  TValue* e = &h->array[index];
  if (!ttisnil(e))
  {
- setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(index + 1)));
+ setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(index + 1)), LU_TAG_ITERATOR);
  setnvalue(ra + 3, double(index + 1));
  setobj2s(L, ra + 4, e);
  pc += LUAU_INSN_D(insn);
@@ -15006,7 +15057,7 @@ reentry:
  LuaNode* n = &h->node[index - sizearray];
  if (!ttisnil(gval(n)))
  {
- setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(index + 1)));
+ setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(index + 1)), LU_TAG_ITERATOR);
  getnodekey(L, ra + 3, n);
  setobj2s(L, ra + 4, gval(n));
  pc += LUAU_INSN_D(insn);
@@ -15041,7 +15092,7 @@ reentry:
  if (cl->env->safeenv && ttistable(ra + 1) && ttisnumber(ra + 2) && nvalue(ra + 2) == 0.0)
  {
  setnilvalue(ra);
- setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(0)));
+ setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(0)), LU_TAG_ITERATOR);
  }
  else if (!ttisfunction(ra))
  {
@@ -15064,7 +15115,7 @@ reentry:
  if (cl->env->safeenv && ttistable(ra + 1) && ttisnil(ra + 2))
  {
  setnilvalue(ra);
- setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(0)));
+ setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(0)), LU_TAG_ITERATOR);
  }
  else if (!ttisfunction(ra))
  {
@@ -16077,7 +16128,7 @@ int luaV_equalval(lua_State* L, const TValue* t1, const TValue* t2)
  case LUA_TBOOLEAN:
  return bvalue(t1) == bvalue(t2);
  case LUA_TLIGHTUSERDATA:
- return pvalue(t1) == pvalue(t2);
+ return pvalue(t1) == pvalue(t2) && (!FFlag::LuauTaggedLuData || lightuserdatatag(t1) == lightuserdatatag(t2));
  case LUA_TUSERDATA:
  {
  tm = get_compTM(L, uvalue(t1)->metatable, uvalue(t2)->metatable, TM_EQ);
@@ -39760,7 +39811,7 @@ bool forgLoopTableIter(lua_State* L, Table* h, int index, TValue* ra)
  TValue* e = &h->array[index];
  if (!ttisnil(e))
  {
- setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(index + 1)));
+ setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(index + 1)), LU_TAG_ITERATOR);
  setnvalue(ra + 3, double(index + 1));
  setobj2s(L, ra + 4, e);
  return true;
@@ -39773,7 +39824,7 @@ bool forgLoopTableIter(lua_State* L, Table* h, int index, TValue* ra)
  LuaNode* n = &h->node[index - sizearray];
  if (!ttisnil(gval(n)))
  {
- setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(index + 1)));
+ setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(index + 1)), LU_TAG_ITERATOR);
  getnodekey(L, ra + 3, n);
  setobj(L, ra + 4, gval(n));
  return true;
@@ -39791,7 +39842,7 @@ bool forgLoopNodeIter(lua_State* L, Table* h, int index, TValue* ra)
  LuaNode* n = &h->node[index - sizearray];
  if (!ttisnil(gval(n)))
  {
- setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(index + 1)));
+ setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(index + 1)), LU_TAG_ITERATOR);
  getnodekey(L, ra + 3, n);
  setobj(L, ra + 4, gval(n));
  return true;
@@ -40207,7 +40258,7 @@ const Instruction* executeFORGPREP(lua_State* L, const Instruction* pc, StkId ba
  else if (ttistable(ra))
  {
  setobj2s(L, ra + 1, ra);
- setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(0)));
+ setpvalue(ra + 2, reinterpret_cast<void*>(uintptr_t(0)), LU_TAG_ITERATOR);
  setnilvalue(ra);
  }
  else
