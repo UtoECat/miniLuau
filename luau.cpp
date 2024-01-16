@@ -363,7 +363,7 @@ FValue<T>* FValue<T>::list = nullptr;
 #endif
 #line __LINE__ ""
 #line __LINE__ "DenseHash.h"
-#include <cstddef>
+#include <stddef.h>
 #include <functional>
 #include <utility>
 #include <type_traits>
@@ -899,6 +899,286 @@ inline bool isFlagExperimental(const char* flag)
 }
 }
 #line __LINE__ ""
+#line __LINE__ "VecDeque.h"
+#include <algorithm>
+#include <limits>
+#include <memory>
+#include <new>
+#include <stdexcept>
+namespace Luau
+{
+template<typename T, class Allocator = std::allocator<T>>
+class VecDeque : Allocator
+{
+private:
+ static_assert(std::is_nothrow_move_constructible_v<T>);
+ static_assert(std::is_nothrow_move_assignable_v<T>);
+ T* buffer = nullptr;
+ size_t buffer_capacity = 0; // the size of our allocation
+ size_t head = 0;
+ size_t queue_size = 0; // the size of the queue
+ void destroyElements() noexcept
+ {
+ size_t head_size =
+ std::min(queue_size, capacity() - head);
+ size_t tail_size = queue_size - head_size; // how many elements are in the tail portion (i.e. any portion that wrapped to the front)
+ for (size_t index = head; index < head + head_size; index++)
+ buffer[index].~T();
+ for (size_t index = 0; index < tail_size; index++)
+ buffer[index].~T();
+ }
+ bool is_full()
+ {
+ return queue_size == capacity();
+ }
+ void grow()
+ {
+ size_t old_capacity = capacity();
+ size_t new_capacity = (old_capacity > 0) ? old_capacity * 3 / 2 + 1 : 4;
+ if (new_capacity > max_size())
+ throw std::bad_array_new_length();
+ T* new_buffer = this->allocate(new_capacity);
+ LUAU_ASSERT(old_capacity == queue_size);
+ size_t head_size =
+ std::min(queue_size, old_capacity - head);
+ size_t tail_size = queue_size - head_size; // how many elements are in the tail portion (i.e. any portion that wrapped to the front)
+ std::uninitialized_move(buffer + head, buffer + head + head_size, new_buffer);
+ if (head_size < queue_size)
+ std::uninitialized_move(buffer, buffer + tail_size, new_buffer + head_size);
+ destroyElements();
+ this->deallocate(buffer, old_capacity);
+ buffer = new_buffer;
+ buffer_capacity = new_capacity;
+ head = 0;
+ }
+ size_t logicalToPhysical(size_t pos)
+ {
+ return (head + pos) % capacity();
+ }
+public:
+ VecDeque() = default;
+ explicit VecDeque(const Allocator& alloc) noexcept
+ : Allocator{alloc}
+ {
+ }
+ VecDeque(const VecDeque& other)
+ : buffer(this->allocate(other.buffer_capacity))
+ , buffer_capacity(other.buffer_capacity)
+ , head(other.head)
+ , queue_size(other.queue_size)
+ {
+ std::uninitialized_copy(other.buffer, other.buffer + other.buffer_capacity, buffer);
+ }
+ VecDeque(const VecDeque& other, const Allocator& alloc)
+ : Allocator{alloc}
+ , buffer(this->allocate(other.buffer_capacity))
+ , buffer_capacity(other.buffer_capacity)
+ , head(other.head)
+ , queue_size(other.queue_size)
+ {
+ std::uninitialized_copy(other.buffer, other.buffer + other.buffer_capacity, buffer);
+ }
+ VecDeque(VecDeque&& other) noexcept
+ : buffer(std::exchange(other.buffer, nullptr))
+ , buffer_capacity(std::exchange(other.buffer_capacity, 0))
+ , head(std::exchange(other.head, 0))
+ , queue_size(std::exchange(other.queue_size, 0))
+ {
+ }
+ VecDeque(VecDeque&& other, const Allocator& alloc) noexcept
+ : Allocator{alloc}
+ , buffer(std::exchange(other.buffer, nullptr))
+ , buffer_capacity(std::exchange(other.buffer_capacity, 0))
+ , head(std::exchange(other.head, 0))
+ , queue_size(std::exchange(other.queue_size, 0))
+ {
+ }
+ VecDeque(std::initializer_list<T> init, const Allocator& alloc = Allocator())
+ : Allocator{alloc}
+ {
+ buffer = this->allocate(init.size());
+ buffer_capacity = init.size();
+ queue_size = init.size();
+ std::uninitialized_copy(init.begin(), init.end(), buffer);
+ }
+ ~VecDeque() noexcept
+ {
+ destroyElements();
+ this->deallocate(buffer, buffer_capacity);
+ }
+ VecDeque& operator=(const VecDeque& other)
+ {
+ if (this == &other)
+ return *this;
+ destroyElements();
+ if (buffer_capacity < other.size())
+ {
+ this->deallocate(buffer, buffer_capacity);
+ buffer = this->allocate(other.buffer_capacity);
+ buffer_capacity = other.buffer_capacity;
+ }
+ size_t head_size = other.capacity() - other.head;
+ size_t tail_size = other.size() - head_size; // how many elements are in the tail portion (i.e. any portion that wrapped to the front)
+ std::uninitialized_copy(other.buffer + other.head, other.buffer + head + head_size, buffer);
+ std::uninitialized_copy(other.buffer, other.buffer + tail_size, buffer + head_size);
+ return *this;
+ }
+ VecDeque& operator=(VecDeque&& other)
+ {
+ if (this == &other)
+ return *this;
+ destroyElements();
+ this->deallocate(buffer, buffer_capacity);
+ buffer = std::exchange(other.buffer, nullptr);
+ buffer_capacity = std::exchange(other.buffer_capacity, 0);
+ head = std::exchange(other.head, 0);
+ queue_size = std::exchange(other.queue_size, 0);
+ return *this;
+ }
+ Allocator get_allocator() const noexcept
+ {
+ return this;
+ }
+ T& at(size_t pos)
+ {
+ if (pos >= queue_size)
+ throw std::out_of_range("VecDeque");
+ return buffer[logicalToPhysical(pos)];
+ }
+ const T& at(size_t pos) const
+ {
+ if (pos >= queue_size)
+ throw std::out_of_range("VecDeque");
+ return buffer[logicalToPhysical(pos)];
+ }
+ [[nodiscard]] T& operator[](size_t pos) noexcept
+ {
+ LUAU_ASSERT(pos < queue_size);
+ return buffer[logicalToPhysical(pos)];
+ }
+ [[nodiscard]] const T& operator[](size_t pos) const noexcept
+ {
+ LUAU_ASSERT(pos < queue_size);
+ return buffer[logicalToPhysical(pos)];
+ }
+ T& front() {
+ LUAU_ASSERT(!empty());
+ return buffer[head];
+ }
+ const T& front() const {
+ LUAU_ASSERT(!empty());
+ return buffer[head];
+ }
+ T& back() {
+ LUAU_ASSERT(!empty());
+ size_t back = logicalToPhysical(queue_size - 1);
+ return buffer[back];
+ }
+ const T& back() const {
+ LUAU_ASSERT(!empty());
+ size_t back = logicalToPhysical(queue_size - 1);
+ return buffer[back];
+ }
+ bool empty() const noexcept
+ {
+ return queue_size == 0;
+ }
+ size_t size() const noexcept
+ {
+ return queue_size;
+ }
+ size_t max_size() const noexcept
+ {
+ return std::numeric_limits<size_t>::max() / sizeof(T);
+ }
+ void reserve(size_t new_capacity)
+ {
+ if (new_capacity > max_size())
+ throw std::length_error("too large");
+ size_t old_capacity = capacity();
+ if (new_capacity <= old_capacity)
+ return;
+ size_t head_size =
+ std::min(queue_size, old_capacity - head);
+ size_t tail_size = queue_size - head_size; // how many elements are in the tail portion (i.e. any portion that wrapped to the front)
+ T* new_buffer = this->allocate(new_capacity);
+ std::uninitialized_move(buffer + head, buffer + head + head_size, new_buffer);
+ if (head_size < queue_size)
+ std::uninitialized_move(buffer, buffer + tail_size, new_buffer + head_size);
+ std::uninitialized_move(buffer, buffer + tail_size, new_buffer + head_size);
+ destroyElements();
+ this->deallocate(buffer, old_capacity);
+ buffer = new_buffer;
+ buffer_capacity = new_capacity;
+ head = 0;
+ }
+ size_t capacity() const noexcept
+ {
+ return buffer_capacity;
+ }
+ void shrink_to_fit() {
+ size_t old_capacity = capacity();
+ size_t new_capacity = queue_size;
+ if (old_capacity == new_capacity)
+ return;
+ size_t head_size =
+ std::min(queue_size, old_capacity - head);
+ size_t tail_size = queue_size - head_size; // how many elements are in the tail portion (i.e. any portion that wrapped to the front)
+ T* new_buffer = this->allocate(new_capacity);
+ std::uninitialized_move(buffer + head, buffer + head + head_size, new_buffer);
+ if (head_size < queue_size)
+ std::uninitialized_move(buffer, buffer + tail_size, new_buffer + head_size);
+ destroyElements();
+ this->deallocate(buffer, old_capacity);
+ buffer = new_buffer;
+ buffer_capacity = new_capacity;
+ head = 0;
+ }
+ [[nodiscard]] bool is_contiguous() const noexcept
+ {
+ return head <= capacity() - queue_size;
+ }
+ void clear() noexcept
+ {
+ destroyElements();
+ head = 0;
+ queue_size = 0;
+ }
+ void push_back(const T& value)
+ {
+ if (is_full())
+ grow();
+ size_t next_back = logicalToPhysical(queue_size);
+ new (buffer + next_back)T(value);
+ queue_size++;
+ }
+ void pop_back()
+ {
+ LUAU_ASSERT(!empty());
+ queue_size--;
+ size_t next_back = logicalToPhysical(queue_size);
+ buffer[next_back].~T();
+ }
+ void push_front(const T& value)
+ {
+ if (is_full())
+ grow();
+ head = (head == 0) ? capacity() - 1 : head - 1;
+ new (buffer + head)T(value);
+ queue_size++;
+ }
+ void pop_front()
+ {
+ LUAU_ASSERT(!empty());
+ buffer[head].~T();
+ head++;
+ queue_size--;
+ if (head == capacity())
+ head = 0;
+ }
+};
+}
+#line __LINE__ ""
 #line __LINE__ "lapi.cpp"
 #line __LINE__ "lobject.h"
 #line __LINE__ "lcommon.h"
@@ -1318,7 +1598,7 @@ typedef struct global_State
  TString* tmname[TM_N]; // array with tag-method names
  TValue pseudotemp;
  TValue registry;
- int registryfree; // next free slot in registry
+ int registryfree;
  struct lua_jmpbuf* errorjmp;
  uint64_t rngstate;
  uint64_t ptrenckey[4]; // pointer encoding key for display
@@ -3743,7 +4023,6 @@ int luaopen_base(lua_State* L)
 }
 #line __LINE__ ""
 #line __LINE__ "lbitlib.cpp"
-LUAU_FASTFLAGVARIABLE(LuauBit32Byteswap, false)
 #define ALLONES ~0u
 #define NBITS int(8 * sizeof(unsigned))
 #define trim(x) ((x)&ALLONES)
@@ -3917,8 +4196,6 @@ static int b_countrz(lua_State* L)
 }
 static int b_swap(lua_State* L)
 {
- if (!FFlag::LuauBit32Byteswap)
- luaL_error(L, "bit32.byteswap isn't enabled");
  b_uint n = luaL_checkunsigned(L, 1);
  n = (n << 24) | ((n << 8) & 0xff0000) | ((n >> 8) & 0xff00) | (n >> 24);
  lua_pushunsigned(L, n);
@@ -3988,7 +4265,6 @@ void luaB_freebuffer(lua_State* L, Buffer* b, lua_Page* page)
 #if defined(LUAU_BIG_ENDIAN)
 #include <endian.h>
 #endif
-LUAU_FASTFLAGVARIABLE(LuauBufferBetterMsg, false)
 #define isoutofbounds(offset, len, accessize) (uint64_t(unsigned(offset)) + (accessize) > uint64_t(len))
 static_assert(MAX_BUFFER_SIZE <= INT_MAX, "current implementation can't handle a larger limit");
 #if defined(LUAU_BIG_ENDIAN)
@@ -4008,15 +4284,7 @@ inline T buffer_swapbe(T v)
 static int buffer_create(lua_State* L)
 {
  int size = luaL_checkinteger(L, 1);
- if (FFlag::LuauBufferBetterMsg)
- {
  luaL_argcheck(L, size >= 0, 1, "size");
- }
- else
- {
- if (size < 0)
- luaL_error(L, "invalid size");
- }
  lua_newbuffer(L, size);
  return 1;
 }
@@ -4115,15 +4383,7 @@ static int buffer_readstring(lua_State* L)
  void* buf = luaL_checkbuffer(L, 1, &len);
  int offset = luaL_checkinteger(L, 2);
  int size = luaL_checkinteger(L, 3);
- if (FFlag::LuauBufferBetterMsg)
- {
  luaL_argcheck(L, size >= 0, 3, "size");
- }
- else
- {
- if (size < 0)
- luaL_error(L, "invalid size");
- }
  if (isoutofbounds(offset, len, unsigned(size)))
  luaL_error(L, "buffer access out of bounds");
  lua_pushlstring(L, (char*)buf + offset, size);
@@ -4137,15 +4397,7 @@ static int buffer_writestring(lua_State* L)
  size_t size = 0;
  const char* val = luaL_checklstring(L, 3, &size);
  int count = luaL_optinteger(L, 4, int(size));
- if (FFlag::LuauBufferBetterMsg)
- {
  luaL_argcheck(L, count >= 0, 4, "count");
- }
- else
- {
- if (count < 0)
- luaL_error(L, "invalid count");
- }
  if (size_t(count) > size)
  luaL_error(L, "string length overflow");
  if (isoutofbounds(offset, len, unsigned(count)))
@@ -6324,7 +6576,6 @@ const char* lua_debugtrace(lua_State* L)
 #if LUA_USE_LONGJMP
 #include <setjmp.h>
 #else
-#include <stdexcept>
 #endif
 #if LUA_USE_LONGJMP
 struct lua_jmpbuf
@@ -9341,6 +9592,7 @@ void luaM_visitgco(lua_State* L, void* context, bool (*visitor)(void* context, l
 #line __LINE__ "lnumprint.cpp"
 #ifdef _MSC_VER
 #endif
+LUAU_FASTFLAGVARIABLE(LuauSciNumberSkipTrailDot, false)
 static const int kPow10TableMin = -292;
 static const int kPow10TableMax = 324;
 static const uint64_t kPow5Table[16] = {
@@ -9590,6 +9842,8 @@ char* luai_num2str(char* buf, double n)
  buf[1] = '.';
  fastmemcpy(buf + 2, dec + 1, declen - 1, 16);
  char* exp = trimzero(buf + declen + 1);
+ if (FFlag::LuauSciNumberSkipTrailDot && exp[-1] == '.')
+ exp--;
  return printexp(exp, dot - 1);
  }
 }
@@ -13042,7 +13296,6 @@ void luaU_freeudata(lua_State* L, Udata* u, lua_Page* page)
 #line __LINE__ "lutf8lib.cpp"
 #define MAXUNICODE 0x10FFFF
 #define iscont(p) ((*(p)&0xC0) == 0x80)
-LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauStricterUtf8, false)
 static int u_posrelat(int pos, size_t len)
 {
  if (pos >= 0)
@@ -13074,7 +13327,7 @@ static const char* utf8_decode(const char* o, int* val)
  res |= ((c & 0x7F) << (count * 5));
  if (count > 3 || res > MAXUNICODE || res <= limits[count])
  return NULL;
- if (DFFlag::LuauStricterUtf8 && unsigned(res - 0xD800) < 0x800)
+ if (unsigned(res - 0xD800) < 0x800)
  return NULL;
  s += count; // skip continuation bytes read
  }
@@ -14039,7 +14292,9 @@ reentry:
  LUAU_ASSERT(unsigned(pc - cl->l.p->code) < unsigned(cl->l.p->sizecode));
  VM_NEXT();
  case LUA_TLIGHTUSERDATA:
- pc += (pvalue(ra) == pvalue(rb) && (!FFlag::LuauTaggedLuData || lightuserdatatag(ra) == lightuserdatatag(rb))) ? LUAU_INSN_D(insn) : 1;
+ pc += (pvalue(ra) == pvalue(rb) && (!FFlag::LuauTaggedLuData || lightuserdatatag(ra) == lightuserdatatag(rb)))
+ ? LUAU_INSN_D(insn)
+ : 1;
  LUAU_ASSERT(unsigned(pc - cl->l.p->code) < unsigned(cl->l.p->sizecode));
  VM_NEXT();
  case LUA_TNUMBER:
@@ -14131,7 +14386,9 @@ reentry:
  LUAU_ASSERT(unsigned(pc - cl->l.p->code) < unsigned(cl->l.p->sizecode));
  VM_NEXT();
  case LUA_TLIGHTUSERDATA:
- pc += (pvalue(ra) != pvalue(rb) || (FFlag::LuauTaggedLuData && lightuserdatatag(ra) != lightuserdatatag(rb))) ? LUAU_INSN_D(insn) : 1;
+ pc += (pvalue(ra) != pvalue(rb) || (FFlag::LuauTaggedLuData && lightuserdatatag(ra) != lightuserdatatag(rb)))
+ ? LUAU_INSN_D(insn)
+ : 1;
  LUAU_ASSERT(unsigned(pc - cl->l.p->code) < unsigned(cl->l.p->sizecode));
  VM_NEXT();
  case LUA_TNUMBER:
@@ -18388,7 +18645,6 @@ namespace Luau
 const char* findConfusable(uint32_t codepoint);
 }
 #line __LINE__ "Confusables.cpp"
-#include <algorithm>
 #include <array>
 namespace Luau
 {
@@ -21807,7 +22063,6 @@ private:
 }
 #line __LINE__ "Parser.cpp"
 #line __LINE__ "TimeTrace.h"
-#include <memory>
 LUAU_FASTFLAG(DebugLuauTimeTracing)
 namespace Luau
 {
@@ -25242,8 +25497,6 @@ std::string compile(
  const std::string& source, const CompileOptions& options = {}, const ParseOptions& parseOptions = {}, BytecodeEncoder* encoder = nullptr);
 }
 #line __LINE__ "Builtins.cpp"
-LUAU_FASTFLAGVARIABLE(LuauBit32ByteswapBuiltin, false)
-LUAU_FASTFLAGVARIABLE(LuauBufferBuiltins, false)
 namespace Luau
 {
 namespace Compile
@@ -25394,7 +25647,7 @@ static int getBuiltinFunctionId(const Builtin& builtin, const CompileOptions& op
  return LBF_BIT32_COUNTLZ;
  if (builtin.method == "countrz")
  return LBF_BIT32_COUNTRZ;
- if (FFlag::LuauBit32ByteswapBuiltin && builtin.method == "byteswap")
+ if (builtin.method == "byteswap")
  return LBF_BIT32_BYTESWAP;
  }
  if (builtin.object == "string")
@@ -25415,7 +25668,7 @@ static int getBuiltinFunctionId(const Builtin& builtin, const CompileOptions& op
  if (builtin.method == "unpack")
  return LBF_TABLE_UNPACK;
  }
- if (FFlag::LuauBufferBuiltins && builtin.object == "buffer")
+ if (builtin.object == "buffer")
  {
  if (builtin.method == "readi8")
  return LBF_BUFFER_READI8;
@@ -28377,7 +28630,9 @@ struct Compiler
  else
  bytecode.emitAD(LOP_NEWCLOSURE, target, pid);
  for (const Capture& c : captures)
+ {
  bytecode.emitABC(LOP_CAPTURE, uint8_t(c.type), c.data, 0);
+ }
  }
  LuauOpcode getUnaryOp(AstExprUnary::Op op)
  {
@@ -31458,7 +31713,6 @@ void predictTableShapes(DenseHashMap<AstExprTable*, TableShape>& shapes, AstNode
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "Types.cpp"
-LUAU_FASTFLAGVARIABLE(LuauCompileBufferAnnotation, false)
 namespace Luau
 {
 static bool isGeneric(AstName name, const AstArray<AstGenericType>& generics)
@@ -31480,7 +31734,7 @@ static LuauBytecodeType getPrimitiveType(AstName name)
  return LBC_TYPE_STRING;
  else if (name == "thread")
  return LBC_TYPE_THREAD;
- else if (FFlag::LuauCompileBufferAnnotation && name == "buffer")
+ else if (name == "buffer")
  return LBC_TYPE_BUFFER;
  else if (name == "any" || name == "unknown")
  return LBC_TYPE_ANY;
@@ -32195,7 +32449,6 @@ constexpr RegisterA64 q31{KindA64::q, 31};
 } // namespace CodeGen
 }
 #line __LINE__ "IrData.h"
-LUAU_FASTFLAG(LuauKeepVmapLinear2)
 struct Proto;
 namespace Luau
 {
@@ -32219,6 +32472,7 @@ enum class IrCmd : uint8_t
  GET_HASH_NODE_ADDR,
  GET_CLOSURE_UPVAL_ADDR,
  STORE_TAG,
+ STORE_EXTRA,
  STORE_POINTER,
  STORE_DOUBLE,
  STORE_INT,
@@ -32534,7 +32788,6 @@ struct IrFunction
  uint32_t entryLocation = 0;
  std::vector<IrOp> valueRestoreOps;
  std::vector<uint32_t> validRestoreOpBlocks;
- uint32_t validRestoreOpBlockIdx = 0;
  Proto* proto = nullptr;
  bool variadic = false;
  CfgInfo cfg;
@@ -32639,8 +32892,6 @@ struct IrFunction
  {
  if (instIdx >= valueRestoreOps.size())
  return {};
- if (FFlag::LuauKeepVmapLinear2)
- {
  if (limitToCurrentBlock)
  {
  for (uint32_t blockIdx : validRestoreOpBlocks)
@@ -32652,17 +32903,6 @@ struct IrFunction
  return {};
  }
  return valueRestoreOps[instIdx];
- }
- else
- {
- const IrBlock& block = blocks[validRestoreOpBlockIdx];
- if (limitToCurrentBlock)
- {
- if (instIdx < block.start || instIdx > block.finish)
- return {};
- }
- return valueRestoreOps[instIdx];
- }
  }
  IrOp findRestoreOp(const IrInst& inst, bool limitToCurrentBlock) const
  {
@@ -33086,7 +33326,6 @@ void afterInstForNLoop(IrBuilder& build, const Instruction* pc);
 }
 } // namespace Luau
 #line __LINE__ "IrBuilder.cpp"
-LUAU_FASTFLAGVARIABLE(LuauCodegenBytecodeInfer, false)
 namespace Luau
 {
 namespace CodeGen
@@ -33172,7 +33411,6 @@ void IrBuilder::buildFunctionIr(Proto* proto)
  bool generateTypeChecks = hasTypedParameters(proto);
  IrOp entry = generateTypeChecks ? block(IrBlockKind::Internal) : IrOp{};
  rebuildBytecodeBasicBlocks(proto);
- if (FFlag::LuauCodegenBytecodeInfer)
  analyzeBytecodeTypes(function);
  function.bcMapping.resize(proto->sizecode, {~0u, ~0u});
  if (generateTypeChecks)
@@ -33246,7 +33484,6 @@ void IrBuilder::rebuildBytecodeBasicBlocks(Proto* proto)
  instIndexToBlock[i] = b.index;
  }
  }
- if (FFlag::LuauCodegenBytecodeInfer)
  buildBytecodeBlocks(function, jumpTargets);
 }
 void IrBuilder::translateInst(LuauOpcode op, const Instruction* pc, int i)
@@ -33730,7 +33967,6 @@ IrOp IrBuilder::vmExit(uint32_t pcpos)
 #define hasTypedParameters hasTypedParameters_2
 #line __LINE__ "AssemblyBuilderA64.cpp"
 #line __LINE__ "AddressA64.h"
-#include <stddef.h>
 namespace Luau
 {
 namespace CodeGen
@@ -33916,6 +34152,7 @@ public:
  }
  void logAppend(const char* fmt, ...) LUAU_PRINTF_ATTR(2, 3);
  uint32_t getCodeSize() const;
+ unsigned getInstructionCount() const;
  std::vector<uint8_t> data;
  std::vector<uint32_t> code;
  std::string text;
@@ -34691,6 +34928,10 @@ void AssemblyBuilderA64::logAppend(const char* fmt, ...)
 uint32_t AssemblyBuilderA64::getCodeSize() const
 {
  return uint32_t(codePos - code.data());
+}
+unsigned AssemblyBuilderA64::getInstructionCount() const
+{
+ return unsigned(getCodeSize()) / 4;
 }
 bool AssemblyBuilderA64::isMaskSupported(uint32_t mask)
 {
@@ -35530,6 +35771,7 @@ public:
  OperandX64 bytes(const void* ptr, size_t size, size_t align = 8);
  void logAppend(const char* fmt, ...) LUAU_PRINTF_ATTR(2, 3);
  uint32_t getCodeSize() const;
+ unsigned getInstructionCount() const;
  std::vector<uint8_t> data;
  std::vector<uint8_t> code;
  std::string text;
@@ -35585,12 +35827,12 @@ private:
  size_t dataPos = 0;
  uint8_t* codePos = nullptr;
  uint8_t* codeEnd = nullptr;
+ unsigned instructionCount = 0;
 };
 }
 } // namespace CodeGen
 }
 #line __LINE__ "AssemblyBuilderX64.cpp"
-LUAU_FASTFLAG(LuauCodeGenFixByteLower)
 namespace Luau
 {
 namespace CodeGen
@@ -36436,6 +36678,10 @@ uint32_t AssemblyBuilderX64::getCodeSize() const
 {
  return uint32_t(codePos - code.data());
 }
+unsigned AssemblyBuilderX64::getInstructionCount() const
+{
+ return instructionCount;
+}
 void AssemblyBuilderX64::placeBinary(const char* name, OperandX64 lhs, OperandX64 rhs, uint8_t codeimm8, uint8_t codeimm, uint8_t codeimmImm8,
  uint8_t code8rev, uint8_t coderev, uint8_t code8, uint8_t code, uint8_t opreg)
 {
@@ -36743,18 +36989,8 @@ void AssemblyBuilderX64::placeImm8Or32(int32_t imm)
 void AssemblyBuilderX64::placeImm8(int32_t imm)
 {
  int8_t imm8 = int8_t(imm);
- if (FFlag::LuauCodeGenFixByteLower)
- {
  LUAU_ASSERT(imm8 == imm);
  place(imm8);
- }
- else
- {
- if (imm8 == imm)
- place(imm8);
- else
- LUAU_ASSERT(!"Invalid immediate value");
- }
 }
 void AssemblyBuilderX64::placeImm16(int16_t imm)
 {
@@ -36799,6 +37035,7 @@ void AssemblyBuilderX64::place(uint8_t byte)
 void AssemblyBuilderX64::commit()
 {
  LUAU_ASSERT(codePos <= codeEnd);
+ ++instructionCount;
  if (unsigned(codeEnd - codePos) < kMaxInstructionLength)
  extend();
 }
@@ -37856,6 +38093,11 @@ struct BlockLinearizationStats
  return result;
  }
 };
+enum FunctionStatsFlags
+{
+ FunctionStats_Enable = 1 << 0,
+ FunctionStats_BytecodeSummary = 1 << 1,
+};
 struct FunctionStats
 {
  std::string name;
@@ -37863,6 +38105,8 @@ struct FunctionStats
  unsigned bcodeCount = 0;
  unsigned irCount = 0;
  unsigned asmCount = 0;
+ unsigned asmSize = 0;
+ std::vector<std::vector<unsigned>> bytecodeSummary;
 };
 struct LoweringStats
 {
@@ -37877,7 +38121,7 @@ struct LoweringStats
  int regAllocErrors = 0;
  int loweringErrors = 0;
  BlockLinearizationStats blockLinearizationStats;
- bool collectFunctionStats = false;
+ unsigned functionStatsFlags = 0;
  std::vector<FunctionStats> functions;
  LoweringStats operator+(const LoweringStats& other) const
  {
@@ -37898,7 +38142,7 @@ struct LoweringStats
  this->regAllocErrors += that.regAllocErrors;
  this->loweringErrors += that.loweringErrors;
  this->blockLinearizationStats += that.blockLinearizationStats;
- if (this->collectFunctionStats)
+ if (this->functionStatsFlags & FunctionStats_Enable)
  this->functions.insert(this->functions.end(), that.functions.begin(), that.functions.end());
  return *this;
  }
@@ -38265,7 +38509,6 @@ LUAU_FASTFLAG(DebugCodegenSkipNumbering)
 LUAU_FASTINT(CodegenHeuristicsInstructionLimit)
 LUAU_FASTINT(CodegenHeuristicsBlockLimit)
 LUAU_FASTINT(CodegenHeuristicsBlockInstructionLimit)
-LUAU_FASTFLAG(LuauKeepVmapLinear2)
 namespace Luau
 {
 namespace CodeGen
@@ -38325,14 +38568,7 @@ inline bool lowerImpl(AssemblyBuilder& build, IrLowering& lowering, IrFunction& 
  build.logAppend("# ");
  toStringDetailed(ctx, block, blockIndex, true);
  }
- if (FFlag::LuauKeepVmapLinear2)
- {
  function.validRestoreOpBlocks.push_back(blockIndex);
- }
- else
- {
- function.validRestoreOpBlockIdx = blockIndex;
- }
  build.setLabel(block.label);
  if (blockIndex == function.entryBlock)
  {
@@ -38387,7 +38623,7 @@ inline bool lowerImpl(AssemblyBuilder& build, IrLowering& lowering, IrFunction& 
  lowering.finishBlock(block, nextBlock);
  if (options.includeIr)
  build.logAppend("#\n");
- if (FFlag::LuauKeepVmapLinear2 && block.expectedNextBlock == ~0u)
+ if (block.expectedNextBlock == ~0u)
  function.validRestoreOpBlocks.clear();
  }
  if (!seenFallback)
@@ -38499,11 +38735,12 @@ FunctionBytecodeSummary FunctionBytecodeSummary::fromProto(Proto* proto, unsigne
  const char* name = proto->debugname ? getstr(proto->debugname) : "";
  int line = proto->linedefined;
  FunctionBytecodeSummary summary(source, name, line, nestingLimit);
- for (int i = 0; i < proto->sizecode; ++i)
+ for (int i = 0; i < proto->sizecode;)
  {
  Instruction insn = proto->code[i];
  uint8_t op = LUAU_INSN_OP(insn);
  summary.incCount(0, op);
+ i += Luau::getOpLength(LuauOpcode(op));
  }
  return summary;
 }
@@ -38518,6 +38755,7 @@ std::vector<FunctionBytecodeSummary> summarizeBytecode(lua_State* L, int idx, un
  summaries.reserve(protos.size());
  for (Proto* proto : protos)
  {
+ if (proto)
  summaries.push_back(FunctionBytecodeSummary::fromProto(proto, nestingLimit));
  }
  return summaries;
@@ -39709,28 +39947,39 @@ static std::string getAssemblyImpl(AssemblyBuilder& build, const TValue* func, A
  {
  IrBuilder ir;
  ir.buildFunctionIr(p);
- unsigned asmCount = build.getCodeSize();
+ unsigned asmSize = build.getCodeSize();
+ unsigned asmCount = build.getInstructionCount();
  if (options.includeAssembly || options.includeIr)
  logFunctionHeader(build, p);
  if (!lowerFunction(ir, build, helpers, p, options, stats))
  {
  if (build.logText)
  build.logAppend("; skipping (can't lower)\n");
+ asmSize = 0;
  asmCount = 0;
  if (stats)
  stats->skippedFunctions += 1;
  }
  else
  {
- asmCount = build.getCodeSize() - asmCount;
+ asmSize = build.getCodeSize() - asmSize;
+ asmCount = build.getInstructionCount() - asmCount;
  }
- if (stats && stats->collectFunctionStats)
+ if (stats && (stats->functionStatsFlags & FunctionStats_Enable))
  {
- const char* name = p->debugname ? getstr(p->debugname) : "";
- int line = p->linedefined;
- unsigned bcodeCount = getInstructionCount(p->code, p->sizecode);
- unsigned irCount = unsigned(ir.function.instructions.size());
- stats->functions.push_back({name, line, bcodeCount, irCount, asmCount});
+ FunctionStats functionStat;
+ functionStat.name = p->debugname ? getstr(p->debugname) : "";
+ functionStat.line = p->linedefined;
+ functionStat.bcodeCount = getInstructionCount(p->code, p->sizecode);
+ functionStat.irCount = unsigned(ir.function.instructions.size());
+ functionStat.asmSize = asmSize;
+ functionStat.asmCount = asmCount;
+ if (stats->functionStatsFlags & FunctionStats_BytecodeSummary)
+ {
+ FunctionBytecodeSummary summary(FunctionBytecodeSummary::fromProto(p, 0));
+ functionStat.bytecodeSummary.push_back(summary.getCounts(0));
+ }
+ stats->functions.push_back(std::move(functionStat));
  }
  if (build.logText)
  build.logAppend("\n");
@@ -40414,6 +40663,10 @@ inline OperandX64 luauRegValue(int ri)
 inline OperandX64 luauRegTag(int ri)
 {
  return dword[rBase + ri * sizeof(TValue) + offsetof(TValue, tt)];
+}
+inline OperandX64 luauRegExtra(int ri)
+{
+ return dword[rBase + ri * sizeof(TValue) + offsetof(TValue, extra)];
 }
 inline OperandX64 luauRegValueInt(int ri)
 {
@@ -41429,6 +41682,7 @@ static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrInst& i
  visitor.maybeUse(inst.a);
  break;
  case IrCmd::STORE_TAG:
+ case IrCmd::STORE_EXTRA:
  case IrCmd::STORE_POINTER:
  case IrCmd::STORE_DOUBLE:
  case IrCmd::STORE_INT:
@@ -42594,6 +42848,8 @@ const char* getCmdName(IrCmd cmd)
  return "GET_CLOSURE_UPVAL_ADDR";
  case IrCmd::STORE_TAG:
  return "STORE_TAG";
+ case IrCmd::STORE_EXTRA:
+ return "STORE_EXTRA";
  case IrCmd::STORE_POINTER:
  return "STORE_POINTER";
  case IrCmd::STORE_DOUBLE:
@@ -43672,6 +43928,21 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  else
  {
  build.str(regOp(inst.b), addr);
+ }
+ break;
+ }
+ case IrCmd::STORE_EXTRA:
+ {
+ AddressA64 addr = tempAddr(inst.a, offsetof(TValue, extra));
+ if (intOp(inst.b) == 0)
+ {
+ build.str(wzr, addr);
+ }
+ else
+ {
+ RegisterA64 temp = regs.allocTemp(KindA64::w);
+ build.mov(temp, intOp(inst.b));
+ build.str(temp, addr);
  }
  break;
  }
@@ -45449,7 +45720,6 @@ Label& IrLoweringA64::labelOp(IrOp op) const
 }
 #line __LINE__ ""
 #line __LINE__ "IrLoweringX64.cpp"
-LUAU_FASTFLAG(LuauCodeGenFixByteLower)
 namespace Luau
 {
 namespace CodeGen
@@ -45615,7 +45885,9 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.mov(luauRegTag(vmRegOp(inst.a)), tagOp(inst.b));
  }
  else
+ {
  LUAU_ASSERT(!"Unsupported instruction form");
+ }
  break;
  case IrCmd::STORE_POINTER:
  {
@@ -45635,6 +45907,19 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  break;
  }
+ case IrCmd::STORE_EXTRA:
+ if (inst.b.kind == IrOpKind::Constant)
+ {
+ if (inst.a.kind == IrOpKind::Inst)
+ build.mov(dword[regOp(inst.a) + offsetof(TValue, extra)], intOp(inst.b));
+ else
+ build.mov(luauRegExtra(vmRegOp(inst.a)), intOp(inst.b));
+ }
+ else
+ {
+ LUAU_ASSERT(!"Unsupported instruction form");
+ }
+ break;
  case IrCmd::STORE_DOUBLE:
  {
  OperandX64 valueLhs = inst.a.kind == IrOpKind::Inst ? qword[regOp(inst.a) + offsetof(TValue, value)] : luauRegValue(vmRegOp(inst.a));
@@ -46927,16 +47212,8 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  break;
  case IrCmd::BUFFER_WRITEI8:
  {
- if (FFlag::LuauCodeGenFixByteLower)
- {
  OperandX64 value = inst.c.kind == IrOpKind::Inst ? byteReg(regOp(inst.c)) : OperandX64(int8_t(intOp(inst.c)));
  build.mov(byte[bufferAddrOp(inst.a, inst.b)], value);
- }
- else
- {
- OperandX64 value = inst.c.kind == IrOpKind::Inst ? byteReg(regOp(inst.c)) : OperandX64(intOp(inst.c));
- build.mov(byte[bufferAddrOp(inst.a, inst.b)], value);
- }
  break;
  }
  case IrCmd::BUFFER_READI16:
@@ -46949,16 +47226,8 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  break;
  case IrCmd::BUFFER_WRITEI16:
  {
- if (FFlag::LuauCodeGenFixByteLower)
- {
  OperandX64 value = inst.c.kind == IrOpKind::Inst ? wordReg(regOp(inst.c)) : OperandX64(int16_t(intOp(inst.c)));
  build.mov(word[bufferAddrOp(inst.a, inst.b)], value);
- }
- else
- {
- OperandX64 value = inst.c.kind == IrOpKind::Inst ? wordReg(regOp(inst.c)) : OperandX64(intOp(inst.c));
- build.mov(word[bufferAddrOp(inst.a, inst.b)], value);
- }
  break;
  }
  case IrCmd::BUFFER_READI32:
@@ -47980,7 +48249,6 @@ BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, 
 }
 } // namespace Luau
 #line __LINE__ "IrTranslateBuiltins.cpp"
-LUAU_FASTFLAGVARIABLE(LuauBufferTranslateIr, false)
 static const int kMinMaxUnrolledParams = 5;
 static const int kBit32BinaryOpUnrolledParams = 5;
 namespace Luau
@@ -48502,8 +48770,6 @@ static void translateBufferArgsAndCheckBounds(IrBuilder& build, int nparams, int
 static BuiltinImplResult translateBuiltinBufferRead(
  IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos, IrCmd readCmd, int size, IrCmd convCmd)
 {
- if (!FFlag::LuauBufferTranslateIr)
- return {BuiltinImplType::None, -1};
  if (nparams < 2 || nresults > 1)
  return {BuiltinImplType::None, -1};
  IrOp buf, intIndex;
@@ -48516,8 +48782,6 @@ static BuiltinImplResult translateBuiltinBufferRead(
 static BuiltinImplResult translateBuiltinBufferWrite(
  IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos, IrCmd writeCmd, int size, IrCmd convCmd)
 {
- if (!FFlag::LuauBufferTranslateIr)
- return {BuiltinImplType::None, -1};
  if (nparams < 3 || nresults > 0)
  return {BuiltinImplType::None, -1};
  IrOp buf, intIndex;
@@ -48654,8 +48918,7 @@ BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, 
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "IrTranslation.cpp"
-LUAU_FASTFLAGVARIABLE(LuauFullLoopLuserdata, false)
-LUAU_FASTFLAGVARIABLE(LuauLoopInterruptFix, false)
+LUAU_FASTFLAGVARIABLE(LuauCodegenLuData, false)
 namespace Luau
 {
 namespace CodeGen
@@ -49198,16 +49461,8 @@ void translateInstForNLoop(IrBuilder& build, const Instruction* pc, int pcpos)
  IrOp loopExit = build.blockAtInst(pcpos + getOpLength(LuauOpcode(LUAU_INSN_OP(*pc))));
  LUAU_ASSERT(!build.numericLoopStack.empty());
  IrBuilder::LoopInfo loopInfo = build.numericLoopStack.back();
- if (FFlag::LuauLoopInterruptFix)
- {
  if (repeatJumpTarget != loopInfo.startpc)
  build.inst(IrCmd::INTERRUPT, build.constUint(pcpos));
- }
- else
- {
- if (build.function.blockOp(loopRepeat).start == build.function.instructions.size())
- build.inst(IrCmd::INTERRUPT, build.constUint(pcpos));
- }
  IrOp stepK = loopInfo.step;
  IrOp limit = build.inst(IrCmd::LOAD_DOUBLE, build.vmReg(ra + 0));
  IrOp step = stepK.kind == IrOpKind::Undef ? build.inst(IrCmd::LOAD_DOUBLE, build.vmReg(ra + 1)) : stepK;
@@ -49240,7 +49495,9 @@ void translateInstForGPrepNext(IrBuilder& build, const Instruction* pc, int pcpo
  IrOp tagC = build.inst(IrCmd::LOAD_TAG, build.vmReg(ra + 2));
  build.inst(IrCmd::CHECK_TAG, tagC, build.constTag(LUA_TNIL), fallback);
  build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNIL));
- build.inst(FFlag::LuauFullLoopLuserdata ? IrCmd::STORE_POINTER : IrCmd::STORE_INT, build.vmReg(ra + 2), build.constInt(0));
+ build.inst(IrCmd::STORE_POINTER, build.vmReg(ra + 2), build.constInt(0));
+ if (FFlag::LuauCodegenLuData)
+ build.inst(IrCmd::STORE_EXTRA, build.vmReg(ra + 2), build.constInt(LU_TAG_ITERATOR));
  build.inst(IrCmd::STORE_TAG, build.vmReg(ra + 2), build.constTag(LUA_TLIGHTUSERDATA));
  build.inst(IrCmd::JUMP, target);
  build.beginBlock(fallback);
@@ -49261,7 +49518,9 @@ void translateInstForGPrepInext(IrBuilder& build, const Instruction* pc, int pcp
  build.inst(IrCmd::JUMP_CMP_NUM, numC, build.constDouble(0.0), build.cond(IrCondition::NotEqual), fallback, finish);
  build.beginBlock(finish);
  build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNIL));
- build.inst(FFlag::LuauFullLoopLuserdata ? IrCmd::STORE_POINTER : IrCmd::STORE_INT, build.vmReg(ra + 2), build.constInt(0));
+ build.inst(IrCmd::STORE_POINTER, build.vmReg(ra + 2), build.constInt(0));
+ if (FFlag::LuauCodegenLuData)
+ build.inst(IrCmd::STORE_EXTRA, build.vmReg(ra + 2), build.constInt(LU_TAG_ITERATOR));
  build.inst(IrCmd::STORE_TAG, build.vmReg(ra + 2), build.constTag(LUA_TLIGHTUSERDATA));
  build.inst(IrCmd::JUMP, target);
  build.beginBlock(fallback);
@@ -49682,6 +49941,7 @@ IrValueKind getCmdValueKind(IrCmd cmd)
  case IrCmd::GET_CLOSURE_UPVAL_ADDR:
  return IrValueKind::Pointer;
  case IrCmd::STORE_TAG:
+ case IrCmd::STORE_EXTRA:
  case IrCmd::STORE_POINTER:
  case IrCmd::STORE_DOUBLE:
  case IrCmd::STORE_INT:
@@ -50481,6 +50741,9 @@ void IrValueLocationTracking::beforeInstLowering(IrInst& inst)
  case IrCmd::STORE_TAG:
  invalidateRestoreOp(inst.a, true);
  break;
+ case IrCmd::STORE_EXTRA:
+ invalidateRestoreOp(inst.a, false);
+ break;
  case IrCmd::STORE_POINTER:
  case IrCmd::STORE_DOUBLE:
  case IrCmd::STORE_INT:
@@ -50752,8 +51015,6 @@ void initFunctions(NativeState& data)
 LUAU_FASTINTVARIABLE(LuauCodeGenMinLinearBlockPath, 3)
 LUAU_FASTINTVARIABLE(LuauCodeGenReuseSlotLimit, 64)
 LUAU_FASTFLAGVARIABLE(DebugLuauAbortingChecks, false)
-LUAU_FASTFLAGVARIABLE(LuauCodeGenFixByteLower, false)
-LUAU_FASTFLAGVARIABLE(LuauKeepVmapLinear2, false)
 LUAU_FASTFLAGVARIABLE(LuauReuseBufferChecks, false)
 namespace Luau
 {
@@ -51226,6 +51487,8 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  if (activeLoadValue != kInvalidInstIdx)
  state.valueMap[state.versionedVmRegLoad(activeLoadCmd, source)] = activeLoadValue;
  }
+ break;
+ case IrCmd::STORE_EXTRA:
  break;
  case IrCmd::STORE_POINTER:
  if (inst.a.kind == IrOpKind::VmReg)
@@ -51891,12 +52154,6 @@ static void constPropInBlock(IrBuilder& build, IrBlock& block, ConstPropState& s
  foldConstants(build, function, block, index);
  constPropInInst(state, build, function, block, inst, index);
  }
- if (!FFlag::LuauKeepVmapLinear2)
- {
- state.invalidateValuePropagation();
- state.invalidateHeapTableData();
- state.invalidateHeapBufferData();
- }
 }
 static void constPropInBlockChain(IrBuilder& build, std::vector<uint8_t>& visited, IrBlock* block, ConstPropState& state)
 {
@@ -51910,12 +52167,9 @@ static void constPropInBlockChain(IrBuilder& build, std::vector<uint8_t>& visite
  LUAU_ASSERT(!visited[blockIdx]);
  visited[blockIdx] = true;
  constPropInBlock(build, *block, state);
- if (FFlag::LuauKeepVmapLinear2)
- {
  state.invalidateValuePropagation();
  state.invalidateHeapTableData();
  state.invalidateHeapBufferData();
- }
  block->sortkey = startSortkey;
  block->chainkey = chainPos++;
  IrInst& termInst = function.instructions[block->finish];
