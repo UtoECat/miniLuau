@@ -1598,7 +1598,7 @@ typedef struct global_State
  TString* tmname[TM_N]; // array with tag-method names
  TValue pseudotemp;
  TValue registry;
- int registryfree;
+ int registryfree; // next free slot in registry
  struct lua_jmpbuf* errorjmp;
  uint64_t rngstate;
  uint64_t ptrenckey[4]; // pointer encoding key for display
@@ -17338,11 +17338,19 @@ struct AstDeclaredClassProp
  AstType* ty = nullptr;
  bool isMethod = false;
 };
+enum class AstTableAccess
+{
+ Read = 0b01,
+ Write = 0b10,
+ ReadWrite = 0b11,
+};
 struct AstTableIndexer
 {
  AstType* indexType;
  AstType* resultType;
  Location location;
+ AstTableAccess access = AstTableAccess::ReadWrite;
+ std::optional<Location> accessLocation;
 };
 class AstStatDeclareClass : public AstStat
 {
@@ -17392,6 +17400,8 @@ struct AstTableProp
  AstName name;
  Location location;
  AstType* type;
+ AstTableAccess access = AstTableAccess::ReadWrite;
+ std::optional<Location> accessLocation;
 };
 class AstTypeTable : public AstType
 {
@@ -21904,7 +21914,7 @@ private:
  AstTypePack* parseTypeList(TempVector<AstType*>& result, TempVector<std::optional<AstArgumentName>>& resultNames);
  std::optional<AstTypeList> parseOptionalReturnType();
  std::pair<Location, AstTypeList> parseReturnType();
- AstTableIndexer* parseTableIndexer();
+ AstTableIndexer* parseTableIndexer(AstTableAccess access, std::optional<Location> accessLocation);
  AstTypeOrPack parseFunctionType(bool allowPack, bool isCheckedFunction = false);
  AstType* parseFunctionTypeTail(const Lexeme& begin, AstArray<AstGenericType> generics, AstArray<AstGenericTypePack> genericPacks,
  AstArray<AstType*> params, AstArray<std::optional<AstArgumentName>> paramNames, AstTypePack* varargAnnotation,
@@ -22229,6 +22239,7 @@ LUAU_FASTINTVARIABLE(LuauTypeLengthLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
 LUAU_FASTFLAGVARIABLE(LuauClipExtraHasEndProps, false)
 LUAU_FASTFLAG(LuauCheckedFunctionSyntax)
+LUAU_FASTFLAGVARIABLE(LuauReadWritePropertySyntax, false)
 namespace Luau
 {
 ParseError::ParseError(const Location& location, const std::string& message)
@@ -22859,12 +22870,12 @@ AstStat* Parser::parseDeclaration(const Location& start)
  {
  if (indexer)
  {
- AstTableIndexer* badIndexer = parseTableIndexer();
+ AstTableIndexer* badIndexer = parseTableIndexer(AstTableAccess::ReadWrite, std::nullopt);
  report(badIndexer->location, "Cannot have more than one class indexer");
  }
  else
  {
- indexer = parseTableIndexer();
+ indexer = parseTableIndexer(AstTableAccess::ReadWrite, std::nullopt);
  }
  }
  else
@@ -23115,7 +23126,7 @@ std::pair<Location, AstTypeList> Parser::parseReturnType()
  AstType* tail = parseFunctionTypeTail(begin, {}, {}, copy(result), copy(resultNames), varargAnnotation);
  return {Location{location, tail->location}, AstTypeList{copy(&tail, 1), varargAnnotation}};
 }
-AstTableIndexer* Parser::parseTableIndexer()
+AstTableIndexer* Parser::parseTableIndexer(AstTableAccess access, std::optional<Location> accessLocation)
 {
  const Lexeme begin = lexer.current();
  nextLexeme();
@@ -23123,7 +23134,7 @@ AstTableIndexer* Parser::parseTableIndexer()
  expectMatchAndConsume(']', begin);
  expectAndConsume(':', "table field");
  AstType* result = parseType();
- return allocator.alloc<AstTableIndexer>(AstTableIndexer{index, result, Location(begin.location, result->location)});
+ return allocator.alloc<AstTableIndexer>(AstTableIndexer{index, result, Location(begin.location, result->location), access, accessLocation});
 }
 AstType* Parser::parseTableType(bool inDeclarationContext)
 {
@@ -23135,6 +23146,26 @@ AstType* Parser::parseTableType(bool inDeclarationContext)
  expectAndConsume('{', "table type");
  while (lexer.current().type != '}')
  {
+ AstTableAccess access = AstTableAccess::ReadWrite;
+ std::optional<Location> accessLocation;
+ if (FFlag::LuauReadWritePropertySyntax)
+ {
+ if (lexer.current().type == Lexeme::Name && lexer.lookahead().type != ':')
+ {
+ if (AstName(lexer.current().name) == "read")
+ {
+ accessLocation = lexer.current().location;
+ access = AstTableAccess::Read;
+ lexer.next();
+ }
+ else if (AstName(lexer.current().name) == "write")
+ {
+ accessLocation = lexer.current().location;
+ access = AstTableAccess::Write;
+ lexer.next();
+ }
+ }
+ }
  if (lexer.current().type == '[' && (lexer.lookahead().type == Lexeme::RawString || lexer.lookahead().type == Lexeme::QuotedString))
  {
  const Lexeme begin = lexer.current();
@@ -23145,7 +23176,7 @@ AstType* Parser::parseTableType(bool inDeclarationContext)
  AstType* type = parseType();
  bool containsNull = chars && (strnlen(chars->data, chars->size) < chars->size);
  if (chars && !containsNull)
- props.push_back({AstName(chars->data), begin.location, type});
+ props.push_back(AstTableProp{AstName(chars->data), begin.location, type, access, accessLocation});
  else
  report(begin.location, "String literal contains malformed escape sequence or \\0");
  }
@@ -23153,19 +23184,19 @@ AstType* Parser::parseTableType(bool inDeclarationContext)
  {
  if (indexer)
  {
- AstTableIndexer* badIndexer = parseTableIndexer();
+ AstTableIndexer* badIndexer = parseTableIndexer(access, accessLocation);
  report(badIndexer->location, "Cannot have more than one table indexer");
  }
  else
  {
- indexer = parseTableIndexer();
+ indexer = parseTableIndexer(access, accessLocation);
  }
  }
  else if (props.empty() && !indexer && !(lexer.current().type == Lexeme::Name && lexer.lookahead().type == ':'))
  {
  AstType* type = parseType();
  AstType* index = allocator.alloc<AstTypeReference>(type->location, std::nullopt, nameNumber, std::nullopt, type->location);
- indexer = allocator.alloc<AstTableIndexer>(AstTableIndexer{index, type, type->location});
+ indexer = allocator.alloc<AstTableIndexer>(AstTableIndexer{index, type, type->location, access, accessLocation});
  break;
  }
  else
@@ -23175,7 +23206,7 @@ AstType* Parser::parseTableType(bool inDeclarationContext)
  break;
  expectAndConsume(':', "table field");
  AstType* type = parseType(inDeclarationContext);
- props.push_back({name->name, name->location, type});
+ props.push_back(AstTableProp{name->name, name->location, type, access, accessLocation});
  }
  if (lexer.current().type == ',' || lexer.current().type == ';')
  {
@@ -37184,6 +37215,7 @@ const char* AssemblyBuilderX64::getRegisterName(RegisterX64 reg) const
 }
 #line __LINE__ ""
 #line __LINE__ "BytecodeAnalysis.cpp"
+LUAU_FASTFLAGVARIABLE(LuauFixDivrkInference, false)
 namespace Luau
 {
 namespace CodeGen
@@ -37785,10 +37817,20 @@ void analyzeBytecodeTypes(IrFunction& function)
  case LOP_DIVRK:
  {
  int ra = LUAU_INSN_A(*pc);
+ if (FFlag::LuauFixDivrkInference)
+ {
+ int kb = LUAU_INSN_B(*pc);
+ int rc = LUAU_INSN_C(*pc);
+ bcType.a = getBytecodeConstantTag(proto, kb);
+ bcType.b = regTags[rc];
+ }
+ else
+ {
  int rb = LUAU_INSN_B(*pc);
  int kc = LUAU_INSN_C(*pc);
  bcType.a = regTags[rb];
  bcType.b = getBytecodeConstantTag(proto, kc);
+ }
  regTags[ra] = LBC_TYPE_ANY;
  if (bcType.a == LBC_TYPE_NUMBER)
  {
@@ -38073,6 +38115,10 @@ struct AssemblyOptions
  bool includeAssembly = false;
  bool includeIr = false;
  bool includeOutlinedCode = false;
+ bool includeIrPrefix = true;
+ bool includeUseInfo = true;
+ bool includeCfgInfo = true;
+ bool includeRegFlowInfo = true;
  AnnotatorFn annotator = nullptr;
  void* annotatorContext = nullptr;
 };
@@ -38174,7 +38220,8 @@ void toString(IrToStringContext& ctx, IrOp op);
 void toString(std::string& result, IrConst constant);
 void toString(std::string& result, const BytecodeTypes& bcTypes);
 void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, const IrInst& inst, uint32_t instIdx, bool includeUseInfo);
-void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t index, bool includeUseInfo);
+void toStringDetailed(
+ IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, bool includeUseInfo, bool includeCfgInfo, bool includeRegFlowInfo);
 std::string toString(const IrFunction& function, bool includeUseInfo);
 std::string dump(const IrFunction& function);
 std::string toDot(const IrFunction& function, bool includeInst);
@@ -38565,8 +38612,9 @@ inline bool lowerImpl(AssemblyBuilder& build, IrLowering& lowering, IrFunction& 
  }
  if (options.includeIr)
  {
+ if (options.includeIrPrefix)
  build.logAppend("# ");
- toStringDetailed(ctx, block, blockIndex, true);
+ toStringDetailed(ctx, block, blockIndex, options.includeUseInfo, options.includeCfgInfo, options.includeRegFlowInfo);
  }
  function.validRestoreOpBlocks.push_back(blockIndex);
  build.setLabel(block.label);
@@ -38605,8 +38653,9 @@ inline bool lowerImpl(AssemblyBuilder& build, IrLowering& lowering, IrFunction& 
  LUAU_ASSERT(inst.lastUse == 0 || inst.useCount != 0);
  if (options.includeIr)
  {
+ if (options.includeIrPrefix)
  build.logAppend("# ");
- toStringDetailed(ctx, block, blockIndex, inst, index, true);
+ toStringDetailed(ctx, block, blockIndex, inst, index, options.includeUseInfo);
  }
  lowering.lowerInst(inst, index, nextBlock);
  if (lowering.hasError())
@@ -38621,7 +38670,7 @@ inline bool lowerImpl(AssemblyBuilder& build, IrLowering& lowering, IrFunction& 
  }
  }
  lowering.finishBlock(block, nextBlock);
- if (options.includeIr)
+ if (options.includeIr && options.includeIrPrefix)
  build.logAppend("#\n");
  if (block.expectedNextBlock == ~0u)
  function.validRestoreOpBlocks.clear();
@@ -43330,16 +43379,17 @@ void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t blo
  ctx.result.append("\n");
  }
 }
-void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t index, bool includeUseInfo)
+void toStringDetailed(
+ IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, bool includeUseInfo, bool includeCfgInfo, bool includeRegFlowInfo)
 {
- if (block.useCount == 0 && block.kind != IrBlockKind::Dead && ctx.cfg.captured.regs.any())
+ if (includeRegFlowInfo && block.useCount == 0 && block.kind != IrBlockKind::Dead && ctx.cfg.captured.regs.any())
  {
  append(ctx.result, "; captured regs: ");
  appendRegisterSet(ctx, ctx.cfg.captured, ", ");
  append(ctx.result, "\n\n");
  }
  size_t start = ctx.result.size();
- toString(ctx, block, index);
+ toString(ctx, block, blockIdx);
  append(ctx.result, ":");
  if (includeUseInfo)
  {
@@ -43350,9 +43400,9 @@ void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t ind
  {
  ctx.result.append("\n");
  }
- if (index < ctx.cfg.predecessorsOffsets.size())
+ if (includeCfgInfo && blockIdx < ctx.cfg.predecessorsOffsets.size())
  {
- BlockIteratorWrapper pred = predecessors(ctx.cfg, index);
+ BlockIteratorWrapper pred = predecessors(ctx.cfg, blockIdx);
  if (!pred.empty())
  {
  append(ctx.result, "; predecessors: ");
@@ -43360,9 +43410,9 @@ void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t ind
  append(ctx.result, "\n");
  }
  }
- if (index < ctx.cfg.successorsOffsets.size())
+ if (includeCfgInfo && blockIdx < ctx.cfg.successorsOffsets.size())
  {
- BlockIteratorWrapper succ = successors(ctx.cfg, index);
+ BlockIteratorWrapper succ = successors(ctx.cfg, blockIdx);
  if (!succ.empty())
  {
  append(ctx.result, "; successors: ");
@@ -43370,9 +43420,9 @@ void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t ind
  append(ctx.result, "\n");
  }
  }
- if (index < ctx.cfg.in.size())
+ if (includeRegFlowInfo && blockIdx < ctx.cfg.in.size())
  {
- const RegisterSet& in = ctx.cfg.in[index];
+ const RegisterSet& in = ctx.cfg.in[blockIdx];
  if (in.regs.any() || in.varargSeq)
  {
  append(ctx.result, "; in regs: ");
@@ -43380,9 +43430,9 @@ void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t ind
  append(ctx.result, "\n");
  }
  }
- if (index < ctx.cfg.out.size())
+ if (includeRegFlowInfo && blockIdx < ctx.cfg.out.size())
  {
- const RegisterSet& out = ctx.cfg.out[index];
+ const RegisterSet& out = ctx.cfg.out[blockIdx];
  if (out.regs.any() || out.varargSeq)
  {
  append(ctx.result, "; out regs: ");
@@ -43400,7 +43450,7 @@ std::string toString(const IrFunction& function, bool includeUseInfo)
  const IrBlock& block = function.blocks[i];
  if (block.kind == IrBlockKind::Dead)
  continue;
- toStringDetailed(ctx, block, uint32_t(i), includeUseInfo);
+ toStringDetailed(ctx, block, uint32_t(i), includeUseInfo, true, true);
  if (block.start == ~0u)
  {
  append(ctx.result, " *empty*\n\n");
