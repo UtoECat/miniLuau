@@ -169,7 +169,7 @@ local COPYRIGHT = [[/*
 Luau programming language. (Packed version using PACK.LUA)
 MIT License
 
-Copyright (c) 2019-2023 Roblox Corporation
+Copyright (c) 2019-2024 Roblox Corporation
 Copyright (c) 1994–2019 Lua.org, PUC-Rio.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
