@@ -14,4 +14,4 @@ cp luau.cpp ../luau.cpp
 cd ..
 
 echo "Check for valid packing"
-gcc -c luau.cpp -o tmp.o -std=c++17 -Wall
+gcc -c luau.cpp -o tmp.o -std=c++17 -Wall -DLUAU_ENABLE_COMPILER -DLUAU_ENABLE_CODEGEN
