@@ -1570,6 +1570,7 @@ struct lua_ExecutionCallbacks
  void (*close)(lua_State* L);
  void (*destroy)(lua_State* L, Proto* proto); // called when function is destroyed
  int (*enter)(lua_State* L, Proto* proto);
+ void (*disable)(lua_State* L, Proto* proto); // called when function has to be switched from native to bytecode in the debugger
 };
 typedef struct global_State
 {
@@ -6394,7 +6395,8 @@ void luaG_pusherror(lua_State* L, const char* error)
 }
 void luaG_breakpoint(lua_State* L, Proto* p, int line, bool enable)
 {
- if (p->lineinfo && !p->execdata)
+ void (*ondisable)(lua_State*, Proto*) = L->global->ecb.disable;
+ if (p->lineinfo && (ondisable || !p->execdata))
  {
  for (int i = 0; i < p->sizecode; ++i)
  {
@@ -6412,6 +6414,8 @@ void luaG_breakpoint(lua_State* L, Proto* p, int line, bool enable)
  p->code[i] &= ~0xff;
  p->code[i] |= op;
  LUAU_ASSERT(LUAU_INSN_OP(p->code[i]) == op);
+ if (enable && p->execdata && ondisable)
+ ondisable(L, p);
  break;
  }
  }
@@ -10557,6 +10561,7 @@ void luaS_free(lua_State* L, TString* ts, lua_Page* page)
 }
 #line __LINE__ ""
 #line __LINE__ "lstrlib.cpp"
+LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauInterruptablePatternMatch, false)
 #define uchar(c) ((unsigned char)(c))
 static int str_len(lua_State* L)
 {
@@ -10927,6 +10932,17 @@ static const char* match(MatchState* ms, const char* s, const char* p)
 {
  if (ms->matchdepth-- == 0)
  luaL_error(ms->L, "pattern too complex");
+ if (DFFlag::LuauInterruptablePatternMatch)
+ {
+ lua_State* L = ms->L;
+ void (*interrupt)(lua_State*, int) = L->global->cb.interrupt;
+ if (LUAU_UNLIKELY(!!interrupt))
+ {
+ L->nCcalls++;
+ interrupt(L, -1);
+ L->nCcalls--;
+ }
+ }
 init:
  if (p != ms->p_end)
  {
@@ -15806,7 +15822,7 @@ int luau_precall(lua_State* L, StkId func, int nresults)
  L->top = p->is_vararg ? argi : ci->top;
  ci->savedpc = p->code;
 #if VM_HAS_NATIVE
- if (p->execdata)
+ if (p->exectarget != 0 && p->execdata)
  ci->flags = LUA_CALLINFO_NATIVE;
 #endif
  return PCRLUA;
@@ -17022,7 +17038,7 @@ public:
  AstExprFunction(const Location& location, const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks,
  AstLocal* self, const AstArray<AstLocal*>& args, bool vararg, const Location& varargLocation, AstStatBlock* body, size_t functionDepth,
  const AstName& debugname, const std::optional<AstTypeList>& returnAnnotation = {}, AstTypePack* varargAnnotation = nullptr,
- bool DEPRECATED_hasEnd = false, const std::optional<Location>& argLocation = std::nullopt);
+ const std::optional<Location>& argLocation = std::nullopt);
  void visit(AstVisitor* visitor) override;
  AstArray<AstGenericType> generics;
  AstArray<AstGenericTypePack> genericPacks;
@@ -17035,7 +17051,6 @@ public:
  AstStatBlock* body;
  size_t functionDepth;
  AstName debugname;
- bool DEPRECATED_hasEnd = false;
  std::optional<Location> argLocation;
 };
 class AstExprTable : public AstExpr
@@ -17149,26 +17164,24 @@ class AstStatIf : public AstStat
 public:
  LUAU_RTTI(AstStatIf)
  AstStatIf(const Location& location, AstExpr* condition, AstStatBlock* thenbody, AstStat* elsebody, const std::optional<Location>& thenLocation,
- const std::optional<Location>& elseLocation, bool DEPRECATED_hasEnd);
+ const std::optional<Location>& elseLocation);
  void visit(AstVisitor* visitor) override;
  AstExpr* condition;
  AstStatBlock* thenbody;
  AstStat* elsebody;
  std::optional<Location> thenLocation;
  std::optional<Location> elseLocation;
- bool DEPRECATED_hasEnd = false;
 };
 class AstStatWhile : public AstStat
 {
 public:
  LUAU_RTTI(AstStatWhile)
- AstStatWhile(const Location& location, AstExpr* condition, AstStatBlock* body, bool hasDo, const Location& doLocation, bool DEPRECATED_hasEnd);
+ AstStatWhile(const Location& location, AstExpr* condition, AstStatBlock* body, bool hasDo, const Location& doLocation);
  void visit(AstVisitor* visitor) override;
  AstExpr* condition;
  AstStatBlock* body;
  bool hasDo = false;
  Location doLocation;
- bool DEPRECATED_hasEnd = false;
 };
 class AstStatRepeat : public AstStat
 {
@@ -17226,7 +17239,7 @@ class AstStatFor : public AstStat
 public:
  LUAU_RTTI(AstStatFor)
  AstStatFor(const Location& location, AstLocal* var, AstExpr* from, AstExpr* to, AstExpr* step, AstStatBlock* body, bool hasDo,
- const Location& doLocation, bool DEPRECATED_hasEnd);
+ const Location& doLocation);
  void visit(AstVisitor* visitor) override;
  AstLocal* var;
  AstExpr* from;
@@ -17235,14 +17248,13 @@ public:
  AstStatBlock* body;
  bool hasDo = false;
  Location doLocation;
- bool DEPRECATED_hasEnd = false;
 };
 class AstStatForIn : public AstStat
 {
 public:
  LUAU_RTTI(AstStatForIn)
  AstStatForIn(const Location& location, const AstArray<AstLocal*>& vars, const AstArray<AstExpr*>& values, AstStatBlock* body, bool hasIn,
- const Location& inLocation, bool hasDo, const Location& doLocation, bool DEPRECATED_hasEnd);
+ const Location& inLocation, bool hasDo, const Location& doLocation);
  void visit(AstVisitor* visitor) override;
  AstArray<AstLocal*> vars;
  AstArray<AstExpr*> values;
@@ -17251,7 +17263,6 @@ public:
  Location inLocation;
  bool hasDo = false;
  Location doLocation;
- bool DEPRECATED_hasEnd = false;
 };
 class AstStatAssign : public AstStat
 {
@@ -17913,7 +17924,7 @@ void AstExprIndexExpr::visit(AstVisitor* visitor)
 }
 AstExprFunction::AstExprFunction(const Location& location, const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks,
  AstLocal* self, const AstArray<AstLocal*>& args, bool vararg, const Location& varargLocation, AstStatBlock* body, size_t functionDepth,
- const AstName& debugname, const std::optional<AstTypeList>& returnAnnotation, AstTypePack* varargAnnotation, bool DEPRECATED_hasEnd,
+ const AstName& debugname, const std::optional<AstTypeList>& returnAnnotation, AstTypePack* varargAnnotation,
  const std::optional<Location>& argLocation)
  : AstExpr(ClassIndex(), location)
  , generics(generics)
@@ -17927,7 +17938,6 @@ AstExprFunction::AstExprFunction(const Location& location, const AstArray<AstGen
  , body(body)
  , functionDepth(functionDepth)
  , debugname(debugname)
- , DEPRECATED_hasEnd(DEPRECATED_hasEnd)
  , argLocation(argLocation)
 {
 }
@@ -18121,14 +18131,13 @@ void AstStatBlock::visit(AstVisitor* visitor)
  }
 }
 AstStatIf::AstStatIf(const Location& location, AstExpr* condition, AstStatBlock* thenbody, AstStat* elsebody,
- const std::optional<Location>& thenLocation, const std::optional<Location>& elseLocation, bool DEPRECATED_hasEnd)
+ const std::optional<Location>& thenLocation, const std::optional<Location>& elseLocation)
  : AstStat(ClassIndex(), location)
  , condition(condition)
  , thenbody(thenbody)
  , elsebody(elsebody)
  , thenLocation(thenLocation)
  , elseLocation(elseLocation)
- , DEPRECATED_hasEnd(DEPRECATED_hasEnd)
 {
 }
 void AstStatIf::visit(AstVisitor* visitor)
@@ -18141,13 +18150,12 @@ void AstStatIf::visit(AstVisitor* visitor)
  elsebody->visit(visitor);
  }
 }
-AstStatWhile::AstStatWhile(const Location& location, AstExpr* condition, AstStatBlock* body, bool hasDo, const Location& doLocation, bool DEPRECATED_hasEnd)
+AstStatWhile::AstStatWhile(const Location& location, AstExpr* condition, AstStatBlock* body, bool hasDo, const Location& doLocation)
  : AstStat(ClassIndex(), location)
  , condition(condition)
  , body(body)
  , hasDo(hasDo)
  , doLocation(doLocation)
- , DEPRECATED_hasEnd(DEPRECATED_hasEnd)
 {
 }
 void AstStatWhile::visit(AstVisitor* visitor)
@@ -18234,7 +18242,7 @@ void AstStatLocal::visit(AstVisitor* visitor)
  }
 }
 AstStatFor::AstStatFor(const Location& location, AstLocal* var, AstExpr* from, AstExpr* to, AstExpr* step, AstStatBlock* body, bool hasDo,
- const Location& doLocation, bool DEPRECATED_hasEnd)
+ const Location& doLocation)
  : AstStat(ClassIndex(), location)
  , var(var)
  , from(from)
@@ -18243,7 +18251,6 @@ AstStatFor::AstStatFor(const Location& location, AstLocal* var, AstExpr* from, A
  , body(body)
  , hasDo(hasDo)
  , doLocation(doLocation)
- , DEPRECATED_hasEnd(DEPRECATED_hasEnd)
 {
 }
 void AstStatFor::visit(AstVisitor* visitor)
@@ -18260,7 +18267,7 @@ void AstStatFor::visit(AstVisitor* visitor)
  }
 }
 AstStatForIn::AstStatForIn(const Location& location, const AstArray<AstLocal*>& vars, const AstArray<AstExpr*>& values, AstStatBlock* body,
- bool hasIn, const Location& inLocation, bool hasDo, const Location& doLocation, bool DEPRECATED_hasEnd)
+ bool hasIn, const Location& inLocation, bool hasDo, const Location& doLocation)
  : AstStat(ClassIndex(), location)
  , vars(vars)
  , values(values)
@@ -18269,7 +18276,6 @@ AstStatForIn::AstStatForIn(const Location& location, const AstArray<AstLocal*>& 
  , inLocation(inLocation)
  , hasDo(hasDo)
  , doLocation(doLocation)
- , DEPRECATED_hasEnd(DEPRECATED_hasEnd)
 {
 }
 void AstStatForIn::visit(AstVisitor* visitor)
@@ -22237,7 +22243,6 @@ LUAU_NOINLINE uint16_t createScopeData(const char* name, const char* category);
 LUAU_FASTINTVARIABLE(LuauRecursionLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauTypeLengthLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
-LUAU_FASTFLAGVARIABLE(LuauClipExtraHasEndProps, false)
 LUAU_FASTFLAG(LuauCheckedFunctionSyntax)
 LUAU_FASTFLAGVARIABLE(LuauReadWritePropertySyntax, false)
 namespace Luau
@@ -22493,17 +22498,14 @@ AstStat* Parser::parseIf()
  AstStat* elsebody = nullptr;
  Location end = start;
  std::optional<Location> elseLocation;
- bool DEPRECATED_hasEnd = false;
  if (lexer.current().type == Lexeme::ReservedElseif)
  {
- if (FFlag::LuauClipExtraHasEndProps)
  thenbody->hasEnd = true;
  unsigned int oldRecursionCount = recursionCounter;
  incrementRecursionCounter("elseif");
  elseLocation = lexer.current().location;
  elsebody = parseIf();
  end = elsebody->location;
- DEPRECATED_hasEnd = elsebody->as<AstStatIf>()->DEPRECATED_hasEnd;
  recursionCounter = oldRecursionCount;
  }
  else
@@ -22511,7 +22513,6 @@ AstStat* Parser::parseIf()
  Lexeme matchThenElse = matchThen;
  if (lexer.current().type == Lexeme::ReservedElse)
  {
- if (FFlag::LuauClipExtraHasEndProps)
  thenbody->hasEnd = true;
  elseLocation = lexer.current().location;
  matchThenElse = lexer.current();
@@ -22521,9 +22522,6 @@ AstStat* Parser::parseIf()
  }
  end = lexer.current().location;
  bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchThenElse);
- DEPRECATED_hasEnd = hasEnd;
- if (FFlag::LuauClipExtraHasEndProps)
- {
  if (elsebody)
  {
  if (AstStatBlock* elseBlock = elsebody->as<AstStatBlock>())
@@ -22532,8 +22530,7 @@ AstStat* Parser::parseIf()
  else
  thenbody->hasEnd = hasEnd;
  }
- }
- return allocator.alloc<AstStatIf>(Location(start, end), cond, thenbody, elsebody, thenLocation, elseLocation, DEPRECATED_hasEnd);
+ return allocator.alloc<AstStatIf>(Location(start, end), cond, thenbody, elsebody, thenLocation, elseLocation);
 }
 AstStat* Parser::parseWhile()
 {
@@ -22547,9 +22544,8 @@ AstStat* Parser::parseWhile()
  functionStack.back().loopDepth--;
  Location end = lexer.current().location;
  bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchDo);
- if (FFlag::LuauClipExtraHasEndProps)
  body->hasEnd = hasEnd;
- return allocator.alloc<AstStatWhile>(Location(start, end), cond, body, hasDo, matchDo.location, hasEnd);
+ return allocator.alloc<AstStatWhile>(Location(start, end), cond, body, hasDo, matchDo.location);
 }
 AstStat* Parser::parseRepeat()
 {
@@ -22561,7 +22557,6 @@ AstStat* Parser::parseRepeat()
  AstStatBlock* body = parseBlockNoScope();
  functionStack.back().loopDepth--;
  bool hasUntil = expectMatchEndAndConsume(Lexeme::ReservedUntil, matchRepeat);
- if (FFlag::LuauClipExtraHasEndProps)
  body->hasEnd = hasUntil;
  AstExpr* cond = parseExpr();
  restoreLocals(localsBegin);
@@ -22618,9 +22613,8 @@ AstStat* Parser::parseFor()
  restoreLocals(localsBegin);
  Location end = lexer.current().location;
  bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchDo);
- if (FFlag::LuauClipExtraHasEndProps)
  body->hasEnd = hasEnd;
- return allocator.alloc<AstStatFor>(Location(start, end), var, from, to, step, body, hasDo, matchDo.location, hasEnd);
+ return allocator.alloc<AstStatFor>(Location(start, end), var, from, to, step, body, hasDo, matchDo.location);
  }
  else
  {
@@ -22647,10 +22641,9 @@ AstStat* Parser::parseFor()
  restoreLocals(localsBegin);
  Location end = lexer.current().location;
  bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchDo);
- if (FFlag::LuauClipExtraHasEndProps)
  body->hasEnd = hasEnd;
  return allocator.alloc<AstStatForIn>(
- Location(start, end), copy(vars), copy(values), body, hasIn, inLocation, hasDo, matchDo.location, hasEnd);
+ Location(start, end), copy(vars), copy(values), body, hasIn, inLocation, hasDo, matchDo.location);
  }
 }
 AstExpr* Parser::parseFunctionName(Location start, bool& hasself, AstName& debugname)
@@ -22975,10 +22968,9 @@ std::pair<AstExprFunction*, AstLocal*> Parser::parseFunctionBody(
  restoreLocals(localsBegin);
  Location end = lexer.current().location;
  bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchFunction);
- if (FFlag::LuauClipExtraHasEndProps)
  body->hasEnd = hasEnd;
  return {allocator.alloc<AstExprFunction>(Location(start, end), generics, genericPacks, self, vars, vararg, varargLocation, body,
- functionStack.size(), debugname, typelist, varargAnnotation, hasEnd, argLocation),
+ functionStack.size(), debugname, typelist, varargAnnotation, argLocation),
  funLocal};
 }
 void Parser::parseExprList(TempVector<AstExpr*>& result)
@@ -32496,6 +32488,7 @@ enum class IrCmd : uint8_t
  LOAD_POINTER,
  LOAD_DOUBLE,
  LOAD_INT,
+ LOAD_FLOAT,
  LOAD_TVALUE,
  LOAD_ENV,
  GET_ARR_ADDR,
@@ -32526,6 +32519,11 @@ enum class IrCmd : uint8_t
  ROUND_NUM,
  SQRT_NUM,
  ABS_NUM,
+ ADD_VEC,
+ SUB_VEC,
+ MUL_VEC,
+ DIV_VEC,
+ UNM_VEC,
  NOT_ANY,
  CMP_ANY,
  JUMP,
@@ -32548,6 +32546,7 @@ enum class IrCmd : uint8_t
  UINT_TO_NUM,
  NUM_TO_INT,
  NUM_TO_UINT,
+ NUM_TO_VECTOR,
  ADJUST_STACK_TO_REG,
  ADJUST_STACK_TO_TOP,
  FASTCALL,
@@ -33197,6 +33196,7 @@ inline bool hasResult(IrCmd cmd)
  case IrCmd::LOAD_POINTER:
  case IrCmd::LOAD_DOUBLE:
  case IrCmd::LOAD_INT:
+ case IrCmd::LOAD_FLOAT:
  case IrCmd::LOAD_TVALUE:
  case IrCmd::LOAD_ENV:
  case IrCmd::GET_ARR_ADDR:
@@ -33219,6 +33219,11 @@ inline bool hasResult(IrCmd cmd)
  case IrCmd::ROUND_NUM:
  case IrCmd::SQRT_NUM:
  case IrCmd::ABS_NUM:
+ case IrCmd::ADD_VEC:
+ case IrCmd::SUB_VEC:
+ case IrCmd::MUL_VEC:
+ case IrCmd::DIV_VEC:
+ case IrCmd::UNM_VEC:
  case IrCmd::NOT_ANY:
  case IrCmd::CMP_ANY:
  case IrCmd::TABLE_LEN:
@@ -33232,6 +33237,7 @@ inline bool hasResult(IrCmd cmd)
  case IrCmd::UINT_TO_NUM:
  case IrCmd::NUM_TO_INT:
  case IrCmd::NUM_TO_UINT:
+ case IrCmd::NUM_TO_VECTOR:
  case IrCmd::SUBSTITUTE:
  case IrCmd::INVOKE_FASTCALL:
  case IrCmd::BITAND_UINT:
@@ -34160,6 +34166,9 @@ public:
  void fneg(RegisterA64 dst, RegisterA64 src);
  void fsqrt(RegisterA64 dst, RegisterA64 src);
  void fsub(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
+ void ins_4s(RegisterA64 dst, RegisterA64 src, uint8_t index);
+ void ins_4s(RegisterA64 dst, uint8_t dstIndex, RegisterA64 src, uint8_t srcIndex);
+ void dup_4s(RegisterA64 dst, RegisterA64 src, uint8_t index);
  void frinta(RegisterA64 dst, RegisterA64 src);
  void frintm(RegisterA64 dst, RegisterA64 src);
  void frintp(RegisterA64 dst, RegisterA64 src);
@@ -34197,6 +34206,7 @@ private:
  void placeSR3(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint8_t op, int shift = 0, int N = 0);
  void placeSR2(const char* name, RegisterA64 dst, RegisterA64 src, uint8_t op, uint8_t op2 = 0);
  void placeR3(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint8_t op, uint8_t op2);
+ void placeR3(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint8_t sizes, uint8_t op, uint8_t op2);
  void placeR1(const char* name, RegisterA64 dst, RegisterA64 src, uint32_t op);
  void placeI12(const char* name, RegisterA64 dst, RegisterA64 src1, int src2, uint8_t op);
  void placeI16(const char* name, RegisterA64 dst, int src, uint8_t op, int shift = 0);
@@ -34808,23 +34818,55 @@ void AssemblyBuilderA64::fabs(RegisterA64 dst, RegisterA64 src)
 }
 void AssemblyBuilderA64::fadd(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2)
 {
- LUAU_ASSERT(dst.kind == KindA64::d && src1.kind == KindA64::d && src2.kind == KindA64::d);
+ if (dst.kind == KindA64::d)
+ {
+ LUAU_ASSERT(src1.kind == KindA64::d && src2.kind == KindA64::d);
  placeR3("fadd", dst, src1, src2, 0b11110'01'1, 0b0010'10);
+ }
+ else
+ {
+ LUAU_ASSERT(dst.kind == KindA64::s && src1.kind == KindA64::s && src2.kind == KindA64::s);
+ placeR3("fadd", dst, src1, src2, 0b11110'00'1, 0b0010'10);
+ }
 }
 void AssemblyBuilderA64::fdiv(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2)
 {
- LUAU_ASSERT(dst.kind == KindA64::d && src1.kind == KindA64::d && src2.kind == KindA64::d);
+ if (dst.kind == KindA64::d)
+ {
+ LUAU_ASSERT(src1.kind == KindA64::d && src2.kind == KindA64::d);
  placeR3("fdiv", dst, src1, src2, 0b11110'01'1, 0b0001'10);
+ }
+ else
+ {
+ LUAU_ASSERT(dst.kind == KindA64::s && src1.kind == KindA64::s && src2.kind == KindA64::s);
+ placeR3("fdiv", dst, src1, src2, 0b11110'00'1, 0b0001'10);
+ }
 }
 void AssemblyBuilderA64::fmul(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2)
 {
- LUAU_ASSERT(dst.kind == KindA64::d && src1.kind == KindA64::d && src2.kind == KindA64::d);
+ if (dst.kind == KindA64::d)
+ {
+ LUAU_ASSERT(src1.kind == KindA64::d && src2.kind == KindA64::d);
  placeR3("fmul", dst, src1, src2, 0b11110'01'1, 0b0000'10);
+ }
+ else
+ {
+ LUAU_ASSERT(dst.kind == KindA64::s && src1.kind == KindA64::s && src2.kind == KindA64::s);
+ placeR3("fmul", dst, src1, src2, 0b11110'00'1, 0b0000'10);
+ }
 }
 void AssemblyBuilderA64::fneg(RegisterA64 dst, RegisterA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::d && src.kind == KindA64::d);
+ if (dst.kind == KindA64::d)
+ {
+ LUAU_ASSERT(src.kind == KindA64::d);
  placeR1("fneg", dst, src, 0b000'11110'01'1'0000'10'10000);
+ }
+ else
+ {
+ LUAU_ASSERT(dst.kind == KindA64::s && src.kind == KindA64::s);
+ placeR1("fneg", dst, src, 0b000'11110'00'1'0000'10'10000);
+ }
 }
 void AssemblyBuilderA64::fsqrt(RegisterA64 dst, RegisterA64 src)
 {
@@ -34833,8 +34875,59 @@ void AssemblyBuilderA64::fsqrt(RegisterA64 dst, RegisterA64 src)
 }
 void AssemblyBuilderA64::fsub(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2)
 {
- LUAU_ASSERT(dst.kind == KindA64::d && src1.kind == KindA64::d && src2.kind == KindA64::d);
+ if (dst.kind == KindA64::d)
+ {
+ LUAU_ASSERT(src1.kind == KindA64::d && src2.kind == KindA64::d);
  placeR3("fsub", dst, src1, src2, 0b11110'01'1, 0b0011'10);
+ }
+ else
+ {
+ LUAU_ASSERT(dst.kind == KindA64::s && src1.kind == KindA64::s && src2.kind == KindA64::s);
+ placeR3("fsub", dst, src1, src2, 0b11110'00'1, 0b0011'10);
+ }
+}
+void AssemblyBuilderA64::ins_4s(RegisterA64 dst, RegisterA64 src, uint8_t index)
+{
+ LUAU_ASSERT(dst.kind == KindA64::q && src.kind == KindA64::w);
+ LUAU_ASSERT(index < 4);
+ if (logText)
+ logAppend(" %-12sv%d.s[%d],w%d\n", "ins", dst.index, index, src.index);
+ uint32_t op = 0b0'1'0'01110000'00100'0'0011'1;
+ place(dst.index | (src.index << 5) | (op << 10) | (index << 19));
+ commit();
+}
+void AssemblyBuilderA64::ins_4s(RegisterA64 dst, uint8_t dstIndex, RegisterA64 src, uint8_t srcIndex)
+{
+ LUAU_ASSERT(dst.kind == KindA64::q && src.kind == KindA64::q);
+ LUAU_ASSERT(dstIndex < 4);
+ LUAU_ASSERT(srcIndex < 4);
+ if (logText)
+ logAppend(" %-12sv%d.s[%d],v%d.s[%d]\n", "ins", dst.index, dstIndex, src.index, srcIndex);
+ uint32_t op = 0b0'1'1'01110000'00100'0'0000'1;
+ place(dst.index | (src.index << 5) | (op << 10) | (dstIndex << 19) | (srcIndex << 13));
+ commit();
+}
+void AssemblyBuilderA64::dup_4s(RegisterA64 dst, RegisterA64 src, uint8_t index)
+{
+ if (dst.kind == KindA64::s)
+ {
+ LUAU_ASSERT(src.kind == KindA64::q);
+ LUAU_ASSERT(index < 4);
+ if (logText)
+ logAppend(" %-12ss%d,v%d.s[%d]\n", "dup", dst.index, src.index, index);
+ uint32_t op = 0b01'0'11110000'00100'0'0000'1;
+ place(dst.index | (src.index << 5) | (op << 10) | (index << 19));
+ }
+ else
+ {
+ LUAU_ASSERT(src.kind == KindA64::q);
+ LUAU_ASSERT(index < 4);
+ if (logText)
+ logAppend(" %-12sv%d.4s,v%d.s[%d]\n", "dup", dst.index, src.index, index);
+ uint32_t op = 0b010'01110000'00100'0'0000'1;
+ place(dst.index | (src.index << 5) | (op << 10) | (index << 19));
+ }
+ commit();
 }
 void AssemblyBuilderA64::frinta(RegisterA64 dst, RegisterA64 src)
 {
@@ -35008,10 +35101,19 @@ void AssemblyBuilderA64::placeR3(const char* name, RegisterA64 dst, RegisterA64 
 {
  if (logText)
  log(name, dst, src1, src2);
- LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x || dst.kind == KindA64::d);
+ LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x || dst.kind == KindA64::d || dst.kind == KindA64::s);
  LUAU_ASSERT(dst.kind == src1.kind && dst.kind == src2.kind);
  uint32_t sf = (dst.kind == KindA64::x) ? 0x80000000 : 0;
  place(dst.index | (src1.index << 5) | (op2 << 10) | (src2.index << 16) | (op << 21) | sf);
+ commit();
+}
+void AssemblyBuilderA64::placeR3(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint8_t sizes, uint8_t op, uint8_t op2)
+{
+ if (logText)
+ log(name, dst, src1, src2);
+ LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x || dst.kind == KindA64::d || dst.kind == KindA64::q);
+ LUAU_ASSERT(dst.kind == src1.kind && dst.kind == src2.kind);
+ place(dst.index | (src1.index << 5) | (op2 << 10) | (src2.index << 16) | (op << 21) | (sizes << 29));
  commit();
 }
 void AssemblyBuilderA64::placeR1(const char* name, RegisterA64 dst, RegisterA64 src, uint32_t op)
@@ -35757,11 +35859,16 @@ public:
  void vaddsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
  void vaddss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
  void vsubsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vsubps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
  void vmulsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vmulps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
  void vdivsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vdivps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vandps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
  void vandpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
  void vandnpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
  void vxorpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vorps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
  void vorpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
  void vucomisd(OperandX64 src1, OperandX64 src2);
  void vcvttsd2si(OperandX64 dst, OperandX64 src);
@@ -35786,6 +35893,8 @@ public:
  void vminsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
  void vcmpltsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
  void vblendvpd(RegisterX64 dst, RegisterX64 src1, OperandX64 mask, RegisterX64 src3);
+ void vpshufps(RegisterX64 dst, RegisterX64 src1, OperandX64 src2, uint8_t shuffle);
+ void vpinsrd(RegisterX64 dst, RegisterX64 src1, OperandX64 src2, uint8_t offset);
  bool finalize();
  Label setLabel();
  void setLabel(Label& label);
@@ -35794,9 +35903,11 @@ public:
  LUAU_ASSERT(label.location != ~0u);
  return label.location;
  }
+ OperandX64 i32(int32_t value);
  OperandX64 i64(int64_t value);
  OperandX64 f32(float value);
  OperandX64 f64(double value);
+ OperandX64 u32x4(uint32_t x, uint32_t y, uint32_t z, uint32_t w);
  OperandX64 f32x4(float x, float y, float z, float w);
  OperandX64 f64x2(double x, double y);
  OperandX64 bytes(const void* ptr, size_t size, size_t align = 8);
@@ -35853,6 +35964,7 @@ private:
  uint32_t nextLabel = 1;
  std::vector<Label> pendingLabels;
  std::vector<uint32_t> labelLocations;
+ DenseHashMap<uint32_t, int32_t> constCache32;
  DenseHashMap<uint64_t, int32_t> constCache64;
  bool finalized = false;
  size_t dataPos = 0;
@@ -35864,6 +35976,7 @@ private:
 } // namespace CodeGen
 }
 #line __LINE__ "AssemblyBuilderX64.cpp"
+LUAU_FASTFLAGVARIABLE(LuauCache32BitAsmConsts, false)
 namespace Luau
 {
 namespace CodeGen
@@ -35920,6 +36033,7 @@ static ABIX64 getCurrentX64ABI()
 AssemblyBuilderX64::AssemblyBuilderX64(bool logText, ABIX64 abi)
  : logText(logText)
  , abi(abi)
+ , constCache32(~0u)
  , constCache64(~0ull)
 {
  data.resize(4096);
@@ -36461,13 +36575,29 @@ void AssemblyBuilderX64::vsubsd(OperandX64 dst, OperandX64 src1, OperandX64 src2
 {
  placeAvx("vsubsd", dst, src1, src2, 0x5c, false, AVX_0F, AVX_F2);
 }
+void AssemblyBuilderX64::vsubps(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vsubps", dst, src1, src2, 0x5c, false, AVX_0F, AVX_NP);
+}
 void AssemblyBuilderX64::vmulsd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
 {
  placeAvx("vmulsd", dst, src1, src2, 0x59, false, AVX_0F, AVX_F2);
 }
+void AssemblyBuilderX64::vmulps(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vmulps", dst, src1, src2, 0x59, false, AVX_0F, AVX_NP);
+}
 void AssemblyBuilderX64::vdivsd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
 {
  placeAvx("vdivsd", dst, src1, src2, 0x5e, false, AVX_0F, AVX_F2);
+}
+void AssemblyBuilderX64::vdivps(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vdivps", dst, src1, src2, 0x5e, false, AVX_0F, AVX_NP);
+}
+void AssemblyBuilderX64::vandps(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vandps", dst, src1, src2, 0x54, false, AVX_0F, AVX_NP);
 }
 void AssemblyBuilderX64::vandpd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
 {
@@ -36480,6 +36610,10 @@ void AssemblyBuilderX64::vandnpd(OperandX64 dst, OperandX64 src1, OperandX64 src
 void AssemblyBuilderX64::vxorpd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
 {
  placeAvx("vxorpd", dst, src1, src2, 0x57, false, AVX_0F, AVX_66);
+}
+void AssemblyBuilderX64::vorps(OperandX64 dst, OperandX64 src1, OperandX64 src2)
+{
+ placeAvx("vorps", dst, src1, src2, 0x56, false, AVX_0F, AVX_NP);
 }
 void AssemblyBuilderX64::vorpd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
 {
@@ -36600,6 +36734,14 @@ void AssemblyBuilderX64::vblendvpd(RegisterX64 dst, RegisterX64 src1, OperandX64
 {
  placeAvx("vblendvpd", dst, src1, mask, src3.index << 4, 0x4b, false, AVX_0F3A, AVX_66);
 }
+void AssemblyBuilderX64::vpshufps(RegisterX64 dst, RegisterX64 src1, OperandX64 src2, uint8_t shuffle)
+{
+ placeAvx("vpshufps", dst, src1, src2, shuffle, 0xc6, false, AVX_0F, AVX_NP);
+}
+void AssemblyBuilderX64::vpinsrd(RegisterX64 dst, RegisterX64 src1, OperandX64 src2, uint8_t offset)
+{
+ placeAvx("vpinsrd", dst, src1, src2, offset, 0x22, false, AVX_0F3A, AVX_66);
+}
 bool AssemblyBuilderX64::finalize()
 {
  code.resize(codePos - code.data());
@@ -36636,6 +36778,21 @@ void AssemblyBuilderX64::setLabel(Label& label)
  if (logText)
  log(label);
 }
+OperandX64 AssemblyBuilderX64::i32(int32_t value)
+{
+ uint32_t as32BitKey = value;
+ if (as32BitKey != ~0u)
+ {
+ if (int32_t* prev = constCache32.find(as32BitKey))
+ return OperandX64(SizeX64::dword, noreg, 1, rip, *prev);
+ }
+ size_t pos = allocateData(4, 4);
+ writeu32(&data[pos], value);
+ int32_t offset = int32_t(pos - data.size());
+ if (as32BitKey != ~0u)
+ constCache32[as32BitKey] = offset;
+ return OperandX64(SizeX64::dword, noreg, 1, rip, offset);
+}
 OperandX64 AssemblyBuilderX64::i64(int64_t value)
 {
  uint64_t as64BitKey = value;
@@ -36653,9 +36810,29 @@ OperandX64 AssemblyBuilderX64::i64(int64_t value)
 }
 OperandX64 AssemblyBuilderX64::f32(float value)
 {
+ if (FFlag::LuauCache32BitAsmConsts)
+ {
+ uint32_t as32BitKey;
+ static_assert(sizeof(as32BitKey) == sizeof(value), "Expecting float to be 32-bit");
+ memcpy(&as32BitKey, &value, sizeof(value));
+ if (as32BitKey != ~0u)
+ {
+ if (int32_t* prev = constCache32.find(as32BitKey))
+ return OperandX64(SizeX64::dword, noreg, 1, rip, *prev);
+ }
+ size_t pos = allocateData(4, 4);
+ writef32(&data[pos], value);
+ int32_t offset = int32_t(pos - data.size());
+ if (as32BitKey != ~0u)
+ constCache32[as32BitKey] = offset;
+ return OperandX64(SizeX64::dword, noreg, 1, rip, offset);
+ }
+ else
+ {
  size_t pos = allocateData(4, 4);
  writef32(&data[pos], value);
  return OperandX64(SizeX64::dword, noreg, 1, rip, int32_t(pos - data.size()));
+ }
 }
 OperandX64 AssemblyBuilderX64::f64(double value)
 {
@@ -36673,6 +36850,15 @@ OperandX64 AssemblyBuilderX64::f64(double value)
  if (as64BitKey != ~0ull)
  constCache64[as64BitKey] = offset;
  return OperandX64(SizeX64::qword, noreg, 1, rip, offset);
+}
+OperandX64 AssemblyBuilderX64::u32x4(uint32_t x, uint32_t y, uint32_t z, uint32_t w)
+{
+ size_t pos = allocateData(16, 16);
+ writeu32(&data[pos], x);
+ writeu32(&data[pos + 4], y);
+ writeu32(&data[pos + 8], z);
+ writeu32(&data[pos + 12], w);
+ return OperandX64(SizeX64::xmmword, noreg, 1, rip, int32_t(pos - data.size()));
 }
 OperandX64 AssemblyBuilderX64::f32x4(float x, float y, float z, float w)
 {
@@ -37020,7 +37206,6 @@ void AssemblyBuilderX64::placeImm8Or32(int32_t imm)
 void AssemblyBuilderX64::placeImm8(int32_t imm)
 {
  int8_t imm8 = int8_t(imm);
- LUAU_ASSERT(imm8 == imm);
  place(imm8);
 }
 void AssemblyBuilderX64::placeImm16(int16_t imm)
@@ -38099,6 +38284,26 @@ void create(lua_State* L, AllocationCallback* allocationCallback, void* allocati
 void create(lua_State* L);
 CodeGenCompilationResult compile(lua_State* L, int idx, unsigned int flags = 0, CompilationStats* stats = nullptr);
 using AnnotatorFn = void (*)(void* context, std::string& result, int fid, int instpos);
+enum class IncludeIrPrefix
+{
+ No,
+ Yes
+};
+enum class IncludeUseInfo
+{
+ No,
+ Yes
+};
+enum class IncludeCfgInfo
+{
+ No,
+ Yes
+};
+enum class IncludeRegFlowInfo
+{
+ No,
+ Yes
+};
 struct AssemblyOptions
 {
  enum Target
@@ -38115,10 +38320,10 @@ struct AssemblyOptions
  bool includeAssembly = false;
  bool includeIr = false;
  bool includeOutlinedCode = false;
- bool includeIrPrefix = true;
- bool includeUseInfo = true;
- bool includeCfgInfo = true;
- bool includeRegFlowInfo = true;
+ IncludeIrPrefix includeIrPrefix = IncludeIrPrefix::Yes;
+ IncludeUseInfo includeUseInfo = IncludeUseInfo::Yes;
+ IncludeCfgInfo includeCfgInfo = IncludeCfgInfo::Yes;
+ IncludeRegFlowInfo includeRegFlowInfo = IncludeRegFlowInfo::Yes;
  AnnotatorFn annotator = nullptr;
  void* annotatorContext = nullptr;
 };
@@ -38219,10 +38424,11 @@ void toString(IrToStringContext& ctx, const IrBlock& block, uint32_t index);
 void toString(IrToStringContext& ctx, IrOp op);
 void toString(std::string& result, IrConst constant);
 void toString(std::string& result, const BytecodeTypes& bcTypes);
-void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, const IrInst& inst, uint32_t instIdx, bool includeUseInfo);
 void toStringDetailed(
- IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, bool includeUseInfo, bool includeCfgInfo, bool includeRegFlowInfo);
-std::string toString(const IrFunction& function, bool includeUseInfo);
+ IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, const IrInst& inst, uint32_t instIdx, IncludeUseInfo includeUseInfo);
+void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, IncludeUseInfo includeUseInfo, IncludeCfgInfo includeCfgInfo,
+ IncludeRegFlowInfo includeRegFlowInfo);
+std::string toString(const IrFunction& function, IncludeUseInfo includeUseInfo);
 std::string dump(const IrFunction& function);
 std::string toDot(const IrFunction& function, bool includeInst);
 std::string toDotCfg(const IrFunction& function);
@@ -38525,6 +38731,8 @@ struct IrLoweringX64
  double doubleOp(IrOp op) const;
  IrBlock& blockOp(IrOp op) const;
  Label& labelOp(IrOp op) const;
+ OperandX64 vectorAndMaskOp();
+ OperandX64 vectorOrMaskOp();
  struct InterruptHandler
  {
  Label self;
@@ -38545,6 +38753,8 @@ struct IrLoweringX64
  std::vector<InterruptHandler> interruptHandlers;
  std::vector<ExitHandler> exitHandlers;
  DenseHashMap<uint32_t, uint32_t> exitHandlerMap;
+ OperandX64 vectorAndMask = noreg;
+ OperandX64 vectorOrMask = noreg;
 };
 }
 } // namespace CodeGen
@@ -38612,7 +38822,7 @@ inline bool lowerImpl(AssemblyBuilder& build, IrLowering& lowering, IrFunction& 
  }
  if (options.includeIr)
  {
- if (options.includeIrPrefix)
+ if (options.includeIrPrefix == IncludeIrPrefix::Yes)
  build.logAppend("# ");
  toStringDetailed(ctx, block, blockIndex, options.includeUseInfo, options.includeCfgInfo, options.includeRegFlowInfo);
  }
@@ -38653,7 +38863,7 @@ inline bool lowerImpl(AssemblyBuilder& build, IrLowering& lowering, IrFunction& 
  LUAU_ASSERT(inst.lastUse == 0 || inst.useCount != 0);
  if (options.includeIr)
  {
- if (options.includeIrPrefix)
+ if (options.includeIrPrefix == IncludeIrPrefix::Yes)
  build.logAppend("# ");
  toStringDetailed(ctx, block, blockIndex, inst, index, options.includeUseInfo);
  }
@@ -38670,7 +38880,7 @@ inline bool lowerImpl(AssemblyBuilder& build, IrLowering& lowering, IrFunction& 
  }
  }
  lowering.finishBlock(block, nextBlock);
- if (options.includeIr && options.includeIrPrefix)
+ if (options.includeIr && options.includeIrPrefix == IncludeIrPrefix::Yes)
  build.logAppend("#\n");
  if (block.expectedNextBlock == ~0u)
  function.validRestoreOpBlocks.clear();
@@ -39419,6 +39629,7 @@ LUAU_FASTFLAGVARIABLE(DebugCodegenSkipNumbering, false)
 LUAU_FASTINTVARIABLE(CodegenHeuristicsInstructionLimit, 1'048'576) // 1 M
 LUAU_FASTINTVARIABLE(CodegenHeuristicsBlockLimit, 32'768)
 LUAU_FASTINTVARIABLE(CodegenHeuristicsBlockInstructionLimit, 65'536)
+LUAU_FASTFLAGVARIABLE(DisableNativeCodegenIfBreakpointIsSet, false)
 namespace Luau
 {
 namespace CodeGen
@@ -39496,6 +39707,31 @@ static int onEnter(lua_State* L, Proto* proto)
  uintptr_t target = proto->exectarget + static_cast<uint32_t*>(proto->execdata)[L->ci->savedpc - proto->code];
  return GateFn(data->context.gateEntry)(L, proto, target, &data->context);
 }
+void onDisable(lua_State* L, Proto* proto)
+{
+ if (proto->codeentry == proto->code)
+ return;
+ proto->codeentry = proto->code;
+ proto->exectarget = 0;
+ luaM_visitgco(L, proto, [](void* context, lua_Page* page, GCObject* gco) {
+ Proto* proto = (Proto*)context;
+ if (gco->gch.tt != LUA_TTHREAD)
+ return false;
+ lua_State* th = gco2th(gco);
+ for (CallInfo* ci = th->ci; ci > th->base_ci; ci--)
+ {
+ if (isLua(ci))
+ {
+ Proto* p = clvalue(ci->func)->l.p;
+ if (p == proto)
+ {
+ ci->flags &= ~LUA_CALLINFO_NATIVE;
+ }
+ }
+ }
+ return false;
+ });
+}
 #if defined(__aarch64__)
 unsigned int getCpuFeaturesA64()
 {
@@ -39567,6 +39803,7 @@ void create(lua_State* L, AllocationCallback* allocationCallback, void* allocati
  ecb->close = onCloseState;
  ecb->destroy = onDestroyFunction;
  ecb->enter = onEnter;
+ ecb->disable = FFlag::DisableNativeCodegenIfBreakpointIsSet ? onDisable : nullptr;
 }
 void create(lua_State* L)
 {
@@ -41727,6 +41964,7 @@ static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrInst& i
  case IrCmd::LOAD_POINTER:
  case IrCmd::LOAD_DOUBLE:
  case IrCmd::LOAD_INT:
+ case IrCmd::LOAD_FLOAT:
  case IrCmd::LOAD_TVALUE:
  visitor.maybeUse(inst.a);
  break;
@@ -42883,6 +43121,8 @@ const char* getCmdName(IrCmd cmd)
  return "LOAD_DOUBLE";
  case IrCmd::LOAD_INT:
  return "LOAD_INT";
+ case IrCmd::LOAD_FLOAT:
+ return "LOAD_FLOAT";
  case IrCmd::LOAD_TVALUE:
  return "LOAD_TVALUE";
  case IrCmd::LOAD_ENV:
@@ -42943,6 +43183,16 @@ const char* getCmdName(IrCmd cmd)
  return "SQRT_NUM";
  case IrCmd::ABS_NUM:
  return "ABS_NUM";
+ case IrCmd::ADD_VEC:
+ return "ADD_VEC";
+ case IrCmd::SUB_VEC:
+ return "SUB_VEC";
+ case IrCmd::MUL_VEC:
+ return "MUL_VEC";
+ case IrCmd::DIV_VEC:
+ return "DIV_VEC";
+ case IrCmd::UNM_VEC:
+ return "UNM_VEC";
  case IrCmd::NOT_ANY:
  return "NOT_ANY";
  case IrCmd::CMP_ANY:
@@ -42987,6 +43237,8 @@ const char* getCmdName(IrCmd cmd)
  return "NUM_TO_INT";
  case IrCmd::NUM_TO_UINT:
  return "NUM_TO_UINT";
+ case IrCmd::NUM_TO_VECTOR:
+ return "NUM_TO_VECTOR";
  case IrCmd::ADJUST_STACK_TO_REG:
  return "ADJUST_STACK_TO_REG";
  case IrCmd::ADJUST_STACK_TO_TOP:
@@ -43341,11 +43593,12 @@ static RegisterSet getJumpTargetExtraLiveIn(IrToStringContext& ctx, const IrBloc
  }
  return extraRs;
 }
-void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, const IrInst& inst, uint32_t instIdx, bool includeUseInfo)
+void toStringDetailed(
+ IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, const IrInst& inst, uint32_t instIdx, IncludeUseInfo includeUseInfo)
 {
  size_t start = ctx.result.size();
  toString(ctx, inst, instIdx);
- if (includeUseInfo)
+ if (includeUseInfo == IncludeUseInfo::Yes)
  {
  padToDetailColumn(ctx.result, start);
  if (inst.useCount == 0 && hasSideEffects(inst.cmd))
@@ -43379,10 +43632,10 @@ void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t blo
  ctx.result.append("\n");
  }
 }
-void toStringDetailed(
- IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, bool includeUseInfo, bool includeCfgInfo, bool includeRegFlowInfo)
+void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, IncludeUseInfo includeUseInfo, IncludeCfgInfo includeCfgInfo,
+ IncludeRegFlowInfo includeRegFlowInfo)
 {
- if (includeRegFlowInfo && block.useCount == 0 && block.kind != IrBlockKind::Dead && ctx.cfg.captured.regs.any())
+ if (includeRegFlowInfo == IncludeRegFlowInfo::Yes && block.useCount == 0 && block.kind != IrBlockKind::Dead && ctx.cfg.captured.regs.any())
  {
  append(ctx.result, "; captured regs: ");
  appendRegisterSet(ctx, ctx.cfg.captured, ", ");
@@ -43391,7 +43644,7 @@ void toStringDetailed(
  size_t start = ctx.result.size();
  toString(ctx, block, blockIdx);
  append(ctx.result, ":");
- if (includeUseInfo)
+ if (includeUseInfo == IncludeUseInfo::Yes)
  {
  padToDetailColumn(ctx.result, start);
  append(ctx.result, "; useCount: %d\n", block.useCount);
@@ -43400,7 +43653,7 @@ void toStringDetailed(
  {
  ctx.result.append("\n");
  }
- if (includeCfgInfo && blockIdx < ctx.cfg.predecessorsOffsets.size())
+ if (includeCfgInfo == IncludeCfgInfo::Yes && blockIdx < ctx.cfg.predecessorsOffsets.size())
  {
  BlockIteratorWrapper pred = predecessors(ctx.cfg, blockIdx);
  if (!pred.empty())
@@ -43410,7 +43663,7 @@ void toStringDetailed(
  append(ctx.result, "\n");
  }
  }
- if (includeCfgInfo && blockIdx < ctx.cfg.successorsOffsets.size())
+ if (includeCfgInfo == IncludeCfgInfo::Yes && blockIdx < ctx.cfg.successorsOffsets.size())
  {
  BlockIteratorWrapper succ = successors(ctx.cfg, blockIdx);
  if (!succ.empty())
@@ -43420,7 +43673,7 @@ void toStringDetailed(
  append(ctx.result, "\n");
  }
  }
- if (includeRegFlowInfo && blockIdx < ctx.cfg.in.size())
+ if (includeRegFlowInfo == IncludeRegFlowInfo::Yes && blockIdx < ctx.cfg.in.size())
  {
  const RegisterSet& in = ctx.cfg.in[blockIdx];
  if (in.regs.any() || in.varargSeq)
@@ -43430,7 +43683,7 @@ void toStringDetailed(
  append(ctx.result, "\n");
  }
  }
- if (includeRegFlowInfo && blockIdx < ctx.cfg.out.size())
+ if (includeRegFlowInfo == IncludeRegFlowInfo::Yes && blockIdx < ctx.cfg.out.size())
  {
  const RegisterSet& out = ctx.cfg.out[blockIdx];
  if (out.regs.any() || out.varargSeq)
@@ -43441,7 +43694,7 @@ void toStringDetailed(
  }
  }
 }
-std::string toString(const IrFunction& function, bool includeUseInfo)
+std::string toString(const IrFunction& function, IncludeUseInfo includeUseInfo)
 {
  std::string result;
  IrToStringContext ctx{result, function.blocks, function.constants, function.cfg};
@@ -43450,7 +43703,7 @@ std::string toString(const IrFunction& function, bool includeUseInfo)
  const IrBlock& block = function.blocks[i];
  if (block.kind == IrBlockKind::Dead)
  continue;
- toStringDetailed(ctx, block, uint32_t(i), includeUseInfo, true, true);
+ toStringDetailed(ctx, block, uint32_t(i), includeUseInfo, IncludeCfgInfo::Yes, IncludeRegFlowInfo::Yes);
  if (block.start == ~0u)
  {
  append(ctx.result, " *empty*\n\n");
@@ -43470,7 +43723,7 @@ std::string toString(const IrFunction& function, bool includeUseInfo)
 }
 std::string dump(const IrFunction& function)
 {
- std::string result = toString(function, true);
+ std::string result = toString(function, IncludeUseInfo::Yes);
  printf("%s\n", result.c_str());
  return result;
 }
@@ -43869,6 +44122,15 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.ldr(inst.regA64, addr);
  break;
  }
+ case IrCmd::LOAD_FLOAT:
+ {
+ inst.regA64 = regs.allocReg(KindA64::d, index);
+ RegisterA64 temp = castReg(KindA64::s, inst.regA64);
+ AddressA64 addr = tempAddr(inst.a, intOp(inst.b));
+ build.ldr(temp, addr);
+ build.fcvt(inst.regA64, temp);
+ break;
+ }
  case IrCmd::LOAD_TVALUE:
  {
  inst.regA64 = regs.allocReg(KindA64::q, index);
@@ -44216,6 +44478,74 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.fabs(inst.regA64, temp);
  break;
  }
+ case IrCmd::ADD_VEC:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::q, index, {inst.a, inst.b});
+ RegisterA64 tempa = regs.allocTemp(KindA64::s);
+ RegisterA64 tempb = regs.allocTemp(KindA64::s);
+ for (uint8_t i = 0; i < 3; i++)
+ {
+ build.dup_4s(tempa, regOp(inst.a), i);
+ build.dup_4s(tempb, regOp(inst.b), i);
+ build.fadd(tempa, tempa, tempb);
+ build.ins_4s(inst.regA64, i, castReg(KindA64::q, tempa), 0);
+ }
+ break;
+ }
+ case IrCmd::SUB_VEC:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::q, index, {inst.a, inst.b});
+ RegisterA64 tempa = regs.allocTemp(KindA64::s);
+ RegisterA64 tempb = regs.allocTemp(KindA64::s);
+ for (uint8_t i = 0; i < 3; i++)
+ {
+ build.dup_4s(tempa, regOp(inst.a), i);
+ build.dup_4s(tempb, regOp(inst.b), i);
+ build.fsub(tempa, tempa, tempb);
+ build.ins_4s(inst.regA64, i, castReg(KindA64::q, tempa), 0);
+ }
+ break;
+ }
+ case IrCmd::MUL_VEC:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::q, index, {inst.a, inst.b});
+ RegisterA64 tempa = regs.allocTemp(KindA64::s);
+ RegisterA64 tempb = regs.allocTemp(KindA64::s);
+ for (uint8_t i = 0; i < 3; i++)
+ {
+ build.dup_4s(tempa, regOp(inst.a), i);
+ build.dup_4s(tempb, regOp(inst.b), i);
+ build.fmul(tempa, tempa, tempb);
+ build.ins_4s(inst.regA64, i, castReg(KindA64::q, tempa), 0);
+ }
+ break;
+ }
+ case IrCmd::DIV_VEC:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::q, index, {inst.a, inst.b});
+ RegisterA64 tempa = regs.allocTemp(KindA64::s);
+ RegisterA64 tempb = regs.allocTemp(KindA64::s);
+ for (uint8_t i = 0; i < 3; i++)
+ {
+ build.dup_4s(tempa, regOp(inst.a), i);
+ build.dup_4s(tempb, regOp(inst.b), i);
+ build.fdiv(tempa, tempa, tempb);
+ build.ins_4s(inst.regA64, i, castReg(KindA64::q, tempa), 0);
+ }
+ break;
+ }
+ case IrCmd::UNM_VEC:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::q, index, {inst.a});
+ RegisterA64 tempa = regs.allocTemp(KindA64::s);
+ for (uint8_t i = 0; i < 3; i++)
+ {
+ build.dup_4s(tempa, regOp(inst.a), i);
+ build.fneg(tempa, tempa);
+ build.ins_4s(inst.regA64, i, castReg(KindA64::q, tempa), 0);
+ }
+ break;
+ }
  case IrCmd::NOT_ANY:
  {
  inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.a, inst.b});
@@ -44517,6 +44847,18 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  inst.regA64 = regs.allocReg(KindA64::w, index);
  RegisterA64 temp = tempDouble(inst.a);
  build.fcvtzs(castReg(KindA64::x, inst.regA64), temp);
+ break;
+ }
+ case IrCmd::NUM_TO_VECTOR:
+ {
+ inst.regA64 = regs.allocReg(KindA64::q, index);
+ RegisterA64 tempd = tempDouble(inst.a);
+ RegisterA64 temps = castReg(KindA64::s, tempd);
+ RegisterA64 tempw = regs.allocTemp(KindA64::w);
+ build.fcvt(temps, tempd);
+ build.dup_4s(inst.regA64, castReg(KindA64::q, temps), 0);
+ build.mov(tempw, LUA_TVECTOR);
+ build.ins_4s(inst.regA64, tempw, 3);
  break;
  }
  case IrCmd::ADJUST_STACK_TO_REG:
@@ -45848,6 +46190,16 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  inst.regX64 = regs.allocReg(SizeX64::dword, index);
  build.mov(inst.regX64, luauRegValueInt(vmRegOp(inst.a)));
  break;
+ case IrCmd::LOAD_FLOAT:
+ inst.regX64 = regs.allocReg(SizeX64::xmmword, index);
+ if (inst.a.kind == IrOpKind::VmReg)
+ build.vcvtss2sd(inst.regX64, inst.regX64, dword[rBase + vmRegOp(inst.a) * sizeof(TValue) + offsetof(TValue, value) + intOp(inst.b)]);
+ else if (inst.a.kind == IrOpKind::VmConst)
+ build.vcvtss2sd(
+ inst.regX64, inst.regX64, dword[rConstants + vmConstOp(inst.a) * sizeof(TValue) + offsetof(TValue, value) + intOp(inst.b)]);
+ else
+ LUAU_ASSERT(!"Unsupported instruction form");
+ break;
  case IrCmd::LOAD_TVALUE:
  {
  inst.regX64 = regs.allocReg(SizeX64::xmmword, index);
@@ -46270,6 +46622,66 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.vmovsd(inst.regX64, inst.regX64, regOp(inst.a));
  build.vandpd(inst.regX64, inst.regX64, build.i64(~(1LL << 63)));
  break;
+ case IrCmd::ADD_VEC:
+ {
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
+ ScopedRegX64 tmp1{regs, SizeX64::xmmword};
+ ScopedRegX64 tmp2{regs, SizeX64::xmmword};
+ build.vandps(tmp1.reg, regOp(inst.a), vectorAndMaskOp());
+ build.vandps(tmp2.reg, regOp(inst.b), vectorAndMaskOp());
+ build.vaddps(inst.regX64, tmp1.reg, tmp2.reg);
+ build.vorps(inst.regX64, inst.regX64, vectorOrMaskOp());
+ break;
+ }
+ case IrCmd::SUB_VEC:
+ {
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
+ ScopedRegX64 tmp1{regs, SizeX64::xmmword};
+ ScopedRegX64 tmp2{regs, SizeX64::xmmword};
+ build.vandps(tmp1.reg, regOp(inst.a), vectorAndMaskOp());
+ build.vandps(tmp2.reg, regOp(inst.b), vectorAndMaskOp());
+ build.vsubps(inst.regX64, tmp1.reg, tmp2.reg);
+ build.vorps(inst.regX64, inst.regX64, vectorOrMaskOp());
+ break;
+ }
+ case IrCmd::MUL_VEC:
+ {
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
+ ScopedRegX64 tmp1{regs, SizeX64::xmmword};
+ ScopedRegX64 tmp2{regs, SizeX64::xmmword};
+ build.vandps(tmp1.reg, regOp(inst.a), vectorAndMaskOp());
+ build.vandps(tmp2.reg, regOp(inst.b), vectorAndMaskOp());
+ build.vmulps(inst.regX64, tmp1.reg, tmp2.reg);
+ build.vorps(inst.regX64, inst.regX64, vectorOrMaskOp());
+ break;
+ }
+ case IrCmd::DIV_VEC:
+ {
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
+ ScopedRegX64 tmp1{regs, SizeX64::xmmword};
+ ScopedRegX64 tmp2{regs, SizeX64::xmmword};
+ build.vandps(tmp1.reg, regOp(inst.a), vectorAndMaskOp());
+ build.vandps(tmp2.reg, regOp(inst.b), vectorAndMaskOp());
+ build.vdivps(inst.regX64, tmp1.reg, tmp2.reg);
+ build.vpinsrd(inst.regX64, inst.regX64, build.i32(LUA_TVECTOR), 3);
+ break;
+ }
+ case IrCmd::UNM_VEC:
+ {
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a});
+ RegisterX64 src = regOp(inst.a);
+ if (inst.regX64 == src)
+ {
+ build.vxorpd(inst.regX64, inst.regX64, build.f32x4(-0.0, -0.0, -0.0, -0.0));
+ }
+ else
+ {
+ build.vmovsd(inst.regX64, src, src);
+ build.vxorpd(inst.regX64, inst.regX64, build.f32x4(-0.0, -0.0, -0.0, -0.0));
+ }
+ build.vpinsrd(inst.regX64, inst.regX64, build.i32(LUA_TVECTOR), 3);
+ break;
+ }
  case IrCmd::NOT_ANY:
  {
  inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a, inst.b});
@@ -46512,6 +46924,23 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  case IrCmd::NUM_TO_UINT:
  inst.regX64 = regs.allocReg(SizeX64::dword, index);
  build.vcvttsd2si(qwordReg(inst.regX64), memRegDoubleOp(inst.a));
+ break;
+ case IrCmd::NUM_TO_VECTOR:
+ inst.regX64 = regs.allocReg(SizeX64::xmmword, index);
+ if (inst.a.kind == IrOpKind::Constant)
+ {
+ float value = float(doubleOp(inst.a));
+ uint32_t asU32;
+ static_assert(sizeof(asU32) == sizeof(value), "Expecting float to be 32-bit");
+ memcpy(&asU32, &value, sizeof(value));
+ build.vmovaps(inst.regX64, build.u32x4(asU32, asU32, asU32, LUA_TVECTOR));
+ }
+ else
+ {
+ build.vcvtsd2ss(inst.regX64, inst.regX64, memRegDoubleOp(inst.a));
+ build.vpshufps(inst.regX64, inst.regX64, inst.regX64, 0b00'00'00'00);
+ build.vpinsrd(inst.regX64, inst.regX64, build.i32(LUA_TVECTOR), 3);
+ }
  break;
  case IrCmd::ADJUST_STACK_TO_REG:
  {
@@ -47522,6 +47951,18 @@ IrBlock& IrLoweringX64::blockOp(IrOp op) const
 Label& IrLoweringX64::labelOp(IrOp op) const
 {
  return blockOp(op).label;
+}
+OperandX64 IrLoweringX64::vectorAndMaskOp()
+{
+ if (vectorAndMask.base == noreg)
+ vectorAndMask = build.u32x4(~0u, ~0u, ~0u, 0);
+ return vectorAndMask;
+}
+OperandX64 IrLoweringX64::vectorOrMaskOp()
+{
+ if (vectorOrMask.base == noreg)
+ vectorOrMask = build.u32x4(0, 0, 0, LUA_TVECTOR);
+ return vectorOrMask;
 }
 }
 } // namespace CodeGen
@@ -48969,6 +49410,7 @@ BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, 
 #line __LINE__ ""
 #line __LINE__ "IrTranslation.cpp"
 LUAU_FASTFLAGVARIABLE(LuauCodegenLuData, false)
+LUAU_FASTFLAGVARIABLE(LuauCodegenVector, false)
 namespace Luau
 {
 namespace CodeGen
@@ -48996,6 +49438,17 @@ static IrOp getInitializedFallback(IrBuilder& build, IrOp& fallback)
  if (fallback.kind == IrOpKind::None)
  fallback = build.block(IrBlockKind::Fallback);
  return fallback;
+}
+static IrOp loadDoubleOrConstant(IrBuilder& build, IrOp arg)
+{
+ if (arg.kind == IrOpKind::VmConst)
+ {
+ LUAU_ASSERT(build.function.proto);
+ TValue protok = build.function.proto->k[vmConstOp(arg)];
+ LUAU_ASSERT(protok.tt == LUA_TNUMBER);
+ return build.constDouble(protok.value.n);
+ }
+ return build.inst(IrCmd::LOAD_DOUBLE, arg);
 }
 void translateInstLoadNil(IrBuilder& build, const Instruction* pc)
 {
@@ -49204,8 +49657,82 @@ void translateInstJumpxEqS(IrBuilder& build, const Instruction* pc, int pcpos)
 }
 static void translateInstBinaryNumeric(IrBuilder& build, int ra, int rb, int rc, IrOp opb, IrOp opc, int pcpos, TMS tm)
 {
- IrOp fallback;
  BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
+ if (FFlag::LuauCodegenVector)
+ {
+ if (bcTypes.a == LBC_TYPE_VECTOR && bcTypes.b == LBC_TYPE_VECTOR && (tm == TM_ADD || tm == TM_SUB || tm == TM_MUL || tm == TM_DIV))
+ {
+ build.inst(IrCmd::CHECK_TAG, build.inst(IrCmd::LOAD_TAG, build.vmReg(rb)), build.constTag(LUA_TVECTOR), build.vmExit(pcpos));
+ build.inst(IrCmd::CHECK_TAG, build.inst(IrCmd::LOAD_TAG, build.vmReg(rc)), build.constTag(LUA_TVECTOR), build.vmExit(pcpos));
+ IrOp vb = build.inst(IrCmd::LOAD_TVALUE, opb);
+ IrOp vc = build.inst(IrCmd::LOAD_TVALUE, opc);
+ IrOp result;
+ switch (tm)
+ {
+ case TM_ADD:
+ result = build.inst(IrCmd::ADD_VEC, vb, vc);
+ break;
+ case TM_SUB:
+ result = build.inst(IrCmd::SUB_VEC, vb, vc);
+ break;
+ case TM_MUL:
+ result = build.inst(IrCmd::MUL_VEC, vb, vc);
+ break;
+ case TM_DIV:
+ result = build.inst(IrCmd::DIV_VEC, vb, vc);
+ break;
+ default:
+ break;
+ }
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), result);
+ return;
+ }
+ else if (bcTypes.a == LBC_TYPE_NUMBER && bcTypes.b == LBC_TYPE_VECTOR && (tm == TM_MUL || tm == TM_DIV))
+ {
+ if (rb != -1)
+ build.inst(IrCmd::CHECK_TAG, build.inst(IrCmd::LOAD_TAG, build.vmReg(rb)), build.constTag(LUA_TNUMBER), build.vmExit(pcpos));
+ build.inst(IrCmd::CHECK_TAG, build.inst(IrCmd::LOAD_TAG, build.vmReg(rc)), build.constTag(LUA_TVECTOR), build.vmExit(pcpos));
+ IrOp vb = build.inst(IrCmd::NUM_TO_VECTOR, loadDoubleOrConstant(build, opb));
+ IrOp vc = build.inst(IrCmd::LOAD_TVALUE, opc);
+ IrOp result;
+ switch (tm)
+ {
+ case TM_MUL:
+ result = build.inst(IrCmd::MUL_VEC, vb, vc);
+ break;
+ case TM_DIV:
+ result = build.inst(IrCmd::DIV_VEC, vb, vc);
+ break;
+ default:
+ break;
+ }
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), result);
+ return;
+ }
+ else if (bcTypes.a == LBC_TYPE_VECTOR && bcTypes.b == LBC_TYPE_NUMBER && (tm == TM_MUL || tm == TM_DIV))
+ {
+ build.inst(IrCmd::CHECK_TAG, build.inst(IrCmd::LOAD_TAG, build.vmReg(rb)), build.constTag(LUA_TVECTOR), build.vmExit(pcpos));
+ if (rc != -1)
+ build.inst(IrCmd::CHECK_TAG, build.inst(IrCmd::LOAD_TAG, build.vmReg(rc)), build.constTag(LUA_TNUMBER), build.vmExit(pcpos));
+ IrOp vb = build.inst(IrCmd::LOAD_TVALUE, opb);
+ IrOp vc = build.inst(IrCmd::NUM_TO_VECTOR, loadDoubleOrConstant(build, opc));
+ IrOp result;
+ switch (tm)
+ {
+ case TM_MUL:
+ result = build.inst(IrCmd::MUL_VEC, vb, vc);
+ break;
+ case TM_DIV:
+ result = build.inst(IrCmd::DIV_VEC, vb, vc);
+ break;
+ default:
+ break;
+ }
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), result);
+ return;
+ }
+ }
+ IrOp fallback;
  if (rb != -1)
  {
  IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
@@ -49220,6 +49747,12 @@ static void translateInstBinaryNumeric(IrBuilder& build, int ra, int rb, int rc,
  }
  IrOp vb, vc;
  IrOp result;
+ if (FFlag::LuauCodegenVector)
+ {
+ vb = loadDoubleOrConstant(build, opb);
+ }
+ else
+ {
  if (opb.kind == IrOpKind::VmConst)
  {
  LUAU_ASSERT(build.function.proto);
@@ -49230,6 +49763,7 @@ static void translateInstBinaryNumeric(IrBuilder& build, int ra, int rb, int rc,
  else
  {
  vb = build.inst(IrCmd::LOAD_DOUBLE, opb);
+ }
  }
  if (opc.kind == IrOpKind::VmConst)
  {
@@ -49318,10 +49852,18 @@ void translateInstNot(IrBuilder& build, const Instruction* pc)
 }
 void translateInstMinus(IrBuilder& build, const Instruction* pc, int pcpos)
 {
- IrOp fallback;
  BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
  int ra = LUAU_INSN_A(*pc);
  int rb = LUAU_INSN_B(*pc);
+ if (FFlag::LuauCodegenVector && bcTypes.a == LBC_TYPE_VECTOR)
+ {
+ build.inst(IrCmd::CHECK_TAG, build.inst(IrCmd::LOAD_TAG, build.vmReg(rb)), build.constTag(LUA_TVECTOR), build.vmExit(pcpos));
+ IrOp vb = build.inst(IrCmd::LOAD_TVALUE, build.vmReg(rb));
+ IrOp va = build.inst(IrCmd::UNM_VEC, vb);
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), va);
+ return;
+ }
+ IrOp fallback;
  IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
  build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TNUMBER),
  bcTypes.a == LBC_TYPE_NUMBER ? build.vmExit(pcpos) : getInitializedFallback(build, fallback));
@@ -49729,9 +50271,38 @@ void translateInstGetTableKS(IrBuilder& build, const Instruction* pc, int pcpos)
  int ra = LUAU_INSN_A(*pc);
  int rb = LUAU_INSN_B(*pc);
  uint32_t aux = pc[1];
- IrOp fallback = build.block(IrBlockKind::Fallback);
  BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
  IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
+ if (FFlag::LuauCodegenVector && bcTypes.a == LBC_TYPE_VECTOR)
+ {
+ build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TVECTOR), build.vmExit(pcpos));
+ TString* str = gco2ts(build.function.proto->k[aux].value.gc);
+ const char* field = getstr(str);
+ if (*field == 'X' || *field == 'x')
+ {
+ IrOp value = build.inst(IrCmd::LOAD_FLOAT, build.vmReg(rb), build.constInt(0));
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), value);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ }
+ else if (*field == 'Y' || *field == 'y')
+ {
+ IrOp value = build.inst(IrCmd::LOAD_FLOAT, build.vmReg(rb), build.constInt(4));
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), value);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ }
+ else if (*field == 'Z' || *field == 'z')
+ {
+ IrOp value = build.inst(IrCmd::LOAD_FLOAT, build.vmReg(rb), build.constInt(8));
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), value);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ }
+ else
+ {
+ build.inst(IrCmd::FALLBACK_GETTABLEKS, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
+ }
+ return;
+ }
+ IrOp fallback = build.block(IrBlockKind::Fallback);
  build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TTABLE), bcTypes.a == LBC_TYPE_TABLE ? build.vmExit(pcpos) : fallback);
  IrOp vb = build.inst(IrCmd::LOAD_POINTER, build.vmReg(rb));
  IrOp addrSlotEl = build.inst(IrCmd::GET_SLOT_NODE_ADDR, vb, build.constUint(pcpos), build.vmConst(aux));
@@ -49982,6 +50553,8 @@ IrValueKind getCmdValueKind(IrCmd cmd)
  return IrValueKind::Double;
  case IrCmd::LOAD_INT:
  return IrValueKind::Int;
+ case IrCmd::LOAD_FLOAT:
+ return IrValueKind::Double;
  case IrCmd::LOAD_TVALUE:
  return IrValueKind::Tvalue;
  case IrCmd::LOAD_ENV:
@@ -50017,6 +50590,12 @@ IrValueKind getCmdValueKind(IrCmd cmd)
  case IrCmd::SQRT_NUM:
  case IrCmd::ABS_NUM:
  return IrValueKind::Double;
+ case IrCmd::ADD_VEC:
+ case IrCmd::SUB_VEC:
+ case IrCmd::MUL_VEC:
+ case IrCmd::DIV_VEC:
+ case IrCmd::UNM_VEC:
+ return IrValueKind::Tvalue;
  case IrCmd::NOT_ANY:
  case IrCmd::CMP_ANY:
  return IrValueKind::Int;
@@ -50049,6 +50628,8 @@ IrValueKind getCmdValueKind(IrCmd cmd)
  case IrCmd::NUM_TO_INT:
  case IrCmd::NUM_TO_UINT:
  return IrValueKind::Int;
+ case IrCmd::NUM_TO_VECTOR:
+ return IrValueKind::Tvalue;
  case IrCmd::ADJUST_STACK_TO_REG:
  case IrCmd::ADJUST_STACK_TO_TOP:
  return IrValueKind::None;
@@ -50851,6 +51432,7 @@ void IrValueLocationTracking::beforeInstLowering(IrInst& inst)
  case IrCmd::LOAD_POINTER:
  case IrCmd::LOAD_DOUBLE:
  case IrCmd::LOAD_INT:
+ case IrCmd::LOAD_FLOAT:
  case IrCmd::LOAD_TVALUE:
  case IrCmd::CMP_ANY:
  case IrCmd::JUMP_IF_TRUTHY:
@@ -50885,6 +51467,11 @@ void IrValueLocationTracking::beforeInstLowering(IrInst& inst)
  case IrCmd::MAX_NUM:
  case IrCmd::JUMP_EQ_TAG:
  case IrCmd::JUMP_CMP_NUM:
+ case IrCmd::FLOOR_NUM:
+ case IrCmd::CEIL_NUM:
+ case IrCmd::ROUND_NUM:
+ case IrCmd::SQRT_NUM:
+ case IrCmd::ABS_NUM:
  break;
  default:
  LUAU_ASSERT(inst.a.kind != IrOpKind::VmReg);
@@ -51066,6 +51653,7 @@ LUAU_FASTINTVARIABLE(LuauCodeGenMinLinearBlockPath, 3)
 LUAU_FASTINTVARIABLE(LuauCodeGenReuseSlotLimit, 64)
 LUAU_FASTFLAGVARIABLE(DebugLuauAbortingChecks, false)
 LUAU_FASTFLAGVARIABLE(LuauReuseBufferChecks, false)
+LUAU_FASTFLAG(LuauCodegenVector)
 namespace Luau
 {
 namespace CodeGen
@@ -51504,6 +52092,8 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  state.substituteOrRecordVmRegLoad(inst);
  break;
  }
+ case IrCmd::LOAD_FLOAT:
+ break;
  case IrCmd::LOAD_TVALUE:
  if (inst.a.kind == IrOpKind::VmReg)
  state.substituteOrRecordVmRegLoad(inst);
@@ -51615,6 +52205,15 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  state.invalidate(inst.a);
  }
  uint8_t tag = state.tryGetTag(inst.b);
+ if (FFlag::LuauCodegenVector && tag == 0xff)
+ {
+ if (IrInst* arg = function.asInstOp(inst.b))
+ {
+ if (arg->cmd == IrCmd::ADD_VEC || arg->cmd == IrCmd::SUB_VEC || arg->cmd == IrCmd::MUL_VEC || arg->cmd == IrCmd::DIV_VEC ||
+ arg->cmd == IrCmd::UNM_VEC)
+ tag = LUA_TVECTOR;
+ }
+ }
  IrOp value = state.tryGetValue(inst.b);
  if (inst.a.kind == IrOpKind::VmReg)
  {
@@ -52092,7 +52691,6 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  case IrCmd::BITXOR_UINT:
  case IrCmd::BITOR_UINT:
  case IrCmd::BITNOT_UINT:
- break;
  case IrCmd::BITLSHIFT_UINT:
  case IrCmd::BITRSHIFT_UINT:
  case IrCmd::BITARSHIFT_UINT:
@@ -52105,6 +52703,12 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  case IrCmd::GET_TYPE:
  case IrCmd::GET_TYPEOF:
  case IrCmd::FINDUPVAL:
+ case IrCmd::ADD_VEC:
+ case IrCmd::SUB_VEC:
+ case IrCmd::MUL_VEC:
+ case IrCmd::DIV_VEC:
+ case IrCmd::UNM_VEC:
+ case IrCmd::NUM_TO_VECTOR:
  break;
  case IrCmd::DO_ARITH:
  state.invalidate(inst.a);
@@ -52357,6 +52961,7 @@ void createLinearBlocks(IrBuilder& build, bool useValueNumbering)
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "OptimizeFinalX64.cpp"
+LUAU_FASTFLAGVARIABLE(LuauCodegenMathMemArgs, false)
 namespace Luau
 {
 namespace CodeGen
@@ -52442,6 +53047,20 @@ static void optimizeMemoryOperandsX64(IrFunction& function, IrBlock& block)
  IrInst& num = function.instOp(inst.a);
  if (num.useCount == 1 && num.cmd == IrCmd::LOAD_DOUBLE)
  replace(function, inst.a, num.a);
+ }
+ break;
+ }
+ case IrCmd::FLOOR_NUM:
+ case IrCmd::CEIL_NUM:
+ case IrCmd::ROUND_NUM:
+ case IrCmd::SQRT_NUM:
+ case IrCmd::ABS_NUM:
+ {
+ if (FFlag::LuauCodegenMathMemArgs && inst.a.kind == IrOpKind::Inst)
+ {
+ IrInst& arg = function.instOp(inst.a);
+ if (arg.useCount == 1 && arg.cmd == IrCmd::LOAD_DOUBLE && (arg.a.kind == IrOpKind::VmReg || arg.a.kind == IrOpKind::VmConst))
+ replace(function, inst.a, arg.a);
  }
  break;
  }
