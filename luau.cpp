@@ -8790,9 +8790,15 @@ void luaL_sandbox(lua_State* L)
  lua_pop(L, 1);
  }
  lua_pushliteral(L, "");
- lua_getmetatable(L, -1);
+ if (lua_getmetatable(L, -1))
+ {
  lua_setreadonly(L, -1, true);
  lua_pop(L, 2);
+ }
+ else
+ {
+ lua_pop(L, 1);
+ }
  lua_setreadonly(L, LUA_GLOBALSINDEX, true);
  lua_setsafeenv(L, LUA_GLOBALSINDEX, true);
 }
@@ -43891,6 +43897,7 @@ std::string dumpDot(const IrFunction& function, bool includeInst)
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "IrLoweringA64.cpp"
+LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauCodeGenFixBufferLenCheckA64, false)
 namespace Luau
 {
 namespace CodeGen
@@ -45217,6 +45224,9 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  RegisterA64 tempx = castReg(KindA64::x, temp);
  build.sub(tempx, tempx, regOp(inst.b));
  build.cmp(tempx, uint16_t(accessSize));
+ if (DFFlag::LuauCodeGenFixBufferLenCheckA64)
+ build.b(ConditionA64::Less, target);
+ else
  build.b(ConditionA64::LessEqual, target);
  }
  }
@@ -51654,6 +51664,7 @@ LUAU_FASTINTVARIABLE(LuauCodeGenReuseSlotLimit, 64)
 LUAU_FASTFLAGVARIABLE(DebugLuauAbortingChecks, false)
 LUAU_FASTFLAGVARIABLE(LuauReuseBufferChecks, false)
 LUAU_FASTFLAG(LuauCodegenVector)
+LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauCodeGenCheckGcEffectFix, false)
 namespace Luau
 {
 namespace CodeGen
@@ -52496,9 +52507,17 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  break;
  case IrCmd::CHECK_GC:
  if (state.checkedGc)
+ {
  kill(function, inst);
+ }
  else
+ {
  state.checkedGc = true;
+ if (DFFlag::LuauCodeGenCheckGcEffectFix)
+ {
+ state.invalidateHeapTableData();
+ }
+ }
  break;
  case IrCmd::BARRIER_OBJ:
  case IrCmd::BARRIER_TABLE_FORWARD:
