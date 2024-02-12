@@ -942,8 +942,9 @@ private:
  size_t head_size =
  std::min(queue_size, old_capacity - head);
  size_t tail_size = queue_size - head_size; // how many elements are in the tail portion (i.e. any portion that wrapped to the front)
+ if (head_size != 0)
  std::uninitialized_move(buffer + head, buffer + head + head_size, new_buffer);
- if (head_size < queue_size)
+ if (tail_size != 0)
  std::uninitialized_move(buffer, buffer + tail_size, new_buffer + head_size);
  destroyElements();
  this->deallocate(buffer, old_capacity);
@@ -967,7 +968,13 @@ public:
  , head(other.head)
  , queue_size(other.queue_size)
  {
- std::uninitialized_copy(other.buffer, other.buffer + other.buffer_capacity, buffer);
+ size_t head_size = std::min(other.queue_size,
+ other.buffer_capacity - other.head);
+ size_t tail_size = other.queue_size - head_size; // how many elements are in the tail portion (i.e. any portion that wrapped to the front)
+ if (head_size != 0)
+ std::uninitialized_copy(other.buffer + other.head, other.buffer + other.head + head_size, buffer + head);
+ if (tail_size != 0)
+ std::uninitialized_copy(other.buffer, other.buffer + tail_size, buffer);
  }
  VecDeque(const VecDeque& other, const Allocator& alloc)
  : Allocator{alloc}
@@ -976,7 +983,13 @@ public:
  , head(other.head)
  , queue_size(other.queue_size)
  {
- std::uninitialized_copy(other.buffer, other.buffer + other.buffer_capacity, buffer);
+ size_t head_size = std::min(other.queue_size,
+ other.buffer_capacity - other.head);
+ size_t tail_size = other.queue_size - head_size; // how many elements are in the tail portion (i.e. any portion that wrapped to the front)
+ if (head_size != 0)
+ std::uninitialized_copy(other.buffer + other.head, other.buffer + other.head + head_size, buffer + head);
+ if (tail_size != 0)
+ std::uninitialized_copy(other.buffer, other.buffer + tail_size, buffer);
  }
  VecDeque(VecDeque&& other) noexcept
  : buffer(std::exchange(other.buffer, nullptr))
@@ -1017,9 +1030,14 @@ public:
  buffer = this->allocate(other.buffer_capacity);
  buffer_capacity = other.buffer_capacity;
  }
- size_t head_size = other.capacity() - other.head;
- size_t tail_size = other.size() - head_size; // how many elements are in the tail portion (i.e. any portion that wrapped to the front)
- std::uninitialized_copy(other.buffer + other.head, other.buffer + head + head_size, buffer);
+ size_t head_size = std::min(other.queue_size,
+ other.buffer_capacity - other.head);
+ size_t tail_size = other.queue_size - head_size; // how many elements are in the tail portion (i.e. any portion that wrapped to the front)
+ head = 0;
+ queue_size = other.queue_size;
+ if (head_size != 0)
+ std::uninitialized_copy(other.buffer + other.head, other.buffer + other.head + head_size, buffer);
+ if (tail_size != 0)
  std::uninitialized_copy(other.buffer, other.buffer + tail_size, buffer + head_size);
  return *this;
  }
@@ -1102,9 +1120,9 @@ public:
  std::min(queue_size, old_capacity - head);
  size_t tail_size = queue_size - head_size; // how many elements are in the tail portion (i.e. any portion that wrapped to the front)
  T* new_buffer = this->allocate(new_capacity);
+ if (head_size != 0)
  std::uninitialized_move(buffer + head, buffer + head + head_size, new_buffer);
- if (head_size < queue_size)
- std::uninitialized_move(buffer, buffer + tail_size, new_buffer + head_size);
+ if (tail_size != 0)
  std::uninitialized_move(buffer, buffer + tail_size, new_buffer + head_size);
  destroyElements();
  this->deallocate(buffer, old_capacity);
@@ -1116,7 +1134,8 @@ public:
  {
  return buffer_capacity;
  }
- void shrink_to_fit() {
+ void shrink_to_fit()
+ {
  size_t old_capacity = capacity();
  size_t new_capacity = queue_size;
  if (old_capacity == new_capacity)
@@ -1125,8 +1144,9 @@ public:
  std::min(queue_size, old_capacity - head);
  size_t tail_size = queue_size - head_size; // how many elements are in the tail portion (i.e. any portion that wrapped to the front)
  T* new_buffer = this->allocate(new_capacity);
+ if (head_size != 0)
  std::uninitialized_move(buffer + head, buffer + head + head_size, new_buffer);
- if (head_size < queue_size)
+ if (tail_size != 0)
  std::uninitialized_move(buffer, buffer + tail_size, new_buffer + head_size);
  destroyElements();
  this->deallocate(buffer, old_capacity);
