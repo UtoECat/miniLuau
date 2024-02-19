@@ -124,7 +124,7 @@ enum LuauBytecodeTag
 {
  LBC_VERSION_MIN = 3,
  LBC_VERSION_MAX = 5,
- LBC_VERSION_TARGET = 4,
+ LBC_VERSION_TARGET = 5,
  LBC_TYPE_VERSION = 1,
  LBC_CONSTANT_NIL = 0,
  LBC_CONSTANT_BOOLEAN,
@@ -1079,20 +1079,24 @@ public:
  LUAU_ASSERT(pos < queue_size);
  return buffer[logicalToPhysical(pos)];
  }
- T& front() {
+ T& front()
+ {
  LUAU_ASSERT(!empty());
  return buffer[head];
  }
- const T& front() const {
+ const T& front() const
+ {
  LUAU_ASSERT(!empty());
  return buffer[head];
  }
- T& back() {
+ T& back()
+ {
  LUAU_ASSERT(!empty());
  size_t back = logicalToPhysical(queue_size - 1);
  return buffer[back];
  }
- const T& back() const {
+ const T& back() const
+ {
  LUAU_ASSERT(!empty());
  size_t back = logicalToPhysical(queue_size - 1);
  return buffer[back];
@@ -1169,7 +1173,7 @@ public:
  if (is_full())
  grow();
  size_t next_back = logicalToPhysical(queue_size);
- new (buffer + next_back)T(value);
+ new (buffer + next_back) T(value);
  queue_size++;
  }
  void pop_back()
@@ -1184,7 +1188,7 @@ public:
  if (is_full())
  grow();
  head = (head == 0) ? capacity() - 1 : head - 1;
- new (buffer + head)T(value);
+ new (buffer + head) T(value);
  queue_size++;
  }
  void pop_front()
@@ -18267,8 +18271,8 @@ void AstStatLocal::visit(AstVisitor* visitor)
  expr->visit(visitor);
  }
 }
-AstStatFor::AstStatFor(const Location& location, AstLocal* var, AstExpr* from, AstExpr* to, AstExpr* step, AstStatBlock* body, bool hasDo,
- const Location& doLocation)
+AstStatFor::AstStatFor(
+ const Location& location, AstLocal* var, AstExpr* from, AstExpr* to, AstExpr* step, AstStatBlock* body, bool hasDo, const Location& doLocation)
  : AstStat(ClassIndex(), location)
  , var(var)
  , from(from)
@@ -22668,8 +22672,7 @@ AstStat* Parser::parseFor()
  Location end = lexer.current().location;
  bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchDo);
  body->hasEnd = hasEnd;
- return allocator.alloc<AstStatForIn>(
- Location(start, end), copy(vars), copy(values), body, hasIn, inLocation, hasDo, matchDo.location);
+ return allocator.alloc<AstStatForIn>(Location(start, end), copy(vars), copy(values), body, hasIn, inLocation, hasDo, matchDo.location);
  }
 }
 AstExpr* Parser::parseFunctionName(Location start, bool& hasself, AstName& debugname)
@@ -22870,8 +22873,7 @@ AstStat* Parser::parseDeclaration(const Location& start)
  {
  props.push_back(parseDeclaredClassMethod());
  }
- else if (lexer.current().type == '[' && (lexer.lookahead().type == Lexeme::RawString ||
- lexer.lookahead().type == Lexeme::QuotedString))
+ else if (lexer.current().type == '[' && (lexer.lookahead().type == Lexeme::RawString || lexer.lookahead().type == Lexeme::QuotedString))
  {
  const Lexeme begin = lexer.current();
  nextLexeme();
@@ -25074,7 +25076,6 @@ Constant foldBuiltinMath(AstName index);
 }
 } // namespace Luau
 #line __LINE__ "BuiltinFolding.cpp"
-LUAU_FASTFLAGVARIABLE(LuauVectorLiterals, false)
 namespace Luau
 {
 namespace Compile
@@ -25445,8 +25446,7 @@ Constant foldBuiltin(int bfid, const Constant* args, size_t count)
  return cnum(round(args[0].valueNumber));
  break;
  case LBF_VECTOR:
- if (FFlag::LuauVectorLiterals && count >= 3 && args[0].type == Constant::Type_Number && args[1].type == Constant::Type_Number &&
- args[2].type == Constant::Type_Number)
+ if (count >= 3 && args[0].type == Constant::Type_Number && args[1].type == Constant::Type_Number && args[2].type == Constant::Type_Number)
  {
  if (count == 3)
  return cvector(args[0].valueNumber, args[1].valueNumber, args[2].valueNumber, 0.0);
@@ -26141,8 +26141,6 @@ private:
 };
 }
 #line __LINE__ "BytecodeBuilder.cpp"
-LUAU_FASTFLAG(LuauVectorLiterals)
-LUAU_FASTFLAG(LuauCompileRevK)
 namespace Luau
 {
 static_assert(LBC_VERSION_TARGET >= LBC_VERSION_MIN && LBC_VERSION_TARGET <= LBC_VERSION_MAX, "Invalid bytecode version setup");
@@ -26939,7 +26937,7 @@ std::string BytecodeBuilder::getError(const std::string& message)
 }
 uint8_t BytecodeBuilder::getVersion()
 {
- return (FFlag::LuauVectorLiterals || FFlag::LuauCompileRevK) ? 5 : LBC_VERSION_TARGET;
+ return LBC_VERSION_TARGET;
 }
 uint8_t BytecodeBuilder::getTypeEncodingVersion()
 {
@@ -28008,7 +28006,6 @@ LUAU_FASTINTVARIABLE(LuauCompileLoopUnrollThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThreshold, 25)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
-LUAU_FASTFLAGVARIABLE(LuauCompileRevK, false)
 namespace Luau
 {
 using namespace Luau::Compile;
@@ -29059,7 +29056,7 @@ struct Compiler
  }
  else
  {
- if (FFlag::LuauCompileRevK && (expr->op == AstExprBinary::Sub || expr->op == AstExprBinary::Div))
+ if (expr->op == AstExprBinary::Sub || expr->op == AstExprBinary::Div)
  {
  int32_t lc = getConstantNumber(expr->left);
  if (lc >= 0 && lc <= 255)
@@ -32049,6 +32046,15 @@ double log2_custom( double n )
 #line __LINE__ "IrBuilder.cpp"
 #line __LINE__ "IrData.h"
 #line __LINE__ "IrAnalysis.h"
+#line __LINE__ "CodeGenCommon.h"
+#if defined(LUAU_ASSERTENABLED)
+#define CODEGEN_ASSERT(expr) ((void)(!!(expr) || (Luau::assertCallHandler(#expr, __FILE__, __LINE__, __FUNCTION__) && (LUAU_DEBUGBREAK(), 0))))
+#elif defined(CODEGEN_ENABLE_ASSERT_HANDLER)
+#define CODEGEN_ASSERT(expr) ((void)(!!(expr) || Luau::assertCallHandler(#expr, __FILE__, __LINE__, __FUNCTION__)))
+#else
+#define CODEGEN_ASSERT(expr) (void)sizeof(!!(expr))
+#endif
+#line __LINE__ "IrAnalysis.h"
 #include <queue>
 namespace Luau
 {
@@ -32141,7 +32147,7 @@ struct BlockIteratorWrapper
  }
  uint32_t operator[](size_t pos) const
  {
- LUAU_ASSERT(pos < size_t(itEnd - itBegin));
+ CODEGEN_ASSERT(pos < size_t(itEnd - itBegin));
  return itBegin[pos];
  }
 };
@@ -32327,9 +32333,9 @@ struct RegisterA64
 };
 constexpr RegisterA64 castReg(KindA64 kind, RegisterA64 reg)
 {
- LUAU_ASSERT(kind != reg.kind);
- LUAU_ASSERT(kind != KindA64::none && reg.kind != KindA64::none);
- LUAU_ASSERT((kind == KindA64::w || kind == KindA64::x) == (reg.kind == KindA64::w || reg.kind == KindA64::x));
+ CODEGEN_ASSERT(kind != reg.kind);
+ CODEGEN_ASSERT(kind != KindA64::none && reg.kind != KindA64::none);
+ CODEGEN_ASSERT((kind == KindA64::w || kind == KindA64::x) == (reg.kind == KindA64::w || reg.kind == KindA64::x));
  return RegisterA64{kind, reg.index};
 }
 constexpr RegisterA64 noreg{KindA64::none, 0};
@@ -32849,12 +32855,12 @@ struct IrFunction
  CfgInfo cfg;
  IrBlock& blockOp(IrOp op)
  {
- LUAU_ASSERT(op.kind == IrOpKind::Block);
+ CODEGEN_ASSERT(op.kind == IrOpKind::Block);
  return blocks[op.index];
  }
  IrInst& instOp(IrOp op)
  {
- LUAU_ASSERT(op.kind == IrOpKind::Inst);
+ CODEGEN_ASSERT(op.kind == IrOpKind::Inst);
  return instructions[op.index];
  }
  IrInst* asInstOp(IrOp op)
@@ -32865,13 +32871,13 @@ struct IrFunction
  }
  IrConst& constOp(IrOp op)
  {
- LUAU_ASSERT(op.kind == IrOpKind::Constant);
+ CODEGEN_ASSERT(op.kind == IrOpKind::Constant);
  return constants[op.index];
  }
  uint8_t tagOp(IrOp op)
  {
  IrConst& value = constOp(op);
- LUAU_ASSERT(value.kind == IrConstKind::Tag);
+ CODEGEN_ASSERT(value.kind == IrConstKind::Tag);
  return value.valueTag;
  }
  std::optional<uint8_t> asTagOp(IrOp op)
@@ -32886,7 +32892,7 @@ struct IrFunction
  int intOp(IrOp op)
  {
  IrConst& value = constOp(op);
- LUAU_ASSERT(value.kind == IrConstKind::Int);
+ CODEGEN_ASSERT(value.kind == IrConstKind::Int);
  return value.valueInt;
  }
  std::optional<int> asIntOp(IrOp op)
@@ -32901,7 +32907,7 @@ struct IrFunction
  unsigned uintOp(IrOp op)
  {
  IrConst& value = constOp(op);
- LUAU_ASSERT(value.kind == IrConstKind::Uint);
+ CODEGEN_ASSERT(value.kind == IrConstKind::Uint);
  return value.valueUint;
  }
  std::optional<unsigned> asUintOp(IrOp op)
@@ -32916,7 +32922,7 @@ struct IrFunction
  double doubleOp(IrOp op)
  {
  IrConst& value = constOp(op);
- LUAU_ASSERT(value.kind == IrConstKind::Double);
+ CODEGEN_ASSERT(value.kind == IrConstKind::Double);
  return value.valueDouble;
  }
  std::optional<double> asDoubleOp(IrOp op)
@@ -32930,12 +32936,12 @@ struct IrFunction
  }
  uint32_t getBlockIndex(const IrBlock& block) const
  {
- LUAU_ASSERT(&block >= blocks.data() && &block <= blocks.data() + blocks.size());
+ CODEGEN_ASSERT(&block >= blocks.data() && &block <= blocks.data() + blocks.size());
  return uint32_t(&block - blocks.data());
  }
  uint32_t getInstIndex(const IrInst& inst) const
  {
- LUAU_ASSERT(&inst >= instructions.data() && &inst <= instructions.data() + instructions.size());
+ CODEGEN_ASSERT(&inst >= instructions.data() && &inst <= instructions.data() + instructions.size());
  return uint32_t(&inst - instructions.data());
  }
  void recordRestoreOp(uint32_t instIdx, IrOp location)
@@ -32966,7 +32972,7 @@ struct IrFunction
  }
  BytecodeTypes getBytecodeTypesAt(int pcpos) const
  {
- LUAU_ASSERT(pcpos >= 0);
+ CODEGEN_ASSERT(pcpos >= 0);
  if (size_t(pcpos) < bcTypes.size())
  return bcTypes[pcpos];
  return BytecodeTypes();
@@ -32974,27 +32980,27 @@ struct IrFunction
 };
 inline IrCondition conditionOp(IrOp op)
 {
- LUAU_ASSERT(op.kind == IrOpKind::Condition);
+ CODEGEN_ASSERT(op.kind == IrOpKind::Condition);
  return IrCondition(op.index);
 }
 inline int vmRegOp(IrOp op)
 {
- LUAU_ASSERT(op.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(op.kind == IrOpKind::VmReg);
  return op.index;
 }
 inline int vmConstOp(IrOp op)
 {
- LUAU_ASSERT(op.kind == IrOpKind::VmConst);
+ CODEGEN_ASSERT(op.kind == IrOpKind::VmConst);
  return op.index;
 }
 inline int vmUpvalueOp(IrOp op)
 {
- LUAU_ASSERT(op.kind == IrOpKind::VmUpvalue);
+ CODEGEN_ASSERT(op.kind == IrOpKind::VmUpvalue);
  return op.index;
 }
 inline uint32_t vmExitOp(IrOp op)
 {
- LUAU_ASSERT(op.kind == IrOpKind::VmExit);
+ CODEGEN_ASSERT(op.kind == IrOpKind::VmExit);
  return op.index;
 }
 }
@@ -33404,7 +33410,7 @@ static bool hasTypedParameters(Proto* proto)
 }
 static void buildArgumentTypeChecks(IrBuilder& build, Proto* proto)
 {
- LUAU_ASSERT(hasTypedParameters(proto));
+ CODEGEN_ASSERT(hasTypedParameters(proto));
  for (int i = 0; i < proto->numparams; ++i)
  {
  uint8_t et = proto->typeinfo[2 + i];
@@ -33492,7 +33498,7 @@ void IrBuilder::buildFunctionIr(Proto* proto)
  const Instruction* pc = &proto->code[i];
  LuauOpcode op = LuauOpcode(LUAU_INSN_OP(*pc));
  int nexti = i + getOpLength(op);
- LUAU_ASSERT(nexti <= proto->sizecode);
+ CODEGEN_ASSERT(nexti <= proto->sizecode);
  function.bcMapping[i] = {uint32_t(function.instructions.size()), ~0u};
  if (instIndexToBlock[i] != kNoAssociatedBlockIndex)
  beginBlock(blockAtInst(i));
@@ -33515,7 +33521,7 @@ void IrBuilder::buildFunctionIr(Proto* proto)
  if (op == LOP_FORNLOOP)
  afterInstForNLoop(*this, pc);
  i = nexti;
- LUAU_ASSERT(i <= proto->sizecode);
+ CODEGEN_ASSERT(i <= proto->sizecode);
  if (i < int(instIndexToBlock.size()) && instIndexToBlock[i] != kNoAssociatedBlockIndex)
  {
  if (!isBlockTerminator(function.instructions.back().cmd))
@@ -33536,7 +33542,7 @@ void IrBuilder::rebuildBytecodeBasicBlocks(Proto* proto)
  if (target >= 0 && !isFastCall(op))
  jumpTargets[target] = true;
  i += getOpLength(op);
- LUAU_ASSERT(i <= proto->sizecode);
+ CODEGEN_ASSERT(i <= proto->sizecode);
  }
  jumpTargets[0] = true;
  for (int i = 0; i < proto->sizecode; i++)
@@ -33826,7 +33832,7 @@ void IrBuilder::translateInst(LuauOpcode op, const Instruction* pc, int i)
  break;
  }
  default:
- LUAU_ASSERT(!"Unknown instruction");
+ CODEGEN_ASSERT(!"Unknown instruction");
  }
 }
 void IrBuilder::handleFastcallFallback(IrOp fallbackOrUndef, const Instruction* pc, int i)
@@ -33854,7 +33860,7 @@ void IrBuilder::beginBlock(IrOp block)
 {
  IrBlock& target = function.blocks[block.index];
  activeBlockIdx = block.index;
- LUAU_ASSERT(target.start == ~0u || target.start == uint32_t(function.instructions.size()));
+ CODEGEN_ASSERT(target.start == ~0u || target.start == uint32_t(function.instructions.size()));
  target.start = uint32_t(function.instructions.size());
  target.sortkey = target.start;
  inTerminatedBlock = false;
@@ -33872,7 +33878,7 @@ void IrBuilder::clone(const IrBlock& source, bool removeCurrentTerminator)
  if (const uint32_t* newIndex = instRedir.find(op.index))
  op.index = *newIndex;
  else
- LUAU_ASSERT(!"Values can only be used if they are defined in the same block");
+ CODEGEN_ASSERT(!"Values can only be used if they are defined in the same block");
  }
  };
  if (removeCurrentTerminator && inTerminatedBlock)
@@ -33884,11 +33890,11 @@ void IrBuilder::clone(const IrBlock& source, bool removeCurrentTerminator)
  }
  for (uint32_t index = source.start; index <= source.finish; index++)
  {
- LUAU_ASSERT(index < function.instructions.size());
+ CODEGEN_ASSERT(index < function.instructions.size());
  IrInst clone = function.instructions[index];
  if (isPseudo(clone.cmd))
  {
- LUAU_ASSERT(clone.useCount == 0);
+ CODEGEN_ASSERT(clone.useCount == 0);
  continue;
  }
  redirect(clone.a);
@@ -33984,7 +33990,7 @@ IrOp IrBuilder::inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e, IrOp f)
 {
  uint32_t index = uint32_t(function.instructions.size());
  function.instructions.push_back({cmd, a, b, c, d, e, f});
- LUAU_ASSERT(!inTerminatedBlock);
+ CODEGEN_ASSERT(!inTerminatedBlock);
  if (isBlockTerminator(cmd))
  {
  function.blocks[activeBlockIdx].finish = index;
@@ -34052,8 +34058,8 @@ struct AddressA64
  , offset(xzr)
  , data(off)
  {
- LUAU_ASSERT(base.kind == KindA64::x || base == sp);
- LUAU_ASSERT(kind != AddressKindA64::reg);
+ CODEGEN_ASSERT(base.kind == KindA64::x || base == sp);
+ CODEGEN_ASSERT(kind != AddressKindA64::reg);
  }
  constexpr AddressA64(RegisterA64 base, RegisterA64 offset)
  : kind(AddressKindA64::reg)
@@ -34061,8 +34067,8 @@ struct AddressA64
  , offset(offset)
  , data(0)
  {
- LUAU_ASSERT(base.kind == KindA64::x);
- LUAU_ASSERT(offset.kind == KindA64::x);
+ CODEGEN_ASSERT(base.kind == KindA64::x);
+ CODEGEN_ASSERT(offset.kind == KindA64::x);
  }
  AddressKindA64 kind;
  RegisterA64 base;
@@ -34213,7 +34219,7 @@ public:
  void setLabel(Label& label);
  uint32_t getLabelOffset(const Label& label)
  {
- LUAU_ASSERT(label.location != ~0u);
+ CODEGEN_ASSERT(label.location != ~0u);
  return label.location * 4;
  }
  void logAppend(const char* fmt, ...) LUAU_PRINTF_ATTR(2, 3);
@@ -34232,7 +34238,6 @@ private:
  void placeSR3(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint8_t op, int shift = 0, int N = 0);
  void placeSR2(const char* name, RegisterA64 dst, RegisterA64 src, uint8_t op, uint8_t op2 = 0);
  void placeR3(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint8_t op, uint8_t op2);
- void placeR3(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint8_t sizes, uint8_t op, uint8_t op2);
  void placeR1(const char* name, RegisterA64 dst, RegisterA64 src, uint32_t op);
  void placeI12(const char* name, RegisterA64 dst, RegisterA64 src1, int src2, uint8_t op);
  void placeI16(const char* name, RegisterA64 dst, int src, uint8_t op, int shift = 0);
@@ -34251,6 +34256,7 @@ private:
  void placeBM(const char* name, RegisterA64 dst, RegisterA64 src1, uint32_t src2, uint8_t op);
  void placeBFM(const char* name, RegisterA64 dst, RegisterA64 src1, int src2, uint8_t op, int immr, int imms);
  void placeER(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint8_t op, int shift);
+ void placeVR(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint16_t op, uint8_t op2);
  void place(uint32_t word);
  struct Patch
  {
@@ -34447,16 +34453,24 @@ AssemblyBuilderA64::AssemblyBuilderA64(bool logText, unsigned int features)
 }
 AssemblyBuilderA64::~AssemblyBuilderA64()
 {
- LUAU_ASSERT(finalized);
+ CODEGEN_ASSERT(finalized);
 }
 void AssemblyBuilderA64::mov(RegisterA64 dst, RegisterA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x || dst == sp);
- LUAU_ASSERT(dst.kind == src.kind || (dst.kind == KindA64::x && src == sp) || (dst == sp && src.kind == KindA64::x));
+ if (dst.kind != KindA64::q)
+ {
+ CODEGEN_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x || dst == sp);
+ CODEGEN_ASSERT(dst.kind == src.kind || (dst.kind == KindA64::x && src == sp) || (dst == sp && src.kind == KindA64::x));
  if (dst == sp || src == sp)
  placeR1("mov", dst, src, 0b00'100010'0'000000000000);
  else
  placeSR2("mov", dst, src, 0b01'01010);
+ }
+ else
+ {
+ CODEGEN_ASSERT(dst.kind == src.kind);
+ placeR1("mov", dst, src, 0b10'01110'10'1'00000'00011'1 | (src.index << 6));
+ }
 }
 void AssemblyBuilderA64::mov(RegisterA64 dst, int src)
 {
@@ -34523,12 +34537,12 @@ void AssemblyBuilderA64::cmp(RegisterA64 src1, uint16_t src2)
 }
 void AssemblyBuilderA64::csel(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, ConditionA64 cond)
 {
- LUAU_ASSERT(dst.kind == KindA64::x || dst.kind == KindA64::w);
+ CODEGEN_ASSERT(dst.kind == KindA64::x || dst.kind == KindA64::w);
  placeCS("csel", dst, src1, src2, cond, 0b11010'10'0, 0b00);
 }
 void AssemblyBuilderA64::cset(RegisterA64 dst, ConditionA64 cond)
 {
- LUAU_ASSERT(dst.kind == KindA64::x || dst.kind == KindA64::w);
+ CODEGEN_ASSERT(dst.kind == KindA64::x || dst.kind == KindA64::w);
  RegisterA64 src = dst.kind == KindA64::x ? xzr : wzr;
  placeCS("cset", dst, src, src, cond, 0b11010'10'0, 0b01, 1);
 }
@@ -34592,73 +34606,73 @@ void AssemblyBuilderA64::ror(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2
 }
 void AssemblyBuilderA64::clz(RegisterA64 dst, RegisterA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
- LUAU_ASSERT(dst.kind == src.kind);
+ CODEGEN_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ CODEGEN_ASSERT(dst.kind == src.kind);
  placeR1("clz", dst, src, 0b10'11010110'00000'00010'0);
 }
 void AssemblyBuilderA64::rbit(RegisterA64 dst, RegisterA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
- LUAU_ASSERT(dst.kind == src.kind);
+ CODEGEN_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ CODEGEN_ASSERT(dst.kind == src.kind);
  placeR1("rbit", dst, src, 0b10'11010110'00000'0000'00);
 }
 void AssemblyBuilderA64::rev(RegisterA64 dst, RegisterA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
- LUAU_ASSERT(dst.kind == src.kind);
+ CODEGEN_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ CODEGEN_ASSERT(dst.kind == src.kind);
  placeR1("rev", dst, src, 0b10'11010110'00000'0000'10 | int(dst.kind == KindA64::x));
 }
 void AssemblyBuilderA64::lsl(RegisterA64 dst, RegisterA64 src1, uint8_t src2)
 {
  int size = dst.kind == KindA64::x ? 64 : 32;
- LUAU_ASSERT(src2 < size);
+ CODEGEN_ASSERT(src2 < size);
  placeBFM("lsl", dst, src1, src2, 0b10'100110, (-src2) & (size - 1), size - 1 - src2);
 }
 void AssemblyBuilderA64::lsr(RegisterA64 dst, RegisterA64 src1, uint8_t src2)
 {
  int size = dst.kind == KindA64::x ? 64 : 32;
- LUAU_ASSERT(src2 < size);
+ CODEGEN_ASSERT(src2 < size);
  placeBFM("lsr", dst, src1, src2, 0b10'100110, src2, size - 1);
 }
 void AssemblyBuilderA64::asr(RegisterA64 dst, RegisterA64 src1, uint8_t src2)
 {
  int size = dst.kind == KindA64::x ? 64 : 32;
- LUAU_ASSERT(src2 < size);
+ CODEGEN_ASSERT(src2 < size);
  placeBFM("asr", dst, src1, src2, 0b00'100110, src2, size - 1);
 }
 void AssemblyBuilderA64::ror(RegisterA64 dst, RegisterA64 src1, uint8_t src2)
 {
  int size = dst.kind == KindA64::x ? 64 : 32;
- LUAU_ASSERT(src2 < size);
+ CODEGEN_ASSERT(src2 < size);
  placeBFM("ror", dst, src1, src2, 0b00'100111, src1.index, src2);
 }
 void AssemblyBuilderA64::ubfiz(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w)
 {
  int size = dst.kind == KindA64::x ? 64 : 32;
- LUAU_ASSERT(w > 0 && f + w <= size);
+ CODEGEN_ASSERT(w > 0 && f + w <= size);
  placeBFM("ubfiz", dst, src, f * 100 + w, 0b10'100110, (-f) & (size - 1), w - 1);
 }
 void AssemblyBuilderA64::ubfx(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w)
 {
  int size = dst.kind == KindA64::x ? 64 : 32;
- LUAU_ASSERT(w > 0 && f + w <= size);
+ CODEGEN_ASSERT(w > 0 && f + w <= size);
  placeBFM("ubfx", dst, src, f * 100 + w, 0b10'100110, f, f + w - 1);
 }
 void AssemblyBuilderA64::sbfiz(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w)
 {
  int size = dst.kind == KindA64::x ? 64 : 32;
- LUAU_ASSERT(w > 0 && f + w <= size);
+ CODEGEN_ASSERT(w > 0 && f + w <= size);
  placeBFM("sbfiz", dst, src, f * 100 + w, 0b00'100110, (-f) & (size - 1), w - 1);
 }
 void AssemblyBuilderA64::sbfx(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w)
 {
  int size = dst.kind == KindA64::x ? 64 : 32;
- LUAU_ASSERT(w > 0 && f + w <= size);
+ CODEGEN_ASSERT(w > 0 && f + w <= size);
  placeBFM("sbfx", dst, src, f * 100 + w, 0b00'100110, f, f + w - 1);
 }
 void AssemblyBuilderA64::ldr(RegisterA64 dst, AddressA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::x || dst.kind == KindA64::w || dst.kind == KindA64::s || dst.kind == KindA64::d || dst.kind == KindA64::q);
+ CODEGEN_ASSERT(dst.kind == KindA64::x || dst.kind == KindA64::w || dst.kind == KindA64::s || dst.kind == KindA64::d || dst.kind == KindA64::q);
  switch (dst.kind)
  {
  case KindA64::w:
@@ -34677,43 +34691,43 @@ void AssemblyBuilderA64::ldr(RegisterA64 dst, AddressA64 src)
  placeA("ldr", dst, src, 0b00'11110011, 4);
  break;
  case KindA64::none:
- LUAU_ASSERT(!"Unexpected register kind");
+ CODEGEN_ASSERT(!"Unexpected register kind");
  }
 }
 void AssemblyBuilderA64::ldrb(RegisterA64 dst, AddressA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::w);
+ CODEGEN_ASSERT(dst.kind == KindA64::w);
  placeA("ldrb", dst, src, 0b00'11100001, 0);
 }
 void AssemblyBuilderA64::ldrh(RegisterA64 dst, AddressA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::w);
+ CODEGEN_ASSERT(dst.kind == KindA64::w);
  placeA("ldrh", dst, src, 0b01'11100001, 1);
 }
 void AssemblyBuilderA64::ldrsb(RegisterA64 dst, AddressA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::x || dst.kind == KindA64::w);
+ CODEGEN_ASSERT(dst.kind == KindA64::x || dst.kind == KindA64::w);
  placeA("ldrsb", dst, src, 0b00'11100010 | uint8_t(dst.kind == KindA64::w), 0);
 }
 void AssemblyBuilderA64::ldrsh(RegisterA64 dst, AddressA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::x || dst.kind == KindA64::w);
+ CODEGEN_ASSERT(dst.kind == KindA64::x || dst.kind == KindA64::w);
  placeA("ldrsh", dst, src, 0b01'11100010 | uint8_t(dst.kind == KindA64::w), 1);
 }
 void AssemblyBuilderA64::ldrsw(RegisterA64 dst, AddressA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::x);
+ CODEGEN_ASSERT(dst.kind == KindA64::x);
  placeA("ldrsw", dst, src, 0b10'11100010, 2);
 }
 void AssemblyBuilderA64::ldp(RegisterA64 dst1, RegisterA64 dst2, AddressA64 src)
 {
- LUAU_ASSERT(dst1.kind == KindA64::x || dst1.kind == KindA64::w);
- LUAU_ASSERT(dst1.kind == dst2.kind);
+ CODEGEN_ASSERT(dst1.kind == KindA64::x || dst1.kind == KindA64::w);
+ CODEGEN_ASSERT(dst1.kind == dst2.kind);
  placeP("ldp", dst1, dst2, src, 0b101'0'010'1, uint8_t(dst1.kind == KindA64::x) << 1, dst1.kind == KindA64::x ? 3 : 2);
 }
 void AssemblyBuilderA64::str(RegisterA64 src, AddressA64 dst)
 {
- LUAU_ASSERT(src.kind == KindA64::x || src.kind == KindA64::w || src.kind == KindA64::s || src.kind == KindA64::d || src.kind == KindA64::q);
+ CODEGEN_ASSERT(src.kind == KindA64::x || src.kind == KindA64::w || src.kind == KindA64::s || src.kind == KindA64::d || src.kind == KindA64::q);
  switch (src.kind)
  {
  case KindA64::w:
@@ -34732,23 +34746,23 @@ void AssemblyBuilderA64::str(RegisterA64 src, AddressA64 dst)
  placeA("str", src, dst, 0b00'11110010, 4);
  break;
  case KindA64::none:
- LUAU_ASSERT(!"Unexpected register kind");
+ CODEGEN_ASSERT(!"Unexpected register kind");
  }
 }
 void AssemblyBuilderA64::strb(RegisterA64 src, AddressA64 dst)
 {
- LUAU_ASSERT(src.kind == KindA64::w);
+ CODEGEN_ASSERT(src.kind == KindA64::w);
  placeA("strb", src, dst, 0b00'11100000, 0);
 }
 void AssemblyBuilderA64::strh(RegisterA64 src, AddressA64 dst)
 {
- LUAU_ASSERT(src.kind == KindA64::w);
+ CODEGEN_ASSERT(src.kind == KindA64::w);
  placeA("strh", src, dst, 0b01'11100000, 1);
 }
 void AssemblyBuilderA64::stp(RegisterA64 src1, RegisterA64 src2, AddressA64 dst)
 {
- LUAU_ASSERT(src1.kind == KindA64::x || src1.kind == KindA64::w);
- LUAU_ASSERT(src1.kind == src2.kind);
+ CODEGEN_ASSERT(src1.kind == KindA64::x || src1.kind == KindA64::w);
+ CODEGEN_ASSERT(src1.kind == src2.kind);
  placeP("stp", src1, src2, dst, 0b101'0'010'0, uint8_t(src1.kind == KindA64::x) << 1, src1.kind == KindA64::x ? 3 : 2);
 }
 void AssemblyBuilderA64::b(Label& label)
@@ -34821,7 +34835,7 @@ void AssemblyBuilderA64::adr(RegisterA64 dst, Label& label)
 }
 void AssemblyBuilderA64::fmov(RegisterA64 dst, RegisterA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::d && (src.kind == KindA64::d || src.kind == KindA64::x));
+ CODEGEN_ASSERT(dst.kind == KindA64::d && (src.kind == KindA64::d || src.kind == KindA64::x));
  if (src.kind == KindA64::d)
  placeR1("fmov", dst, src, 0b000'11110'01'1'0000'00'10000);
  else
@@ -34829,9 +34843,9 @@ void AssemblyBuilderA64::fmov(RegisterA64 dst, RegisterA64 src)
 }
 void AssemblyBuilderA64::fmov(RegisterA64 dst, double src)
 {
- LUAU_ASSERT(dst.kind == KindA64::d);
+ CODEGEN_ASSERT(dst.kind == KindA64::d);
  int imm = getFmovImm(src);
- LUAU_ASSERT(imm >= 0 && imm <= 256);
+ CODEGEN_ASSERT(imm >= 0 && imm <= 256);
  if (imm == 256)
  placeFMOV("movi", dst, src, 0b001'0111100000'000'1110'01'00000);
  else
@@ -34839,83 +34853,108 @@ void AssemblyBuilderA64::fmov(RegisterA64 dst, double src)
 }
 void AssemblyBuilderA64::fabs(RegisterA64 dst, RegisterA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::d && src.kind == KindA64::d);
+ CODEGEN_ASSERT(dst.kind == KindA64::d && src.kind == KindA64::d);
  placeR1("fabs", dst, src, 0b000'11110'01'1'0000'01'10000);
 }
 void AssemblyBuilderA64::fadd(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2)
 {
  if (dst.kind == KindA64::d)
  {
- LUAU_ASSERT(src1.kind == KindA64::d && src2.kind == KindA64::d);
+ CODEGEN_ASSERT(src1.kind == KindA64::d && src2.kind == KindA64::d);
  placeR3("fadd", dst, src1, src2, 0b11110'01'1, 0b0010'10);
+ }
+ else if (dst.kind == KindA64::s)
+ {
+ CODEGEN_ASSERT(src1.kind == KindA64::s && src2.kind == KindA64::s);
+ placeR3("fadd", dst, src1, src2, 0b11110'00'1, 0b0010'10);
  }
  else
  {
- LUAU_ASSERT(dst.kind == KindA64::s && src1.kind == KindA64::s && src2.kind == KindA64::s);
- placeR3("fadd", dst, src1, src2, 0b11110'00'1, 0b0010'10);
+ CODEGEN_ASSERT(dst.kind == KindA64::q && src1.kind == KindA64::q && src2.kind == KindA64::q);
+ placeVR("fadd", dst, src1, src2, 0b0'01110'0'0'1, 0b11010'1);
  }
 }
 void AssemblyBuilderA64::fdiv(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2)
 {
  if (dst.kind == KindA64::d)
  {
- LUAU_ASSERT(src1.kind == KindA64::d && src2.kind == KindA64::d);
+ CODEGEN_ASSERT(src1.kind == KindA64::d && src2.kind == KindA64::d);
  placeR3("fdiv", dst, src1, src2, 0b11110'01'1, 0b0001'10);
+ }
+ else if (dst.kind == KindA64::s)
+ {
+ CODEGEN_ASSERT(src1.kind == KindA64::s && src2.kind == KindA64::s);
+ placeR3("fdiv", dst, src1, src2, 0b11110'00'1, 0b0001'10);
  }
  else
  {
- LUAU_ASSERT(dst.kind == KindA64::s && src1.kind == KindA64::s && src2.kind == KindA64::s);
- placeR3("fdiv", dst, src1, src2, 0b11110'00'1, 0b0001'10);
+ CODEGEN_ASSERT(dst.kind == KindA64::q && src1.kind == KindA64::q && src2.kind == KindA64::q);
+ placeVR("fdiv", dst, src1, src2, 0b1'01110'00'1, 0b11111'1);
  }
 }
 void AssemblyBuilderA64::fmul(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2)
 {
  if (dst.kind == KindA64::d)
  {
- LUAU_ASSERT(src1.kind == KindA64::d && src2.kind == KindA64::d);
+ CODEGEN_ASSERT(src1.kind == KindA64::d && src2.kind == KindA64::d);
  placeR3("fmul", dst, src1, src2, 0b11110'01'1, 0b0000'10);
+ }
+ else if (dst.kind == KindA64::s)
+ {
+ CODEGEN_ASSERT(src1.kind == KindA64::s && src2.kind == KindA64::s);
+ placeR3("fmul", dst, src1, src2, 0b11110'00'1, 0b0000'10);
  }
  else
  {
- LUAU_ASSERT(dst.kind == KindA64::s && src1.kind == KindA64::s && src2.kind == KindA64::s);
- placeR3("fmul", dst, src1, src2, 0b11110'00'1, 0b0000'10);
+ CODEGEN_ASSERT(dst.kind == KindA64::q && src1.kind == KindA64::q && src2.kind == KindA64::q);
+ placeVR("fmul", dst, src1, src2, 0b1'01110'00'1, 0b11011'1);
  }
 }
 void AssemblyBuilderA64::fneg(RegisterA64 dst, RegisterA64 src)
 {
  if (dst.kind == KindA64::d)
  {
- LUAU_ASSERT(src.kind == KindA64::d);
+ CODEGEN_ASSERT(src.kind == KindA64::d);
  placeR1("fneg", dst, src, 0b000'11110'01'1'0000'10'10000);
+ }
+ else if (dst.kind == KindA64::s)
+ {
+ CODEGEN_ASSERT(src.kind == KindA64::s);
+ placeR1("fneg", dst, src, 0b000'11110'00'1'0000'10'10000);
  }
  else
  {
- LUAU_ASSERT(dst.kind == KindA64::s && src.kind == KindA64::s);
- placeR1("fneg", dst, src, 0b000'11110'00'1'0000'10'10000);
+ CODEGEN_ASSERT(dst.kind == KindA64::q && src.kind == KindA64::q);
+ placeR1("fneg", dst, src, 0b011'01110'1'0'10000'01111'10);
  }
 }
 void AssemblyBuilderA64::fsqrt(RegisterA64 dst, RegisterA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::d && src.kind == KindA64::d);
+ CODEGEN_ASSERT(dst.kind == KindA64::d && src.kind == KindA64::d);
  placeR1("fsqrt", dst, src, 0b000'11110'01'1'0000'11'10000);
 }
 void AssemblyBuilderA64::fsub(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2)
 {
  if (dst.kind == KindA64::d)
  {
- LUAU_ASSERT(src1.kind == KindA64::d && src2.kind == KindA64::d);
+ CODEGEN_ASSERT(src1.kind == KindA64::d && src2.kind == KindA64::d);
  placeR3("fsub", dst, src1, src2, 0b11110'01'1, 0b0011'10);
+ }
+ else if (dst.kind == KindA64::s)
+ {
+ CODEGEN_ASSERT(src1.kind == KindA64::s && src2.kind == KindA64::s);
+ placeR3("fsub", dst, src1, src2, 0b11110'00'1, 0b0011'10);
  }
  else
  {
- LUAU_ASSERT(dst.kind == KindA64::s && src1.kind == KindA64::s && src2.kind == KindA64::s);
- placeR3("fsub", dst, src1, src2, 0b11110'00'1, 0b0011'10);
+ CODEGEN_ASSERT(dst.kind == KindA64::q && src1.kind == KindA64::q && src2.kind == KindA64::q);
+ placeVR("fsub", dst, src1, src2, 0b0'01110'10'1, 0b11010'1);
  }
 }
 void AssemblyBuilderA64::ins_4s(RegisterA64 dst, RegisterA64 src, uint8_t index)
 {
- LUAU_ASSERT(dst.kind == KindA64::q && src.kind == KindA64::w);
- LUAU_ASSERT(index < 4);
+ CODEGEN_ASSERT(dst.kind == KindA64::q && src.kind == KindA64::w);
+ CODEGEN_ASSERT(index < 4);
  if (logText)
  logAppend(" %-12sv%d.s[%d],w%d\n", "ins", dst.index, index, src.index);
  uint32_t op = 0b0'1'0'01110000'00100'0'0011'1;
@@ -34924,9 +34963,9 @@ void AssemblyBuilderA64::ins_4s(RegisterA64 dst, RegisterA64 src, uint8_t index)
 }
 void AssemblyBuilderA64::ins_4s(RegisterA64 dst, uint8_t dstIndex, RegisterA64 src, uint8_t srcIndex)
 {
- LUAU_ASSERT(dst.kind == KindA64::q && src.kind == KindA64::q);
- LUAU_ASSERT(dstIndex < 4);
- LUAU_ASSERT(srcIndex < 4);
+ CODEGEN_ASSERT(dst.kind == KindA64::q && src.kind == KindA64::q);
+ CODEGEN_ASSERT(dstIndex < 4);
+ CODEGEN_ASSERT(srcIndex < 4);
  if (logText)
  logAppend(" %-12sv%d.s[%d],v%d.s[%d]\n", "ins", dst.index, dstIndex, src.index, srcIndex);
  uint32_t op = 0b0'1'1'01110000'00100'0'0000'1;
@@ -34937,8 +34976,8 @@ void AssemblyBuilderA64::dup_4s(RegisterA64 dst, RegisterA64 src, uint8_t index)
 {
  if (dst.kind == KindA64::s)
  {
- LUAU_ASSERT(src.kind == KindA64::q);
- LUAU_ASSERT(index < 4);
+ CODEGEN_ASSERT(src.kind == KindA64::q);
+ CODEGEN_ASSERT(index < 4);
  if (logText)
  logAppend(" %-12ss%d,v%d.s[%d]\n", "dup", dst.index, src.index, index);
  uint32_t op = 0b01'0'11110000'00100'0'0000'1;
@@ -34946,8 +34985,8 @@ void AssemblyBuilderA64::dup_4s(RegisterA64 dst, RegisterA64 src, uint8_t index)
  }
  else
  {
- LUAU_ASSERT(src.kind == KindA64::q);
- LUAU_ASSERT(index < 4);
+ CODEGEN_ASSERT(src.kind == KindA64::q);
+ CODEGEN_ASSERT(index < 4);
  if (logText)
  logAppend(" %-12sv%d.4s,v%d.s[%d]\n", "dup", dst.index, src.index, index);
  uint32_t op = 0b010'01110000'00100'0'0000'1;
@@ -34957,17 +34996,17 @@ void AssemblyBuilderA64::dup_4s(RegisterA64 dst, RegisterA64 src, uint8_t index)
 }
 void AssemblyBuilderA64::frinta(RegisterA64 dst, RegisterA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::d && src.kind == KindA64::d);
+ CODEGEN_ASSERT(dst.kind == KindA64::d && src.kind == KindA64::d);
  placeR1("frinta", dst, src, 0b000'11110'01'1'001'100'10000);
 }
 void AssemblyBuilderA64::frintm(RegisterA64 dst, RegisterA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::d && src.kind == KindA64::d);
+ CODEGEN_ASSERT(dst.kind == KindA64::d && src.kind == KindA64::d);
  placeR1("frintm", dst, src, 0b000'11110'01'1'001'010'10000);
 }
 void AssemblyBuilderA64::frintp(RegisterA64 dst, RegisterA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::d && src.kind == KindA64::d);
+ CODEGEN_ASSERT(dst.kind == KindA64::d && src.kind == KindA64::d);
  placeR1("frintp", dst, src, 0b000'11110'01'1'001'001'10000);
 }
 void AssemblyBuilderA64::fcvt(RegisterA64 dst, RegisterA64 src)
@@ -34977,52 +35016,52 @@ void AssemblyBuilderA64::fcvt(RegisterA64 dst, RegisterA64 src)
  else if (dst.kind == KindA64::d && src.kind == KindA64::s)
  placeR1("fcvt", dst, src, 0b11110'00'1'0001'01'10000);
  else
- LUAU_ASSERT(!"Unexpected register kind");
+ CODEGEN_ASSERT(!"Unexpected register kind");
 }
 void AssemblyBuilderA64::fcvtzs(RegisterA64 dst, RegisterA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
- LUAU_ASSERT(src.kind == KindA64::d);
+ CODEGEN_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ CODEGEN_ASSERT(src.kind == KindA64::d);
  placeR1("fcvtzs", dst, src, 0b000'11110'01'1'11'000'000000);
 }
 void AssemblyBuilderA64::fcvtzu(RegisterA64 dst, RegisterA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
- LUAU_ASSERT(src.kind == KindA64::d);
+ CODEGEN_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ CODEGEN_ASSERT(src.kind == KindA64::d);
  placeR1("fcvtzu", dst, src, 0b000'11110'01'1'11'001'000000);
 }
 void AssemblyBuilderA64::scvtf(RegisterA64 dst, RegisterA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::d);
- LUAU_ASSERT(src.kind == KindA64::w || src.kind == KindA64::x);
+ CODEGEN_ASSERT(dst.kind == KindA64::d);
+ CODEGEN_ASSERT(src.kind == KindA64::w || src.kind == KindA64::x);
  placeR1("scvtf", dst, src, 0b000'11110'01'1'00'010'000000);
 }
 void AssemblyBuilderA64::ucvtf(RegisterA64 dst, RegisterA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::d);
- LUAU_ASSERT(src.kind == KindA64::w || src.kind == KindA64::x);
+ CODEGEN_ASSERT(dst.kind == KindA64::d);
+ CODEGEN_ASSERT(src.kind == KindA64::w || src.kind == KindA64::x);
  placeR1("ucvtf", dst, src, 0b000'11110'01'1'00'011'000000);
 }
 void AssemblyBuilderA64::fjcvtzs(RegisterA64 dst, RegisterA64 src)
 {
- LUAU_ASSERT(dst.kind == KindA64::w);
- LUAU_ASSERT(src.kind == KindA64::d);
- LUAU_ASSERT(features & Feature_JSCVT);
+ CODEGEN_ASSERT(dst.kind == KindA64::w);
+ CODEGEN_ASSERT(src.kind == KindA64::d);
+ CODEGEN_ASSERT(features & Feature_JSCVT);
  placeR1("fjcvtzs", dst, src, 0b000'11110'01'1'11'110'000000);
 }
 void AssemblyBuilderA64::fcmp(RegisterA64 src1, RegisterA64 src2)
 {
- LUAU_ASSERT(src1.kind == KindA64::d && src2.kind == KindA64::d);
+ CODEGEN_ASSERT(src1.kind == KindA64::d && src2.kind == KindA64::d);
  placeFCMP("fcmp", src1, src2, 0b11110'01'1, 0b00);
 }
 void AssemblyBuilderA64::fcmpz(RegisterA64 src)
 {
- LUAU_ASSERT(src.kind == KindA64::d);
+ CODEGEN_ASSERT(src.kind == KindA64::d);
  placeFCMP("fcmp", src, RegisterA64{src.kind, 0}, 0b11110'01'1, 0b01);
 }
 void AssemblyBuilderA64::fcsel(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, ConditionA64 cond)
 {
- LUAU_ASSERT(dst.kind == KindA64::d);
+ CODEGEN_ASSERT(dst.kind == KindA64::d);
  placeCS("fcsel", dst, src1, src2, cond, 0b11110'01'1, 0b11);
 }
 void AssemblyBuilderA64::udf()
@@ -35035,7 +35074,7 @@ bool AssemblyBuilderA64::finalize()
  for (Patch fixup : pendingLabels)
  {
  uint32_t label = fixup.label;
- LUAU_ASSERT(labelLocations[label - 1] != ~0u);
+ CODEGEN_ASSERT(labelLocations[label - 1] != ~0u);
  int value = int(labelLocations[label - 1]) - int(fixup.location);
  patchOffset(fixup.location, value, fixup.kind);
  }
@@ -35105,9 +35144,9 @@ void AssemblyBuilderA64::placeSR3(const char* name, RegisterA64 dst, RegisterA64
 {
  if (logText)
  log(name, dst, src1, src2, shift);
- LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
- LUAU_ASSERT(dst.kind == src1.kind && dst.kind == src2.kind);
- LUAU_ASSERT(shift >= -63 && shift <= 63);
+ CODEGEN_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ CODEGEN_ASSERT(dst.kind == src1.kind && dst.kind == src2.kind);
+ CODEGEN_ASSERT(shift >= -63 && shift <= 63);
  uint32_t sf = (dst.kind == KindA64::x) ? 0x80000000 : 0;
  place(dst.index | (src1.index << 5) | ((shift < 0 ? -shift : shift) << 10) | (src2.index << 16) | (N << 21) | (int(shift < 0) << 22) |
  (op << 24) | sf);
@@ -35117,8 +35156,8 @@ void AssemblyBuilderA64::placeSR2(const char* name, RegisterA64 dst, RegisterA64
 {
  if (logText)
  log(name, dst, src);
- LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
- LUAU_ASSERT(dst.kind == src.kind);
+ CODEGEN_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ CODEGEN_ASSERT(dst.kind == src.kind);
  uint32_t sf = (dst.kind == KindA64::x) ? 0x80000000 : 0;
  place(dst.index | (0x1f << 5) | (src.index << 16) | (op2 << 21) | (op << 24) | sf);
  commit();
@@ -35127,19 +35166,10 @@ void AssemblyBuilderA64::placeR3(const char* name, RegisterA64 dst, RegisterA64 
 {
  if (logText)
  log(name, dst, src1, src2);
- LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x || dst.kind == KindA64::d || dst.kind == KindA64::s);
- LUAU_ASSERT(dst.kind == src1.kind && dst.kind == src2.kind);
+ CODEGEN_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x || dst.kind == KindA64::d || dst.kind == KindA64::s);
+ CODEGEN_ASSERT(dst.kind == src1.kind && dst.kind == src2.kind);
  uint32_t sf = (dst.kind == KindA64::x) ? 0x80000000 : 0;
  place(dst.index | (src1.index << 5) | (op2 << 10) | (src2.index << 16) | (op << 21) | sf);
- commit();
-}
-void AssemblyBuilderA64::placeR3(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint8_t sizes, uint8_t op, uint8_t op2)
-{
- if (logText)
- log(name, dst, src1, src2);
- LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x || dst.kind == KindA64::d || dst.kind == KindA64::q);
- LUAU_ASSERT(dst.kind == src1.kind && dst.kind == src2.kind);
- place(dst.index | (src1.index << 5) | (op2 << 10) | (src2.index << 16) | (op << 21) | (sizes << 29));
  commit();
 }
 void AssemblyBuilderA64::placeR1(const char* name, RegisterA64 dst, RegisterA64 src, uint32_t op)
@@ -35154,9 +35184,9 @@ void AssemblyBuilderA64::placeI12(const char* name, RegisterA64 dst, RegisterA64
 {
  if (logText)
  log(name, dst, src1, src2);
- LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x || dst == sp);
- LUAU_ASSERT(dst.kind == src1.kind || (dst.kind == KindA64::x && src1 == sp) || (dst == sp && src1.kind == KindA64::x));
- LUAU_ASSERT(src2 >= 0 && src2 < (1 << 12));
+ CODEGEN_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x || dst == sp);
+ CODEGEN_ASSERT(dst.kind == src1.kind || (dst.kind == KindA64::x && src1 == sp) || (dst == sp && src1.kind == KindA64::x));
+ CODEGEN_ASSERT(src2 >= 0 && src2 < (1 << 12));
  uint32_t sf = (dst.kind != KindA64::w) ? 0x80000000 : 0;
  place(dst.index | (src1.index << 5) | (src2 << 10) | (op << 24) | sf);
  commit();
@@ -35165,9 +35195,9 @@ void AssemblyBuilderA64::placeI16(const char* name, RegisterA64 dst, int src, ui
 {
  if (logText)
  log(name, dst, src, shift);
- LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
- LUAU_ASSERT(src >= 0 && src <= 0xffff);
- LUAU_ASSERT(shift == 0 || shift == 16 || shift == 32 || shift == 48);
+ CODEGEN_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ CODEGEN_ASSERT(src >= 0 && src <= 0xffff);
+ CODEGEN_ASSERT(shift == 0 || shift == 16 || shift == 32 || shift == 48);
  uint32_t sf = (dst.kind == KindA64::x) ? 0x80000000 : 0;
  place(dst.index | (src << 5) | ((shift >> 4) << 21) | (op << 23) | sf);
  commit();
@@ -35187,14 +35217,14 @@ void AssemblyBuilderA64::placeA(const char* name, RegisterA64 dst, AddressA64 sr
  else if (src.data >= -256 && src.data <= 255)
  place(dst.index | (src.base.index << 5) | ((src.data & ((1 << 9) - 1)) << 12) | (opsize << 22));
  else
- LUAU_ASSERT(!"Unable to encode large immediate offset");
+ CODEGEN_ASSERT(!"Unable to encode large immediate offset");
  break;
  case AddressKindA64::pre:
- LUAU_ASSERT(src.data >= -256 && src.data <= 255);
+ CODEGEN_ASSERT(src.data >= -256 && src.data <= 255);
  place(dst.index | (src.base.index << 5) | (0b11 << 10) | ((src.data & ((1 << 9) - 1)) << 12) | (opsize << 22));
  break;
  case AddressKindA64::post:
- LUAU_ASSERT(src.data >= -256 && src.data <= 255);
+ CODEGEN_ASSERT(src.data >= -256 && src.data <= 255);
  place(dst.index | (src.base.index << 5) | (0b01 << 10) | ((src.data & ((1 << 9) - 1)) << 12) | (opsize << 22));
  break;
  }
@@ -35218,7 +35248,7 @@ void AssemblyBuilderA64::placeBC(const char* name, Label& label, uint8_t op, uin
 }
 void AssemblyBuilderA64::placeBCR(const char* name, Label& label, uint8_t op, RegisterA64 cond)
 {
- LUAU_ASSERT(cond.kind == KindA64::w || cond.kind == KindA64::x);
+ CODEGEN_ASSERT(cond.kind == KindA64::w || cond.kind == KindA64::x);
  uint32_t sf = (cond.kind == KindA64::x) ? 0x80000000 : 0;
  place(cond.index | (op << 24) | sf);
  commit();
@@ -35230,14 +35260,14 @@ void AssemblyBuilderA64::placeBR(const char* name, RegisterA64 src, uint32_t op)
 {
  if (logText)
  log(name, src);
- LUAU_ASSERT(src.kind == KindA64::x);
+ CODEGEN_ASSERT(src.kind == KindA64::x);
  place((src.index << 5) | (op << 10));
  commit();
 }
 void AssemblyBuilderA64::placeBTR(const char* name, Label& label, uint8_t op, RegisterA64 cond, uint8_t bit)
 {
- LUAU_ASSERT(cond.kind == KindA64::x || cond.kind == KindA64::w);
- LUAU_ASSERT(bit < (cond.kind == KindA64::x ? 64 : 32));
+ CODEGEN_ASSERT(cond.kind == KindA64::x || cond.kind == KindA64::w);
+ CODEGEN_ASSERT(bit < (cond.kind == KindA64::x ? 64 : 32));
  place(cond.index | ((bit & 0x1f) << 19) | (op << 24) | ((bit >> 5) << 31));
  commit();
  patchLabel(label, Patch::Imm14);
@@ -35248,13 +35278,13 @@ void AssemblyBuilderA64::placeADR(const char* name, RegisterA64 dst, uint8_t op)
 {
  if (logText)
  log(name, dst);
- LUAU_ASSERT(dst.kind == KindA64::x);
+ CODEGEN_ASSERT(dst.kind == KindA64::x);
  place(dst.index | (op << 24));
  commit();
 }
 void AssemblyBuilderA64::placeADR(const char* name, RegisterA64 dst, uint8_t op, Label& label)
 {
- LUAU_ASSERT(dst.kind == KindA64::x);
+ CODEGEN_ASSERT(dst.kind == KindA64::x);
  place(dst.index | (op << 24));
  commit();
  patchLabel(label, Patch::Imm19);
@@ -35265,9 +35295,9 @@ void AssemblyBuilderA64::placeP(const char* name, RegisterA64 src1, RegisterA64 
 {
  if (logText)
  log(name, src1, src2, dst);
- LUAU_ASSERT(dst.kind == AddressKindA64::imm);
- LUAU_ASSERT(dst.data >= -128 * (1 << sizelog) && dst.data <= 127 * (1 << sizelog));
- LUAU_ASSERT(dst.data % (1 << sizelog) == 0);
+ CODEGEN_ASSERT(dst.kind == AddressKindA64::imm);
+ CODEGEN_ASSERT(dst.data >= -128 * (1 << sizelog) && dst.data <= 127 * (1 << sizelog));
+ CODEGEN_ASSERT(dst.data % (1 << sizelog) == 0);
  place(src1.index | (dst.base.index << 5) | (src2.index << 10) | (((dst.data >> sizelog) & 127) << 15) | (op << 22) | (opc << 30));
  commit();
 }
@@ -35276,7 +35306,7 @@ void AssemblyBuilderA64::placeCS(
 {
  if (logText)
  log(name, dst, src1, src2, cond);
- LUAU_ASSERT(dst.kind == src1.kind && dst.kind == src2.kind);
+ CODEGEN_ASSERT(dst.kind == src1.kind && dst.kind == src2.kind);
  uint32_t sf = (dst.kind == KindA64::x) ? 0x80000000 : 0;
  place(dst.index | (src1.index << 5) | (opc << 10) | ((codeForCondition[int(cond)] ^ invert) << 12) | (src2.index << 16) | (op << 21) | sf);
  commit();
@@ -35290,7 +35320,7 @@ void AssemblyBuilderA64::placeFCMP(const char* name, RegisterA64 src1, RegisterA
  else
  log(name, src1, src2);
  }
- LUAU_ASSERT(src1.kind == src2.kind);
+ CODEGEN_ASSERT(src1.kind == src2.kind);
  place((opc << 3) | (src1.index << 5) | (0b1000 << 10) | (src2.index << 16) | (op << 21));
  commit();
 }
@@ -35305,9 +35335,9 @@ void AssemblyBuilderA64::placeBM(const char* name, RegisterA64 dst, RegisterA64 
 {
  if (logText)
  log(name, dst, src1, src2);
- LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
- LUAU_ASSERT(dst.kind == src1.kind);
- LUAU_ASSERT(isMaskSupported(src2));
+ CODEGEN_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ CODEGEN_ASSERT(dst.kind == src1.kind);
+ CODEGEN_ASSERT(isMaskSupported(src2));
  uint32_t sf = (dst.kind == KindA64::x) ? 0x80000000 : 0;
  int lz = countlz(src2);
  int rz = countrz(src2);
@@ -35320,8 +35350,8 @@ void AssemblyBuilderA64::placeBFM(const char* name, RegisterA64 dst, RegisterA64
 {
  if (logText)
  log(name, dst, src1, src2);
- LUAU_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
- LUAU_ASSERT(dst.kind == src1.kind);
+ CODEGEN_ASSERT(dst.kind == KindA64::w || dst.kind == KindA64::x);
+ CODEGEN_ASSERT(dst.kind == src1.kind);
  uint32_t sf = (dst.kind == KindA64::x) ? 0x80000000 : 0;
  uint32_t n = (dst.kind == KindA64::x) ? 1 << 22 : 0;
  place(dst.index | (src1.index << 5) | (imms << 10) | (immr << 16) | n | (op << 23) | sf);
@@ -35331,17 +35361,25 @@ void AssemblyBuilderA64::placeER(const char* name, RegisterA64 dst, RegisterA64 
 {
  if (logText)
  log(name, dst, src1, src2, shift);
- LUAU_ASSERT(dst.kind == KindA64::x && src1.kind == KindA64::x);
- LUAU_ASSERT(src2.kind == KindA64::w);
- LUAU_ASSERT(shift >= 0 && shift <= 4);
+ CODEGEN_ASSERT(dst.kind == KindA64::x && src1.kind == KindA64::x);
+ CODEGEN_ASSERT(src2.kind == KindA64::w);
+ CODEGEN_ASSERT(shift >= 0 && shift <= 4);
  uint32_t sf = (dst.kind == KindA64::x) ? 0x80000000 : 0;
  int option = 0b010; // UXTW
  place(dst.index | (src1.index << 5) | (shift << 10) | (option << 13) | (src2.index << 16) | (1 << 21) | (op << 24) | sf);
  commit();
 }
+void AssemblyBuilderA64::placeVR(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint16_t op, uint8_t op2)
+{
+ if (logText)
+ logAppend(" %-12sv%d.4s,v%d.4s,v%d.4s\n", name, dst.index, src1.index, src2.index);
+ CODEGEN_ASSERT(dst.kind == KindA64::q && dst.kind == src1.kind && dst.kind == src2.kind);
+ place(dst.index | (src1.index << 5) | (op2 << 10) | (src2.index << 16) | (op << 21) | (1 << 30));
+ commit();
+}
 void AssemblyBuilderA64::place(uint32_t word)
 {
- LUAU_ASSERT(codePos < codeEnd);
+ CODEGEN_ASSERT(codePos < codeEnd);
  *codePos++ = word;
 }
 void AssemblyBuilderA64::patchLabel(Label& label, Patch::Kind kind)
@@ -35366,7 +35404,7 @@ void AssemblyBuilderA64::patchOffset(uint32_t location, int value, Patch::Kind k
 {
  int offset = (kind == Patch::Imm26) ? 0 : 5;
  int range = (kind == Patch::Imm19) ? (1 << 19) : (kind == Patch::Imm26) ? (1 << 26) : (1 << 14);
- LUAU_ASSERT((code[location] & ((range - 1) << offset)) == 0);
+ CODEGEN_ASSERT((code[location] & ((range - 1) << offset)) == 0);
  if (value > -(range >> 1) && value < (range >> 1))
  code[location] |= (value & (range - 1)) << offset;
  else
@@ -35374,7 +35412,7 @@ void AssemblyBuilderA64::patchOffset(uint32_t location, int value, Patch::Kind k
 }
 void AssemblyBuilderA64::commit()
 {
- LUAU_ASSERT(codePos <= codeEnd);
+ CODEGEN_ASSERT(codePos <= codeEnd);
  if (codeEnd == codePos)
  extend();
 }
@@ -35387,7 +35425,7 @@ void AssemblyBuilderA64::extend()
 }
 size_t AssemblyBuilderA64::allocateData(size_t size, size_t align)
 {
- LUAU_ASSERT(align > 0 && align <= kMaxAlign && (align & (align - 1)) == 0);
+ CODEGEN_ASSERT(align > 0 && align <= kMaxAlign && (align & (align - 1)) == 0);
  if (dataPos < size)
  {
  size_t oldSize = data.size();
@@ -35546,7 +35584,7 @@ void AssemblyBuilderA64::log(RegisterA64 reg)
  if (reg.index == 31)
  text.append("sp");
  else
- LUAU_ASSERT(!"Unexpected register kind");
+ CODEGEN_ASSERT(!"Unexpected register kind");
  break;
  }
 }
@@ -35681,7 +35719,7 @@ inline ConditionX64 getReverseCondition(ConditionX64 cond)
  case ConditionX64::NotParity:
  return ConditionX64::Parity;
  case ConditionX64::Count:
- LUAU_ASSERT(!"invalid ConditionX64 value");
+ CODEGEN_ASSERT(!"invalid ConditionX64 value");
  }
  return ConditionX64::Count;
 }
@@ -35738,9 +35776,9 @@ struct OperandX64
  int32_t imm;
  constexpr OperandX64 operator[](OperandX64&& addr) const
  {
- LUAU_ASSERT(cat == CategoryX64::mem);
- LUAU_ASSERT(index == noreg && scale == 1 && base == noreg && imm == 0);
- LUAU_ASSERT(addr.memSize == SizeX64::none);
+ CODEGEN_ASSERT(cat == CategoryX64::mem);
+ CODEGEN_ASSERT(index == noreg && scale == 1 && base == noreg && imm == 0);
+ CODEGEN_ASSERT(addr.memSize == SizeX64::none);
  addr.cat = CategoryX64::mem;
  addr.memSize = memSize;
  return addr;
@@ -35757,8 +35795,8 @@ constexpr OperandX64 operator*(RegisterX64 reg, uint8_t scale)
 {
  if (scale == 1)
  return OperandX64(reg);
- LUAU_ASSERT(scale == 1 || scale == 2 || scale == 4 || scale == 8);
- LUAU_ASSERT(reg.index != 0b100 && "can't scale SP");
+ CODEGEN_ASSERT(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+ CODEGEN_ASSERT(reg.index != 0b100 && "can't scale SP");
  return OperandX64(SizeX64::none, reg, scale, noreg, 0);
 }
 constexpr OperandX64 operator+(RegisterX64 reg, int32_t disp)
@@ -35771,32 +35809,32 @@ constexpr OperandX64 operator-(RegisterX64 reg, int32_t disp)
 }
 constexpr OperandX64 operator+(RegisterX64 base, RegisterX64 index)
 {
- LUAU_ASSERT(index.index != 4 && "sp cannot be used as index");
- LUAU_ASSERT(base.size == index.size);
+ CODEGEN_ASSERT(index.index != 4 && "sp cannot be used as index");
+ CODEGEN_ASSERT(base.size == index.size);
  return OperandX64(SizeX64::none, index, 1, base, 0);
 }
 constexpr OperandX64 operator+(OperandX64 op, int32_t disp)
 {
- LUAU_ASSERT(op.cat == CategoryX64::mem);
- LUAU_ASSERT(op.memSize == SizeX64::none);
+ CODEGEN_ASSERT(op.cat == CategoryX64::mem);
+ CODEGEN_ASSERT(op.memSize == SizeX64::none);
  op.imm += disp;
  return op;
 }
 constexpr OperandX64 operator+(OperandX64 op, RegisterX64 base)
 {
- LUAU_ASSERT(op.cat == CategoryX64::mem);
- LUAU_ASSERT(op.memSize == SizeX64::none);
- LUAU_ASSERT(op.base == noreg);
- LUAU_ASSERT(op.index == noreg || op.index.size == base.size);
+ CODEGEN_ASSERT(op.cat == CategoryX64::mem);
+ CODEGEN_ASSERT(op.memSize == SizeX64::none);
+ CODEGEN_ASSERT(op.base == noreg);
+ CODEGEN_ASSERT(op.index == noreg || op.index.size == base.size);
  op.base = base;
  return op;
 }
 constexpr OperandX64 operator+(RegisterX64 base, OperandX64 op)
 {
- LUAU_ASSERT(op.cat == CategoryX64::mem);
- LUAU_ASSERT(op.memSize == SizeX64::none);
- LUAU_ASSERT(op.base == noreg);
- LUAU_ASSERT(op.index == noreg || op.index.size == base.size);
+ CODEGEN_ASSERT(op.cat == CategoryX64::mem);
+ CODEGEN_ASSERT(op.memSize == SizeX64::none);
+ CODEGEN_ASSERT(op.base == noreg);
+ CODEGEN_ASSERT(op.index == noreg || op.index.size == base.size);
  op.base = base;
  return op;
 }
@@ -35926,7 +35964,7 @@ public:
  void setLabel(Label& label);
  uint32_t getLabelOffset(const Label& label)
  {
- LUAU_ASSERT(label.location != ~0u);
+ CODEGEN_ASSERT(label.location != ~0u);
  return label.location;
  }
  OperandX64 i32(int32_t value);
@@ -36074,7 +36112,7 @@ AssemblyBuilderX64::AssemblyBuilderX64(bool logText)
 }
 AssemblyBuilderX64::~AssemblyBuilderX64()
 {
- LUAU_ASSERT(finalized);
+ CODEGEN_ASSERT(finalized);
 }
 void AssemblyBuilderX64::add(OperandX64 lhs, OperandX64 rhs)
 {
@@ -36150,7 +36188,7 @@ void AssemblyBuilderX64::mov(OperandX64 lhs, OperandX64 rhs)
  }
  else
  {
- LUAU_ASSERT(size == SizeX64::qword);
+ CODEGEN_ASSERT(size == SizeX64::qword);
  place(OP_PLUS_REG(0xb8, lhs.base.index));
  placeImm64(rhs.imm);
  }
@@ -36174,7 +36212,7 @@ void AssemblyBuilderX64::mov(OperandX64 lhs, OperandX64 rhs)
  }
  else
  {
- LUAU_ASSERT(size == SizeX64::dword || size == SizeX64::qword);
+ CODEGEN_ASSERT(size == SizeX64::dword || size == SizeX64::qword);
  place(0xc7);
  placeModRegMem(lhs, 0, 4);
  placeImm32(rhs.imm);
@@ -36190,7 +36228,7 @@ void AssemblyBuilderX64::mov(OperandX64 lhs, OperandX64 rhs)
  }
  else
  {
- LUAU_ASSERT(!"No encoding for this operand combination");
+ CODEGEN_ASSERT(!"No encoding for this operand combination");
  }
  commit();
 }
@@ -36202,7 +36240,7 @@ void AssemblyBuilderX64::mov64(RegisterX64 lhs, int64_t imm)
  log(lhs);
  logAppend(",%llXh\n", (unsigned long long)imm);
  }
- LUAU_ASSERT(lhs.size == SizeX64::qword);
+ CODEGEN_ASSERT(lhs.size == SizeX64::qword);
  placeRex(lhs);
  place(OP_PLUS_REG(0xb8, lhs.index));
  placeImm64(imm);
@@ -36212,7 +36250,7 @@ void AssemblyBuilderX64::movsx(RegisterX64 lhs, OperandX64 rhs)
 {
  if (logText)
  log("movsx", lhs, rhs);
- LUAU_ASSERT(rhs.memSize == SizeX64::byte || rhs.memSize == SizeX64::word);
+ CODEGEN_ASSERT(rhs.memSize == SizeX64::byte || rhs.memSize == SizeX64::word);
  placeRex(lhs, rhs);
  place(0x0f);
  place(rhs.memSize == SizeX64::byte ? 0xbe : 0xbf);
@@ -36223,7 +36261,7 @@ void AssemblyBuilderX64::movzx(RegisterX64 lhs, OperandX64 rhs)
 {
  if (logText)
  log("movzx", lhs, rhs);
- LUAU_ASSERT(rhs.memSize == SizeX64::byte || rhs.memSize == SizeX64::word);
+ CODEGEN_ASSERT(rhs.memSize == SizeX64::byte || rhs.memSize == SizeX64::word);
  placeRex(lhs, rhs);
  place(0x0f);
  place(rhs.memSize == SizeX64::byte ? 0xb6 : 0xb7);
@@ -36299,9 +36337,9 @@ void AssemblyBuilderX64::lea(OperandX64 lhs, OperandX64 rhs)
 {
  if (logText)
  log("lea", lhs, rhs);
- LUAU_ASSERT(lhs.cat == CategoryX64::reg && rhs.cat == CategoryX64::mem && rhs.memSize == SizeX64::none);
- LUAU_ASSERT(rhs.base == rip || rhs.base.size == lhs.base.size);
- LUAU_ASSERT(rhs.index == noreg || rhs.index.size == lhs.base.size);
+ CODEGEN_ASSERT(lhs.cat == CategoryX64::reg && rhs.cat == CategoryX64::mem && rhs.memSize == SizeX64::none);
+ CODEGEN_ASSERT(rhs.base == rip || rhs.base.size == lhs.base.size);
+ CODEGEN_ASSERT(rhs.index == noreg || rhs.index.size == lhs.base.size);
  rhs.memSize = lhs.base.size;
  placeBinaryRegAndRegMem(lhs, rhs, 0x8d, 0x8d);
 }
@@ -36309,7 +36347,7 @@ void AssemblyBuilderX64::push(OperandX64 op)
 {
  if (logText)
  log("push", op);
- LUAU_ASSERT(op.cat == CategoryX64::reg && op.base.size == SizeX64::qword);
+ CODEGEN_ASSERT(op.cat == CategoryX64::reg && op.base.size == SizeX64::qword);
  placeRex(op.base);
  place(OP_PLUS_REG(0x50, op.base.index));
  commit();
@@ -36318,7 +36356,7 @@ void AssemblyBuilderX64::pop(OperandX64 op)
 {
  if (logText)
  log("pop", op);
- LUAU_ASSERT(op.cat == CategoryX64::reg && op.base.size == SizeX64::qword);
+ CODEGEN_ASSERT(op.cat == CategoryX64::reg && op.base.size == SizeX64::qword);
  placeRex(op.base);
  place(OP_PLUS_REG(0x58, op.base.index));
  commit();
@@ -36333,7 +36371,7 @@ void AssemblyBuilderX64::ret()
 void AssemblyBuilderX64::setcc(ConditionX64 cond, OperandX64 op)
 {
  SizeX64 size = op.cat == CategoryX64::reg ? op.base.size : op.memSize;
- LUAU_ASSERT(size == SizeX64::byte);
+ CODEGEN_ASSERT(size == SizeX64::byte);
  if (logText)
  log(setccTextForCondition[size_t(cond)], op);
  placeRex(op);
@@ -36345,7 +36383,7 @@ void AssemblyBuilderX64::setcc(ConditionX64 cond, OperandX64 op)
 void AssemblyBuilderX64::cmov(ConditionX64 cond, RegisterX64 lhs, OperandX64 rhs)
 {
  SizeX64 size = rhs.cat == CategoryX64::reg ? rhs.base.size : rhs.memSize;
- LUAU_ASSERT(size != SizeX64::byte && size == lhs.size);
+ CODEGEN_ASSERT(size != SizeX64::byte && size == lhs.size);
  if (logText)
  log(cmovTextForCondition[size_t(cond)], lhs, rhs);
  placeRex(lhs, rhs);
@@ -36368,7 +36406,7 @@ void AssemblyBuilderX64::jmp(Label& label)
 }
 void AssemblyBuilderX64::jmp(OperandX64 op)
 {
- LUAU_ASSERT((op.cat == CategoryX64::reg ? op.base.size : op.memSize) == SizeX64::qword);
+ CODEGEN_ASSERT((op.cat == CategoryX64::reg ? op.base.size : op.memSize) == SizeX64::qword);
  if (logText)
  log("jmp", op);
  placeRexNoW(op);
@@ -36386,7 +36424,7 @@ void AssemblyBuilderX64::call(Label& label)
 }
 void AssemblyBuilderX64::call(OperandX64 op)
 {
- LUAU_ASSERT((op.cat == CategoryX64::reg ? op.base.size : op.memSize) == SizeX64::qword);
+ CODEGEN_ASSERT((op.cat == CategoryX64::reg ? op.base.size : op.memSize) == SizeX64::qword);
  if (logText)
  log("call", op);
  placeRexNoW(op);
@@ -36396,7 +36434,7 @@ void AssemblyBuilderX64::call(OperandX64 op)
 }
 void AssemblyBuilderX64::lea(RegisterX64 lhs, Label& label)
 {
- LUAU_ASSERT(lhs.size == SizeX64::qword);
+ CODEGEN_ASSERT(lhs.size == SizeX64::qword);
  placeBinaryRegAndRegMem(lhs, OperandX64(SizeX64::qword, noreg, 1, rip, 0), 0x8d, 0x8d);
  codePos -= 4;
  placeLabel(label);
@@ -36422,7 +36460,7 @@ void AssemblyBuilderX64::bsr(RegisterX64 dst, OperandX64 src)
 {
  if (logText)
  log("bsr", dst, src);
- LUAU_ASSERT(dst.size == SizeX64::dword || dst.size == SizeX64::qword);
+ CODEGEN_ASSERT(dst.size == SizeX64::dword || dst.size == SizeX64::qword);
  placeRex(dst, src);
  place(0x0f);
  place(0xbd);
@@ -36433,7 +36471,7 @@ void AssemblyBuilderX64::bsf(RegisterX64 dst, OperandX64 src)
 {
  if (logText)
  log("bsf", dst, src);
- LUAU_ASSERT(dst.size == SizeX64::dword || dst.size == SizeX64::qword);
+ CODEGEN_ASSERT(dst.size == SizeX64::dword || dst.size == SizeX64::qword);
  placeRex(dst, src);
  place(0x0f);
  place(0xbc);
@@ -36444,7 +36482,7 @@ void AssemblyBuilderX64::bswap(RegisterX64 dst)
 {
  if (logText)
  log("bswap", dst);
- LUAU_ASSERT(dst.size == SizeX64::dword || dst.size == SizeX64::qword);
+ CODEGEN_ASSERT(dst.size == SizeX64::dword || dst.size == SizeX64::qword);
  placeRex(dst);
  place(0x0f);
  place(OP_PLUS_REG(0xc8, dst.index));
@@ -36545,7 +36583,7 @@ void AssemblyBuilderX64::nop(uint32_t length)
 }
 void AssemblyBuilderX64::align(uint32_t alignment, AlignmentDataX64 data)
 {
- LUAU_ASSERT((alignment & (alignment - 1)) == 0);
+ CODEGEN_ASSERT((alignment & (alignment - 1)) == 0);
  uint32_t size = getCodeSize();
  uint32_t pad = ((size + alignment - 1) & ~(alignment - 1)) - size;
  switch (data)
@@ -36660,17 +36698,17 @@ void AssemblyBuilderX64::vcvtsi2sd(OperandX64 dst, OperandX64 src1, OperandX64 s
 void AssemblyBuilderX64::vcvtsd2ss(OperandX64 dst, OperandX64 src1, OperandX64 src2)
 {
  if (src2.cat == CategoryX64::reg)
- LUAU_ASSERT(src2.base.size == SizeX64::xmmword);
+ CODEGEN_ASSERT(src2.base.size == SizeX64::xmmword);
  else
- LUAU_ASSERT(src2.memSize == SizeX64::qword);
+ CODEGEN_ASSERT(src2.memSize == SizeX64::qword);
  placeAvx("vcvtsd2ss", dst, src1, src2, 0x5a, (src2.cat == CategoryX64::reg ? src2.base.size : src2.memSize) == SizeX64::qword, AVX_0F, AVX_F2);
 }
 void AssemblyBuilderX64::vcvtss2sd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
 {
  if (src2.cat == CategoryX64::reg)
- LUAU_ASSERT(src2.base.size == SizeX64::xmmword);
+ CODEGEN_ASSERT(src2.base.size == SizeX64::xmmword);
  else
- LUAU_ASSERT(src2.memSize == SizeX64::dword);
+ CODEGEN_ASSERT(src2.memSize == SizeX64::dword);
  placeAvx("vcvtsd2ss", dst, src1, src2, 0x5a, false, AVX_0F, AVX_F3);
 }
 void AssemblyBuilderX64::vroundsd(OperandX64 dst, OperandX64 src1, OperandX64 src2, RoundingModeX64 roundingMode)
@@ -36729,19 +36767,19 @@ void AssemblyBuilderX64::vmovq(OperandX64 dst, OperandX64 src)
 {
  if (dst.base.size == SizeX64::xmmword)
  {
- LUAU_ASSERT(dst.cat == CategoryX64::reg);
- LUAU_ASSERT(src.base.size == SizeX64::qword);
+ CODEGEN_ASSERT(dst.cat == CategoryX64::reg);
+ CODEGEN_ASSERT(src.base.size == SizeX64::qword);
  placeAvx("vmovq", dst, src, 0x6e, true, AVX_0F, AVX_66);
  }
  else if (dst.base.size == SizeX64::qword)
  {
- LUAU_ASSERT(src.cat == CategoryX64::reg);
- LUAU_ASSERT(src.base.size == SizeX64::xmmword);
+ CODEGEN_ASSERT(src.cat == CategoryX64::reg);
+ CODEGEN_ASSERT(src.base.size == SizeX64::xmmword);
  placeAvx("vmovq", src, dst, 0x7e, true, AVX_0F, AVX_66);
  }
  else
  {
- LUAU_ASSERT(!"No encoding for left operand of this category");
+ CODEGEN_ASSERT(!"No encoding for left operand of this category");
  }
 }
 void AssemblyBuilderX64::vmaxsd(OperandX64 dst, OperandX64 src1, OperandX64 src2)
@@ -36773,7 +36811,7 @@ bool AssemblyBuilderX64::finalize()
  code.resize(codePos - code.data());
  for (Label fixup : pendingLabels)
  {
- LUAU_ASSERT(labelLocations[fixup.id - 1] != ~0u);
+ CODEGEN_ASSERT(labelLocations[fixup.id - 1] != ~0u);
  uint32_t value = labelLocations[fixup.id - 1] - (fixup.location + 4);
  writeu32(&code[fixup.location], value);
  }
@@ -36937,14 +36975,14 @@ void AssemblyBuilderX64::placeBinary(const char* name, OperandX64 lhs, OperandX6
  else if (lhs.cat == CategoryX64::mem && rhs.cat == CategoryX64::reg)
  placeBinaryRegMemAndReg(lhs, rhs, code8rev, coderev);
  else
- LUAU_ASSERT(!"No encoding for this operand combination");
+ CODEGEN_ASSERT(!"No encoding for this operand combination");
 }
 void AssemblyBuilderX64::placeBinaryRegMemAndImm(OperandX64 lhs, OperandX64 rhs, uint8_t code8, uint8_t code, uint8_t codeImm8, uint8_t opreg)
 {
- LUAU_ASSERT(lhs.cat == CategoryX64::reg || lhs.cat == CategoryX64::mem);
- LUAU_ASSERT(rhs.cat == CategoryX64::imm);
+ CODEGEN_ASSERT(lhs.cat == CategoryX64::reg || lhs.cat == CategoryX64::mem);
+ CODEGEN_ASSERT(rhs.cat == CategoryX64::imm);
  SizeX64 size = lhs.cat == CategoryX64::reg ? lhs.base.size : lhs.memSize;
- LUAU_ASSERT(size == SizeX64::byte || size == SizeX64::dword || size == SizeX64::qword);
+ CODEGEN_ASSERT(size == SizeX64::byte || size == SizeX64::dword || size == SizeX64::qword);
  placeRex(lhs);
  if (size == SizeX64::byte)
  {
@@ -36954,7 +36992,7 @@ void AssemblyBuilderX64::placeBinaryRegMemAndImm(OperandX64 lhs, OperandX64 rhs,
  }
  else
  {
- LUAU_ASSERT(size == SizeX64::dword || size == SizeX64::qword);
+ CODEGEN_ASSERT(size == SizeX64::dword || size == SizeX64::qword);
  if (int8_t(rhs.imm) == rhs.imm && code != codeImm8)
  {
  place(codeImm8);
@@ -36972,10 +37010,10 @@ void AssemblyBuilderX64::placeBinaryRegMemAndImm(OperandX64 lhs, OperandX64 rhs,
 }
 void AssemblyBuilderX64::placeBinaryRegAndRegMem(OperandX64 lhs, OperandX64 rhs, uint8_t code8, uint8_t code)
 {
- LUAU_ASSERT(lhs.cat == CategoryX64::reg && (rhs.cat == CategoryX64::reg || rhs.cat == CategoryX64::mem));
- LUAU_ASSERT(lhs.base.size == (rhs.cat == CategoryX64::reg ? rhs.base.size : rhs.memSize));
+ CODEGEN_ASSERT(lhs.cat == CategoryX64::reg && (rhs.cat == CategoryX64::reg || rhs.cat == CategoryX64::mem));
+ CODEGEN_ASSERT(lhs.base.size == (rhs.cat == CategoryX64::reg ? rhs.base.size : rhs.memSize));
  SizeX64 size = lhs.base.size;
- LUAU_ASSERT(size == SizeX64::byte || size == SizeX64::word || size == SizeX64::dword || size == SizeX64::qword);
+ CODEGEN_ASSERT(size == SizeX64::byte || size == SizeX64::word || size == SizeX64::dword || size == SizeX64::qword);
  if (size == SizeX64::word)
  place(0x66);
  placeRex(lhs.base, rhs);
@@ -36991,9 +37029,9 @@ void AssemblyBuilderX64::placeUnaryModRegMem(const char* name, OperandX64 op, ui
 {
  if (logText)
  log(name, op);
- LUAU_ASSERT(op.cat == CategoryX64::reg || op.cat == CategoryX64::mem);
+ CODEGEN_ASSERT(op.cat == CategoryX64::reg || op.cat == CategoryX64::mem);
  SizeX64 size = op.cat == CategoryX64::reg ? op.base.size : op.memSize;
- LUAU_ASSERT(size == SizeX64::byte || size == SizeX64::dword || size == SizeX64::qword);
+ CODEGEN_ASSERT(size == SizeX64::byte || size == SizeX64::dword || size == SizeX64::qword);
  placeRex(op);
  place(size == SizeX64::byte ? code8 : code);
  placeModRegMem(op, opreg);
@@ -37003,8 +37041,8 @@ void AssemblyBuilderX64::placeShift(const char* name, OperandX64 lhs, OperandX64
 {
  if (logText)
  log(name, lhs, rhs);
- LUAU_ASSERT(lhs.cat == CategoryX64::reg || lhs.cat == CategoryX64::mem);
- LUAU_ASSERT(rhs.cat == CategoryX64::imm || (rhs.cat == CategoryX64::reg && rhs.base == cl));
+ CODEGEN_ASSERT(lhs.cat == CategoryX64::reg || lhs.cat == CategoryX64::mem);
+ CODEGEN_ASSERT(rhs.cat == CategoryX64::imm || (rhs.cat == CategoryX64::reg && rhs.base == cl));
  SizeX64 size = lhs.base.size;
  placeRex(lhs.base);
  if (rhs.cat == CategoryX64::imm && rhs.imm == 1)
@@ -37014,7 +37052,7 @@ void AssemblyBuilderX64::placeShift(const char* name, OperandX64 lhs, OperandX64
  }
  else if (rhs.cat == CategoryX64::imm)
  {
- LUAU_ASSERT(int8_t(rhs.imm) == rhs.imm);
+ CODEGEN_ASSERT(int8_t(rhs.imm) == rhs.imm);
  place(size == SizeX64::byte ? 0xc0 : 0xc1);
  placeModRegMem(lhs, opreg, 1);
  placeImm8(rhs.imm);
@@ -37037,8 +37075,8 @@ void AssemblyBuilderX64::placeJcc(const char* name, Label& label, uint8_t cc)
 }
 void AssemblyBuilderX64::placeAvx(const char* name, OperandX64 dst, OperandX64 src, uint8_t code, bool setW, uint8_t mode, uint8_t prefix)
 {
- LUAU_ASSERT(dst.cat == CategoryX64::reg);
- LUAU_ASSERT(src.cat == CategoryX64::reg || src.cat == CategoryX64::mem);
+ CODEGEN_ASSERT(dst.cat == CategoryX64::reg);
+ CODEGEN_ASSERT(src.cat == CategoryX64::reg || src.cat == CategoryX64::mem);
  if (logText)
  log(name, dst, src);
  placeVex(dst, noreg, src, setW, mode, prefix);
@@ -37049,7 +37087,7 @@ void AssemblyBuilderX64::placeAvx(const char* name, OperandX64 dst, OperandX64 s
 void AssemblyBuilderX64::placeAvx(
  const char* name, OperandX64 dst, OperandX64 src, uint8_t code, uint8_t coderev, bool setW, uint8_t mode, uint8_t prefix)
 {
- LUAU_ASSERT((dst.cat == CategoryX64::mem && src.cat == CategoryX64::reg) || (dst.cat == CategoryX64::reg && src.cat == CategoryX64::mem));
+ CODEGEN_ASSERT((dst.cat == CategoryX64::mem && src.cat == CategoryX64::reg) || (dst.cat == CategoryX64::reg && src.cat == CategoryX64::mem));
  if (logText)
  log(name, dst, src);
  if (dst.cat == CategoryX64::mem)
@@ -37069,9 +37107,9 @@ void AssemblyBuilderX64::placeAvx(
 void AssemblyBuilderX64::placeAvx(
  const char* name, OperandX64 dst, OperandX64 src1, OperandX64 src2, uint8_t code, bool setW, uint8_t mode, uint8_t prefix)
 {
- LUAU_ASSERT(dst.cat == CategoryX64::reg);
- LUAU_ASSERT(src1.cat == CategoryX64::reg);
- LUAU_ASSERT(src2.cat == CategoryX64::reg || src2.cat == CategoryX64::mem);
+ CODEGEN_ASSERT(dst.cat == CategoryX64::reg);
+ CODEGEN_ASSERT(src1.cat == CategoryX64::reg);
+ CODEGEN_ASSERT(src2.cat == CategoryX64::reg || src2.cat == CategoryX64::mem);
  if (logText)
  log(name, dst, src1, src2);
  placeVex(dst, src1, src2, setW, mode, prefix);
@@ -37082,9 +37120,9 @@ void AssemblyBuilderX64::placeAvx(
 void AssemblyBuilderX64::placeAvx(
  const char* name, OperandX64 dst, OperandX64 src1, OperandX64 src2, uint8_t imm8, uint8_t code, bool setW, uint8_t mode, uint8_t prefix)
 {
- LUAU_ASSERT(dst.cat == CategoryX64::reg);
- LUAU_ASSERT(src1.cat == CategoryX64::reg);
- LUAU_ASSERT(src2.cat == CategoryX64::reg || src2.cat == CategoryX64::mem);
+ CODEGEN_ASSERT(dst.cat == CategoryX64::reg);
+ CODEGEN_ASSERT(src1.cat == CategoryX64::reg);
+ CODEGEN_ASSERT(src2.cat == CategoryX64::reg || src2.cat == CategoryX64::mem);
  if (logText)
  log(name, dst, src1, src2, imm8);
  placeVex(dst, src1, src2, setW, mode, prefix);
@@ -37107,7 +37145,7 @@ void AssemblyBuilderX64::placeRex(OperandX64 op)
  else if (op.cat == CategoryX64::mem)
  code = REX_W_BIT(op.memSize == SizeX64::qword) | REX_X(op.index) | REX_B(op.base);
  else
- LUAU_ASSERT(!"No encoding for left operand of this category");
+ CODEGEN_ASSERT(!"No encoding for left operand of this category");
  if (code != 0)
  place(code | 0x40);
 }
@@ -37119,7 +37157,7 @@ void AssemblyBuilderX64::placeRexNoW(OperandX64 op)
  else if (op.cat == CategoryX64::mem)
  code = REX_X(op.index) | REX_B(op.base);
  else
- LUAU_ASSERT(!"No encoding for left operand of this category");
+ CODEGEN_ASSERT(!"No encoding for left operand of this category");
  if (code != 0)
  place(code | 0x40);
 }
@@ -37135,9 +37173,9 @@ void AssemblyBuilderX64::placeRex(RegisterX64 lhs, OperandX64 rhs)
 }
 void AssemblyBuilderX64::placeVex(OperandX64 dst, OperandX64 src1, OperandX64 src2, bool setW, uint8_t mode, uint8_t prefix)
 {
- LUAU_ASSERT(dst.cat == CategoryX64::reg);
- LUAU_ASSERT(src1.cat == CategoryX64::reg);
- LUAU_ASSERT(src2.cat == CategoryX64::reg || src2.cat == CategoryX64::mem);
+ CODEGEN_ASSERT(dst.cat == CategoryX64::reg);
+ CODEGEN_ASSERT(src1.cat == CategoryX64::reg);
+ CODEGEN_ASSERT(src2.cat == CategoryX64::reg || src2.cat == CategoryX64::mem);
  place(AVX_3_1());
  place(AVX_3_2(dst.base, src2.index, src2.base, mode));
  place(AVX_3_3(setW, src1.base, dst.base.size == SizeX64::ymmword, prefix));
@@ -37145,12 +37183,12 @@ void AssemblyBuilderX64::placeVex(OperandX64 dst, OperandX64 src1, OperandX64 sr
 static uint8_t getScaleEncoding(uint8_t scale)
 {
  static const uint8_t scales[9] = {0xff, 0, 1, 0xff, 2, 0xff, 0xff, 0xff, 3};
- LUAU_ASSERT(scale < 9 && scales[scale] != 0xff);
+ CODEGEN_ASSERT(scale < 9 && scales[scale] != 0xff);
  return scales[scale];
 }
 void AssemblyBuilderX64::placeRegAndModRegMem(OperandX64 lhs, OperandX64 rhs, int32_t extraCodeBytes)
 {
- LUAU_ASSERT(lhs.cat == CategoryX64::reg);
+ CODEGEN_ASSERT(lhs.cat == CategoryX64::reg);
  placeModRegMem(rhs, lhs.base.index, extraCodeBytes);
 }
 void AssemblyBuilderX64::placeModRegMem(OperandX64 rhs, uint8_t regop, int32_t extraCodeBytes)
@@ -37191,8 +37229,8 @@ void AssemblyBuilderX64::placeModRegMem(OperandX64 rhs, uint8_t regop, int32_t e
  }
  else if ((base.index & 0x7) == 0b100)
  {
- LUAU_ASSERT(rhs.scale == 1);
- LUAU_ASSERT(index == noreg);
+ CODEGEN_ASSERT(rhs.scale == 1);
+ CODEGEN_ASSERT(index == noreg);
  place(MOD_RM(mod, regop, 0b100));
  place(SIB(rhs.scale, 0b100, base.index));
  if (rhs.imm != 0)
@@ -37218,7 +37256,7 @@ void AssemblyBuilderX64::placeModRegMem(OperandX64 rhs, uint8_t regop, int32_t e
  }
  else
  {
- LUAU_ASSERT(!"No encoding for right operand of this category");
+ CODEGEN_ASSERT(!"No encoding for right operand of this category");
  }
 }
 void AssemblyBuilderX64::placeImm8Or32(int32_t imm)
@@ -37237,19 +37275,19 @@ void AssemblyBuilderX64::placeImm8(int32_t imm)
 void AssemblyBuilderX64::placeImm16(int16_t imm)
 {
  uint8_t* pos = codePos;
- LUAU_ASSERT(pos + sizeof(imm) < codeEnd);
+ CODEGEN_ASSERT(pos + sizeof(imm) < codeEnd);
  codePos = writeu16(pos, imm);
 }
 void AssemblyBuilderX64::placeImm32(int32_t imm)
 {
  uint8_t* pos = codePos;
- LUAU_ASSERT(pos + sizeof(imm) < codeEnd);
+ CODEGEN_ASSERT(pos + sizeof(imm) < codeEnd);
  codePos = writeu32(pos, imm);
 }
 void AssemblyBuilderX64::placeImm64(int64_t imm)
 {
  uint8_t* pos = codePos;
- LUAU_ASSERT(pos + sizeof(imm) < codeEnd);
+ CODEGEN_ASSERT(pos + sizeof(imm) < codeEnd);
  codePos = writeu64(pos, imm);
 }
 void AssemblyBuilderX64::placeLabel(Label& label)
@@ -37271,12 +37309,12 @@ void AssemblyBuilderX64::placeLabel(Label& label)
 }
 void AssemblyBuilderX64::place(uint8_t byte)
 {
- LUAU_ASSERT(codePos < codeEnd);
+ CODEGEN_ASSERT(codePos < codeEnd);
  *codePos++ = byte;
 }
 void AssemblyBuilderX64::commit()
 {
- LUAU_ASSERT(codePos <= codeEnd);
+ CODEGEN_ASSERT(codePos <= codeEnd);
  ++instructionCount;
  if (unsigned(codeEnd - codePos) < kMaxInstructionLength)
  extend();
@@ -37290,7 +37328,7 @@ void AssemblyBuilderX64::extend()
 }
 size_t AssemblyBuilderX64::allocateData(size_t size, size_t align)
 {
- LUAU_ASSERT(align > 0 && align <= kMaxAlign && (align & (align - 1)) == 0);
+ CODEGEN_ASSERT(align > 0 && align <= kMaxAlign && (align & (align - 1)) == 0);
  if (dataPos < size)
  {
  size_t oldSize = data.size();
@@ -37399,13 +37437,13 @@ void AssemblyBuilderX64::log(OperandX64 op)
  logAppend("%Xh", op.imm);
  break;
  default:
- LUAU_ASSERT(!"Unknown operand category");
+ CODEGEN_ASSERT(!"Unknown operand category");
  }
 }
 const char* AssemblyBuilderX64::getSizeName(SizeX64 size) const
 {
  static const char* sizeNames[] = {"none", "byte", "word", "dword", "qword", "xmmword", "ymmword"};
- LUAU_ASSERT(unsigned(size) < sizeof(sizeNames) / sizeof(sizeNames[0]));
+ CODEGEN_ASSERT(unsigned(size) < sizeof(sizeNames) / sizeof(sizeNames[0]));
  return sizeNames[unsigned(size)];
 }
 const char* AssemblyBuilderX64::getRegisterName(RegisterX64 reg) const
@@ -37417,8 +37455,8 @@ const char* AssemblyBuilderX64::getRegisterName(RegisterX64 reg) const
  {"rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"},
  {"xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7", "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15"},
  {"ymm0", "ymm1", "ymm2", "ymm3", "ymm4", "ymm5", "ymm6", "ymm7", "ymm8", "ymm9", "ymm10", "ymm11", "ymm12", "ymm13", "ymm14", "ymm15"}};
- LUAU_ASSERT(reg.index < 16);
- LUAU_ASSERT(reg.size <= SizeX64::ymmword);
+ CODEGEN_ASSERT(reg.index < 16);
+ CODEGEN_ASSERT(reg.size <= SizeX64::ymmword);
  return names[size_t(reg.size)][reg.index];
 }
 }
@@ -37426,7 +37464,6 @@ const char* AssemblyBuilderX64::getRegisterName(RegisterX64 reg) const
 }
 #line __LINE__ ""
 #line __LINE__ "BytecodeAnalysis.cpp"
-LUAU_FASTFLAGVARIABLE(LuauFixDivrkInference, false)
 namespace Luau
 {
 namespace CodeGen
@@ -37748,7 +37785,7 @@ static void applyBuiltinCall(int bfid, BytecodeTypes& types)
 void buildBytecodeBlocks(IrFunction& function, const std::vector<uint8_t>& jumpTargets)
 {
  Proto* proto = function.proto;
- LUAU_ASSERT(proto);
+ CODEGEN_ASSERT(proto);
  std::vector<BytecodeBlock>& bcBlocks = function.bcBlocks;
  bcBlocks.push_back(BytecodeBlock{0, -1});
  int previ = 0;
@@ -37775,20 +37812,20 @@ void buildBytecodeBlocks(IrFunction& function, const std::vector<uint8_t>& jumpT
  }
  previ = i;
  i = nexti;
- LUAU_ASSERT(i <= proto->sizecode);
+ CODEGEN_ASSERT(i <= proto->sizecode);
  }
 }
 void analyzeBytecodeTypes(IrFunction& function)
 {
  Proto* proto = function.proto;
- LUAU_ASSERT(proto);
+ CODEGEN_ASSERT(proto);
  uint8_t regTags[256];
  memset(regTags, LBC_TYPE_ANY, 256);
  function.bcTypes.resize(proto->sizecode);
  for (const BytecodeBlock& block : function.bcBlocks)
  {
- LUAU_ASSERT(block.startpc != -1);
- LUAU_ASSERT(block.finishpc != -1);
+ CODEGEN_ASSERT(block.startpc != -1);
+ CODEGEN_ASSERT(block.finishpc != -1);
  if (hasTypedParameters(proto))
  {
  for (int i = 0; i < proto->numparams; ++i)
@@ -38028,20 +38065,10 @@ void analyzeBytecodeTypes(IrFunction& function)
  case LOP_DIVRK:
  {
  int ra = LUAU_INSN_A(*pc);
- if (FFlag::LuauFixDivrkInference)
- {
  int kb = LUAU_INSN_B(*pc);
  int rc = LUAU_INSN_C(*pc);
  bcType.a = getBytecodeConstantTag(proto, kb);
  bcType.b = regTags[rc];
- }
- else
- {
- int rb = LUAU_INSN_B(*pc);
- int kc = LUAU_INSN_C(*pc);
- bcType.a = regTags[rb];
- bcType.b = getBytecodeConstantTag(proto, kc);
- }
  regTags[ra] = LBC_TYPE_ANY;
  if (bcType.a == LBC_TYPE_NUMBER)
  {
@@ -38102,7 +38129,7 @@ void analyzeBytecodeTypes(IrFunction& function)
  int bfid = LUAU_INSN_A(*pc);
  int skip = LUAU_INSN_C(*pc);
  Instruction call = pc[skip + 1];
- LUAU_ASSERT(LUAU_INSN_OP(call) == LOP_CALL);
+ CODEGEN_ASSERT(LUAU_INSN_OP(call) == LOP_CALL);
  int ra = LUAU_INSN_A(call);
  applyBuiltinCall(bfid, bcType);
  regTags[ra + 1] = bcType.a;
@@ -38117,7 +38144,7 @@ void analyzeBytecodeTypes(IrFunction& function)
  int bfid = LUAU_INSN_A(*pc);
  int skip = LUAU_INSN_C(*pc);
  Instruction call = pc[skip + 1];
- LUAU_ASSERT(LUAU_INSN_OP(call) == LOP_CALL);
+ CODEGEN_ASSERT(LUAU_INSN_OP(call) == LOP_CALL);
  int ra = LUAU_INSN_A(call);
  applyBuiltinCall(bfid, bcType);
  regTags[LUAU_INSN_B(*pc)] = bcType.a;
@@ -38129,7 +38156,7 @@ void analyzeBytecodeTypes(IrFunction& function)
  int bfid = LUAU_INSN_A(*pc);
  int skip = LUAU_INSN_C(*pc);
  Instruction call = pc[skip + 1];
- LUAU_ASSERT(LUAU_INSN_OP(call) == LOP_CALL);
+ CODEGEN_ASSERT(LUAU_INSN_OP(call) == LOP_CALL);
  int ra = LUAU_INSN_A(call);
  applyBuiltinCall(bfid, bcType);
  regTags[LUAU_INSN_B(*pc)] = bcType.a;
@@ -38207,7 +38234,7 @@ void analyzeBytecodeTypes(IrFunction& function)
  case LOP_FORGPREP:
  break;
  default:
- LUAU_ASSERT(!"Unknown instruction");
+ CODEGEN_ASSERT(!"Unknown instruction");
  }
  i += getOpLength(op);
  }
@@ -38249,19 +38276,19 @@ public:
  }
  void incCount(unsigned nesting, uint8_t op)
  {
- LUAU_ASSERT(nesting <= getNestingLimit());
- LUAU_ASSERT(op < getOpLimit());
+ CODEGEN_ASSERT(nesting <= getNestingLimit());
+ CODEGEN_ASSERT(op < getOpLimit());
  ++counts[nesting][op];
  }
  unsigned getCount(unsigned nesting, uint8_t op) const
  {
- LUAU_ASSERT(nesting <= getNestingLimit());
- LUAU_ASSERT(op < getOpLimit());
+ CODEGEN_ASSERT(nesting <= getNestingLimit());
+ CODEGEN_ASSERT(op < getOpLimit());
  return counts[nesting][op];
  }
  const std::vector<unsigned>& getCounts(unsigned nesting) const
  {
- LUAU_ASSERT(nesting <= getNestingLimit());
+ CODEGEN_ASSERT(nesting <= getNestingLimit());
  return counts[nesting];
  }
  static FunctionBytecodeSummary fromProto(Proto* proto, unsigned nestingLimit);
@@ -38290,11 +38317,16 @@ enum CodeGenFlags
 };
 enum class CodeGenCompilationResult
 {
- Success,
- NothingToCompile, // There were no new functions to compile
- CodeGenNotInitialized,
- CodeGenFailed, // Native codegen failed due to an internal compiler error
- AllocationFailed,
+ Success = 0,
+ NothingToCompile = 1, // There were no new functions to compile
+ NotNativeModule = 2,
+ CodeGenNotInitialized = 3,
+ CodeGenOverflowInstructionLimit = 4, // Instruction limit overflow
+ CodeGenOverflowBlockLimit = 5,
+ CodeGenOverflowBlockInstructionLimit = 6, // Block instruction limit overflow
+ CodeGenAssemblerFinalizationFailure = 7,
+ CodeGenLoweringFailure = 8, // Lowering failed
+ AllocationFailed = 9,
 };
 struct CompilationStats
 {
@@ -38302,6 +38334,7 @@ struct CompilationStats
  size_t nativeCodeSizeBytes = 0;
  size_t nativeDataSizeBytes = 0;
  size_t nativeMetadataSizeBytes = 0;
+ uint32_t functionsTotal = 0;
  uint32_t functionsCompiled = 0;
 };
 using AllocationCallback = void(void* context, void* oldPointer, size_t oldSize, void* newPointer, size_t newSize);
@@ -38831,15 +38864,15 @@ inline bool lowerImpl(AssemblyBuilder& build, IrLowering& lowering, IrFunction& 
  bool seenFallback = false;
  IrBlock dummy;
  dummy.start = ~0u;
- LUAU_ASSERT(sortedBlocks[0] == 0);
+ CODEGEN_ASSERT(sortedBlocks[0] == 0);
  for (size_t i = 0; i < sortedBlocks.size(); ++i)
  {
  uint32_t blockIndex = sortedBlocks[i];
  IrBlock& block = function.blocks[blockIndex];
  if (block.kind == IrBlockKind::Dead)
  continue;
- LUAU_ASSERT(block.start != ~0u);
- LUAU_ASSERT(block.finish != ~0u);
+ CODEGEN_ASSERT(block.start != ~0u);
+ CODEGEN_ASSERT(block.finish != ~0u);
  if (block.kind == IrBlockKind::Fallback && !seenFallback)
  {
  textSize = build.text.length();
@@ -38860,10 +38893,10 @@ inline bool lowerImpl(AssemblyBuilder& build, IrLowering& lowering, IrFunction& 
  }
  IrBlock& nextBlock = getNextBlock(function, sortedBlocks, dummy, i);
  if (block.expectedNextBlock != ~0u)
- LUAU_ASSERT(function.getBlockIndex(nextBlock) == block.expectedNextBlock);
+ CODEGEN_ASSERT(function.getBlockIndex(nextBlock) == block.expectedNextBlock);
  for (uint32_t index = block.start; index <= block.finish; index++)
  {
- LUAU_ASSERT(index < function.instructions.size());
+ CODEGEN_ASSERT(index < function.instructions.size());
  uint32_t bcLocation = bcLocations[index];
  if (outputEnabled && options.annotator && bcLocation != ~0u)
  {
@@ -38883,10 +38916,10 @@ inline bool lowerImpl(AssemblyBuilder& build, IrLowering& lowering, IrFunction& 
  IrInst& inst = function.instructions[index];
  if (isPseudo(inst.cmd))
  {
- LUAU_ASSERT(inst.useCount == 0);
+ CODEGEN_ASSERT(inst.useCount == 0);
  continue;
  }
- LUAU_ASSERT(inst.lastUse == 0 || inst.useCount != 0);
+ CODEGEN_ASSERT(inst.lastUse == 0 || inst.useCount != 0);
  if (options.includeIr)
  {
  if (options.includeIrPrefix == IncludeIrPrefix::Yes)
@@ -38939,7 +38972,8 @@ inline bool lowerIr(A64::AssemblyBuilderA64& build, IrBuilder& ir, const std::ve
  return lowerImpl(build, lowering, ir.function, sortedBlocks, proto->bytecodeid, options);
 }
 template<typename AssemblyBuilder>
-inline bool lowerFunction(IrBuilder& ir, AssemblyBuilder& build, ModuleHelpers& helpers, Proto* proto, AssemblyOptions options, LoweringStats* stats)
+inline bool lowerFunction(IrBuilder& ir, AssemblyBuilder& build, ModuleHelpers& helpers, Proto* proto, AssemblyOptions options, LoweringStats* stats,
+ CodeGenCompilationResult& codeGenCompilationResult)
 {
  killUnusedBlocks(ir.function);
  unsigned preOptBlockCount = 0;
@@ -38956,9 +38990,15 @@ inline bool lowerFunction(IrBuilder& ir, AssemblyBuilder& build, ModuleHelpers& 
  stats->maxBlockInstructions = maxBlockInstructions;
  }
  if (preOptBlockCount >= unsigned(FInt::CodegenHeuristicsBlockLimit.value))
+ {
+ codeGenCompilationResult = CodeGenCompilationResult::CodeGenOverflowBlockLimit;
  return false;
+ }
  if (maxBlockInstructions >= unsigned(FInt::CodegenHeuristicsBlockInstructionLimit.value))
+ {
+ codeGenCompilationResult = CodeGenCompilationResult::CodeGenOverflowBlockInstructionLimit;
  return false;
+ }
  computeCfgInfo(ir.function);
  if (!FFlag::DebugCodegenNoOpt)
  {
@@ -38992,7 +39032,10 @@ inline bool lowerFunction(IrBuilder& ir, AssemblyBuilder& build, ModuleHelpers& 
  ++stats->blocksPostOpt;
  }
  }
- return lowerIr(build, ir, sortedBlocks, helpers, proto, options, stats);
+ bool result = lowerIr(build, ir, sortedBlocks, helpers, proto, options, stats);
+ if (!result)
+ codeGenCompilationResult = CodeGenCompilationResult::CodeGenLoweringFailure;
+ return result;
 }
 }
 } // namespace Luau
@@ -39031,7 +39074,7 @@ FunctionBytecodeSummary FunctionBytecodeSummary::fromProto(Proto* proto, unsigne
 }
 std::vector<FunctionBytecodeSummary> summarizeBytecode(lua_State* L, int idx, unsigned nestingLimit)
 {
- LUAU_ASSERT(lua_isLfunction(L, idx));
+ CODEGEN_ASSERT(lua_isLfunction(L, idx));
  const TValue* func = luaA_toobject(L, idx);
  Proto* root = clvalue(func)->l.p;
  std::vector<Proto*> protos;
@@ -39105,34 +39148,34 @@ static size_t alignToPageSize(size_t size)
 #if defined(_WIN32)
 static uint8_t* allocatePagesImpl(size_t size)
 {
- LUAU_ASSERT(size == alignToPageSize(size));
+ CODEGEN_ASSERT(size == alignToPageSize(size));
  return (uint8_t*)VirtualAlloc(nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 }
 static void freePagesImpl(uint8_t* mem, size_t size)
 {
- LUAU_ASSERT(size == alignToPageSize(size));
+ CODEGEN_ASSERT(size == alignToPageSize(size));
  if (VirtualFree(mem, 0, MEM_RELEASE) == 0)
- LUAU_ASSERT(!"failed to deallocate block memory");
+ CODEGEN_ASSERT(!"failed to deallocate block memory");
 }
 static void makePagesExecutable(uint8_t* mem, size_t size)
 {
- LUAU_ASSERT((uintptr_t(mem) & (kPageSize - 1)) == 0);
- LUAU_ASSERT(size == alignToPageSize(size));
+ CODEGEN_ASSERT((uintptr_t(mem) & (kPageSize - 1)) == 0);
+ CODEGEN_ASSERT(size == alignToPageSize(size));
  DWORD oldProtect;
  if (VirtualProtect(mem, size, PAGE_EXECUTE_READ, &oldProtect) == 0)
- LUAU_ASSERT(!"Failed to change page protection");
+ CODEGEN_ASSERT(!"Failed to change page protection");
 }
 static void flushInstructionCache(uint8_t* mem, size_t size)
 {
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
  if (FlushInstructionCache(GetCurrentProcess(), mem, size) == 0)
- LUAU_ASSERT(!"Failed to flush instruction cache");
+ CODEGEN_ASSERT(!"Failed to flush instruction cache");
 #endif
 }
 #else
 static uint8_t* allocatePagesImpl(size_t size)
 {
- LUAU_ASSERT(size == alignToPageSize(size));
+ CODEGEN_ASSERT(size == alignToPageSize(size));
 #ifdef __APPLE__
  void* result = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_JIT, -1, 0);
 #else
@@ -39142,16 +39185,16 @@ static uint8_t* allocatePagesImpl(size_t size)
 }
 static void freePagesImpl(uint8_t* mem, size_t size)
 {
- LUAU_ASSERT(size == alignToPageSize(size));
+ CODEGEN_ASSERT(size == alignToPageSize(size));
  if (munmap(mem, size) != 0)
- LUAU_ASSERT(!"Failed to deallocate block memory");
+ CODEGEN_ASSERT(!"Failed to deallocate block memory");
 }
 static void makePagesExecutable(uint8_t* mem, size_t size)
 {
- LUAU_ASSERT((uintptr_t(mem) & (kPageSize - 1)) == 0);
- LUAU_ASSERT(size == alignToPageSize(size));
+ CODEGEN_ASSERT((uintptr_t(mem) & (kPageSize - 1)) == 0);
+ CODEGEN_ASSERT(size == alignToPageSize(size));
  if (mprotect(mem, size, PROT_READ | PROT_EXEC) != 0)
- LUAU_ASSERT(!"Failed to change page protection");
+ CODEGEN_ASSERT(!"Failed to change page protection");
 }
 static void flushInstructionCache(uint8_t* mem, size_t size)
 {
@@ -39172,8 +39215,8 @@ CodeAllocator::CodeAllocator(size_t blockSize, size_t maxTotalSize, AllocationCa
  , allocationCallback{allocationCallback}
  , allocationCallbackContext{allocationCallbackContext}
 {
- LUAU_ASSERT(blockSize > kMaxReservedDataSize);
- LUAU_ASSERT(maxTotalSize >= blockSize);
+ CODEGEN_ASSERT(blockSize > kMaxReservedDataSize);
+ CODEGEN_ASSERT(maxTotalSize >= blockSize);
 }
 CodeAllocator::~CodeAllocator()
 {
@@ -39197,9 +39240,9 @@ bool CodeAllocator::allocate(
  {
  if (!allocateNewBlock(startOffset))
  return false;
- LUAU_ASSERT(totalSize <= size_t(blockEnd - blockPos));
+ CODEGEN_ASSERT(totalSize <= size_t(blockEnd - blockPos));
  }
- LUAU_ASSERT((uintptr_t(blockPos) & (kPageSize - 1)) == 0);
+ CODEGEN_ASSERT((uintptr_t(blockPos) & (kPageSize - 1)) == 0);
  size_t dataOffset = startOffset + alignedDataSize - dataSize;
  size_t codeOffset = startOffset + alignedDataSize;
  if (dataSize)
@@ -39215,8 +39258,8 @@ bool CodeAllocator::allocate(
  if (pageAlignedSize <= size_t(blockEnd - blockPos))
  {
  blockPos += pageAlignedSize;
- LUAU_ASSERT((uintptr_t(blockPos) & (kPageSize - 1)) == 0);
- LUAU_ASSERT(blockPos <= blockEnd);
+ CODEGEN_ASSERT((uintptr_t(blockPos) & (kPageSize - 1)) == 0);
+ CODEGEN_ASSERT(blockPos <= blockEnd);
  }
  else
  {
@@ -39238,7 +39281,7 @@ bool CodeAllocator::allocateNewBlock(size_t& unwindInfoSize)
  {
  void* unwindInfo = createBlockUnwindInfo(context, block, blockSize, unwindInfoSize);
  unwindInfoSize = (unwindInfoSize + (kCodeAlignment - 1)) & ~(kCodeAlignment - 1);
- LUAU_ASSERT(unwindInfoSize <= kMaxReservedDataSize);
+ CODEGEN_ASSERT(unwindInfoSize <= kMaxReservedDataSize);
  if (!unwindInfo)
  return false;
  unwindInfos.push_back(unwindInfo);
@@ -39315,8 +39358,8 @@ public:
 #define NOMINMAX
 #endif
 #elif defined(__linux__) || defined(__APPLE__)
-extern "C" void __register_frame(const void*);
-extern "C" void __deregister_frame(const void*);
+extern "C" void __register_frame(const void*) __attribute__((weak));
+extern "C" void __deregister_frame(const void*) __attribute__((weak));
 extern "C" void __unw_add_dynamic_fde() __attribute__((weak));
 #endif
 #if defined(__APPLE__) && defined(__aarch64__)
@@ -39378,23 +39421,25 @@ void* createBlockUnwindInfo(void* context, uint8_t* block, size_t blockSize, siz
  UnwindBuilder* unwind = (UnwindBuilder*)context;
  size_t unwindSize = unwind->getSize();
  unwindSize = (unwindSize + (kCodeAlignment - 1)) & ~(kCodeAlignment - 1);
- LUAU_ASSERT(blockSize >= unwindSize);
+ CODEGEN_ASSERT(blockSize >= unwindSize);
  char* unwindData = (char*)block;
  unwind->finalize(unwindData, unwindSize, block, blockSize);
 #if defined(_WIN32) && defined(_M_X64)
  if (!RtlAddFunctionTable((RUNTIME_FUNCTION*)block, uint32_t(unwind->getFunctionCount()), uintptr_t(block)))
  {
- LUAU_ASSERT(!"Failed to allocate function table");
+ CODEGEN_ASSERT(!"Failed to allocate function table");
  return nullptr;
  }
 #elif defined(__linux__) || defined(__APPLE__)
+ if (!__register_frame)
+ return nullptr;
  visitFdeEntries(unwindData, __register_frame);
 #endif
 #if defined(__APPLE__) && defined(__aarch64__)
  static unw_add_find_dynamic_unwind_sections_t unw_add_find_dynamic_unwind_sections =
  unw_add_find_dynamic_unwind_sections_t(dlsym(RTLD_DEFAULT, "__unw_add_find_dynamic_unwind_sections"));
  static int regonce = unw_add_find_dynamic_unwind_sections ? unw_add_find_dynamic_unwind_sections(findDynamicUnwindSections) : 0;
- LUAU_ASSERT(regonce == 0);
+ CODEGEN_ASSERT(regonce == 0);
 #endif
  beginOffset = unwindSize + unwind->getBeginOffset();
  return block;
@@ -39403,8 +39448,13 @@ void destroyBlockUnwindInfo(void* context, void* unwindData)
 {
 #if defined(_WIN32) && defined(_M_X64)
  if (!RtlDeleteFunctionTable((RUNTIME_FUNCTION*)unwindData))
- LUAU_ASSERT(!"Failed to deallocate function table");
+ CODEGEN_ASSERT(!"Failed to deallocate function table");
 #elif defined(__linux__) || defined(__APPLE__)
+ if (!__deregister_frame)
+ {
+ CODEGEN_ASSERT(!"Cannot deregister unwind information");
+ return;
+ }
  visitFdeEntries((char*)unwindData, __deregister_frame);
 #endif
 }
@@ -39676,7 +39726,7 @@ static NativeProto createNativeProto(Proto* proto, const IrBuilder& ir)
  uint32_t instTarget = ir.function.entryLocation;
  for (int i = 0; i < sizecode; i++)
  {
- LUAU_ASSERT(ir.function.bcMapping[i].asmLocation >= instTarget);
+ CODEGEN_ASSERT(ir.function.bcMapping[i].asmLocation >= instTarget);
  instOffsets[i] = ir.function.bcMapping[i].asmLocation - instTarget;
  }
  instOffsets[0] = 0;
@@ -39688,7 +39738,7 @@ static void destroyExecData(void* execdata)
 }
 static void logPerfFunction(Proto* p, uintptr_t addr, unsigned size)
 {
- LUAU_ASSERT(p->source);
+ CODEGEN_ASSERT(p->source);
  const char* source = getstr(p->source);
  source = (source[0] == '=' || source[0] == '@') ? source + 1 : "[string]";
  char name[256];
@@ -39697,15 +39747,19 @@ static void logPerfFunction(Proto* p, uintptr_t addr, unsigned size)
  gPerfLogFn(gPerfLogContext, addr, size, name);
 }
 template<typename AssemblyBuilder>
-static std::optional<NativeProto> createNativeFunction(AssemblyBuilder& build, ModuleHelpers& helpers, Proto* proto, uint32_t& totalIrInstCount)
+static std::optional<NativeProto> createNativeFunction(
+ AssemblyBuilder& build, ModuleHelpers& helpers, Proto* proto, uint32_t& totalIrInstCount, CodeGenCompilationResult& result)
 {
  IrBuilder ir;
  ir.buildFunctionIr(proto);
  unsigned instCount = unsigned(ir.function.instructions.size());
  if (totalIrInstCount + instCount >= unsigned(FInt::CodegenHeuristicsInstructionLimit.value))
+ {
+ result = CodeGenCompilationResult::CodeGenOverflowInstructionLimit;
  return std::nullopt;
+ }
  totalIrInstCount += instCount;
- if (!lowerFunction(ir, build, helpers, proto, {}, nullptr))
+ if (!lowerFunction(ir, build, helpers, proto, {}, nullptr, result))
  return std::nullopt;
  return createNativeProto(proto, ir);
 }
@@ -39728,8 +39782,8 @@ static void onDestroyFunction(lua_State* L, Proto* proto)
 static int onEnter(lua_State* L, Proto* proto)
 {
  NativeState* data = getNativeState(L);
- LUAU_ASSERT(proto->execdata);
- LUAU_ASSERT(L->ci->savedpc >= proto->code && L->ci->savedpc < proto->code + proto->sizecode);
+ CODEGEN_ASSERT(proto->execdata);
+ CODEGEN_ASSERT(L->ci->savedpc >= proto->code && L->ci->savedpc < proto->code + proto->sizecode);
  uintptr_t target = proto->exectarget + static_cast<uint32_t*>(proto->execdata)[L->ci->savedpc - proto->code];
  return GateFn(data->context.gateEntry)(L, proto, target, &data->context);
 }
@@ -39804,7 +39858,7 @@ bool isSupported()
 }
 void create(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext)
 {
- LUAU_ASSERT(isSupported());
+ CODEGEN_ASSERT(isSupported());
  std::unique_ptr<NativeState> data = std::make_unique<NativeState>(allocationCallback, allocationCallbackContext);
 #if defined(_WIN32)
  data->unwindBuilder = std::make_unique<UnwindBuilderWin>();
@@ -39837,11 +39891,11 @@ void create(lua_State* L)
 }
 CodeGenCompilationResult compile(lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
 {
- LUAU_ASSERT(lua_isLfunction(L, idx));
+ CODEGEN_ASSERT(lua_isLfunction(L, idx));
  const TValue* func = luaA_toobject(L, idx);
  Proto* root = clvalue(func)->l.p;
  if ((flags & CodeGen_OnlyNativeModules) != 0 && (root->flags & LPF_NATIVE_MODULE) == 0)
- return CodeGenCompilationResult::NothingToCompile;
+ return CodeGenCompilationResult::NotNativeModule;
  NativeState* data = getNativeState(L);
  if (!data)
  return CodeGenCompilationResult::CodeGenNotInitialized;
@@ -39854,6 +39908,8 @@ CodeGenCompilationResult compile(lua_State* L, int idx, unsigned int flags, Comp
  protos.end());
  if (protos.empty())
  return CodeGenCompilationResult::NothingToCompile;
+ if (stats != nullptr)
+ stats->functionsTotal = uint32_t(protos.size());
 #if defined(__aarch64__)
  static unsigned int cpuFeatures = getCpuFeaturesA64();
  A64::AssemblyBuilderA64 build( false, cpuFeatures);
@@ -39869,19 +39925,26 @@ CodeGenCompilationResult compile(lua_State* L, int idx, unsigned int flags, Comp
  std::vector<NativeProto> results;
  results.reserve(protos.size());
  uint32_t totalIrInstCount = 0;
+ CodeGenCompilationResult codeGenCompilationResult = CodeGenCompilationResult::Success;
  for (Proto* p : protos)
  {
- if (std::optional<NativeProto> np = createNativeFunction(build, helpers, p, totalIrInstCount))
+ CodeGenCompilationResult temp = CodeGenCompilationResult::Success;
+ if (std::optional<NativeProto> np = createNativeFunction(build, helpers, p, totalIrInstCount, temp))
  results.push_back(*np);
+ else if (codeGenCompilationResult == CodeGenCompilationResult::Success)
+ codeGenCompilationResult = temp;
  }
  if (!build.finalize())
  {
  for (NativeProto result : results)
  destroyExecData(result.execdata);
- return CodeGenCompilationResult::CodeGenFailed;
+ return CodeGenCompilationResult::CodeGenAssemblerFinalizationFailure;
  }
  if (results.empty())
- return CodeGenCompilationResult::CodeGenFailed;
+ {
+ LUAU_ASSERT(codeGenCompilationResult != CodeGenCompilationResult::Success);
+ return codeGenCompilationResult;
+ }
  uint8_t* nativeData = nullptr;
  size_t sizeNativeData = 0;
  uint8_t* codeStart = nullptr;
@@ -39899,7 +39962,7 @@ CodeGenCompilationResult compile(lua_State* L, int idx, unsigned int flags, Comp
  {
  uint32_t begin = uint32_t(results[i].exectarget);
  uint32_t end = i + 1 < results.size() ? uint32_t(results[i + 1].exectarget) : uint32_t(build.code.size() * sizeof(build.code[0]));
- LUAU_ASSERT(begin < end);
+ CODEGEN_ASSERT(begin < end);
  logPerfFunction(results[i].p, uintptr_t(codeStart) + begin, end - begin);
  }
  }
@@ -39920,7 +39983,7 @@ CodeGenCompilationResult compile(lua_State* L, int idx, unsigned int flags, Comp
  stats->nativeCodeSizeBytes += build.code.size();
  stats->nativeDataSizeBytes += build.data.size();
  }
- return CodeGenCompilationResult::Success;
+ return codeGenCompilationResult;
 }
 void setPerfLog(void* context, PerfLogFn logFn)
 {
@@ -40046,13 +40109,13 @@ static void emitInterrupt(AssemblyBuilderA64& build)
 }
 static void emitContinueCall(AssemblyBuilderA64& build, ModuleHelpers& helpers)
 {
- LUAU_ASSERT(CALL_FALLBACK_YIELD == 1);
+ CODEGEN_ASSERT(CALL_FALLBACK_YIELD == 1);
  build.tbnz(x0, 0, helpers.exitNoContinueVm);
  build.ldr(x1, mem(x0, offsetof(Closure, l.p))); // cl->l.p aka proto
  build.ldr(x2, mem(x1, offsetof(Proto, exectarget)));
  build.cbz(x2, helpers.exitContinueVm);
  build.mov(rClosure, x0);
- LUAU_ASSERT(offsetof(Proto, code) == offsetof(Proto, k) + 8);
+ CODEGEN_ASSERT(offsetof(Proto, code) == offsetof(Proto, k) + 8);
  build.ldp(rConstants, rCode, mem(x1, offsetof(Proto, k)));
  build.br(x2);
 }
@@ -40087,11 +40150,11 @@ void emitReturn(AssemblyBuilderA64& build, ModuleHelpers& helpers)
  build.ldr(rClosure, mem(x2, offsetof(CallInfo, func)));
  build.ldr(rClosure, mem(rClosure, offsetof(TValue, value.gc)));
  build.ldr(x1, mem(rClosure, offsetof(Closure, l.p)));
- LUAU_ASSERT(offsetof(Proto, code) == offsetof(Proto, k) + 8);
+ CODEGEN_ASSERT(offsetof(Proto, code) == offsetof(Proto, k) + 8);
  build.ldp(rConstants, rCode, mem(x1, offsetof(Proto, k)));
  build.ldr(x2, mem(x2, offsetof(CallInfo, savedpc))); // cip->savedpc
  build.sub(x2, x2, rCode);
- LUAU_ASSERT(offsetof(Proto, exectarget) == offsetof(Proto, execdata) + 8);
+ CODEGEN_ASSERT(offsetof(Proto, exectarget) == offsetof(Proto, execdata) + 8);
  build.ldp(x3, x4, mem(x1, offsetof(Proto, execdata)));
  build.ldr(w2, mem(x3, x2));
  build.add(x4, x4, x2);
@@ -40114,7 +40177,7 @@ static EntryLocations buildEntryFunction(AssemblyBuilderA64& build, UnwindBuilde
  build.mov(rNativeContext, x3);
  build.ldr(rGlobalState, mem(x0, offsetof(lua_State, global)));
  build.ldr(rBase, mem(x0, offsetof(lua_State, base)));
- LUAU_ASSERT(offsetof(Proto, code) == offsetof(Proto, k) + 8);
+ CODEGEN_ASSERT(offsetof(Proto, code) == offsetof(Proto, k) + 8);
  build.ldp(rConstants, rCode, mem(x1, offsetof(Proto, k)));
  build.ldr(x9, mem(x0, offsetof(lua_State, ci)));
  build.ldr(x9, mem(x9, offsetof(CallInfo, func))); // L->ci->func
@@ -40141,12 +40204,12 @@ bool initHeaderFunctions(NativeState& data)
  EntryLocations entryLocations = buildEntryFunction(build, unwind);
  build.finalize();
  unwind.finishInfo();
- LUAU_ASSERT(build.data.empty());
+ CODEGEN_ASSERT(build.data.empty());
  uint8_t* codeStart = nullptr;
  if (!data.codeAllocator.allocate(build.data.data(), int(build.data.size()), reinterpret_cast<const uint8_t*>(build.code.data()),
  int(build.code.size() * sizeof(build.code[0])), data.gateData, data.gateDataSize, codeStart))
  {
- LUAU_ASSERT(!"Failed to create entry function");
+ CODEGEN_ASSERT(!"Failed to create entry function");
  return false;
  }
  unwind.setBeginOffset(build.getLabelOffset(entryLocations.prologueEnd));
@@ -40263,7 +40326,8 @@ static std::string getAssemblyImpl(AssemblyBuilder& build, const TValue* func, A
  unsigned asmCount = build.getInstructionCount();
  if (options.includeAssembly || options.includeIr)
  logFunctionHeader(build, p);
- if (!lowerFunction(ir, build, helpers, p, options, stats))
+ CodeGenCompilationResult result = CodeGenCompilationResult::Success;
+ if (!lowerFunction(ir, build, helpers, p, options, stats, result))
  {
  if (build.logText)
  build.logAppend("; skipping (can't lower)\n");
@@ -40309,7 +40373,7 @@ unsigned int getCpuFeaturesA64();
 #endif
 std::string getAssembly(lua_State* L, int idx, AssemblyOptions options, LoweringStats* stats)
 {
- LUAU_ASSERT(lua_isLfunction(L, idx));
+ CODEGEN_ASSERT(lua_isLfunction(L, idx));
  const TValue* func = luaA_toobject(L, idx);
  switch (options.target)
  {
@@ -40344,7 +40408,7 @@ std::string getAssembly(lua_State* L, int idx, AssemblyOptions options, Lowering
  return getAssemblyImpl(build, func, options, stats);
  }
  default:
- LUAU_ASSERT(!"Unknown target");
+ CODEGEN_ASSERT(!"Unknown target");
  return std::string();
  }
 }
@@ -40947,7 +41011,7 @@ inline unsigned getNonVolXmmStorageSize(ABIX64 abi, uint8_t xmmRegCount)
  return 0;
  if (xmmRegCount <= kWindowsFirstNonVolXmmReg)
  return 0;
- LUAU_ASSERT(xmmRegCount <= 16);
+ CODEGEN_ASSERT(xmmRegCount <= 16);
  return (xmmRegCount - kWindowsFirstNonVolXmmReg) * 16;
 }
 constexpr unsigned kStackOffsetToLocals = kStackExtraArgumentStorage + kStackRegHomeStorage;
@@ -41014,7 +41078,7 @@ inline OperandX64 luauNodeKeyTag(RegisterX64 node)
 }
 inline void setLuauReg(AssemblyBuilderX64& build, RegisterX64 tmp, int ri, OperandX64 op)
 {
- LUAU_ASSERT(op.cat == CategoryX64::mem);
+ CODEGEN_ASSERT(op.cat == CategoryX64::mem);
  build.vmovups(tmp, op);
  build.vmovups(luauReg(ri), tmp);
 }
@@ -41169,12 +41233,12 @@ bool initHeaderFunctions(NativeState& data)
  EntryLocations entryLocations = buildEntryFunction(build, unwind);
  build.finalize();
  unwind.finishInfo();
- LUAU_ASSERT(build.data.empty());
+ CODEGEN_ASSERT(build.data.empty());
  uint8_t* codeStart = nullptr;
  if (!data.codeAllocator.allocate(
  build.data.data(), int(build.data.size()), build.code.data(), int(build.code.size()), data.gateData, data.gateDataSize, codeStart))
  {
- LUAU_ASSERT(!"Failed to create entry function");
+ CODEGEN_ASSERT(!"Failed to create entry function");
  return false;
  }
  unwind.setBeginOffset(build.getLabelOffset(entryLocations.prologueEnd));
@@ -41337,16 +41401,16 @@ void emitBuiltin(IrRegAllocX64& regs, AssemblyBuilderX64& build, int bfid, int r
  switch (bfid)
  {
  case LBF_MATH_FREXP:
- LUAU_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
+ CODEGEN_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
  return emitBuiltinMathFrexp(regs, build, ra, arg, nresults);
  case LBF_MATH_MODF:
- LUAU_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
+ CODEGEN_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
  return emitBuiltinMathModf(regs, build, ra, arg, nresults);
  case LBF_MATH_SIGN:
- LUAU_ASSERT(nparams == 1 && nresults == 1);
+ CODEGEN_ASSERT(nparams == 1 && nresults == 1);
  return emitBuiltinMathSign(regs, build, ra, arg);
  default:
- LUAU_ASSERT(!"Missing x64 lowering");
+ CODEGEN_ASSERT(!"Missing x64 lowering");
  }
 }
 }
@@ -41396,7 +41460,7 @@ void jumpOnNumberCmp(AssemblyBuilderX64& build, RegisterX64 tmp, OperandX64 lhs,
  build.jcc(ConditionX64::Parity, label);
  break;
  default:
- LUAU_ASSERT(!"Unsupported condition");
+ CODEGEN_ASSERT(!"Unsupported condition");
  }
 }
 ConditionX64 getConditionInt(IrCondition cond)
@@ -41432,14 +41496,14 @@ ConditionX64 getConditionInt(IrCondition cond)
  case IrCondition::UnsignedGreaterEqual:
  return ConditionX64::AboveEqual;
  default:
- LUAU_ASSERT(!"Unsupported condition");
+ CODEGEN_ASSERT(!"Unsupported condition");
  return ConditionX64::Zero;
  }
 }
 void getTableNodeAtCachedSlot(AssemblyBuilderX64& build, RegisterX64 tmp, RegisterX64 node, RegisterX64 table, int pcpos)
 {
- LUAU_ASSERT(tmp != node);
- LUAU_ASSERT(table != node);
+ CODEGEN_ASSERT(tmp != node);
+ CODEGEN_ASSERT(table != node);
  build.mov(node, qword[table + offsetof(Table, node)]);
  build.mov(tmp, sCode);
  build.movzx(dwordReg(tmp), byte[tmp + pcpos * sizeof(Instruction) + kOffsetOfInstructionC]);
@@ -41449,7 +41513,7 @@ void getTableNodeAtCachedSlot(AssemblyBuilderX64& build, RegisterX64 tmp, Regist
 }
 void convertNumberToIndexOrJump(AssemblyBuilderX64& build, RegisterX64 tmp, RegisterX64 numd, RegisterX64 numi, Label& label)
 {
- LUAU_ASSERT(numi.size == SizeX64::dword);
+ CODEGEN_ASSERT(numi.size == SizeX64::dword);
  build.vcvttsd2si(numi, numd);
  build.vcvtsi2sd(tmp, numd, numi);
  build.vucomisd(tmp, numd);
@@ -41888,7 +41952,7 @@ void emitInstSetList(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, int
  Label skipResize;
  build.cmp(dword[table + offsetof(Table, sizearray)], last);
  build.jcc(ConditionX64::NotBelow, skipResize);
- LUAU_ASSERT(rArg3 != table);
+ CODEGEN_ASSERT(rArg3 != table);
  build.mov(dwordReg(rArg3), last);
  build.mov(rArg2, table);
  build.mov(rArg1, rState);
@@ -41910,7 +41974,7 @@ void emitInstSetList(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, int
  }
  else
  {
- LUAU_ASSERT(count != 0);
+ CODEGEN_ASSERT(count != 0);
  build.xor_(offset, offset);
  if (index != 1)
  build.add(arrayDst, (index - 1) * sizeof(TValue));
@@ -41933,7 +41997,7 @@ void emitInstSetList(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, int
 }
 void emitInstForGLoop(AssemblyBuilderX64& build, int ra, int aux, Label& loopRepeat)
 {
- LUAU_ASSERT(aux >= 0);
+ CODEGEN_ASSERT(aux >= 0);
  RegisterX64 rArg1 = (build.abi == ABIX64::Windows) ? rcx : rdi;
  RegisterX64 rArg2 = (build.abi == ABIX64::Windows) ? rdx : rsi;
  RegisterX64 rArg3 = (build.abi == ABIX64::Windows) ? r8 : rdx;
@@ -42075,7 +42139,7 @@ static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrInst& i
  {
  if (count >= 3)
  {
- LUAU_ASSERT(inst.d.kind == IrOpKind::VmReg && vmRegOp(inst.d) == vmRegOp(inst.c) + 1);
+ CODEGEN_ASSERT(inst.d.kind == IrOpKind::VmReg && vmRegOp(inst.d) == vmRegOp(inst.c) + 1);
  visitor.useRange(vmRegOp(inst.c), count);
  }
  else
@@ -42149,12 +42213,12 @@ static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrInst& i
  visitor.use(inst.a);
  break;
  default:
- LUAU_ASSERT(inst.a.kind != IrOpKind::VmReg);
- LUAU_ASSERT(inst.b.kind != IrOpKind::VmReg);
- LUAU_ASSERT(inst.c.kind != IrOpKind::VmReg);
- LUAU_ASSERT(inst.d.kind != IrOpKind::VmReg);
- LUAU_ASSERT(inst.e.kind != IrOpKind::VmReg);
- LUAU_ASSERT(inst.f.kind != IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.a.kind != IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.b.kind != IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.c.kind != IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.d.kind != IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.e.kind != IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.f.kind != IrOpKind::VmReg);
  break;
  }
 }
@@ -42186,13 +42250,13 @@ void updateUseCounts(IrFunction& function)
  if (op.kind == IrOpKind::Inst)
  {
  IrInst& target = instructions[op.index];
- LUAU_ASSERT(target.useCount < 0xffff);
+ CODEGEN_ASSERT(target.useCount < 0xffff);
  target.useCount++;
  }
  else if (op.kind == IrOpKind::Block)
  {
  IrBlock& target = blocks[op.index];
- LUAU_ASSERT(target.useCount < 0xffff);
+ CODEGEN_ASSERT(target.useCount < 0xffff);
  target.useCount++;
  }
  };
@@ -42209,9 +42273,9 @@ void updateUseCounts(IrFunction& function)
 void updateLastUseLocations(IrFunction& function, const std::vector<uint32_t>& sortedBlocks)
 {
  std::vector<IrInst>& instructions = function.instructions;
-#if defined(LUAU_ASSERTENABLED)
+#if defined(CODEGEN_ASSERTENABLED)
  for (IrInst& inst : instructions)
- LUAU_ASSERT(inst.lastUse == 0);
+ CODEGEN_ASSERT(inst.lastUse == 0);
 #endif
  for (size_t i = 0; i < sortedBlocks.size(); ++i)
  {
@@ -42219,11 +42283,11 @@ void updateLastUseLocations(IrFunction& function, const std::vector<uint32_t>& s
  IrBlock& block = function.blocks[blockIndex];
  if (block.kind == IrBlockKind::Dead)
  continue;
- LUAU_ASSERT(block.start != ~0u);
- LUAU_ASSERT(block.finish != ~0u);
+ CODEGEN_ASSERT(block.start != ~0u);
+ CODEGEN_ASSERT(block.finish != ~0u);
  for (uint32_t instIdx = block.start; instIdx <= block.finish; instIdx++)
  {
- LUAU_ASSERT(instIdx < function.instructions.size());
+ CODEGEN_ASSERT(instIdx < function.instructions.size());
  IrInst& inst = instructions[instIdx];
  auto checkOp = [&](IrOp op) {
  if (op.kind == IrOpKind::Inst)
@@ -42242,7 +42306,7 @@ void updateLastUseLocations(IrFunction& function, const std::vector<uint32_t>& s
 }
 uint32_t getNextInstUse(IrFunction& function, uint32_t targetInstIdx, uint32_t startInstIdx)
 {
- LUAU_ASSERT(startInstIdx < function.instructions.size());
+ CODEGEN_ASSERT(startInstIdx < function.instructions.size());
  IrInst& targetInst = function.instructions[targetInstIdx];
  for (uint32_t i = startInstIdx; i <= targetInst.lastUse; i++)
  {
@@ -42262,7 +42326,7 @@ uint32_t getNextInstUse(IrFunction& function, uint32_t targetInstIdx, uint32_t s
  if (inst.f.kind == IrOpKind::Inst && inst.f.index == targetInstIdx)
  return i;
  }
- LUAU_ASSERT(!"Failed to find next use");
+ CODEGEN_ASSERT(!"Failed to find next use");
  return targetInst.lastUse;
 }
 std::pair<uint32_t, uint32_t> getLiveInOutValueCount(IrFunction& function, IrBlock& block)
@@ -42307,7 +42371,7 @@ void requireVariadicSequence(RegisterSet& sourceRs, const RegisterSet& defRs, ui
  {
  while (defRs.regs.test(varargStart))
  varargStart++;
- LUAU_ASSERT(!sourceRs.varargSeq || sourceRs.varargStart == varargStart);
+ CODEGEN_ASSERT(!sourceRs.varargSeq || sourceRs.varargStart == varargStart);
  sourceRs.varargSeq = true;
  sourceRs.varargStart = varargStart;
  }
@@ -42444,14 +42508,14 @@ static void computeCfgLiveInOutRegSets(IrFunction& function)
  IrBlock& succ = function.blocks[succIdx];
  if (curr.kind != IrBlockKind::Fallback && succ.kind == IrBlockKind::Fallback)
  {
- LUAU_ASSERT(successorsIt.size() != 1);
+ CODEGEN_ASSERT(successorsIt.size() != 1);
  continue;
  }
  const RegisterSet& succRs = info.in[succIdx];
  outRs.regs |= succRs.regs;
  if (succRs.varargSeq)
  {
- LUAU_ASSERT(!outRs.varargSeq || outRs.varargStart == succRs.varargStart);
+ CODEGEN_ASSERT(!outRs.varargSeq || outRs.varargStart == succRs.varargStart);
  outRs.varargSeq = true;
  outRs.varargStart = succRs.varargStart;
  }
@@ -42475,9 +42539,9 @@ static void computeCfgLiveInOutRegSets(IrFunction& function)
  if (function.proto)
  {
  RegisterSet& entryIn = info.in[0];
- LUAU_ASSERT(!entryIn.varargSeq);
+ CODEGEN_ASSERT(!entryIn.varargSeq);
  for (size_t i = 0; i < entryIn.regs.size(); i++)
- LUAU_ASSERT(!entryIn.regs.test(i) || i < function.proto->numparams);
+ CODEGEN_ASSERT(!entryIn.regs.test(i) || i < function.proto->numparams);
  }
 }
 static void computeCfgBlockEdges(IrFunction& function)
@@ -42531,7 +42595,7 @@ void computeBlockOrdering(
  IrFunction& function, std::vector<BlockOrdering>& ordering, std::vector<uint32_t>* preOrder, std::vector<uint32_t>* postOrder)
 {
  CfgInfo& info = function.cfg;
- LUAU_ASSERT(info.idoms.size() == function.blocks.size());
+ CODEGEN_ASSERT(info.idoms.size() == function.blocks.size());
  ordering.clear();
  ordering.resize(function.blocks.size());
  struct StackItem
@@ -42583,12 +42647,12 @@ static uint32_t findCommonDominator(const std::vector<uint32_t>& idoms, const st
  while (data[a].postOrder < data[b].postOrder)
  {
  a = idoms[a];
- LUAU_ASSERT(a != ~0u);
+ CODEGEN_ASSERT(a != ~0u);
  }
  while (data[b].postOrder < data[a].postOrder)
  {
  b = idoms[b];
- LUAU_ASSERT(b != ~0u);
+ CODEGEN_ASSERT(b != ~0u);
  }
  }
  return a;
@@ -42664,9 +42728,9 @@ void computeCfgDominanceTreeChildren(IrFunction& function)
 void computeIteratedDominanceFrontierForDefs(
  IdfContext& ctx, const IrFunction& function, const std::vector<uint32_t>& defBlocks, const std::vector<uint32_t>& liveInBlocks)
 {
- LUAU_ASSERT(!function.cfg.domOrdering.empty());
- LUAU_ASSERT(ctx.queue.empty());
- LUAU_ASSERT(ctx.worklist.empty());
+ CODEGEN_ASSERT(!function.cfg.domOrdering.empty());
+ CODEGEN_ASSERT(ctx.queue.empty());
+ CODEGEN_ASSERT(ctx.worklist.empty());
  ctx.idf.clear();
  ctx.visits.clear();
  ctx.visits.resize(function.blocks.size());
@@ -42679,7 +42743,7 @@ void computeIteratedDominanceFrontierForDefs(
  {
  IdfContext::BlockAndOrdering root = ctx.queue.top();
  ctx.queue.pop();
- LUAU_ASSERT(ctx.worklist.empty());
+ CODEGEN_ASSERT(ctx.worklist.empty());
  ctx.worklist.push_back(root.blockIdx);
  ctx.visits[root.blockIdx].seenInWorklist = true;
  while (!ctx.worklist.empty())
@@ -42719,21 +42783,21 @@ void computeCfgInfo(IrFunction& function)
 }
 BlockIteratorWrapper predecessors(const CfgInfo& cfg, uint32_t blockIdx)
 {
- LUAU_ASSERT(blockIdx < cfg.predecessorsOffsets.size());
+ CODEGEN_ASSERT(blockIdx < cfg.predecessorsOffsets.size());
  uint32_t start = cfg.predecessorsOffsets[blockIdx];
  uint32_t end = blockIdx + 1 < cfg.predecessorsOffsets.size() ? cfg.predecessorsOffsets[blockIdx + 1] : uint32_t(cfg.predecessors.size());
  return BlockIteratorWrapper{cfg.predecessors.data() + start, cfg.predecessors.data() + end};
 }
 BlockIteratorWrapper successors(const CfgInfo& cfg, uint32_t blockIdx)
 {
- LUAU_ASSERT(blockIdx < cfg.successorsOffsets.size());
+ CODEGEN_ASSERT(blockIdx < cfg.successorsOffsets.size());
  uint32_t start = cfg.successorsOffsets[blockIdx];
  uint32_t end = blockIdx + 1 < cfg.successorsOffsets.size() ? cfg.successorsOffsets[blockIdx + 1] : uint32_t(cfg.successors.size());
  return BlockIteratorWrapper{cfg.successors.data() + start, cfg.successors.data() + end};
 }
 BlockIteratorWrapper domChildren(const CfgInfo& cfg, uint32_t blockIdx)
 {
- LUAU_ASSERT(blockIdx < cfg.domChildrenOffsets.size());
+ CODEGEN_ASSERT(blockIdx < cfg.domChildrenOffsets.size());
  uint32_t start = cfg.domChildrenOffsets[blockIdx];
  uint32_t end = blockIdx + 1 < cfg.domChildrenOffsets.size() ? cfg.domChildrenOffsets[blockIdx + 1] : uint32_t(cfg.domChildren.size());
  return BlockIteratorWrapper{cfg.domChildren.data() + start, cfg.domChildren.data() + end};
@@ -42768,8 +42832,8 @@ IrCallWrapperX64::IrCallWrapperX64(IrRegAllocX64& regs, AssemblyBuilderX64& buil
 }
 void IrCallWrapperX64::addArgument(SizeX64 targetSize, OperandX64 source, IrOp sourceOp)
 {
- LUAU_ASSERT(instIdx != kInvalidInstIdx || sourceOp.kind == IrOpKind::None);
- LUAU_ASSERT(argCount < kMaxCallArguments);
+ CODEGEN_ASSERT(instIdx != kInvalidInstIdx || sourceOp.kind == IrOpKind::None);
+ CODEGEN_ASSERT(argCount < kMaxCallArguments);
  CallArgument& arg = args[argCount++];
  arg = {targetSize, source, sourceOp};
  arg.target = getNextArgumentTarget(targetSize);
@@ -42844,9 +42908,9 @@ void IrCallWrapperX64::call(const OperandX64& func)
  {
  if (CallArgument* candidate = findNonInterferingArgument())
  {
- LUAU_ASSERT(candidate->target.cat == CategoryX64::reg);
+ CODEGEN_ASSERT(candidate->target.cat == CategoryX64::reg);
  freeSourceRegisters(*candidate);
- LUAU_ASSERT(getRegisterUses(candidate->target.base) == 0);
+ CODEGEN_ASSERT(getRegisterUses(candidate->target.base) == 0);
  regs.takeReg(candidate->target.base, kInvalidInstIdx);
  moveToTarget(*candidate);
  candidate->candidate = false;
@@ -42858,7 +42922,7 @@ void IrCallWrapperX64::call(const OperandX64& func)
  else
  {
  for (int i = 0; i < argCount; ++i)
- LUAU_ASSERT(!args[i].candidate);
+ CODEGEN_ASSERT(!args[i].candidate);
  break;
  }
  }
@@ -42901,11 +42965,11 @@ OperandX64 IrCallWrapperX64::getNextArgumentTarget(SizeX64 size) const
 {
  if (size == SizeX64::xmmword)
  {
- LUAU_ASSERT(size_t(xmmPos) < kXmmOrder.size());
+ CODEGEN_ASSERT(size_t(xmmPos) < kXmmOrder.size());
  return kXmmOrder[xmmPos];
  }
  const std::array<OperandX64, 6>& gprOrder = build.abi == ABIX64::Windows ? kWindowsGprOrder : kSystemvGprOrder;
- LUAU_ASSERT(size_t(gprPos) < gprOrder.size());
+ CODEGEN_ASSERT(size_t(gprPos) < gprOrder.size());
  OperandX64 target = gprOrder[gprPos];
  if (target.cat == CategoryX64::reg)
  target.base.size = size;
@@ -43054,14 +43118,14 @@ void IrCallWrapperX64::removeRegisterUse(RegisterX64 reg)
 {
  if (reg.size == SizeX64::xmmword)
  {
- LUAU_ASSERT(xmmUses[reg.index] != 0);
+ CODEGEN_ASSERT(xmmUses[reg.index] != 0);
  xmmUses[reg.index]--;
  if (xmmUses[reg.index] == 0)
  regs.freeReg(reg);
  }
  else if (reg.size != SizeX64::none)
  {
- LUAU_ASSERT(gprUses[reg.index] != 0);
+ CODEGEN_ASSERT(gprUses[reg.index] != 0);
  gprUses[reg.index]--;
  if (gprUses[reg.index] == 0 && regs.shouldFreeGpr(reg))
  regs.freeReg(reg);
@@ -43129,7 +43193,7 @@ static const char* getTagName(uint8_t tag)
  case LUA_TDEADKEY:
  return "tdeadkey";
  default:
- LUAU_ASSERT(!"Unknown type tag");
+ CODEGEN_ASSERT(!"Unknown type tag");
  LUAU_UNREACHABLE();
  }
 }
@@ -43476,7 +43540,7 @@ void toString(IrToStringContext& ctx, IrOp op)
  toString(ctx.result, ctx.constants[op.index]);
  break;
  case IrOpKind::Condition:
- LUAU_ASSERT(op.index < uint32_t(IrCondition::Count));
+ CODEGEN_ASSERT(op.index < uint32_t(IrCondition::Count));
  ctx.result.append(textForCondition[op.index]);
  break;
  case IrOpKind::Inst:
@@ -43550,7 +43614,7 @@ const char* getBytecodeTypeName(uint8_t type)
  case LBC_TYPE_ANY:
  return "any";
  }
- LUAU_ASSERT(!"Unhandled type in getBytecodeTypeName");
+ CODEGEN_ASSERT(!"Unhandled type in getBytecodeTypeName");
  return nullptr;
 }
 void toString(std::string& result, const BytecodeTypes& bcTypes)
@@ -43598,7 +43662,7 @@ static RegisterSet getJumpTargetExtraLiveIn(IrToStringContext& ctx, const IrBloc
  if (blockIdx >= ctx.cfg.in.size())
  return extraRs;
  const RegisterSet& defRs = ctx.cfg.in[blockIdx];
- LUAU_ASSERT(isNonTerminatingJump(inst.cmd));
+ CODEGEN_ASSERT(isNonTerminatingJump(inst.cmd));
  IrOp op = inst.a;
  if (inst.b.kind == IrOpKind::Block)
  op = inst.b;
@@ -43918,6 +43982,7 @@ std::string dumpDot(const IrFunction& function, bool includeInst)
 #line __LINE__ ""
 #line __LINE__ "IrLoweringA64.cpp"
 LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauCodeGenFixBufferLenCheckA64, false)
+LUAU_FASTFLAGVARIABLE(LuauCodeGenVectorA64, false)
 namespace Luau
 {
 namespace CodeGen
@@ -43949,7 +44014,7 @@ inline ConditionA64 getConditionFP(IrCondition cond)
  case IrCondition::NotGreaterEqual:
  return ConditionA64::Less;
  default:
- LUAU_ASSERT(!"Unexpected condition code");
+ CODEGEN_ASSERT(!"Unexpected condition code");
  return ConditionA64::Always;
  }
 }
@@ -43986,14 +44051,14 @@ inline ConditionA64 getConditionInt(IrCondition cond)
  case IrCondition::UnsignedGreaterEqual:
  return ConditionA64::CarrySet;
  default:
- LUAU_ASSERT(!"Unexpected condition code");
+ CODEGEN_ASSERT(!"Unexpected condition code");
  return ConditionA64::Always;
  }
 }
 static void emitAddOffset(AssemblyBuilderA64& build, RegisterA64 dst, RegisterA64 src, size_t offset)
 {
- LUAU_ASSERT(dst != src);
- LUAU_ASSERT(offset <= INT_MAX);
+ CODEGEN_ASSERT(dst != src);
+ CODEGEN_ASSERT(offset <= INT_MAX);
  if (offset <= AssemblyBuilderA64::kMaxImmediate)
  {
  build.add(dst, src, uint16_t(offset));
@@ -44049,7 +44114,7 @@ static void emitFallback(AssemblyBuilderA64& build, int offset, int pcpos)
 }
 static void emitInvokeLibm1P(AssemblyBuilderA64& build, size_t func, int arg)
 {
- LUAU_ASSERT(kTempSlots >= 1);
+ CODEGEN_ASSERT(kTempSlots >= 1);
  build.ldr(d0, mem(rBase, arg * sizeof(TValue) + offsetof(TValue, value.n)));
  build.add(x0, sp, sTemporary.data);
  build.ldr(x1, mem(rNativeContext, uint32_t(func)));
@@ -44061,7 +44126,7 @@ static bool emitBuiltin(
  switch (bfid)
  {
  case LBF_MATH_FREXP:
- LUAU_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
+ CODEGEN_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
  emitInvokeLibm1P(build, offsetof(NativeContext, libm_frexp), arg);
  build.str(d0, mem(rBase, res * sizeof(TValue) + offsetof(TValue, value.n)));
  if (nresults == 2)
@@ -44072,7 +44137,7 @@ static bool emitBuiltin(
  }
  return true;
  case LBF_MATH_MODF:
- LUAU_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
+ CODEGEN_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
  emitInvokeLibm1P(build, offsetof(NativeContext, libm_modf), arg);
  build.ldr(d1, sTemporary);
  build.str(d1, mem(rBase, res * sizeof(TValue) + offsetof(TValue, value.n)));
@@ -44080,7 +44145,7 @@ static bool emitBuiltin(
  build.str(d0, mem(rBase, (res + 1) * sizeof(TValue) + offsetof(TValue, value.n)));
  return true;
  case LBF_MATH_SIGN:
- LUAU_ASSERT(nparams == 1 && nresults == 1);
+ CODEGEN_ASSERT(nparams == 1 && nresults == 1);
  build.ldr(d0, mem(rBase, arg * sizeof(TValue) + offsetof(TValue, value.n)));
  build.fcmpz(d0);
  build.fmov(d0, 0.0);
@@ -44091,7 +44156,7 @@ static bool emitBuiltin(
  build.str(d0, mem(rBase, res * sizeof(TValue) + offsetof(TValue, value.n)));
  return true;
  default:
- LUAU_ASSERT(!"Missing A64 lowering");
+ CODEGEN_ASSERT(!"Missing A64 lowering");
  return false;
  }
 }
@@ -44195,7 +44260,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  }
  else
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  break;
  }
  case IrCmd::GET_SLOT_NODE_ADDR:
@@ -44212,7 +44277,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.mov(temp1, uintOp(inst.b) * sizeof(Instruction));
  build.ldr(temp1w, mem(rCode, temp1));
  }
- LUAU_ASSERT(kOffsetOfInstructionC == 3);
+ CODEGEN_ASSERT(kOffsetOfInstructionC == 3);
  build.ldrb(temp2, mem(regOp(inst.a), offsetof(Table, nodemask8)));
  build.and_(temp2, temp2, temp1w, -24);
  build.ldr(inst.regA64, mem(regOp(inst.a), offsetof(Table, node)));
@@ -44261,7 +44326,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  AddressA64 addr = tempAddr(inst.a, offsetof(TValue, value));
  if (inst.b.kind == IrOpKind::Constant)
  {
- LUAU_ASSERT(intOp(inst.b) == 0);
+ CODEGEN_ASSERT(intOp(inst.b) == 0);
  build.str(xzr, addr);
  }
  else
@@ -44320,7 +44385,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  RegisterA64 temp3 = tempDouble(inst.d);
  RegisterA64 temp4 = regs.allocTemp(KindA64::s);
  AddressA64 addr = tempAddr(inst.a, offsetof(TValue, value));
- LUAU_ASSERT(addr.kind == AddressKindA64::imm && addr.data % 4 == 0 && unsigned(addr.data + 8) / 4 <= AddressA64::kMaxOffset);
+ CODEGEN_ASSERT(addr.kind == AddressKindA64::imm && addr.data % 4 == 0 && unsigned(addr.data + 8) / 4 <= AddressA64::kMaxOffset);
  build.fcvt(temp4, temp1);
  build.str(temp4, AddressA64(addr.base, addr.data + 0));
  build.fcvt(temp4, temp2);
@@ -44348,7 +44413,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  {
  if (inst.c.kind == IrOpKind::Constant)
  {
- LUAU_ASSERT(LUA_TBOOLEAN == 1);
+ CODEGEN_ASSERT(LUA_TBOOLEAN == 1);
  build.str(intOp(inst.c) ? tempt : wzr, addr);
  }
  else
@@ -44365,7 +44430,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  }
  break;
  }
@@ -44508,6 +44573,15 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  case IrCmd::ADD_VEC:
  {
  inst.regA64 = regs.allocReuse(KindA64::q, index, {inst.a, inst.b});
+ if (FFlag::LuauCodeGenVectorA64)
+ {
+ build.fadd(inst.regA64, regOp(inst.a), regOp(inst.b));
+ RegisterA64 tempw = regs.allocTemp(KindA64::w);
+ build.mov(tempw, LUA_TVECTOR);
+ build.ins_4s(inst.regA64, tempw, 3);
+ }
+ else
+ {
  RegisterA64 tempa = regs.allocTemp(KindA64::s);
  RegisterA64 tempb = regs.allocTemp(KindA64::s);
  for (uint8_t i = 0; i < 3; i++)
@@ -44517,11 +44591,21 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.fadd(tempa, tempa, tempb);
  build.ins_4s(inst.regA64, i, castReg(KindA64::q, tempa), 0);
  }
+ }
  break;
  }
  case IrCmd::SUB_VEC:
  {
  inst.regA64 = regs.allocReuse(KindA64::q, index, {inst.a, inst.b});
+ if (FFlag::LuauCodeGenVectorA64)
+ {
+ build.fsub(inst.regA64, regOp(inst.a), regOp(inst.b));
+ RegisterA64 tempw = regs.allocTemp(KindA64::w);
+ build.mov(tempw, LUA_TVECTOR);
+ build.ins_4s(inst.regA64, tempw, 3);
+ }
+ else
+ {
  RegisterA64 tempa = regs.allocTemp(KindA64::s);
  RegisterA64 tempb = regs.allocTemp(KindA64::s);
  for (uint8_t i = 0; i < 3; i++)
@@ -44531,11 +44615,21 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.fsub(tempa, tempa, tempb);
  build.ins_4s(inst.regA64, i, castReg(KindA64::q, tempa), 0);
  }
+ }
  break;
  }
  case IrCmd::MUL_VEC:
  {
  inst.regA64 = regs.allocReuse(KindA64::q, index, {inst.a, inst.b});
+ if (FFlag::LuauCodeGenVectorA64)
+ {
+ build.fmul(inst.regA64, regOp(inst.a), regOp(inst.b));
+ RegisterA64 tempw = regs.allocTemp(KindA64::w);
+ build.mov(tempw, LUA_TVECTOR);
+ build.ins_4s(inst.regA64, tempw, 3);
+ }
+ else
+ {
  RegisterA64 tempa = regs.allocTemp(KindA64::s);
  RegisterA64 tempb = regs.allocTemp(KindA64::s);
  for (uint8_t i = 0; i < 3; i++)
@@ -44545,11 +44639,21 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.fmul(tempa, tempa, tempb);
  build.ins_4s(inst.regA64, i, castReg(KindA64::q, tempa), 0);
  }
+ }
  break;
  }
  case IrCmd::DIV_VEC:
  {
  inst.regA64 = regs.allocReuse(KindA64::q, index, {inst.a, inst.b});
+ if (FFlag::LuauCodeGenVectorA64)
+ {
+ build.fdiv(inst.regA64, regOp(inst.a), regOp(inst.b));
+ RegisterA64 tempw = regs.allocTemp(KindA64::w);
+ build.mov(tempw, LUA_TVECTOR);
+ build.ins_4s(inst.regA64, tempw, 3);
+ }
+ else
+ {
  RegisterA64 tempa = regs.allocTemp(KindA64::s);
  RegisterA64 tempb = regs.allocTemp(KindA64::s);
  for (uint8_t i = 0; i < 3; i++)
@@ -44559,17 +44663,28 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.fdiv(tempa, tempa, tempb);
  build.ins_4s(inst.regA64, i, castReg(KindA64::q, tempa), 0);
  }
+ }
  break;
  }
  case IrCmd::UNM_VEC:
  {
  inst.regA64 = regs.allocReuse(KindA64::q, index, {inst.a});
+ if (FFlag::LuauCodeGenVectorA64)
+ {
+ build.fneg(inst.regA64, regOp(inst.a));
+ RegisterA64 tempw = regs.allocTemp(KindA64::w);
+ build.mov(tempw, LUA_TVECTOR);
+ build.ins_4s(inst.regA64, tempw, 3);
+ }
+ else
+ {
  RegisterA64 tempa = regs.allocTemp(KindA64::s);
  for (uint8_t i = 0; i < 3; i++)
  {
  build.dup_4s(tempa, regOp(inst.a), i);
  build.fneg(tempa, tempa);
  build.ins_4s(inst.regA64, i, castReg(KindA64::q, tempa), 0);
+ }
  }
  break;
  }
@@ -44578,13 +44693,13 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.a, inst.b});
  if (inst.a.kind == IrOpKind::Constant)
  {
- LUAU_ASSERT(tagOp(inst.a) == LUA_TBOOLEAN);
+ CODEGEN_ASSERT(tagOp(inst.a) == LUA_TBOOLEAN);
  build.eor(inst.regA64, regOp(inst.b), 1);
  }
  else
  {
  Label notbool, exit;
- LUAU_ASSERT(LUA_TNIL == 0 && LUA_TBOOLEAN == 1);
+ CODEGEN_ASSERT(LUA_TNIL == 0 && LUA_TBOOLEAN == 1);
  build.cmp(regOp(inst.a), LUA_TBOOLEAN);
  build.b(ConditionA64::NotEqual, notbool);
  if (inst.b.kind == IrOpKind::Constant)
@@ -44612,7 +44727,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  else if (cond == IrCondition::Equal)
  build.ldr(x3, mem(rNativeContext, offsetof(NativeContext, luaV_equalval)));
  else
- LUAU_ASSERT(!"Unsupported condition");
+ CODEGEN_ASSERT(!"Unsupported condition");
  build.blr(x3);
  emitUpdateBase(build);
  inst.regA64 = regs.takeReg(w0, index);
@@ -44634,7 +44749,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  {
  RegisterA64 temp = regs.allocTemp(KindA64::w);
  build.ldr(temp, mem(rBase, vmRegOp(inst.a) * sizeof(TValue) + offsetof(TValue, tt)));
- LUAU_ASSERT(LUA_TNIL == 0);
+ CODEGEN_ASSERT(LUA_TNIL == 0);
  build.cbz(temp, labelOp(inst.c));
  build.cmp(temp, LUA_TBOOLEAN);
  build.b(ConditionA64::NotEqual, labelOp(inst.b));
@@ -44647,7 +44762,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  {
  RegisterA64 temp = regs.allocTemp(KindA64::w);
  build.ldr(temp, mem(rBase, vmRegOp(inst.a) * sizeof(TValue) + offsetof(TValue, tt)));
- LUAU_ASSERT(LUA_TNIL == 0);
+ CODEGEN_ASSERT(LUA_TNIL == 0);
  build.cbz(temp, labelOp(inst.b));
  build.cmp(temp, LUA_TBOOLEAN);
  build.b(ConditionA64::NotEqual, labelOp(inst.c));
@@ -44670,7 +44785,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  else if (inst.a.kind == IrOpKind::Constant && inst.b.kind == IrOpKind::Inst)
  build.cmp(regOp(inst.b), tagOp(inst.a));
  else
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  if (isFallthroughBlock(blockOp(inst.d), next))
  {
  if (zr != noreg)
@@ -44702,7 +44817,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  else
  {
- LUAU_ASSERT(unsigned(intOp(inst.b)) <= AssemblyBuilderA64::kMaxImmediate);
+ CODEGEN_ASSERT(unsigned(intOp(inst.b)) <= AssemblyBuilderA64::kMaxImmediate);
  build.cmp(regOp(inst.a), uint16_t(intOp(inst.b)));
  build.b(getConditionInt(cond), labelOp(inst.d));
  }
@@ -44903,7 +45018,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.str(temp, mem(rState, offsetof(lua_State, top)));
  }
  else
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  break;
  }
  case IrCmd::ADJUST_STACK_TO_TOP:
@@ -44930,7 +45045,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  else if (inst.d.kind == IrOpKind::VmConst)
  emitAddOffset(build, x4, rConstants, vmConstOp(inst.d) * sizeof(TValue));
  else
- LUAU_ASSERT(inst.d.kind == IrOpKind::Undef);
+ CODEGEN_ASSERT(inst.d.kind == IrOpKind::Undef);
  if (intOp(inst.e) == LUA_MULTRET)
  {
  build.ldr(x5, mem(rState, offsetof(lua_State, top)));
@@ -44988,7 +45103,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.adr(x2, &n, sizeof(n));
  }
  else
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  build.add(x3, rBase, uint16_t(vmRegOp(inst.a) * sizeof(TValue)));
  build.ldr(x4, mem(rNativeContext, offsetof(NativeContext, luaV_gettable)));
  build.blr(x4);
@@ -45007,7 +45122,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.adr(x2, &n, sizeof(n));
  }
  else
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  build.add(x3, rBase, uint16_t(vmRegOp(inst.a) * sizeof(TValue)));
  build.ldr(x4, mem(rNativeContext, offsetof(NativeContext, luaV_settable)));
  build.blr(x4);
@@ -45096,13 +45211,13 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  case IrCmd::CHECK_TRUTHY:
  {
- LUAU_ASSERT(inst.a.kind != IrOpKind::Constant || tagOp(inst.a) == LUA_TBOOLEAN);
+ CODEGEN_ASSERT(inst.a.kind != IrOpKind::Constant || tagOp(inst.a) == LUA_TBOOLEAN);
  Label fresh;
  Label& target = getTargetLabel(inst.c, fresh);
  Label skip;
  if (inst.a.kind != IrOpKind::Constant)
  {
- LUAU_ASSERT(LUA_TNIL == 0);
+ CODEGEN_ASSERT(LUA_TNIL == 0);
  build.cbz(regOp(inst.a), target);
  build.cmp(regOp(inst.a), LUA_TBOOLEAN);
  build.b(ConditionA64::NotEqual, skip);
@@ -45173,7 +45288,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  }
  else
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  finalizeTargetLabel(inst.c, fresh);
  break;
  }
@@ -45186,7 +45301,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  RegisterA64 temp1 = regs.allocTemp(KindA64::x);
  RegisterA64 temp1w = castReg(KindA64::w, temp1);
  RegisterA64 temp2 = regs.allocTemp(KindA64::x);
- LUAU_ASSERT(offsetof(LuaNode, key.value) == offsetof(LuaNode, key) && kOffsetOfTKeyTagNext >= 8 && kOffsetOfTKeyTagNext < 16);
+ CODEGEN_ASSERT(offsetof(LuaNode, key.value) == offsetof(LuaNode, key) && kOffsetOfTKeyTagNext >= 8 && kOffsetOfTKeyTagNext < 16);
  build.ldp(temp1, temp2, mem(regOp(inst.a), offsetof(LuaNode, key)));
  build.ubfx(temp2, temp2, (kOffsetOfTKeyTagNext - 8) * 8, kTKeyTagBits); // .tt is right before .next, and 8 bytes are skipped by ldp
  build.cmp(temp2, LUA_TSTRING);
@@ -45196,7 +45311,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.cmp(temp1, temp2);
  build.b(ConditionA64::NotEqual, mismatch);
  build.ldr(temp1w, mem(regOp(inst.a), offsetof(LuaNode, val.tt)));
- LUAU_ASSERT(LUA_TNIL == 0);
+ CODEGEN_ASSERT(LUA_TNIL == 0);
  build.cbz(temp1w, mismatch);
  if (inst.cmd == IrCmd::JUMP_SLOT_MATCH)
  jumpOrFallthrough(blockOp(inst.c), next);
@@ -45219,7 +45334,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  Label fresh;
  RegisterA64 temp = regs.allocTemp(KindA64::w);
  build.ldr(temp, mem(regOp(inst.a), offsetof(LuaNode, val.tt)));
- LUAU_ASSERT(LUA_TNIL == 0);
+ CODEGEN_ASSERT(LUA_TNIL == 0);
  build.cbz(temp, getTargetLabel(inst.b, fresh));
  finalizeTargetLabel(inst.b, fresh);
  break;
@@ -45227,7 +45342,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  case IrCmd::CHECK_BUFFER_LEN:
  {
  int accessSize = intOp(inst.c);
- LUAU_ASSERT(accessSize > 0 && accessSize <= int(AssemblyBuilderA64::kMaxImmediate));
+ CODEGEN_ASSERT(accessSize > 0 && accessSize <= int(AssemblyBuilderA64::kMaxImmediate));
  Label fresh;
  Label& target = getTargetLabel(inst.d, fresh);
  RegisterA64 temp = regs.allocTemp(KindA64::w);
@@ -45272,7 +45387,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  }
  finalizeTargetLabel(inst.d, fresh);
  break;
@@ -45291,7 +45406,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  {
  RegisterA64 temp1 = regs.allocTemp(KindA64::x);
  RegisterA64 temp2 = regs.allocTemp(KindA64::x);
- LUAU_ASSERT(offsetof(global_State, totalbytes) == offsetof(global_State, GCthreshold) + 8);
+ CODEGEN_ASSERT(offsetof(global_State, totalbytes) == offsetof(global_State, GCthreshold) + 8);
  Label skip;
  build.ldp(temp1, temp2, mem(rGlobalState, offsetof(global_State, GCthreshold)));
  build.cmp(temp1, temp2);
@@ -45465,7 +45580,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  regs.spill(build, index);
  if (intOp(inst.b) > 2)
  {
- LUAU_ASSERT(LUA_TNIL == 0);
+ CODEGEN_ASSERT(LUA_TNIL == 0);
  for (int i = 2; i < intOp(inst.b); ++i)
  build.str(wzr, mem(rBase, (vmRegOp(inst.a) + 3 + i) * sizeof(TValue) + offsetof(TValue, tt)));
  }
@@ -45512,46 +45627,46 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  break;
  }
  case IrCmd::FALLBACK_GETGLOBAL:
- LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.c.kind == IrOpKind::VmConst);
+ CODEGEN_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.c.kind == IrOpKind::VmConst);
  regs.spill(build, index);
  emitFallback(build, offsetof(NativeContext, executeGETGLOBAL), uintOp(inst.a));
  break;
  case IrCmd::FALLBACK_SETGLOBAL:
- LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.c.kind == IrOpKind::VmConst);
+ CODEGEN_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.c.kind == IrOpKind::VmConst);
  regs.spill(build, index);
  emitFallback(build, offsetof(NativeContext, executeSETGLOBAL), uintOp(inst.a));
  break;
  case IrCmd::FALLBACK_GETTABLEKS:
- LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.c.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.d.kind == IrOpKind::VmConst);
+ CODEGEN_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.c.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.d.kind == IrOpKind::VmConst);
  regs.spill(build, index);
  emitFallback(build, offsetof(NativeContext, executeGETTABLEKS), uintOp(inst.a));
  break;
  case IrCmd::FALLBACK_SETTABLEKS:
- LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.c.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.d.kind == IrOpKind::VmConst);
+ CODEGEN_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.c.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.d.kind == IrOpKind::VmConst);
  regs.spill(build, index);
  emitFallback(build, offsetof(NativeContext, executeSETTABLEKS), uintOp(inst.a));
  break;
  case IrCmd::FALLBACK_NAMECALL:
- LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.c.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.d.kind == IrOpKind::VmConst);
+ CODEGEN_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.c.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.d.kind == IrOpKind::VmConst);
  regs.spill(build, index);
  emitFallback(build, offsetof(NativeContext, executeNAMECALL), uintOp(inst.a));
  break;
  case IrCmd::FALLBACK_PREPVARARGS:
- LUAU_ASSERT(inst.b.kind == IrOpKind::Constant);
+ CODEGEN_ASSERT(inst.b.kind == IrOpKind::Constant);
  regs.spill(build, index);
  emitFallback(build, offsetof(NativeContext, executePREPVARARGS), uintOp(inst.a));
  break;
  case IrCmd::FALLBACK_GETVARARGS:
- LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.c.kind == IrOpKind::Constant);
+ CODEGEN_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.c.kind == IrOpKind::Constant);
  regs.spill(build, index);
  build.mov(x0, rState);
  if (intOp(inst.c) == LUA_MULTRET)
@@ -45588,8 +45703,8 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  break;
  }
  case IrCmd::FALLBACK_DUPCLOSURE:
- LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.c.kind == IrOpKind::VmConst);
+ CODEGEN_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.c.kind == IrOpKind::VmConst);
  regs.spill(build, index);
  emitFallback(build, offsetof(NativeContext, executeDUPCLOSURE), uintOp(inst.a));
  break;
@@ -45600,7 +45715,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  break;
  case IrCmd::NOP:
  case IrCmd::SUBSTITUTE:
- LUAU_ASSERT(!"Pseudo instructions should not be lowered");
+ CODEGEN_ASSERT(!"Pseudo instructions should not be lowered");
  break;
  case IrCmd::BITAND_UINT:
  {
@@ -45780,13 +45895,13 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  case IrCmd::GET_TYPE:
  {
  inst.regA64 = regs.allocReg(KindA64::x, index);
- LUAU_ASSERT(sizeof(TString*) == 8);
+ CODEGEN_ASSERT(sizeof(TString*) == 8);
  if (inst.a.kind == IrOpKind::Inst)
  build.add(inst.regA64, rGlobalState, regOp(inst.a), 3);
  else if (inst.a.kind == IrOpKind::Constant)
  build.add(inst.regA64, rGlobalState, uint16_t(tagOp(inst.a)) * 8);
  else
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  build.ldr(inst.regA64, mem(inst.regA64, offsetof(global_State, ttname)));
  break;
  }
@@ -45908,8 +46023,8 @@ void IrLoweringA64::finishBlock(const IrBlock& curr, const IrBlock& next)
  if (!regs.spills.empty())
  {
  for (uint32_t predIdx : predecessors(function.cfg, function.getBlockIndex(next)))
- LUAU_ASSERT(predIdx == function.getBlockIndex(curr));
- LUAU_ASSERT(next.useCount == 1);
+ CODEGEN_ASSERT(predIdx == function.getBlockIndex(curr));
+ CODEGEN_ASSERT(next.useCount == 1);
  }
 }
 void IrLoweringA64::finishFunction()
@@ -45927,7 +46042,7 @@ void IrLoweringA64::finishFunction()
  build.logAppend("; exit handlers\n");
  for (ExitHandler& handler : exitHandlers)
  {
- LUAU_ASSERT(handler.pcpos != kVmExitEntryGuardPc);
+ CODEGEN_ASSERT(handler.pcpos != kVmExitEntryGuardPc);
  build.setLabel(handler.self);
  build.mov(x0, handler.pcpos * sizeof(Instruction));
  build.b(helpers.updatePcAndContinueInVm);
@@ -46018,7 +46133,7 @@ RegisterA64 IrLoweringA64::tempDouble(IrOp op)
  }
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  return noreg;
  }
 }
@@ -46034,7 +46149,7 @@ RegisterA64 IrLoweringA64::tempInt(IrOp op)
  }
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  return noreg;
  }
 }
@@ -46050,14 +46165,14 @@ RegisterA64 IrLoweringA64::tempUint(IrOp op)
  }
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  return noreg;
  }
 }
 AddressA64 IrLoweringA64::tempAddr(IrOp op, int offset)
 {
- LUAU_ASSERT(offset % 4 == 0);
- LUAU_ASSERT(offset >= 0 && unsigned(offset / 4) <= AssemblyBuilderA64::kMaxImmediate);
+ CODEGEN_ASSERT(offset % 4 == 0);
+ CODEGEN_ASSERT(offset >= 0 && unsigned(offset / 4) <= AssemblyBuilderA64::kMaxImmediate);
  if (op.kind == IrOpKind::VmReg)
  return mem(rBase, vmRegOp(op) * sizeof(TValue) + offset);
  else if (op.kind == IrOpKind::VmConst)
@@ -46073,7 +46188,7 @@ AddressA64 IrLoweringA64::tempAddr(IrOp op, int offset)
  return mem(regOp(op), offset);
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  return noreg;
  }
 }
@@ -46097,7 +46212,7 @@ AddressA64 IrLoweringA64::tempAddrBuffer(IrOp bufferOp, IrOp indexOp)
  }
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  return noreg;
  }
 }
@@ -46106,7 +46221,7 @@ RegisterA64 IrLoweringA64::regOp(IrOp op)
  IrInst& inst = function.instOp(op);
  if (inst.spilled || inst.needsReload)
  regs.restoreReg(build, inst);
- LUAU_ASSERT(inst.regA64 != noreg);
+ CODEGEN_ASSERT(inst.regA64 != noreg);
  return inst.regA64;
 }
 IrConst IrLoweringA64::constOp(IrOp op) const
@@ -46175,7 +46290,7 @@ void IrLoweringX64::storeDoubleAsFloat(OperandX64 dst, IrOp src)
  }
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  }
  build.vmovss(dst, tmp.reg);
 }
@@ -46194,7 +46309,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  else if (inst.a.kind == IrOpKind::Inst)
  build.mov(inst.regX64, dword[regOp(inst.a) + offsetof(TValue, tt)]);
  else
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  break;
  case IrCmd::LOAD_POINTER:
  inst.regX64 = regs.allocReg(SizeX64::qword, index);
@@ -46205,7 +46320,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  else if (inst.a.kind == IrOpKind::Inst)
  build.mov(inst.regX64, qword[regOp(inst.a) + offsetof(TValue, value)]);
  else
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  break;
  case IrCmd::LOAD_DOUBLE:
  inst.regX64 = regs.allocReg(SizeX64::xmmword, index);
@@ -46214,7 +46329,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  else if (inst.a.kind == IrOpKind::VmConst)
  build.vmovsd(inst.regX64, luauConstantValue(vmConstOp(inst.a)));
  else
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  break;
  case IrCmd::LOAD_INT:
  inst.regX64 = regs.allocReg(SizeX64::dword, index);
@@ -46228,7 +46343,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.vcvtss2sd(
  inst.regX64, inst.regX64, dword[rConstants + vmConstOp(inst.a) * sizeof(TValue) + offsetof(TValue, value) + intOp(inst.b)]);
  else
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  break;
  case IrCmd::LOAD_TVALUE:
  {
@@ -46241,7 +46356,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  else if (inst.a.kind == IrOpKind::Inst)
  build.vmovups(inst.regX64, xmmword[regOp(inst.a) + addrOffset]);
  else
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  break;
  }
  case IrCmd::LOAD_ENV:
@@ -46267,7 +46382,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  }
  break;
  case IrCmd::GET_SLOT_NODE_ADDR:
@@ -46318,7 +46433,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  }
  break;
  case IrCmd::STORE_POINTER:
@@ -46326,7 +46441,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  OperandX64 valueLhs = inst.a.kind == IrOpKind::Inst ? qword[regOp(inst.a) + offsetof(TValue, value)] : luauRegValue(vmRegOp(inst.a));
  if (inst.b.kind == IrOpKind::Constant)
  {
- LUAU_ASSERT(intOp(inst.b) == 0);
+ CODEGEN_ASSERT(intOp(inst.b) == 0);
  build.mov(valueLhs, 0);
  }
  else if (inst.b.kind == IrOpKind::Inst)
@@ -46335,7 +46450,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  }
  break;
  }
@@ -46349,7 +46464,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  }
  break;
  case IrCmd::STORE_DOUBLE:
@@ -46367,7 +46482,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  }
  break;
  }
@@ -46377,7 +46492,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  else if (inst.b.kind == IrOpKind::Inst)
  build.mov(luauRegValueInt(vmRegOp(inst.a)), regOp(inst.b));
  else
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  break;
  case IrCmd::STORE_VECTOR:
  storeDoubleAsFloat(luauRegValueVector(vmRegOp(inst.a), 0), inst.b);
@@ -46392,7 +46507,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  else if (inst.a.kind == IrOpKind::Inst)
  build.vmovups(xmmword[regOp(inst.a) + addrOffset], regOp(inst.b));
  else
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  break;
  }
  case IrCmd::STORE_SPLIT_TVALUE:
@@ -46429,7 +46544,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  }
  break;
  }
@@ -46461,7 +46576,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  }
  break;
  }
@@ -46718,7 +46833,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  Label saveone, savezero, exit;
  if (inst.a.kind == IrOpKind::Constant)
  {
- LUAU_ASSERT(tagOp(inst.a) == LUA_TBOOLEAN);
+ CODEGEN_ASSERT(tagOp(inst.a) == LUA_TBOOLEAN);
  }
  else
  {
@@ -46759,7 +46874,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  else if (cond == IrCondition::Equal)
  callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_equalval)]);
  else
- LUAU_ASSERT(!"Unsupported condition");
+ CODEGEN_ASSERT(!"Unsupported condition");
  emitUpdateBase(build);
  inst.regX64 = regs.takeReg(eax, index);
  break;
@@ -46777,7 +46892,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  break;
  case IrCmd::JUMP_EQ_TAG:
  {
- LUAU_ASSERT(inst.b.kind == IrOpKind::Inst || inst.b.kind == IrOpKind::Constant);
+ CODEGEN_ASSERT(inst.b.kind == IrOpKind::Inst || inst.b.kind == IrOpKind::Constant);
  OperandX64 opb = inst.b.kind == IrOpKind::Inst ? regOp(inst.b) : OperandX64(tagOp(inst.b));
  if (inst.a.kind == IrOpKind::Constant)
  build.cmp(opb, tagOp(inst.a));
@@ -46943,7 +47058,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  else
  {
- LUAU_ASSERT(source != IrCmd::SUBSTITUTE);
+ CODEGEN_ASSERT(source != IrCmd::SUBSTITUTE);
  build.vcvtsi2sd(inst.regX64, inst.regX64, qwordReg(regOp(inst.a)));
  }
  break;
@@ -46989,7 +47104,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  }
  break;
  }
@@ -47016,7 +47131,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  else if (inst.d.kind == IrOpKind::VmConst)
  args = luauConstantAddress(vmConstOp(inst.d));
  else
- LUAU_ASSERT(inst.d.kind == IrOpKind::Undef);
+ CODEGEN_ASSERT(inst.d.kind == IrOpKind::Undef);
  int ra = vmRegOp(inst.b);
  int arg = vmRegOp(inst.c);
  int nparams = intOp(inst.e);
@@ -47077,7 +47192,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  }
  break;
  case IrCmd::SET_TABLE:
@@ -47093,7 +47208,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  }
  break;
  case IrCmd::GET_IMPORT:
@@ -47160,7 +47275,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  break;
  case IrCmd::CHECK_TRUTHY:
  {
- LUAU_ASSERT(inst.a.kind != IrOpKind::Constant || tagOp(inst.a) == LUA_TBOOLEAN);
+ CODEGEN_ASSERT(inst.a.kind != IrOpKind::Constant || tagOp(inst.a) == LUA_TBOOLEAN);
  Label skip;
  if (inst.a.kind != IrOpKind::Constant)
  {
@@ -47198,7 +47313,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  else if (inst.b.kind == IrOpKind::Constant)
  build.cmp(dword[regOp(inst.a) + offsetof(Table, sizearray)], intOp(inst.b));
  else
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  jumpOrAbortOnUndef(ConditionX64::BelowEqual, inst.c, next);
  break;
  case IrCmd::JUMP_SLOT_MATCH:
@@ -47248,7 +47363,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  case IrCmd::CHECK_BUFFER_LEN:
  {
  int accessSize = intOp(inst.c);
- LUAU_ASSERT(accessSize > 0);
+ CODEGEN_ASSERT(accessSize > 0);
  if (inst.b.kind == IrOpKind::Inst)
  {
  if (accessSize == 1)
@@ -47285,7 +47400,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  }
  break;
  }
@@ -47424,40 +47539,40 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  break;
  }
  case IrCmd::FALLBACK_GETGLOBAL:
- LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.c.kind == IrOpKind::VmConst);
+ CODEGEN_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.c.kind == IrOpKind::VmConst);
  emitFallback(regs, build, offsetof(NativeContext, executeGETGLOBAL), uintOp(inst.a));
  break;
  case IrCmd::FALLBACK_SETGLOBAL:
- LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.c.kind == IrOpKind::VmConst);
+ CODEGEN_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.c.kind == IrOpKind::VmConst);
  emitFallback(regs, build, offsetof(NativeContext, executeSETGLOBAL), uintOp(inst.a));
  break;
  case IrCmd::FALLBACK_GETTABLEKS:
- LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.c.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.d.kind == IrOpKind::VmConst);
+ CODEGEN_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.c.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.d.kind == IrOpKind::VmConst);
  emitFallback(regs, build, offsetof(NativeContext, executeGETTABLEKS), uintOp(inst.a));
  break;
  case IrCmd::FALLBACK_SETTABLEKS:
- LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.c.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.d.kind == IrOpKind::VmConst);
+ CODEGEN_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.c.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.d.kind == IrOpKind::VmConst);
  emitFallback(regs, build, offsetof(NativeContext, executeSETTABLEKS), uintOp(inst.a));
  break;
  case IrCmd::FALLBACK_NAMECALL:
- LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.c.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.d.kind == IrOpKind::VmConst);
+ CODEGEN_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.c.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.d.kind == IrOpKind::VmConst);
  emitFallback(regs, build, offsetof(NativeContext, executeNAMECALL), uintOp(inst.a));
  break;
  case IrCmd::FALLBACK_PREPVARARGS:
- LUAU_ASSERT(inst.b.kind == IrOpKind::Constant);
+ CODEGEN_ASSERT(inst.b.kind == IrOpKind::Constant);
  emitFallback(regs, build, offsetof(NativeContext, executePREPVARARGS), uintOp(inst.a));
  break;
  case IrCmd::FALLBACK_GETVARARGS:
- LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.c.kind == IrOpKind::Constant);
+ CODEGEN_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.c.kind == IrOpKind::Constant);
  if (intOp(inst.c) == LUA_MULTRET)
  {
  IrCallWrapperX64 callWrap(regs, build);
@@ -47497,8 +47612,8 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  break;
  }
  case IrCmd::FALLBACK_DUPCLOSURE:
- LUAU_ASSERT(inst.b.kind == IrOpKind::VmReg);
- LUAU_ASSERT(inst.c.kind == IrOpKind::VmConst);
+ CODEGEN_ASSERT(inst.b.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.c.kind == IrOpKind::VmConst);
  emitFallback(regs, build, offsetof(NativeContext, executeDUPCLOSURE), uintOp(inst.a));
  break;
  case IrCmd::FALLBACK_FORGPREP:
@@ -47690,7 +47805,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  else if (inst.a.kind == IrOpKind::Constant)
  build.mov(inst.regX64, qword[inst.regX64 + tagOp(inst.a) * sizeof(TString*) + offsetof(global_State, ttname)]);
  else
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  break;
  }
  case IrCmd::GET_TYPEOF:
@@ -47773,12 +47888,12 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  else
  {
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  }
  break;
  case IrCmd::NOP:
  case IrCmd::SUBSTITUTE:
- LUAU_ASSERT(!"Pseudo instructions should not be lowered");
+ CODEGEN_ASSERT(!"Pseudo instructions should not be lowered");
  break;
  }
  valueTracker.afterInstLowering(inst, index);
@@ -47789,8 +47904,8 @@ void IrLoweringX64::finishBlock(const IrBlock& curr, const IrBlock& next)
  if (!regs.spills.empty())
  {
  for (uint32_t predIdx : predecessors(function.cfg, function.getBlockIndex(next)))
- LUAU_ASSERT(predIdx == function.getBlockIndex(curr) || function.blocks[predIdx].kind == IrBlockKind::Dead);
- LUAU_ASSERT(next.useCount == 1);
+ CODEGEN_ASSERT(predIdx == function.getBlockIndex(curr) || function.blocks[predIdx].kind == IrBlockKind::Dead);
+ CODEGEN_ASSERT(next.useCount == 1);
  }
 }
 void IrLoweringX64::finishFunction()
@@ -47808,7 +47923,7 @@ void IrLoweringX64::finishFunction()
  build.logAppend("; exit handlers\n");
  for (ExitHandler& handler : exitHandlers)
  {
- LUAU_ASSERT(handler.pcpos != kVmExitEntryGuardPc);
+ CODEGEN_ASSERT(handler.pcpos != kVmExitEntryGuardPc);
  build.setLabel(handler.self);
  build.mov(edx, handler.pcpos * sizeof(Instruction));
  build.jmp(helpers.updatePcAndContinueInVm);
@@ -47903,7 +48018,7 @@ OperandX64 IrLoweringX64::memRegDoubleOp(IrOp op)
  case IrOpKind::VmConst:
  return luauConstantValue(vmConstOp(op));
  default:
- LUAU_ASSERT(!"Unsupported operand kind");
+ CODEGEN_ASSERT(!"Unsupported operand kind");
  }
  return noreg;
 }
@@ -47918,7 +48033,7 @@ OperandX64 IrLoweringX64::memRegUintOp(IrOp op)
  case IrOpKind::VmReg:
  return luauRegValueInt(vmRegOp(op));
  default:
- LUAU_ASSERT(!"Unsupported operand kind");
+ CODEGEN_ASSERT(!"Unsupported operand kind");
  }
  return noreg;
 }
@@ -47933,7 +48048,7 @@ OperandX64 IrLoweringX64::memRegTagOp(IrOp op)
  case IrOpKind::VmConst:
  return luauConstantTag(vmConstOp(op));
  default:
- LUAU_ASSERT(!"Unsupported operand kind");
+ CODEGEN_ASSERT(!"Unsupported operand kind");
  }
  return noreg;
 }
@@ -47942,7 +48057,7 @@ RegisterX64 IrLoweringX64::regOp(IrOp op)
  IrInst& inst = function.instOp(op);
  if (inst.spilled || inst.needsReload)
  regs.restore(inst, false);
- LUAU_ASSERT(inst.regX64 != noreg);
+ CODEGEN_ASSERT(inst.regX64 != noreg);
  return inst.regX64;
 }
 OperandX64 IrLoweringX64::bufferAddrOp(IrOp bufferOp, IrOp indexOp)
@@ -47951,7 +48066,7 @@ OperandX64 IrLoweringX64::bufferAddrOp(IrOp bufferOp, IrOp indexOp)
  return regOp(bufferOp) + qwordReg(regOp(indexOp)) + offsetof(Buffer, data);
  else if (indexOp.kind == IrOpKind::Constant)
  return regOp(bufferOp) + intOp(indexOp) + offsetof(Buffer, data);
- LUAU_ASSERT(!"Unsupported instruction form");
+ CODEGEN_ASSERT(!"Unsupported instruction form");
  return noreg;
 }
 IrConst IrLoweringX64::constOp(IrOp op) const
@@ -48009,19 +48124,19 @@ namespace A64
 static const int8_t kInvalidSpill = 64;
 static int allocSpill(uint32_t& free, KindA64 kind)
 {
- LUAU_ASSERT(kStackSize <= 256);
+ CODEGEN_ASSERT(kStackSize <= 256);
  int slot = countrz(kind == KindA64::q ? free & (free >> 1) : free);
  if (slot == 32)
  return -1;
  uint32_t mask = (kind == KindA64::q ? 3u : 1u) << slot;
- LUAU_ASSERT((free & mask) == mask);
+ CODEGEN_ASSERT((free & mask) == mask);
  free &= ~mask;
  return slot;
 }
 static void freeSpill(uint32_t& free, KindA64 kind, uint8_t slot)
 {
  uint32_t mask = (kind == KindA64::q ? 3u : 1u) << slot;
- LUAU_ASSERT((free & mask) == 0);
+ CODEGEN_ASSERT((free & mask) == 0);
  free |= mask;
 }
 static int getReloadOffset(IrCmd cmd)
@@ -48030,7 +48145,7 @@ static int getReloadOffset(IrCmd cmd)
  {
  case IrValueKind::Unknown:
  case IrValueKind::None:
- LUAU_ASSERT(!"Invalid operand restore value kind");
+ CODEGEN_ASSERT(!"Invalid operand restore value kind");
  break;
  case IrValueKind::Tag:
  return offsetof(TValue, tt);
@@ -48043,7 +48158,7 @@ static int getReloadOffset(IrCmd cmd)
  case IrValueKind::Tvalue:
  return 0;
  }
- LUAU_ASSERT(!"Invalid operand restore value kind");
+ CODEGEN_ASSERT(!"Invalid operand restore value kind");
  LUAU_UNREACHABLE();
 }
 static AddressA64 getReloadAddress(const IrFunction& function, const IrInst& inst, bool limitToCurrentBlock)
@@ -48058,7 +48173,7 @@ static AddressA64 getReloadAddress(const IrFunction& function, const IrInst& ins
 static void restoreInst(AssemblyBuilderA64& build, uint32_t& freeSpillSlots, IrFunction& function, const IrRegAllocA64::Spill& s, RegisterA64 reg)
 {
  IrInst& inst = function.instructions[s.inst];
- LUAU_ASSERT(inst.regA64 == noreg);
+ CODEGEN_ASSERT(inst.regA64 == noreg);
  if (s.slot >= 0)
  {
  build.ldr(reg, mem(sp, sSpillArea.data + s.slot * 8));
@@ -48067,9 +48182,9 @@ static void restoreInst(AssemblyBuilderA64& build, uint32_t& freeSpillSlots, IrF
  }
  else
  {
- LUAU_ASSERT(!inst.spilled && inst.needsReload);
+ CODEGEN_ASSERT(!inst.spilled && inst.needsReload);
  AddressA64 addr = getReloadAddress(function, function.instructions[s.inst], false);
- LUAU_ASSERT(addr.base != xzr);
+ CODEGEN_ASSERT(addr.base != xzr);
  build.ldr(reg, addr);
  }
  inst.spilled = false;
@@ -48082,7 +48197,7 @@ IrRegAllocA64::IrRegAllocA64(IrFunction& function, LoweringStats* stats, std::in
 {
  for (auto& p : regs)
  {
- LUAU_ASSERT(p.first.kind == p.second.kind && p.first.index <= p.second.index);
+ CODEGEN_ASSERT(p.first.kind == p.second.kind && p.first.index <= p.second.index);
  Set& set = getSet(p.first.kind);
  for (int i = p.first.index; i <= p.second.index; ++i)
  set.base |= 1u << i;
@@ -48091,7 +48206,7 @@ IrRegAllocA64::IrRegAllocA64(IrFunction& function, LoweringStats* stats, std::in
  simd.free = simd.base;
  memset(gpr.defs, -1, sizeof(gpr.defs));
  memset(simd.defs, -1, sizeof(simd.defs));
- LUAU_ASSERT(kSpillSlots <= 32);
+ CODEGEN_ASSERT(kSpillSlots <= 32);
  freeSpillSlots = (kSpillSlots == 32) ? ~0u : (1u << kSpillSlots) - 1;
 }
 RegisterA64 IrRegAllocA64::allocReg(KindA64 kind, uint32_t index)
@@ -48122,7 +48237,7 @@ RegisterA64 IrRegAllocA64::allocTemp(KindA64 kind)
  reg = countrz(set.free);
  set.free &= ~(1u << reg);
  set.temp |= 1u << reg;
- LUAU_ASSERT(set.defs[reg] == kInvalidInstIdx);
+ CODEGEN_ASSERT(set.defs[reg] == kInvalidInstIdx);
  return RegisterA64{kind, uint8_t(reg)};
 }
 RegisterA64 IrRegAllocA64::allocReuse(KindA64 kind, uint32_t index, std::initializer_list<IrOp> oprefs)
@@ -48134,10 +48249,10 @@ RegisterA64 IrRegAllocA64::allocReuse(KindA64 kind, uint32_t index, std::initial
  IrInst& source = function.instructions[op.index];
  if (source.lastUse == index && !source.reusedReg && source.regA64 != noreg)
  {
- LUAU_ASSERT(!source.spilled && !source.needsReload);
- LUAU_ASSERT(source.regA64.kind == kind);
+ CODEGEN_ASSERT(!source.spilled && !source.needsReload);
+ CODEGEN_ASSERT(source.regA64.kind == kind);
  Set& set = getSet(kind);
- LUAU_ASSERT(set.defs[source.regA64.index] == op.index);
+ CODEGEN_ASSERT(set.defs[source.regA64.index] == op.index);
  set.defs[source.regA64.index] = index;
  source.reusedReg = true;
  return source.regA64;
@@ -48148,8 +48263,8 @@ RegisterA64 IrRegAllocA64::allocReuse(KindA64 kind, uint32_t index, std::initial
 RegisterA64 IrRegAllocA64::takeReg(RegisterA64 reg, uint32_t index)
 {
  Set& set = getSet(reg.kind);
- LUAU_ASSERT(set.free & (1u << reg.index));
- LUAU_ASSERT(set.defs[reg.index] == kInvalidInstIdx);
+ CODEGEN_ASSERT(set.free & (1u << reg.index));
+ CODEGEN_ASSERT(set.defs[reg.index] == kInvalidInstIdx);
  set.free &= ~(1u << reg.index);
  set.defs[reg.index] = index;
  return reg;
@@ -48157,9 +48272,9 @@ RegisterA64 IrRegAllocA64::takeReg(RegisterA64 reg, uint32_t index)
 void IrRegAllocA64::freeReg(RegisterA64 reg)
 {
  Set& set = getSet(reg.kind);
- LUAU_ASSERT((set.base & (1u << reg.index)) != 0);
- LUAU_ASSERT((set.free & (1u << reg.index)) == 0);
- LUAU_ASSERT((set.temp & (1u << reg.index)) == 0);
+ CODEGEN_ASSERT((set.base & (1u << reg.index)) != 0);
+ CODEGEN_ASSERT((set.free & (1u << reg.index)) == 0);
+ CODEGEN_ASSERT((set.temp & (1u << reg.index)) == 0);
  set.free |= 1u << reg.index;
  set.defs[reg.index] = kInvalidInstIdx;
 }
@@ -48167,7 +48282,7 @@ void IrRegAllocA64::freeLastUseReg(IrInst& target, uint32_t index)
 {
  if (target.lastUse == index && !target.reusedReg)
  {
- LUAU_ASSERT(!target.spilled && !target.needsReload);
+ CODEGEN_ASSERT(!target.spilled && !target.needsReload);
  if (target.regA64 == noreg)
  return;
  freeReg(target.regA64);
@@ -48189,10 +48304,10 @@ void IrRegAllocA64::freeLastUseRegs(const IrInst& inst, uint32_t index)
 }
 void IrRegAllocA64::freeTempRegs()
 {
- LUAU_ASSERT((gpr.free & gpr.temp) == 0);
+ CODEGEN_ASSERT((gpr.free & gpr.temp) == 0);
  gpr.free |= gpr.temp;
  gpr.temp = 0;
- LUAU_ASSERT((simd.free & simd.temp) == 0);
+ CODEGEN_ASSERT((simd.free & simd.temp) == 0);
  simd.free |= simd.temp;
  simd.temp = 0;
 }
@@ -48217,7 +48332,7 @@ size_t IrRegAllocA64::spill(AssemblyBuilderA64& build, uint32_t index, std::init
  Set& set = getSet(kind);
  if (set.free == set.base)
  continue;
- LUAU_ASSERT((set.free & set.temp) == 0);
+ CODEGEN_ASSERT((set.free & set.temp) == 0);
  set.free |= set.temp;
  set.temp = 0;
  uint32_t regs = set.base & ~set.free;
@@ -48225,12 +48340,12 @@ size_t IrRegAllocA64::spill(AssemblyBuilderA64& build, uint32_t index, std::init
  {
  int reg = 31 - countlz(regs);
  uint32_t inst = set.defs[reg];
- LUAU_ASSERT(inst != kInvalidInstIdx);
+ CODEGEN_ASSERT(inst != kInvalidInstIdx);
  IrInst& def = function.instructions[inst];
- LUAU_ASSERT(def.regA64.index == reg);
- LUAU_ASSERT(!def.reusedReg);
- LUAU_ASSERT(!def.spilled);
- LUAU_ASSERT(!def.needsReload);
+ CODEGEN_ASSERT(def.regA64.index == reg);
+ CODEGEN_ASSERT(!def.reusedReg);
+ CODEGEN_ASSERT(!def.spilled);
+ CODEGEN_ASSERT(!def.needsReload);
  if (def.lastUse == index)
  {
  }
@@ -48266,7 +48381,7 @@ size_t IrRegAllocA64::spill(AssemblyBuilderA64& build, uint32_t index, std::init
  set.free |= 1u << reg;
  set.defs[reg] = kInvalidInstIdx;
  }
- LUAU_ASSERT(set.free == set.base);
+ CODEGEN_ASSERT(set.free == set.base);
  }
  if (FFlag::DebugCodegenChaosA64)
  {
@@ -48282,7 +48397,7 @@ size_t IrRegAllocA64::spill(AssemblyBuilderA64& build, uint32_t index, std::init
 }
 void IrRegAllocA64::restore(AssemblyBuilderA64& build, size_t start)
 {
- LUAU_ASSERT(start <= spills.size());
+ CODEGEN_ASSERT(start <= spills.size());
  if (start < spills.size())
  {
  for (size_t i = start; i < spills.size(); ++i)
@@ -48309,7 +48424,7 @@ void IrRegAllocA64::restoreReg(AssemblyBuilderA64& build, IrInst& inst)
  return;
  }
  }
- LUAU_ASSERT(!"Expected to find a spill record");
+ CODEGEN_ASSERT(!"Expected to find a spill record");
 }
 IrRegAllocA64::Set& IrRegAllocA64::getSet(KindA64 kind)
 {
@@ -48323,7 +48438,7 @@ IrRegAllocA64::Set& IrRegAllocA64::getSet(KindA64 kind)
  case KindA64::q:
  return simd;
  default:
- LUAU_ASSERT(!"Unexpected register kind");
+ CODEGEN_ASSERT(!"Unexpected register kind");
  LUAU_UNREACHABLE();
  }
 }
@@ -48383,7 +48498,7 @@ RegisterX64 IrRegAllocX64::allocReg(SizeX64 size, uint32_t instIdx)
  reg.size = size;
  return takeReg(reg, instIdx);
  }
- LUAU_ASSERT(!"Out of registers to allocate");
+ CODEGEN_ASSERT(!"Out of registers to allocate");
  return noreg;
 }
 RegisterX64 IrRegAllocX64::allocRegOrReuse(SizeX64 size, uint32_t instIdx, std::initializer_list<IrOp> oprefs)
@@ -48397,7 +48512,7 @@ RegisterX64 IrRegAllocX64::allocRegOrReuse(SizeX64 size, uint32_t instIdx, std::
  {
  if ((size == SizeX64::xmmword) != (source.regX64.size == SizeX64::xmmword))
  continue;
- LUAU_ASSERT(source.regX64 != noreg);
+ CODEGEN_ASSERT(source.regX64 != noreg);
  source.reusedReg = true;
  if (size == SizeX64::xmmword)
  xmmInstUsers[source.regX64.index] = instIdx;
@@ -48414,10 +48529,10 @@ RegisterX64 IrRegAllocX64::takeReg(RegisterX64 reg, uint32_t instIdx)
  {
  if (!freeXmmMap[reg.index])
  {
- LUAU_ASSERT(xmmInstUsers[reg.index] != kInvalidInstIdx);
+ CODEGEN_ASSERT(xmmInstUsers[reg.index] != kInvalidInstIdx);
  preserve(function.instructions[xmmInstUsers[reg.index]]);
  }
- LUAU_ASSERT(freeXmmMap[reg.index]);
+ CODEGEN_ASSERT(freeXmmMap[reg.index]);
  freeXmmMap[reg.index] = false;
  xmmInstUsers[reg.index] = instIdx;
  }
@@ -48425,10 +48540,10 @@ RegisterX64 IrRegAllocX64::takeReg(RegisterX64 reg, uint32_t instIdx)
  {
  if (!freeGprMap[reg.index])
  {
- LUAU_ASSERT(gprInstUsers[reg.index] != kInvalidInstIdx);
+ CODEGEN_ASSERT(gprInstUsers[reg.index] != kInvalidInstIdx);
  preserve(function.instructions[gprInstUsers[reg.index]]);
  }
- LUAU_ASSERT(freeGprMap[reg.index]);
+ CODEGEN_ASSERT(freeGprMap[reg.index]);
  freeGprMap[reg.index] = false;
  gprInstUsers[reg.index] = instIdx;
  }
@@ -48444,13 +48559,13 @@ void IrRegAllocX64::freeReg(RegisterX64 reg)
 {
  if (reg.size == SizeX64::xmmword)
  {
- LUAU_ASSERT(!freeXmmMap[reg.index]);
+ CODEGEN_ASSERT(!freeXmmMap[reg.index]);
  freeXmmMap[reg.index] = true;
  xmmInstUsers[reg.index] = kInvalidInstIdx;
  }
  else
  {
- LUAU_ASSERT(!freeGprMap[reg.index]);
+ CODEGEN_ASSERT(!freeGprMap[reg.index]);
  freeGprMap[reg.index] = true;
  gprInstUsers[reg.index] = kInvalidInstIdx;
  }
@@ -48459,7 +48574,7 @@ void IrRegAllocX64::freeLastUseReg(IrInst& target, uint32_t instIdx)
 {
  if (isLastUseReg(target, instIdx))
  {
- LUAU_ASSERT(!target.spilled && !target.needsReload);
+ CODEGEN_ASSERT(!target.spilled && !target.needsReload);
  if (target.regX64 == noreg)
  return;
  freeReg(target.regX64);
@@ -48502,7 +48617,7 @@ void IrRegAllocX64::preserve(IrInst& inst)
  else if (spill.valueKind == IrValueKind::Tag || spill.valueKind == IrValueKind::Int)
  build.mov(dword[sSpillArea + i * 8], inst.regX64);
  else
- LUAU_ASSERT(!"Unsupported value kind");
+ CODEGEN_ASSERT(!"Unsupported value kind");
  usedSpillSlots.set(i);
  if (i + 1 > maxUsedSlot)
  maxUsedSlot = i + 1;
@@ -48581,7 +48696,7 @@ bool IrRegAllocX64::shouldFreeGpr(RegisterX64 reg) const
 {
  if (reg == noreg)
  return false;
- LUAU_ASSERT(reg.size != SizeX64::xmmword);
+ CODEGEN_ASSERT(reg.size != SizeX64::xmmword);
  for (RegisterX64 gpr : kGprAllocOrder)
  {
  if (reg.index == gpr.index)
@@ -48602,7 +48717,7 @@ unsigned IrRegAllocX64::findSpillStackSlot(IrValueKind valueKind)
  }
  return i;
  }
- LUAU_ASSERT(!"Nowhere to spill");
+ CODEGEN_ASSERT(!"Nowhere to spill");
  return ~0u;
 }
 IrOp IrRegAllocX64::getRestoreOp(const IrInst& inst) const
@@ -48619,17 +48734,17 @@ bool IrRegAllocX64::hasRestoreOp(const IrInst& inst) const
 }
 OperandX64 IrRegAllocX64::getRestoreAddress(const IrInst& inst, IrOp restoreOp)
 {
- LUAU_ASSERT(restoreOp.kind != IrOpKind::None);
+ CODEGEN_ASSERT(restoreOp.kind != IrOpKind::None);
  switch (getCmdValueKind(inst.cmd))
  {
  case IrValueKind::Unknown:
  case IrValueKind::None:
- LUAU_ASSERT(!"Invalid operand restore value kind");
+ CODEGEN_ASSERT(!"Invalid operand restore value kind");
  break;
  case IrValueKind::Tag:
  return restoreOp.kind == IrOpKind::VmReg ? luauRegTag(vmRegOp(restoreOp)) : luauConstantTag(vmConstOp(restoreOp));
  case IrValueKind::Int:
- LUAU_ASSERT(restoreOp.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(restoreOp.kind == IrOpKind::VmReg);
  return luauRegValueInt(vmRegOp(restoreOp));
  case IrValueKind::Pointer:
  return restoreOp.kind == IrOpKind::VmReg ? luauRegValue(vmRegOp(restoreOp)) : luauConstantValue(vmConstOp(restoreOp));
@@ -48638,7 +48753,7 @@ OperandX64 IrRegAllocX64::getRestoreAddress(const IrInst& inst, IrOp restoreOp)
  case IrValueKind::Tvalue:
  return restoreOp.kind == IrOpKind::VmReg ? luauReg(vmRegOp(restoreOp)) : luauConstant(vmConstOp(restoreOp));
  }
- LUAU_ASSERT(!"Failed to find restore operand location");
+ CODEGEN_ASSERT(!"Failed to find restore operand location");
  return noreg;
 }
 uint32_t IrRegAllocX64::findInstructionWithFurthestNextUse(const std::array<uint32_t, 16>& regInstUsers) const
@@ -48663,20 +48778,20 @@ uint32_t IrRegAllocX64::findInstructionWithFurthestNextUse(const std::array<uint
 void IrRegAllocX64::assertFree(RegisterX64 reg) const
 {
  if (reg.size == SizeX64::xmmword)
- LUAU_ASSERT(freeXmmMap[reg.index]);
+ CODEGEN_ASSERT(freeXmmMap[reg.index]);
  else
- LUAU_ASSERT(freeGprMap[reg.index]);
+ CODEGEN_ASSERT(freeGprMap[reg.index]);
 }
 void IrRegAllocX64::assertAllFree() const
 {
  for (RegisterX64 reg : kGprAllocOrder)
- LUAU_ASSERT(freeGprMap[reg.index]);
+ CODEGEN_ASSERT(freeGprMap[reg.index]);
  for (bool free : freeXmmMap)
- LUAU_ASSERT(free);
+ CODEGEN_ASSERT(free);
 }
 void IrRegAllocX64::assertNoSpills() const
 {
- LUAU_ASSERT(spills.empty());
+ CODEGEN_ASSERT(spills.empty());
 }
 ScopedRegX64::ScopedRegX64(IrRegAllocX64& owner)
  : owner(owner)
@@ -48701,17 +48816,17 @@ ScopedRegX64::~ScopedRegX64()
 }
 void ScopedRegX64::take(RegisterX64 reg)
 {
- LUAU_ASSERT(this->reg == noreg);
+ CODEGEN_ASSERT(this->reg == noreg);
  this->reg = owner.takeReg(reg, kInvalidInstIdx);
 }
 void ScopedRegX64::alloc(SizeX64 size)
 {
- LUAU_ASSERT(reg == noreg);
+ CODEGEN_ASSERT(reg == noreg);
  reg = owner.allocReg(size, kInvalidInstIdx);
 }
 void ScopedRegX64::free()
 {
- LUAU_ASSERT(reg != noreg);
+ CODEGEN_ASSERT(reg != noreg);
  owner.freeReg(reg);
  reg = noreg;
 }
@@ -48732,7 +48847,7 @@ ScopedSpills::~ScopedSpills()
  for (size_t i = 0; i < owner.spills.size();)
  {
  IrSpillX64& spill = owner.spills[i];
- LUAU_ASSERT(spill.spillId < endSpillId);
+ CODEGEN_ASSERT(spill.spillId < endSpillId);
  if (spill.spillId >= startSpillId)
  {
  IrInst& inst = owner.function.instructions[spill.instIdx];
@@ -48779,7 +48894,7 @@ namespace CodeGen
 static void builtinCheckDouble(IrBuilder& build, IrOp arg, int pcpos)
 {
  if (arg.kind == IrOpKind::Constant)
- LUAU_ASSERT(build.function.constOp(arg).kind == IrConstKind::Double);
+ CODEGEN_ASSERT(build.function.constOp(arg).kind == IrConstKind::Double);
  else
  build.loadAndCheckTag(arg, LUA_TNUMBER, build.vmExit(pcpos));
 }
@@ -48920,7 +49035,7 @@ static BuiltinImplResult translateBuiltinMathClamp(IrBuilder& build, int nparams
  if (nparams < 3 || nresults > 1)
  return {BuiltinImplType::None, -1};
  IrOp block = build.block(IrBlockKind::Internal);
- LUAU_ASSERT(args.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(args.kind == IrOpKind::VmReg);
  builtinCheckDouble(build, build.vmReg(arg), pcpos);
  builtinCheckDouble(build, args, pcpos);
  builtinCheckDouble(build, build.vmReg(vmRegOp(args) + 1), pcpos);
@@ -49089,7 +49204,7 @@ static BuiltinImplResult translateBuiltinBit32Extract(
  if (vb.kind == IrOpKind::Constant)
  {
  int f = int(build.function.doubleOp(vb));
- LUAU_ASSERT(unsigned(f) < 32);
+ CODEGEN_ASSERT(unsigned(f) < 32);
  value = n;
  if (f)
  value = build.inst(IrCmd::BITRSHIFT_UINT, value, build.constInt(f));
@@ -49230,7 +49345,7 @@ static BuiltinImplResult translateBuiltinVector(IrBuilder& build, int nparams, i
 {
  if (nparams < 3 || nresults > 1)
  return {BuiltinImplType::None, -1};
- LUAU_ASSERT(LUA_VECTOR_SIZE == 3);
+ CODEGEN_ASSERT(LUA_VECTOR_SIZE == 3);
  builtinCheckDouble(build, build.vmReg(arg), pcpos);
  builtinCheckDouble(build, args, pcpos);
  builtinCheckDouble(build, build.vmReg(vmRegOp(args) + 1), pcpos);
@@ -49252,7 +49367,7 @@ static BuiltinImplResult translateBuiltinTableInsert(IrBuilder& build, int npara
  IrOp setnum = build.inst(IrCmd::TABLE_SETNUM, table, pos);
  if (args.kind == IrOpKind::Constant)
  {
- LUAU_ASSERT(build.function.constOp(args).kind == IrConstKind::Double);
+ CODEGEN_ASSERT(build.function.constOp(args).kind == IrConstKind::Double);
  build.inst(IrCmd::STORE_DOUBLE, setnum, args);
  build.inst(IrCmd::STORE_TAG, setnum, build.constTag(LUA_TNUMBER));
  }
@@ -49260,7 +49375,7 @@ static BuiltinImplResult translateBuiltinTableInsert(IrBuilder& build, int npara
  {
  IrOp va = build.inst(IrCmd::LOAD_TVALUE, args);
  build.inst(IrCmd::STORE_TVALUE, setnum, va);
- LUAU_ASSERT(build.function.proto);
+ CODEGEN_ASSERT(build.function.proto);
  IrOp argstag = args.kind == IrOpKind::VmConst ? build.constTag(build.function.proto->k[vmConstOp(args)].tt) : build.undef();
  build.inst(IrCmd::BARRIER_TABLE_FORWARD, table, args, argstag);
  }
@@ -49451,8 +49566,8 @@ struct FallbackStreamScope
  : build(build)
  , next(next)
  {
- LUAU_ASSERT(fallback.kind == IrOpKind::Block);
- LUAU_ASSERT(next.kind == IrOpKind::Block);
+ CODEGEN_ASSERT(fallback.kind == IrOpKind::Block);
+ CODEGEN_ASSERT(next.kind == IrOpKind::Block);
  build.inst(IrCmd::JUMP, next);
  build.beginBlock(fallback);
  }
@@ -49473,9 +49588,9 @@ static IrOp loadDoubleOrConstant(IrBuilder& build, IrOp arg)
 {
  if (arg.kind == IrOpKind::VmConst)
  {
- LUAU_ASSERT(build.function.proto);
+ CODEGEN_ASSERT(build.function.proto);
  TValue protok = build.function.proto->k[vmConstOp(arg)];
- LUAU_ASSERT(protok.tt == LUA_TNUMBER);
+ CODEGEN_ASSERT(protok.tt == LUA_TNUMBER);
  return build.constDouble(protok.value.n);
  }
  return build.inst(IrCmd::LOAD_DOUBLE, arg);
@@ -49660,9 +49775,9 @@ void translateInstJumpxEqN(IrBuilder& build, const Instruction* pc, int pcpos)
  build.inst(IrCmd::JUMP_EQ_TAG, ta, build.constTag(LUA_TNUMBER), checkValue, not_ ? target : next);
  build.beginBlock(checkValue);
  IrOp va = build.inst(IrCmd::LOAD_DOUBLE, build.vmReg(ra));
- LUAU_ASSERT(build.function.proto);
+ CODEGEN_ASSERT(build.function.proto);
  TValue protok = build.function.proto->k[aux & 0xffffff];
- LUAU_ASSERT(protok.tt == LUA_TNUMBER);
+ CODEGEN_ASSERT(protok.tt == LUA_TNUMBER);
  IrOp vb = build.constDouble(protok.value.n);
  build.inst(IrCmd::JUMP_CMP_NUM, va, vb, build.cond(IrCondition::NotEqual), not_ ? target : next, not_ ? next : target);
  if (build.isInternalBlock(next))
@@ -49785,9 +49900,9 @@ static void translateInstBinaryNumeric(IrBuilder& build, int ra, int rb, int rc,
  {
  if (opb.kind == IrOpKind::VmConst)
  {
- LUAU_ASSERT(build.function.proto);
+ CODEGEN_ASSERT(build.function.proto);
  TValue protok = build.function.proto->k[vmConstOp(opb)];
- LUAU_ASSERT(protok.tt == LUA_TNUMBER);
+ CODEGEN_ASSERT(protok.tt == LUA_TNUMBER);
  vb = build.constDouble(protok.value.n);
  }
  else
@@ -49797,9 +49912,9 @@ static void translateInstBinaryNumeric(IrBuilder& build, int ra, int rb, int rc,
  }
  if (opc.kind == IrOpKind::VmConst)
  {
- LUAU_ASSERT(build.function.proto);
+ CODEGEN_ASSERT(build.function.proto);
  TValue protok = build.function.proto->k[vmConstOp(opc)];
- LUAU_ASSERT(protok.tt == LUA_TNUMBER);
+ CODEGEN_ASSERT(protok.tt == LUA_TNUMBER);
  if (tm == TM_POW && protok.value.n == 0.5)
  result = build.inst(IrCmd::SQRT_NUM, vb);
  else if (tm == TM_POW && protok.value.n == 2.0)
@@ -49815,7 +49930,7 @@ static void translateInstBinaryNumeric(IrBuilder& build, int ra, int rb, int rc,
  }
  if (result.kind == IrOpKind::None)
  {
- LUAU_ASSERT(vc.kind != IrOpKind::None);
+ CODEGEN_ASSERT(vc.kind != IrOpKind::None);
  switch (tm)
  {
  case TM_ADD:
@@ -49840,7 +49955,7 @@ static void translateInstBinaryNumeric(IrBuilder& build, int ra, int rb, int rc,
  result = build.inst(IrCmd::INVOKE_LIBM, build.constUint(LBF_MATH_POW), vb, vc);
  break;
  default:
- LUAU_ASSERT(!"Unsupported binary op");
+ CODEGEN_ASSERT(!"Unsupported binary op");
  }
  }
  build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), result);
@@ -49977,7 +50092,7 @@ IrOp translateFastCallN(IrBuilder& build, const Instruction* pc, int pcpos, bool
  int bfid = LUAU_INSN_A(*pc);
  int skip = LUAU_INSN_C(*pc);
  Instruction call = pc[skip + 1];
- LUAU_ASSERT(LUAU_INSN_OP(call) == LOP_CALL);
+ CODEGEN_ASSERT(LUAU_INSN_OP(call) == LOP_CALL);
  int ra = LUAU_INSN_A(call);
  int nparams = customParams ? customParamCount : LUAU_INSN_B(call) - 1;
  int nresults = LUAU_INSN_C(call) - 1;
@@ -49986,7 +50101,7 @@ IrOp translateFastCallN(IrBuilder& build, const Instruction* pc, int pcpos, bool
  IrOp builtinArgs = args;
  if (customArgs.kind == IrOpKind::VmConst)
  {
- LUAU_ASSERT(build.function.proto);
+ CODEGEN_ASSERT(build.function.proto);
  TValue protok = build.function.proto->k[vmConstOp(customArgs)];
  if (protok.tt == LUA_TNUMBER)
  builtinArgs = build.constDouble(protok.value.n);
@@ -49997,7 +50112,7 @@ IrOp translateFastCallN(IrBuilder& build, const Instruction* pc, int pcpos, bool
  translateBuiltin(build, LuauBuiltinFunction(bfid), ra, arg, builtinArgs, nparams, nresults, fallback, pcpos + getOpLength(opcode));
  if (br.type != BuiltinImplType::None)
  {
- LUAU_ASSERT(nparams != LUA_MULTRET && "builtins are not allowed to handle variadic arguments");
+ CODEGEN_ASSERT(nparams != LUA_MULTRET && "builtins are not allowed to handle variadic arguments");
  if (nresults == LUA_MULTRET)
  build.inst(IrCmd::ADJUST_STACK_TO_REG, build.vmReg(ra), build.constInt(br.actualResultCount));
  if (br.type != BuiltinImplType::UsesFallback)
@@ -50040,7 +50155,7 @@ void beforeInstForNPrep(IrBuilder& build, const Instruction* pc, int pcpos)
 }
 void afterInstForNLoop(IrBuilder& build, const Instruction* pc)
 {
- LUAU_ASSERT(!build.numericLoopStack.empty());
+ CODEGEN_ASSERT(!build.numericLoopStack.empty());
  build.numericLoopStack.pop_back();
 }
 void translateInstForNPrep(IrBuilder& build, const Instruction* pc, int pcpos)
@@ -50048,7 +50163,7 @@ void translateInstForNPrep(IrBuilder& build, const Instruction* pc, int pcpos)
  int ra = LUAU_INSN_A(*pc);
  IrOp loopStart = build.blockAtInst(pcpos + getOpLength(LuauOpcode(LUAU_INSN_OP(*pc))));
  IrOp loopExit = build.blockAtInst(getJumpTarget(*pc, pcpos));
- LUAU_ASSERT(!build.numericLoopStack.empty());
+ CODEGEN_ASSERT(!build.numericLoopStack.empty());
  IrOp stepK = build.numericLoopStack.back().step;
  IrOp tagLimit = build.inst(IrCmd::LOAD_TAG, build.vmReg(ra + 0));
  build.inst(IrCmd::CHECK_TAG, tagLimit, build.constTag(LUA_TNUMBER), build.vmExit(pcpos));
@@ -50081,7 +50196,7 @@ void translateInstForNLoop(IrBuilder& build, const Instruction* pc, int pcpos)
  int repeatJumpTarget = getJumpTarget(*pc, pcpos);
  IrOp loopRepeat = build.blockAtInst(repeatJumpTarget);
  IrOp loopExit = build.blockAtInst(pcpos + getOpLength(LuauOpcode(LUAU_INSN_OP(*pc))));
- LUAU_ASSERT(!build.numericLoopStack.empty());
+ CODEGEN_ASSERT(!build.numericLoopStack.empty());
  IrBuilder::LoopInfo loopInfo = build.numericLoopStack.back();
  if (repeatJumpTarget != loopInfo.startpc)
  build.inst(IrCmd::INTERRUPT, build.constUint(pcpos));
@@ -50151,7 +50266,7 @@ void translateInstForGPrepInext(IrBuilder& build, const Instruction* pc, int pcp
 void translateInstForGLoopIpairs(IrBuilder& build, const Instruction* pc, int pcpos)
 {
  int ra = LUAU_INSN_A(*pc);
- LUAU_ASSERT(int(pc[1]) < 0);
+ CODEGEN_ASSERT(int(pc[1]) < 0);
  IrOp loopRepeat = build.blockAtInst(getJumpTarget(*pc, pcpos));
  IrOp loopExit = build.blockAtInst(pcpos + getOpLength(LuauOpcode(LUAU_INSN_OP(*pc))));
  IrOp fallback = build.block(IrBlockKind::Fallback);
@@ -50424,7 +50539,7 @@ void translateInstCapture(IrBuilder& build, const Instruction* pc, int pcpos)
  build.inst(IrCmd::CAPTURE, build.vmUpvalue(index), build.constUint(0));
  break;
  default:
- LUAU_ASSERT(!"Unknown upvalue capture type");
+ CODEGEN_ASSERT(!"Unknown upvalue capture type");
  }
 }
 void translateInstNamecall(IrBuilder& build, const Instruction* pc, int pcpos)
@@ -50438,7 +50553,7 @@ void translateInstNamecall(IrBuilder& build, const Instruction* pc, int pcpos)
  IrOp secondFastPath = build.block(IrBlockKind::Internal);
  build.loadAndCheckTag(build.vmReg(rb), LUA_TTABLE, fallback);
  IrOp table = build.inst(IrCmd::LOAD_POINTER, build.vmReg(rb));
- LUAU_ASSERT(build.function.proto);
+ CODEGEN_ASSERT(build.function.proto);
  IrOp addrNodeEl = build.inst(IrCmd::GET_HASH_NODE_ADDR, table, build.constUint(tsvalue(&build.function.proto->k[aux])->hash));
  build.inst(IrCmd::JUMP_SLOT_MATCH, addrNodeEl, build.vmConst(aux), firstFastPathSuccess, secondFastPath);
  build.beginBlock(firstFastPathSuccess);
@@ -50517,7 +50632,7 @@ void translateInstOrX(IrBuilder& build, const Instruction* pc, int pcpos, IrOp c
 }
 void translateInstNewClosure(IrBuilder& build, const Instruction* pc, int pcpos)
 {
- LUAU_ASSERT(unsigned(LUAU_INSN_D(*pc)) < unsigned(build.function.proto->sizep));
+ CODEGEN_ASSERT(unsigned(LUAU_INSN_D(*pc)) < unsigned(build.function.proto->sizep));
  int ra = LUAU_INSN_A(*pc);
  Proto* pv = build.function.proto->p[LUAU_INSN_D(*pc)];
  build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
@@ -50528,7 +50643,7 @@ void translateInstNewClosure(IrBuilder& build, const Instruction* pc, int pcpos)
  for (int ui = 0; ui < pv->nups; ++ui)
  {
  Instruction uinsn = pc[ui + 1];
- LUAU_ASSERT(LUAU_INSN_OP(uinsn) == LOP_CAPTURE);
+ CODEGEN_ASSERT(LUAU_INSN_OP(uinsn) == LOP_CAPTURE);
  switch (LUAU_INSN_A(uinsn))
  {
  case LCT_VAL:
@@ -50555,7 +50670,7 @@ void translateInstNewClosure(IrBuilder& build, const Instruction* pc, int pcpos)
  break;
  }
  default:
- LUAU_ASSERT(!"Unknown upvalue capture type");
+ CODEGEN_ASSERT(!"Unknown upvalue capture type");
  LUAU_UNREACHABLE();
  }
  }
@@ -50757,7 +50872,7 @@ IrValueKind getCmdValueKind(IrCmd cmd)
 static void removeInstUse(IrFunction& function, uint32_t instIdx)
 {
  IrInst& inst = function.instructions[instIdx];
- LUAU_ASSERT(inst.useCount);
+ CODEGEN_ASSERT(inst.useCount);
  inst.useCount--;
  if (inst.useCount == 0)
  kill(function, inst);
@@ -50765,7 +50880,7 @@ static void removeInstUse(IrFunction& function, uint32_t instIdx)
 static void removeBlockUse(IrFunction& function, uint32_t blockIdx)
 {
  IrBlock& block = function.blocks[blockIdx];
- LUAU_ASSERT(block.useCount);
+ CODEGEN_ASSERT(block.useCount);
  block.useCount--;
  if (block.useCount == 0 && blockIdx != 0)
  kill(function, block);
@@ -50786,12 +50901,12 @@ void removeUse(IrFunction& function, IrOp op)
 }
 bool isGCO(uint8_t tag)
 {
- LUAU_ASSERT(tag < LUA_T_COUNT);
+ CODEGEN_ASSERT(tag < LUA_T_COUNT);
  return tag >= LUA_TSTRING;
 }
 void kill(IrFunction& function, IrInst& inst)
 {
- LUAU_ASSERT(inst.useCount == 0);
+ CODEGEN_ASSERT(inst.useCount == 0);
  inst.cmd = IrCmd::NOP;
  removeUse(function, inst.a);
  removeUse(function, inst.b);
@@ -50810,7 +50925,7 @@ void kill(IrFunction& function, uint32_t start, uint32_t end)
 {
  for (int i = int(end); i >= int(start); i--)
  {
- LUAU_ASSERT(unsigned(i) < function.instructions.size());
+ CODEGEN_ASSERT(unsigned(i) < function.instructions.size());
  IrInst& curr = function.instructions[i];
  if (curr.cmd == IrCmd::NOP)
  continue;
@@ -50819,7 +50934,7 @@ void kill(IrFunction& function, uint32_t start, uint32_t end)
 }
 void kill(IrFunction& function, IrBlock& block)
 {
- LUAU_ASSERT(block.useCount == 0);
+ CODEGEN_ASSERT(block.useCount == 0);
  block.kind = IrBlockKind::Dead;
  kill(function, block.start, block.finish);
  block.start = ~0u;
@@ -50843,8 +50958,8 @@ void replace(IrFunction& function, IrBlock& block, uint32_t instIdx, IrInst repl
  block.useCount++;
  if (!isBlockTerminator(inst.cmd) && isBlockTerminator(replacement.cmd))
  {
- LUAU_ASSERT(block.finish != ~0u);
- LUAU_ASSERT(instIdx + 1 <= block.finish);
+ CODEGEN_ASSERT(block.finish != ~0u);
+ CODEGEN_ASSERT(instIdx + 1 <= block.finish);
  kill(function, instIdx + 1, block.finish);
  block.finish = instIdx;
  }
@@ -50860,7 +50975,7 @@ void replace(IrFunction& function, IrBlock& block, uint32_t instIdx, IrInst repl
 }
 void substitute(IrFunction& function, IrInst& inst, IrOp replacement)
 {
- LUAU_ASSERT(!isBlockTerminator(inst.cmd));
+ CODEGEN_ASSERT(!isBlockTerminator(inst.cmd));
  inst.cmd = IrCmd::SUBSTITUTE;
  addUse(function, replacement);
  removeUse(function, inst.a);
@@ -50888,10 +51003,10 @@ void applySubstitutions(IrFunction& function, IrOp& op)
  if (op.kind == IrOpKind::Inst)
  {
  IrInst& dst = function.instructions[op.index];
- LUAU_ASSERT(dst.cmd != IrCmd::SUBSTITUTE && "chained substitutions are not allowed");
+ CODEGEN_ASSERT(dst.cmd != IrCmd::SUBSTITUTE && "chained substitutions are not allowed");
  dst.useCount++;
  }
- LUAU_ASSERT(src.useCount > 0);
+ CODEGEN_ASSERT(src.useCount > 0);
  src.useCount--;
  if (src.useCount == 0)
  {
@@ -50936,7 +51051,7 @@ bool compare(double a, double b, IrCondition cond)
  case IrCondition::NotGreaterEqual:
  return !bool(a >= b);
  default:
- LUAU_ASSERT(!"Unsupported condition");
+ CODEGEN_ASSERT(!"Unsupported condition");
  }
  return false;
 }
@@ -50973,7 +51088,7 @@ bool compare(int a, int b, IrCondition cond)
  case IrCondition::UnsignedGreaterEqual:
  return unsigned(a) >= unsigned(b);
  default:
- LUAU_ASSERT(!"Unsupported condition");
+ CODEGEN_ASSERT(!"Unsupported condition");
  }
  return false;
 }
@@ -51337,7 +51452,7 @@ uint32_t getNativeContextOffset(int bfid)
  case LBF_MATH_LDEXP:
  return offsetof(NativeContext, libm_ldexp);
  default:
- LUAU_ASSERT(!"Unsupported bfid");
+ CODEGEN_ASSERT(!"Unsupported bfid");
  }
  return 0;
 }
@@ -51504,12 +51619,12 @@ void IrValueLocationTracking::beforeInstLowering(IrInst& inst)
  case IrCmd::ABS_NUM:
  break;
  default:
- LUAU_ASSERT(inst.a.kind != IrOpKind::VmReg);
- LUAU_ASSERT(inst.b.kind != IrOpKind::VmReg);
- LUAU_ASSERT(inst.c.kind != IrOpKind::VmReg);
- LUAU_ASSERT(inst.d.kind != IrOpKind::VmReg);
- LUAU_ASSERT(inst.e.kind != IrOpKind::VmReg);
- LUAU_ASSERT(inst.f.kind != IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.a.kind != IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.b.kind != IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.c.kind != IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.d.kind != IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.e.kind != IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.f.kind != IrOpKind::VmReg);
  break;
  }
 }
@@ -51579,7 +51694,7 @@ void IrValueLocationTracking::invalidateRestoreOp(IrOp location, bool skipValueI
  }
  else if (location.kind == IrOpKind::VmConst)
  {
- LUAU_ASSERT(!"VM constants are immutable");
+ CODEGEN_ASSERT(!"VM constants are immutable");
  }
 }
 void IrValueLocationTracking::invalidateRestoreVmRegs(int start, int count)
@@ -51682,7 +51797,6 @@ void initFunctions(NativeState& data)
 LUAU_FASTINTVARIABLE(LuauCodeGenMinLinearBlockPath, 3)
 LUAU_FASTINTVARIABLE(LuauCodeGenReuseSlotLimit, 64)
 LUAU_FASTFLAGVARIABLE(DebugLuauAbortingChecks, false)
-LUAU_FASTFLAGVARIABLE(LuauReuseBufferChecks, false)
 LUAU_FASTFLAG(LuauCodegenVector)
 LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauCodeGenCheckGcEffectFix, false)
 namespace Luau
@@ -51740,7 +51854,7 @@ struct ConstPropState
  }
  void saveValue(IrOp op, IrOp value)
  {
- LUAU_ASSERT(value.kind == IrOpKind::Constant);
+ CODEGEN_ASSERT(value.kind == IrOpKind::Constant);
  if (RegisterInfo* info = tryGetRegisterInfo(op))
  {
  if (info->value != value)
@@ -51854,7 +51968,7 @@ struct ConstPropState
  }
  void createRegLink(uint32_t instIdx, IrOp regOp)
  {
- LUAU_ASSERT(!instLink.contains(instIdx));
+ CODEGEN_ASSERT(!instLink.contains(instIdx));
  instLink[instIdx] = RegisterLink{uint8_t(vmRegOp(regOp)), regs[vmRegOp(regOp)].version};
  }
  RegisterInfo* tryGetRegisterInfo(IrOp op)
@@ -51885,15 +51999,15 @@ struct ConstPropState
  }
  IrInst versionedVmRegLoad(IrCmd loadCmd, IrOp op)
  {
- LUAU_ASSERT(op.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(op.kind == IrOpKind::VmReg);
  uint32_t version = regs[vmRegOp(op)].version;
- LUAU_ASSERT(version <= 0xffffff);
+ CODEGEN_ASSERT(version <= 0xffffff);
  op.index = vmRegOp(op) | (version << 8);
  return IrInst{loadCmd, op};
  }
  uint32_t* getPreviousInstIndex(const IrInst& inst)
  {
- LUAU_ASSERT(useValueNumbering);
+ CODEGEN_ASSERT(useValueNumbering);
  if (uint32_t* prevIdx = valueMap.find(inst))
  {
  if (function.instructions[*prevIdx].useCount != 0)
@@ -51903,7 +52017,7 @@ struct ConstPropState
  }
  uint32_t* getPreviousVersionedLoadIndex(IrCmd cmd, IrOp vmReg)
  {
- LUAU_ASSERT(vmReg.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(vmReg.kind == IrOpKind::VmReg);
  return getPreviousInstIndex(versionedVmRegLoad(cmd, vmReg));
  }
  std::pair<IrCmd, uint32_t> getPreviousVersionedLoadForTag(uint8_t tag, IrOp vmReg)
@@ -51941,7 +52055,7 @@ struct ConstPropState
  }
  void substituteOrRecordVmRegLoad(IrInst& loadInst)
  {
- LUAU_ASSERT(loadInst.a.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(loadInst.a.kind == IrOpKind::VmReg);
  if (!useValueNumbering)
  return;
  if (function.cfg.captured.regs.test(vmRegOp(loadInst.a)))
@@ -51960,8 +52074,8 @@ struct ConstPropState
  }
  void forwardVmRegStoreToLoad(const IrInst& storeInst, IrCmd loadCmd)
  {
- LUAU_ASSERT(storeInst.a.kind == IrOpKind::VmReg);
- LUAU_ASSERT(storeInst.b.kind == IrOpKind::Inst);
+ CODEGEN_ASSERT(storeInst.a.kind == IrOpKind::VmReg);
+ CODEGEN_ASSERT(storeInst.b.kind == IrOpKind::Inst);
  if (!useValueNumbering)
  return;
  if (function.cfg.captured.regs.test(vmRegOp(storeInst.a)))
@@ -52222,7 +52336,7 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  {
  if (inst.a.kind == IrOpKind::VmReg)
  {
- if (FFlag::LuauReuseBufferChecks && inst.b.kind == IrOpKind::Inst)
+ if (inst.b.kind == IrOpKind::Inst)
  {
  if (uint32_t* prevIdx = state.getPreviousVersionedLoadIndex(IrCmd::LOAD_TVALUE, inst.a))
  {
@@ -52467,11 +52581,9 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  break;
  case IrCmd::CHECK_BUFFER_LEN:
  {
- if (!FFlag::LuauReuseBufferChecks)
- break;
  std::optional<int> bufferOffset = function.asIntOp(inst.b.kind == IrOpKind::Constant ? inst.b : state.tryGetValue(inst.b));
  int accessSize = function.intOp(inst.c);
- LUAU_ASSERT(accessSize > 0);
+ CODEGEN_ASSERT(accessSize > 0);
  if (bufferOffset)
  {
  if (*bufferOffset < 0 || unsigned(*bufferOffset) + unsigned(accessSize) >= unsigned(INT_MAX))
@@ -52497,8 +52609,8 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  {
  int currBound = function.intOp(inst.b);
  int prevBound = function.intOp(prev.b);
- LUAU_ASSERT(currBound >= 0);
- LUAU_ASSERT(prevBound >= 0);
+ CODEGEN_ASSERT(currBound >= 0);
+ CODEGEN_ASSERT(prevBound >= 0);
  if (unsigned(currBound) >= unsigned(prevBound))
  replace(function, prev.b, inst.b);
  if (FFlag::DebugLuauAbortingChecks)
@@ -52841,7 +52953,7 @@ static void constPropInBlock(IrBuilder& build, IrBlock& block, ConstPropState& s
  IrFunction& function = build.function;
  for (uint32_t index = block.start; index <= block.finish; index++)
  {
- LUAU_ASSERT(index < function.instructions.size());
+ CODEGEN_ASSERT(index < function.instructions.size());
  IrInst& inst = function.instructions[index];
  applySubstitutions(function, inst);
  foldConstants(build, function, block, index);
@@ -52857,7 +52969,7 @@ static void constPropInBlockChain(IrBuilder& build, std::vector<uint8_t>& visite
  while (block)
  {
  uint32_t blockIdx = function.getBlockIndex(*block);
- LUAU_ASSERT(!visited[blockIdx]);
+ CODEGEN_ASSERT(!visited[blockIdx]);
  visited[blockIdx] = true;
  constPropInBlock(build, *block, state);
  state.invalidateValuePropagation();
@@ -52884,7 +52996,7 @@ static void constPropInBlockChain(IrBuilder& build, std::vector<uint8_t>& visite
 }
 static std::vector<uint32_t> collectDirectBlockJumpPath(IrFunction& function, std::vector<uint8_t>& visited, IrBlock* block)
 {
- LUAU_ASSERT(getLiveOutValueCount(function, *block) == 0);
+ CODEGEN_ASSERT(getLiveOutValueCount(function, *block) == 0);
  std::vector<uint32_t> path;
  while (block)
  {
@@ -52913,7 +53025,7 @@ static void tryCreateLinearBlock(IrBuilder& build, std::vector<uint8_t>& visited
 {
  IrFunction& function = build.function;
  uint32_t blockIdx = function.getBlockIndex(startingBlock);
- LUAU_ASSERT(!visited[blockIdx]);
+ CODEGEN_ASSERT(!visited[blockIdx]);
  visited[blockIdx] = true;
  IrInst& termInst = function.instructions[startingBlock.finish];
  if (termInst.cmd != IrCmd::JUMP)
@@ -52928,7 +53040,7 @@ static void tryCreateLinearBlock(IrBuilder& build, std::vector<uint8_t>& visited
  return;
  state.clear();
  constPropInBlock(build, startingBlock, state);
- LUAU_ASSERT(function.instructions[startingBlock.finish].a.index == targetBlockIdx);
+ CODEGEN_ASSERT(function.instructions[startingBlock.finish].a.index == targetBlockIdx);
  const uint32_t startingSortKey = startingBlock.sortkey;
  const uint32_t startingChainKey = startingBlock.chainkey;
  IrOp newBlock = build.block(IrBlockKind::Linearized);
@@ -52942,8 +53054,8 @@ static void tryCreateLinearBlock(IrBuilder& build, std::vector<uint8_t>& visited
  build.clone(function.blocks[pathBlockIdx], true);
  if (function.cfg.in.size() == newBlock.index)
  {
- LUAU_ASSERT(function.cfg.in.size() == function.cfg.out.size());
- LUAU_ASSERT(function.cfg.in.size() == function.cfg.def.size());
+ CODEGEN_ASSERT(function.cfg.in.size() == function.cfg.out.size());
+ CODEGEN_ASSERT(function.cfg.in.size() == function.cfg.def.size());
  function.cfg.in.push_back(function.cfg.in[path.front()]);
  function.cfg.out.push_back(function.cfg.out[path.back()]);
  function.cfg.def.push_back({});
@@ -53007,10 +53119,10 @@ namespace CodeGen
 {
 static void optimizeMemoryOperandsX64(IrFunction& function, IrBlock& block)
 {
- LUAU_ASSERT(block.kind != IrBlockKind::Dead);
+ CODEGEN_ASSERT(block.kind != IrBlockKind::Dead);
  for (uint32_t index = block.start; index <= block.finish; index++)
  {
- LUAU_ASSERT(index < function.instructions.size());
+ CODEGEN_ASSERT(index < function.instructions.size());
  IrInst& inst = function.instructions[index];
  switch (inst.cmd)
  {
@@ -53176,7 +53288,7 @@ static uint8_t* defineCfaExpressionOffset(uint8_t* pos, uint32_t stackOffset)
 }
 static uint8_t* defineSavedRegisterLocation(uint8_t* pos, int dwReg, uint32_t stackOffset)
 {
- LUAU_ASSERT(stackOffset % kDataAlignFactor == 0 && "stack offsets have to be measured in kDataAlignFactor units");
+ CODEGEN_ASSERT(stackOffset % kDataAlignFactor == 0 && "stack offsets have to be measured in kDataAlignFactor units");
  if (dwReg <= 0x3f)
  {
  pos = writeu8(pos, DW_CFA_offset + dwReg);
@@ -53191,7 +53303,7 @@ static uint8_t* defineSavedRegisterLocation(uint8_t* pos, int dwReg, uint32_t st
 }
 static uint8_t* advanceLocation(uint8_t* pos, unsigned int offset)
 {
- LUAU_ASSERT(offset < 256);
+ CODEGEN_ASSERT(offset < 256);
  pos = writeu8(pos, DW_CFA_advance_loc1);
  pos = writeu8(pos, offset);
  return pos;
@@ -53218,7 +53330,7 @@ size_t UnwindBuilderDwarf2::getBeginOffset() const
 }
 void UnwindBuilderDwarf2::startInfo(Arch arch)
 {
- LUAU_ASSERT(arch == A64 || arch == X64);
+ CODEGEN_ASSERT(arch == A64 || arch == X64);
  uint8_t* cieLength = pos;
  pos = writeu32(pos, 0);
  pos = writeu32(pos, 0);
@@ -53257,33 +53369,33 @@ void UnwindBuilderDwarf2::finishFunction(uint32_t beginOffset, uint32_t endOffse
 {
  unwindFunctions.back().beginOffset = beginOffset;
  unwindFunctions.back().endOffset = endOffset;
- LUAU_ASSERT(fdeEntryStart != nullptr);
+ CODEGEN_ASSERT(fdeEntryStart != nullptr);
  pos = alignPosition(fdeEntryStart, pos);
  writeu32(fdeEntryStart, unsigned(pos - fdeEntryStart - 4));
 }
 void UnwindBuilderDwarf2::finishInfo()
 {
  pos = writeu32(pos, 0);
- LUAU_ASSERT(getSize() <= kRawDataLimit);
+ CODEGEN_ASSERT(getSize() <= kRawDataLimit);
 }
 void UnwindBuilderDwarf2::prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs)
 {
- LUAU_ASSERT(stackSize % 16 == 0);
- LUAU_ASSERT(regs.size() >= 2 && regs.begin()[0] == A64::x29 && regs.begin()[1] == A64::x30);
- LUAU_ASSERT(regs.size() * 8 <= stackSize);
+ CODEGEN_ASSERT(stackSize % 16 == 0);
+ CODEGEN_ASSERT(regs.size() >= 2 && regs.begin()[0] == A64::x29 && regs.begin()[1] == A64::x30);
+ CODEGEN_ASSERT(regs.size() * 8 <= stackSize);
  pos = advanceLocation(pos, 4);
  pos = defineCfaExpressionOffset(pos, stackSize);
  pos = advanceLocation(pos, prologueSize - 4);
  for (size_t i = 0; i < regs.size(); ++i)
  {
- LUAU_ASSERT(regs.begin()[i].kind == A64::KindA64::x);
+ CODEGEN_ASSERT(regs.begin()[i].kind == A64::KindA64::x);
  pos = defineSavedRegisterLocation(pos, regs.begin()[i].index, stackSize - unsigned(i * 8));
  }
 }
 void UnwindBuilderDwarf2::prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame, std::initializer_list<X64::RegisterX64> gpr,
  const std::vector<X64::RegisterX64>& simd)
 {
- LUAU_ASSERT(stackSize > 0 && stackSize < 4096 && stackSize % 8 == 0);
+ CODEGEN_ASSERT(stackSize > 0 && stackSize < 4096 && stackSize % 8 == 0);
  unsigned int stackOffset = 8;
  unsigned int prologueOffset = 0;
  if (setupFrame)
@@ -53298,20 +53410,20 @@ void UnwindBuilderDwarf2::prologueX64(uint32_t prologueSize, uint32_t stackSize,
  }
  for (X64::RegisterX64 reg : gpr)
  {
- LUAU_ASSERT(reg.size == X64::SizeX64::qword);
+ CODEGEN_ASSERT(reg.size == X64::SizeX64::qword);
  stackOffset += 8;
  prologueOffset += 2;
  pos = advanceLocation(pos, 2);
  pos = defineCfaExpressionOffset(pos, stackOffset);
  pos = defineSavedRegisterLocation(pos, regIndexToDwRegX64[reg.index], stackOffset);
  }
- LUAU_ASSERT(simd.empty());
+ CODEGEN_ASSERT(simd.empty());
  stackOffset += stackSize;
  prologueOffset += stackSize >= 128 ? 7 : 4;
  pos = advanceLocation(pos, 4);
  pos = defineCfaExpressionOffset(pos, stackOffset);
- LUAU_ASSERT(stackOffset % 16 == 0);
- LUAU_ASSERT(prologueOffset == prologueSize);
+ CODEGEN_ASSERT(stackOffset % 16 == 0);
+ CODEGEN_ASSERT(prologueOffset == prologueSize);
 }
 size_t UnwindBuilderDwarf2::getSize() const
 {
@@ -53361,7 +53473,7 @@ size_t UnwindBuilderWin::getBeginOffset() const
 }
 void UnwindBuilderWin::startInfo(Arch arch)
 {
- LUAU_ASSERT(arch == X64);
+ CODEGEN_ASSERT(arch == X64);
 }
 void UnwindBuilderWin::startFunction()
 {
@@ -53380,23 +53492,23 @@ void UnwindBuilderWin::finishFunction(uint32_t beginOffset, uint32_t endOffset)
 {
  unwindFunctions.back().beginOffset = beginOffset;
  unwindFunctions.back().endOffset = endOffset;
- LUAU_ASSERT(unwindCodes.size() < 256);
+ CODEGEN_ASSERT(unwindCodes.size() < 256);
  UnwindInfoWin info;
  info.version = 1;
  info.flags = 0;
  info.prologsize = prologSize;
  info.unwindcodecount = uint8_t(unwindCodes.size());
- LUAU_ASSERT(frameReg.index < 16);
+ CODEGEN_ASSERT(frameReg.index < 16);
  info.framereg = frameReg.index;
- LUAU_ASSERT(frameRegOffset < 16);
+ CODEGEN_ASSERT(frameRegOffset < 16);
  info.frameregoff = frameRegOffset;
- LUAU_ASSERT(rawDataPos + sizeof(info) <= rawData + kRawDataLimit);
+ CODEGEN_ASSERT(rawDataPos + sizeof(info) <= rawData + kRawDataLimit);
  memcpy(rawDataPos, &info, sizeof(info));
  rawDataPos += sizeof(info);
  if (!unwindCodes.empty())
  {
  uint8_t* unwindCodePos = rawDataPos + sizeof(UnwindCodeWin) * (unwindCodes.size() - 1);
- LUAU_ASSERT(unwindCodePos <= rawData + kRawDataLimit);
+ CODEGEN_ASSERT(unwindCodePos <= rawData + kRawDataLimit);
  for (size_t i = 0; i < unwindCodes.size(); i++)
  {
  memcpy(unwindCodePos, &unwindCodes[i], sizeof(UnwindCodeWin));
@@ -53406,18 +53518,18 @@ void UnwindBuilderWin::finishFunction(uint32_t beginOffset, uint32_t endOffset)
  rawDataPos += sizeof(UnwindCodeWin) * unwindCodes.size();
  if (unwindCodes.size() % 2 != 0)
  rawDataPos += sizeof(UnwindCodeWin);
- LUAU_ASSERT(rawDataPos <= rawData + kRawDataLimit);
+ CODEGEN_ASSERT(rawDataPos <= rawData + kRawDataLimit);
 }
 void UnwindBuilderWin::finishInfo() {}
 void UnwindBuilderWin::prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs)
 {
- LUAU_ASSERT(!"Not implemented");
+ CODEGEN_ASSERT(!"Not implemented");
 }
 void UnwindBuilderWin::prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame, std::initializer_list<X64::RegisterX64> gpr,
  const std::vector<X64::RegisterX64>& simd)
 {
- LUAU_ASSERT(stackSize > 0 && stackSize < 4096 && stackSize % 8 == 0);
- LUAU_ASSERT(prologueSize < 256);
+ CODEGEN_ASSERT(stackSize > 0 && stackSize < 4096 && stackSize % 8 == 0);
+ CODEGEN_ASSERT(prologueSize < 256);
  unsigned int stackOffset = 8;
  unsigned int prologueOffset = 0;
  if (setupFrame)
@@ -53432,12 +53544,12 @@ void UnwindBuilderWin::prologueX64(uint32_t prologueSize, uint32_t stackSize, bo
  }
  for (X64::RegisterX64 reg : gpr)
  {
- LUAU_ASSERT(reg.size == X64::SizeX64::qword);
+ CODEGEN_ASSERT(reg.size == X64::SizeX64::qword);
  stackOffset += 8;
  prologueOffset += 2;
  unwindCodes.push_back({uint8_t(prologueOffset), UWOP_PUSH_NONVOL, reg.index});
  }
- LUAU_ASSERT(!setupFrame || simd.size() == 0);
+ CODEGEN_ASSERT(!setupFrame || simd.size() == 0);
  unsigned int simdStorageSize = unsigned(simd.size()) * 16;
  if (!simd.empty() && stackOffset % 16 == 8)
  simdStorageSize += 8;
@@ -53449,7 +53561,7 @@ void UnwindBuilderWin::prologueX64(uint32_t prologueSize, uint32_t stackSize, bo
  }
  else
  {
- LUAU_ASSERT(stackSize < 4096);
+ CODEGEN_ASSERT(stackSize < 4096);
  stackOffset += stackSize;
  prologueOffset += 7;
  uint16_t encodedOffset = stackSize / 8;
@@ -53460,15 +53572,15 @@ void UnwindBuilderWin::prologueX64(uint32_t prologueSize, uint32_t stackSize, bo
  unsigned int xmmStoreOffset = stackSize - simdStorageSize;
  for (X64::RegisterX64 reg : simd)
  {
- LUAU_ASSERT(reg.size == X64::SizeX64::xmmword);
- LUAU_ASSERT(xmmStoreOffset % 16 == 0 && "simd stores have to be performed to aligned locations");
+ CODEGEN_ASSERT(reg.size == X64::SizeX64::xmmword);
+ CODEGEN_ASSERT(xmmStoreOffset % 16 == 0 && "simd stores have to be performed to aligned locations");
  prologueOffset += xmmStoreOffset >= 128 ? 10 : 7;
  unwindCodes.push_back({uint8_t(xmmStoreOffset / 16), 0, 0});
  unwindCodes.push_back({uint8_t(prologueOffset), UWOP_SAVE_XMM128, reg.index});
  xmmStoreOffset += 16;
  }
- LUAU_ASSERT(stackOffset % 16 == 0);
- LUAU_ASSERT(prologueOffset == prologueSize);
+ CODEGEN_ASSERT(stackOffset % 16 == 0);
+ CODEGEN_ASSERT(prologueOffset == prologueSize);
  this->prologSize = prologueSize;
 }
 size_t UnwindBuilderWin::getSize() const
