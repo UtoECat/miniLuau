@@ -22275,6 +22275,7 @@ LUAU_FASTINTVARIABLE(LuauTypeLengthLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
 LUAU_FASTFLAG(LuauCheckedFunctionSyntax)
 LUAU_FASTFLAGVARIABLE(LuauReadWritePropertySyntax, false)
+LUAU_FASTFLAGVARIABLE(DebugLuauDeferredConstraintResolution, false)
 namespace Luau
 {
 ParseError::ParseError(const Location& location, const std::string& message)
@@ -23168,7 +23169,7 @@ AstType* Parser::parseTableType(bool inDeclarationContext)
  {
  AstTableAccess access = AstTableAccess::ReadWrite;
  std::optional<Location> accessLocation;
- if (FFlag::LuauReadWritePropertySyntax)
+ if (FFlag::LuauReadWritePropertySyntax || FFlag::DebugLuauDeferredConstraintResolution)
  {
  if (lexer.current().type == Lexeme::Name && lexer.lookahead().type != ':')
  {
@@ -32578,7 +32579,8 @@ enum class IrCmd : uint8_t
  UINT_TO_NUM,
  NUM_TO_INT,
  NUM_TO_UINT,
- NUM_TO_VECTOR,
+ NUM_TO_VEC,
+ TAG_VECTOR,
  ADJUST_STACK_TO_REG,
  ADJUST_STACK_TO_TOP,
  FASTCALL,
@@ -33269,7 +33271,8 @@ inline bool hasResult(IrCmd cmd)
  case IrCmd::UINT_TO_NUM:
  case IrCmd::NUM_TO_INT:
  case IrCmd::NUM_TO_UINT:
- case IrCmd::NUM_TO_VECTOR:
+ case IrCmd::NUM_TO_VEC:
+ case IrCmd::TAG_VECTOR:
  case IrCmd::SUBSTITUTE:
  case IrCmd::INVOKE_FASTCALL:
  case IrCmd::BITAND_UINT:
@@ -39705,7 +39708,6 @@ LUAU_FASTFLAGVARIABLE(DebugCodegenSkipNumbering, false)
 LUAU_FASTINTVARIABLE(CodegenHeuristicsInstructionLimit, 1'048'576) // 1 M
 LUAU_FASTINTVARIABLE(CodegenHeuristicsBlockLimit, 32'768)
 LUAU_FASTINTVARIABLE(CodegenHeuristicsBlockInstructionLimit, 65'536)
-LUAU_FASTFLAGVARIABLE(DisableNativeCodegenIfBreakpointIsSet, false)
 namespace Luau
 {
 namespace CodeGen
@@ -39883,7 +39885,7 @@ void create(lua_State* L, AllocationCallback* allocationCallback, void* allocati
  ecb->close = onCloseState;
  ecb->destroy = onDestroyFunction;
  ecb->enter = onEnter;
- ecb->disable = FFlag::DisableNativeCodegenIfBreakpointIsSet ? onDisable : nullptr;
+ ecb->disable = onDisable;
 }
 void create(lua_State* L)
 {
@@ -43327,8 +43329,10 @@ const char* getCmdName(IrCmd cmd)
  return "NUM_TO_INT";
  case IrCmd::NUM_TO_UINT:
  return "NUM_TO_UINT";
- case IrCmd::NUM_TO_VECTOR:
- return "NUM_TO_VECTOR";
+ case IrCmd::NUM_TO_VEC:
+ return "NUM_TO_VEC";
+ case IrCmd::TAG_VECTOR:
+ return "TAG_VECTOR";
  case IrCmd::ADJUST_STACK_TO_REG:
  return "ADJUST_STACK_TO_REG";
  case IrCmd::ADJUST_STACK_TO_TOP:
@@ -43983,6 +43987,7 @@ std::string dumpDot(const IrFunction& function, bool includeInst)
 #line __LINE__ "IrLoweringA64.cpp"
 LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauCodeGenFixBufferLenCheckA64, false)
 LUAU_FASTFLAGVARIABLE(LuauCodeGenVectorA64, false)
+LUAU_FASTFLAG(LuauCodegenVectorTag)
 namespace Luau
 {
 namespace CodeGen
@@ -44576,9 +44581,12 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  if (FFlag::LuauCodeGenVectorA64)
  {
  build.fadd(inst.regA64, regOp(inst.a), regOp(inst.b));
+ if (!FFlag::LuauCodegenVectorTag)
+ {
  RegisterA64 tempw = regs.allocTemp(KindA64::w);
  build.mov(tempw, LUA_TVECTOR);
  build.ins_4s(inst.regA64, tempw, 3);
+ }
  }
  else
  {
@@ -44600,9 +44608,12 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  if (FFlag::LuauCodeGenVectorA64)
  {
  build.fsub(inst.regA64, regOp(inst.a), regOp(inst.b));
+ if (!FFlag::LuauCodegenVectorTag)
+ {
  RegisterA64 tempw = regs.allocTemp(KindA64::w);
  build.mov(tempw, LUA_TVECTOR);
  build.ins_4s(inst.regA64, tempw, 3);
+ }
  }
  else
  {
@@ -44624,9 +44635,12 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  if (FFlag::LuauCodeGenVectorA64)
  {
  build.fmul(inst.regA64, regOp(inst.a), regOp(inst.b));
+ if (!FFlag::LuauCodegenVectorTag)
+ {
  RegisterA64 tempw = regs.allocTemp(KindA64::w);
  build.mov(tempw, LUA_TVECTOR);
  build.ins_4s(inst.regA64, tempw, 3);
+ }
  }
  else
  {
@@ -44648,9 +44662,12 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  if (FFlag::LuauCodeGenVectorA64)
  {
  build.fdiv(inst.regA64, regOp(inst.a), regOp(inst.b));
+ if (!FFlag::LuauCodegenVectorTag)
+ {
  RegisterA64 tempw = regs.allocTemp(KindA64::w);
  build.mov(tempw, LUA_TVECTOR);
  build.ins_4s(inst.regA64, tempw, 3);
+ }
  }
  else
  {
@@ -44672,9 +44689,12 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  if (FFlag::LuauCodeGenVectorA64)
  {
  build.fneg(inst.regA64, regOp(inst.a));
+ if (!FFlag::LuauCodegenVectorTag)
+ {
  RegisterA64 tempw = regs.allocTemp(KindA64::w);
  build.mov(tempw, LUA_TVECTOR);
  build.ins_4s(inst.regA64, tempw, 3);
+ }
  }
  else
  {
@@ -44991,7 +45011,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.fcvtzs(castReg(KindA64::x, inst.regA64), temp);
  break;
  }
- case IrCmd::NUM_TO_VECTOR:
+ case IrCmd::NUM_TO_VEC:
  {
  inst.regA64 = regs.allocReg(KindA64::q, index);
  RegisterA64 tempd = tempDouble(inst.a);
@@ -44999,6 +45019,20 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  RegisterA64 tempw = regs.allocTemp(KindA64::w);
  build.fcvt(temps, tempd);
  build.dup_4s(inst.regA64, castReg(KindA64::q, temps), 0);
+ if (!FFlag::LuauCodegenVectorTag)
+ {
+ build.mov(tempw, LUA_TVECTOR);
+ build.ins_4s(inst.regA64, tempw, 3);
+ }
+ break;
+ }
+ case IrCmd::TAG_VECTOR:
+ {
+ inst.regA64 = regs.allocReuse(KindA64::q, index, {inst.a});
+ RegisterA64 reg = regOp(inst.a);
+ RegisterA64 tempw = regs.allocTemp(KindA64::w);
+ if (inst.regA64 != reg)
+ build.mov(inst.regA64, reg);
  build.mov(tempw, LUA_TVECTOR);
  build.ins_4s(inst.regA64, tempw, 3);
  break;
@@ -46257,6 +46291,7 @@ Label& IrLoweringA64::labelOp(IrOp op) const
 }
 #line __LINE__ ""
 #line __LINE__ "IrLoweringX64.cpp"
+LUAU_FASTFLAG(LuauCodegenVectorTag)
 namespace Luau
 {
 namespace CodeGen
@@ -46775,6 +46810,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.vandps(tmp1.reg, regOp(inst.a), vectorAndMaskOp());
  build.vandps(tmp2.reg, regOp(inst.b), vectorAndMaskOp());
  build.vaddps(inst.regX64, tmp1.reg, tmp2.reg);
+ if (!FFlag::LuauCodegenVectorTag)
  build.vorps(inst.regX64, inst.regX64, vectorOrMaskOp());
  break;
  }
@@ -46786,6 +46822,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.vandps(tmp1.reg, regOp(inst.a), vectorAndMaskOp());
  build.vandps(tmp2.reg, regOp(inst.b), vectorAndMaskOp());
  build.vsubps(inst.regX64, tmp1.reg, tmp2.reg);
+ if (!FFlag::LuauCodegenVectorTag)
  build.vorps(inst.regX64, inst.regX64, vectorOrMaskOp());
  break;
  }
@@ -46797,6 +46834,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.vandps(tmp1.reg, regOp(inst.a), vectorAndMaskOp());
  build.vandps(tmp2.reg, regOp(inst.b), vectorAndMaskOp());
  build.vmulps(inst.regX64, tmp1.reg, tmp2.reg);
+ if (!FFlag::LuauCodegenVectorTag)
  build.vorps(inst.regX64, inst.regX64, vectorOrMaskOp());
  break;
  }
@@ -46808,6 +46846,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.vandps(tmp1.reg, regOp(inst.a), vectorAndMaskOp());
  build.vandps(tmp2.reg, regOp(inst.b), vectorAndMaskOp());
  build.vdivps(inst.regX64, tmp1.reg, tmp2.reg);
+ if (!FFlag::LuauCodegenVectorTag)
  build.vpinsrd(inst.regX64, inst.regX64, build.i32(LUA_TVECTOR), 3);
  break;
  }
@@ -46824,6 +46863,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.vmovsd(inst.regX64, src, src);
  build.vxorpd(inst.regX64, inst.regX64, build.f32x4(-0.0, -0.0, -0.0, -0.0));
  }
+ if (!FFlag::LuauCodegenVectorTag)
  build.vpinsrd(inst.regX64, inst.regX64, build.i32(LUA_TVECTOR), 3);
  break;
  }
@@ -47070,7 +47110,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  inst.regX64 = regs.allocReg(SizeX64::dword, index);
  build.vcvttsd2si(qwordReg(inst.regX64), memRegDoubleOp(inst.a));
  break;
- case IrCmd::NUM_TO_VECTOR:
+ case IrCmd::NUM_TO_VEC:
  inst.regX64 = regs.allocReg(SizeX64::xmmword, index);
  if (inst.a.kind == IrOpKind::Constant)
  {
@@ -47078,14 +47118,22 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  uint32_t asU32;
  static_assert(sizeof(asU32) == sizeof(value), "Expecting float to be 32-bit");
  memcpy(&asU32, &value, sizeof(value));
+ if (FFlag::LuauCodegenVectorTag)
+ build.vmovaps(inst.regX64, build.u32x4(asU32, asU32, asU32, 0));
+ else
  build.vmovaps(inst.regX64, build.u32x4(asU32, asU32, asU32, LUA_TVECTOR));
  }
  else
  {
  build.vcvtsd2ss(inst.regX64, inst.regX64, memRegDoubleOp(inst.a));
  build.vpshufps(inst.regX64, inst.regX64, inst.regX64, 0b00'00'00'00);
+ if (!FFlag::LuauCodegenVectorTag)
  build.vpinsrd(inst.regX64, inst.regX64, build.i32(LUA_TVECTOR), 3);
  }
+ break;
+ case IrCmd::TAG_VECTOR:
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a});
+ build.vpinsrd(inst.regX64, regOp(inst.a), build.i32(LUA_TVECTOR), 3);
  break;
  case IrCmd::ADJUST_STACK_TO_REG:
  {
@@ -49556,6 +49604,7 @@ BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, 
 #line __LINE__ "IrTranslation.cpp"
 LUAU_FASTFLAGVARIABLE(LuauCodegenLuData, false)
 LUAU_FASTFLAGVARIABLE(LuauCodegenVector, false)
+LUAU_FASTFLAGVARIABLE(LuauCodegenVectorTag, false)
 namespace Luau
 {
 namespace CodeGen
@@ -49827,8 +49876,10 @@ static void translateInstBinaryNumeric(IrBuilder& build, int ra, int rb, int rc,
  result = build.inst(IrCmd::DIV_VEC, vb, vc);
  break;
  default:
- break;
+ CODEGEN_ASSERT(!"Unknown TM op");
  }
+ if (FFlag::LuauCodegenVectorTag)
+ result = build.inst(IrCmd::TAG_VECTOR, result);
  build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), result);
  return;
  }
@@ -49837,7 +49888,7 @@ static void translateInstBinaryNumeric(IrBuilder& build, int ra, int rb, int rc,
  if (rb != -1)
  build.inst(IrCmd::CHECK_TAG, build.inst(IrCmd::LOAD_TAG, build.vmReg(rb)), build.constTag(LUA_TNUMBER), build.vmExit(pcpos));
  build.inst(IrCmd::CHECK_TAG, build.inst(IrCmd::LOAD_TAG, build.vmReg(rc)), build.constTag(LUA_TVECTOR), build.vmExit(pcpos));
- IrOp vb = build.inst(IrCmd::NUM_TO_VECTOR, loadDoubleOrConstant(build, opb));
+ IrOp vb = build.inst(IrCmd::NUM_TO_VEC, loadDoubleOrConstant(build, opb));
  IrOp vc = build.inst(IrCmd::LOAD_TVALUE, opc);
  IrOp result;
  switch (tm)
@@ -49849,8 +49900,10 @@ static void translateInstBinaryNumeric(IrBuilder& build, int ra, int rb, int rc,
  result = build.inst(IrCmd::DIV_VEC, vb, vc);
  break;
  default:
- break;
+ CODEGEN_ASSERT(!"Unknown TM op");
  }
+ if (FFlag::LuauCodegenVectorTag)
+ result = build.inst(IrCmd::TAG_VECTOR, result);
  build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), result);
  return;
  }
@@ -49860,7 +49913,7 @@ static void translateInstBinaryNumeric(IrBuilder& build, int ra, int rb, int rc,
  if (rc != -1)
  build.inst(IrCmd::CHECK_TAG, build.inst(IrCmd::LOAD_TAG, build.vmReg(rc)), build.constTag(LUA_TNUMBER), build.vmExit(pcpos));
  IrOp vb = build.inst(IrCmd::LOAD_TVALUE, opb);
- IrOp vc = build.inst(IrCmd::NUM_TO_VECTOR, loadDoubleOrConstant(build, opc));
+ IrOp vc = build.inst(IrCmd::NUM_TO_VEC, loadDoubleOrConstant(build, opc));
  IrOp result;
  switch (tm)
  {
@@ -49871,8 +49924,10 @@ static void translateInstBinaryNumeric(IrBuilder& build, int ra, int rb, int rc,
  result = build.inst(IrCmd::DIV_VEC, vb, vc);
  break;
  default:
- break;
+ CODEGEN_ASSERT(!"Unknown TM op");
  }
+ if (FFlag::LuauCodegenVectorTag)
+ result = build.inst(IrCmd::TAG_VECTOR, result);
  build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), result);
  return;
  }
@@ -50005,6 +50060,8 @@ void translateInstMinus(IrBuilder& build, const Instruction* pc, int pcpos)
  build.inst(IrCmd::CHECK_TAG, build.inst(IrCmd::LOAD_TAG, build.vmReg(rb)), build.constTag(LUA_TVECTOR), build.vmExit(pcpos));
  IrOp vb = build.inst(IrCmd::LOAD_TVALUE, build.vmReg(rb));
  IrOp va = build.inst(IrCmd::UNM_VEC, vb);
+ if (FFlag::LuauCodegenVectorTag)
+ va = build.inst(IrCmd::TAG_VECTOR, va);
  build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), va);
  return;
  }
@@ -50773,7 +50830,8 @@ IrValueKind getCmdValueKind(IrCmd cmd)
  case IrCmd::NUM_TO_INT:
  case IrCmd::NUM_TO_UINT:
  return IrValueKind::Int;
- case IrCmd::NUM_TO_VECTOR:
+ case IrCmd::NUM_TO_VEC:
+ case IrCmd::TAG_VECTOR:
  return IrValueKind::Tvalue;
  case IrCmd::ADJUST_STACK_TO_REG:
  case IrCmd::ADJUST_STACK_TO_TOP:
@@ -51496,6 +51554,7 @@ IrBlock& getNextBlock(IrFunction& function, const std::vector<uint32_t>& sortedB
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "IrValueLocationTracking.cpp"
+LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauCodegenTrackingMultilocationFix, false)
 namespace Luau
 {
 namespace CodeGen
@@ -51637,6 +51696,8 @@ void IrValueLocationTracking::afterInstLowering(IrInst& inst, uint32_t instIdx)
  case IrCmd::LOAD_DOUBLE:
  case IrCmd::LOAD_INT:
  case IrCmd::LOAD_TVALUE:
+ if (DFFlag::LuauCodegenTrackingMultilocationFix && inst.a.kind == IrOpKind::VmReg)
+ invalidateRestoreOp(inst.a, false);
  recordRestoreOp(instIdx, inst.a);
  break;
  case IrCmd::STORE_POINTER:
@@ -51798,6 +51859,7 @@ LUAU_FASTINTVARIABLE(LuauCodeGenMinLinearBlockPath, 3)
 LUAU_FASTINTVARIABLE(LuauCodeGenReuseSlotLimit, 64)
 LUAU_FASTFLAGVARIABLE(DebugLuauAbortingChecks, false)
 LUAU_FASTFLAG(LuauCodegenVector)
+LUAU_FASTFLAG(LuauCodegenVectorTag)
 LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauCodeGenCheckGcEffectFix, false)
 namespace Luau
 {
@@ -52354,9 +52416,17 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  {
  if (IrInst* arg = function.asInstOp(inst.b))
  {
+ if (FFlag::LuauCodegenVectorTag)
+ {
+ if (arg->cmd == IrCmd::TAG_VECTOR)
+ tag = LUA_TVECTOR;
+ }
+ else
+ {
  if (arg->cmd == IrCmd::ADD_VEC || arg->cmd == IrCmd::SUB_VEC || arg->cmd == IrCmd::MUL_VEC || arg->cmd == IrCmd::DIV_VEC ||
  arg->cmd == IrCmd::UNM_VEC)
  tag = LUA_TVECTOR;
+ }
  }
  }
  IrOp value = state.tryGetValue(inst.b);
@@ -52826,6 +52896,25 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  if (int(state.checkSlotMatchCache.size()) < FInt::LuauCodeGenReuseSlotLimit)
  state.checkSlotMatchCache.push_back(index);
  break;
+ case IrCmd::ADD_VEC:
+ case IrCmd::SUB_VEC:
+ case IrCmd::MUL_VEC:
+ case IrCmd::DIV_VEC:
+ if (FFlag::LuauCodegenVectorTag)
+ {
+ if (IrInst* a = function.asInstOp(inst.a); a && a->cmd == IrCmd::TAG_VECTOR)
+ inst.a = a->a;
+ if (IrInst* b = function.asInstOp(inst.b); b && b->cmd == IrCmd::TAG_VECTOR)
+ inst.b = b->a;
+ }
+ break;
+ case IrCmd::UNM_VEC:
+ if (FFlag::LuauCodegenVectorTag)
+ {
+ if (IrInst* a = function.asInstOp(inst.a); a && a->cmd == IrCmd::TAG_VECTOR)
+ inst.a = a->a;
+ }
+ break;
  case IrCmd::CHECK_NODE_NO_NEXT:
  case IrCmd::CHECK_NODE_VALUE:
  case IrCmd::BARRIER_TABLE_BACK:
@@ -52854,12 +52943,8 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  case IrCmd::GET_TYPE:
  case IrCmd::GET_TYPEOF:
  case IrCmd::FINDUPVAL:
- case IrCmd::ADD_VEC:
- case IrCmd::SUB_VEC:
- case IrCmd::MUL_VEC:
- case IrCmd::DIV_VEC:
- case IrCmd::UNM_VEC:
- case IrCmd::NUM_TO_VECTOR:
+ case IrCmd::NUM_TO_VEC:
+ case IrCmd::TAG_VECTOR:
  break;
  case IrCmd::DO_ARITH:
  state.invalidate(inst.a);
