@@ -9340,7 +9340,7 @@ static lua_Page* newpage(lua_State* L, lua_Page** gcopageset, int pageSize, int 
  }
  return page;
 }
-static lua_Page* newclasspage(lua_State* L, lua_Page** freepageset, lua_Page** gcopageset, uint8_t sizeClass, bool storeMetadata)
+LUAU_NOINLINE static lua_Page* newclasspage(lua_State* L, lua_Page** freepageset, lua_Page** gcopageset, uint8_t sizeClass, bool storeMetadata)
 {
  if (FFlag::LuauExtendedSizeClasses)
  {
@@ -38510,6 +38510,16 @@ void createLinearBlocks(IrBuilder& build, bool useValueNumbering);
 }
 } // namespace Luau
 #line __LINE__ "CodeGenLower.h"
+#line __LINE__ "OptimizeDeadStore.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct IrBuilder;
+void markDeadStoresInBlockChains(IrBuilder& build);
+}
+} // namespace Luau
+#line __LINE__ "CodeGenLower.h"
 #line __LINE__ "OptimizeFinalX64.h"
 namespace Luau
 {
@@ -38829,6 +38839,7 @@ LUAU_FASTFLAG(DebugCodegenSkipNumbering)
 LUAU_FASTINT(CodegenHeuristicsInstructionLimit)
 LUAU_FASTINT(CodegenHeuristicsBlockLimit)
 LUAU_FASTINT(CodegenHeuristicsBlockInstructionLimit)
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores2)
 namespace Luau
 {
 namespace CodeGen
@@ -39025,6 +39036,8 @@ inline bool lowerFunction(IrBuilder& ir, AssemblyBuilder& build, ModuleHelpers& 
  stats->blockLinearizationStats.constPropInstructionCount += constPropInstructionCount;
  }
  }
+ if (FFlag::LuauCodegenRemoveDeadStores2)
+ markDeadStoresInBlockChains(ir);
  }
  std::vector<uint32_t> sortedBlocks = getSortedBlockOrder(ir.function);
  updateLastUseLocations(ir.function, sortedBlocks);
@@ -39145,6 +39158,9 @@ const size_t kPageSize = getpagesize();
 const size_t kPageSize = sysconf(_SC_PAGESIZE);
 #endif
 #endif
+#ifdef __APPLE__
+extern "C" void sys_icache_invalidate(void* start, size_t len);
+#endif
 static size_t alignToPageSize(size_t size)
 {
  return (size + kPageSize - 1) & ~(kPageSize - 1);
@@ -39202,7 +39218,11 @@ static void makePagesExecutable(uint8_t* mem, size_t size)
 }
 static void flushInstructionCache(uint8_t* mem, size_t size)
 {
+#ifdef __APPLE__
+ sys_icache_invalidate(mem, size);
+#else
  __builtin___clear_cache((char*)mem, (char*)mem + size);
+#endif
 }
 #endif
 namespace Luau
@@ -42044,6 +42064,7 @@ void emitInstForGLoop(AssemblyBuilderX64& build, int ra, int aux, Label& loopRep
 #line __LINE__ ""
 #line __LINE__ "IrAnalysis.cpp"
 #line __LINE__ "IrVisitUseDef.h"
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores2)
 namespace Luau
 {
 namespace CodeGen
@@ -42201,7 +42222,14 @@ static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrInst& i
  visitor.def(inst.b);
  break;
  case IrCmd::FALLBACK_FORGPREP:
+ if (FFlag::LuauCodegenRemoveDeadStores2)
+ {
+ visitor.useRange(vmRegOp(inst.b), 3);
+ }
+ else
+ {
  visitor.use(inst.b);
+ }
  visitor.defRange(vmRegOp(inst.b), 3);
  break;
  case IrCmd::ADJUST_STACK_TO_REG:
@@ -42214,6 +42242,9 @@ static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrInst& i
  break;
  case IrCmd::FINDUPVAL:
  visitor.use(inst.a);
+ break;
+ case IrCmd::CHECK_TAG:
+ visitor.maybeUse(inst.a);
  break;
  default:
  CODEGEN_ASSERT(inst.a.kind != IrOpKind::VmReg);
@@ -46290,6 +46321,7 @@ Label& IrLoweringA64::labelOp(IrOp op) const
 #line __LINE__ "IrLoweringX64.cpp"
 LUAU_FASTFLAG(LuauCodegenVectorTag2)
 LUAU_FASTFLAGVARIABLE(LuauCodegenVectorOptAnd, false)
+LUAU_FASTFLAGVARIABLE(LuauCodegenSmallerUnm, false)
 namespace Luau
 {
 namespace CodeGen
@@ -46752,6 +46784,12 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  case IrCmd::UNM_NUM:
  {
  inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a});
+ if (FFlag::LuauCodegenSmallerUnm)
+ {
+ build.vxorpd(inst.regX64, regOp(inst.a), build.f64(-0.0));
+ }
+ else
+ {
  RegisterX64 src = regOp(inst.a);
  if (inst.regX64 == src)
  {
@@ -46761,6 +46799,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  {
  build.vmovsd(inst.regX64, src, src);
  build.vxorpd(inst.regX64, inst.regX64, build.f64(-0.0));
+ }
  }
  break;
  }
@@ -46803,11 +46842,22 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  case IrCmd::ADD_VEC:
  {
  inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
+ if (FFlag::LuauCodegenVectorOptAnd)
+ {
  ScopedRegX64 tmp1{regs};
  ScopedRegX64 tmp2{regs};
  RegisterX64 tmpa = vecOp(inst.a, tmp1);
  RegisterX64 tmpb = (inst.a == inst.b) ? tmpa : vecOp(inst.b, tmp2);
  build.vaddps(inst.regX64, tmpa, tmpb);
+ }
+ else
+ {
+ ScopedRegX64 tmp1{regs, SizeX64::xmmword};
+ ScopedRegX64 tmp2{regs, SizeX64::xmmword};
+ build.vandps(tmp1.reg, regOp(inst.a), vectorAndMaskOp());
+ build.vandps(tmp2.reg, regOp(inst.b), vectorAndMaskOp());
+ build.vaddps(inst.regX64, tmp1.reg, tmp2.reg);
+ }
  if (!FFlag::LuauCodegenVectorTag2)
  build.vorps(inst.regX64, inst.regX64, vectorOrMaskOp());
  break;
@@ -46815,11 +46865,22 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  case IrCmd::SUB_VEC:
  {
  inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
+ if (FFlag::LuauCodegenVectorOptAnd)
+ {
  ScopedRegX64 tmp1{regs};
  ScopedRegX64 tmp2{regs};
  RegisterX64 tmpa = vecOp(inst.a, tmp1);
  RegisterX64 tmpb = (inst.a == inst.b) ? tmpa : vecOp(inst.b, tmp2);
  build.vsubps(inst.regX64, tmpa, tmpb);
+ }
+ else
+ {
+ ScopedRegX64 tmp1{regs, SizeX64::xmmword};
+ ScopedRegX64 tmp2{regs, SizeX64::xmmword};
+ build.vandps(tmp1.reg, regOp(inst.a), vectorAndMaskOp());
+ build.vandps(tmp2.reg, regOp(inst.b), vectorAndMaskOp());
+ build.vsubps(inst.regX64, tmp1.reg, tmp2.reg);
+ }
  if (!FFlag::LuauCodegenVectorTag2)
  build.vorps(inst.regX64, inst.regX64, vectorOrMaskOp());
  break;
@@ -46827,11 +46888,22 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  case IrCmd::MUL_VEC:
  {
  inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
+ if (FFlag::LuauCodegenVectorOptAnd)
+ {
  ScopedRegX64 tmp1{regs};
  ScopedRegX64 tmp2{regs};
  RegisterX64 tmpa = vecOp(inst.a, tmp1);
  RegisterX64 tmpb = (inst.a == inst.b) ? tmpa : vecOp(inst.b, tmp2);
  build.vmulps(inst.regX64, tmpa, tmpb);
+ }
+ else
+ {
+ ScopedRegX64 tmp1{regs, SizeX64::xmmword};
+ ScopedRegX64 tmp2{regs, SizeX64::xmmword};
+ build.vandps(tmp1.reg, regOp(inst.a), vectorAndMaskOp());
+ build.vandps(tmp2.reg, regOp(inst.b), vectorAndMaskOp());
+ build.vmulps(inst.regX64, tmp1.reg, tmp2.reg);
+ }
  if (!FFlag::LuauCodegenVectorTag2)
  build.vorps(inst.regX64, inst.regX64, vectorOrMaskOp());
  break;
@@ -46839,11 +46911,22 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  case IrCmd::DIV_VEC:
  {
  inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
+ if (FFlag::LuauCodegenVectorOptAnd)
+ {
  ScopedRegX64 tmp1{regs};
  ScopedRegX64 tmp2{regs};
  RegisterX64 tmpa = vecOp(inst.a, tmp1);
  RegisterX64 tmpb = (inst.a == inst.b) ? tmpa : vecOp(inst.b, tmp2);
  build.vdivps(inst.regX64, tmpa, tmpb);
+ }
+ else
+ {
+ ScopedRegX64 tmp1{regs, SizeX64::xmmword};
+ ScopedRegX64 tmp2{regs, SizeX64::xmmword};
+ build.vandps(tmp1.reg, regOp(inst.a), vectorAndMaskOp());
+ build.vandps(tmp2.reg, regOp(inst.b), vectorAndMaskOp());
+ build.vdivps(inst.regX64, tmp1.reg, tmp2.reg);
+ }
  if (!FFlag::LuauCodegenVectorTag2)
  build.vpinsrd(inst.regX64, inst.regX64, build.i32(LUA_TVECTOR), 3);
  break;
@@ -46851,6 +46934,12 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  case IrCmd::UNM_VEC:
  {
  inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a});
+ if (FFlag::LuauCodegenSmallerUnm)
+ {
+ build.vxorpd(inst.regX64, regOp(inst.a), build.f32x4(-0.0, -0.0, -0.0, -0.0));
+ }
+ else
+ {
  RegisterX64 src = regOp(inst.a);
  if (inst.regX64 == src)
  {
@@ -46860,6 +46949,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  {
  build.vmovsd(inst.regX64, src, src);
  build.vxorpd(inst.regX64, inst.regX64, build.f32x4(-0.0, -0.0, -0.0, -0.0));
+ }
  }
  if (!FFlag::LuauCodegenVectorTag2)
  build.vpinsrd(inst.regX64, inst.regX64, build.i32(LUA_TVECTOR), 3);
@@ -53178,6 +53268,402 @@ void createLinearBlocks(IrBuilder& build, bool useValueNumbering)
  if (visited[function.getBlockIndex(block)])
  continue;
  tryCreateLinearBlock(build, visited, block, state);
+ }
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "OptimizeDeadStore.cpp"
+LUAU_FASTFLAGVARIABLE(LuauCodegenRemoveDeadStores2, false)
+LUAU_FASTFLAG(LuauCodegenVectorTag2)
+namespace Luau
+{
+namespace CodeGen
+{
+struct StoreRegInfo
+{
+ uint32_t tagInstIdx = ~0u;
+ uint32_t valueInstIdx = ~0u;
+ uint32_t tvalueInstIdx = ~0u;
+ bool maybeGco = false;
+};
+struct RemoveDeadStoreState
+{
+ RemoveDeadStoreState(IrFunction& function)
+ : function(function)
+ {
+ maxReg = function.proto ? function.proto->maxstacksize : 255;
+ }
+ void killTagStore(StoreRegInfo& regInfo)
+ {
+ if (regInfo.tagInstIdx != ~0u)
+ {
+ kill(function, function.instructions[regInfo.tagInstIdx]);
+ regInfo.tagInstIdx = ~0u;
+ regInfo.maybeGco = false;
+ }
+ }
+ void killValueStore(StoreRegInfo& regInfo)
+ {
+ if (regInfo.valueInstIdx != ~0u)
+ {
+ kill(function, function.instructions[regInfo.valueInstIdx]);
+ regInfo.valueInstIdx = ~0u;
+ regInfo.maybeGco = false;
+ }
+ }
+ void killTValueStore(StoreRegInfo& regInfo)
+ {
+ if (regInfo.tvalueInstIdx != ~0u)
+ {
+ kill(function, function.instructions[regInfo.tvalueInstIdx]);
+ regInfo.tvalueInstIdx = ~0u;
+ regInfo.maybeGco = false;
+ }
+ }
+ void defReg(uint8_t reg)
+ {
+ StoreRegInfo& regInfo = info[reg];
+ if (function.cfg.captured.regs.test(reg))
+ return;
+ killTagStore(regInfo);
+ killValueStore(regInfo);
+ killTValueStore(regInfo);
+ }
+ void useReg(uint8_t reg)
+ {
+ info[reg] = StoreRegInfo{};
+ }
+ void checkLiveIns(IrOp op)
+ {
+ if (op.kind == IrOpKind::VmExit)
+ {
+ clear();
+ }
+ else if (op.kind == IrOpKind::Block)
+ {
+ if (op.index < function.cfg.in.size())
+ {
+ const RegisterSet& in = function.cfg.in[op.index];
+ for (int i = 0; i <= maxReg; i++)
+ {
+ if (in.regs.test(i) || (in.varargSeq && i >= in.varargStart))
+ useReg(i);
+ }
+ }
+ else
+ {
+ clear();
+ }
+ }
+ else if (op.kind == IrOpKind::Undef)
+ {
+ }
+ else
+ {
+ CODEGEN_ASSERT(!"unexpected jump target type");
+ }
+ }
+ void checkLiveOuts(const IrBlock& block)
+ {
+ uint32_t index = function.getBlockIndex(block);
+ if (index < function.cfg.out.size())
+ {
+ const RegisterSet& out = function.cfg.out[index];
+ for (int i = 0; i <= maxReg; i++)
+ {
+ bool isOut = out.regs.test(i) || (out.varargSeq && i >= out.varargStart);
+ if (!isOut)
+ defReg(i);
+ }
+ }
+ }
+ void defVarargs(uint8_t varargStart)
+ {
+ for (int i = varargStart; i <= maxReg; i++)
+ defReg(uint8_t(i));
+ }
+ void useVarargs(uint8_t varargStart)
+ {
+ for (int i = varargStart; i <= maxReg; i++)
+ useReg(uint8_t(i));
+ }
+ void def(IrOp op, int offset = 0)
+ {
+ defReg(vmRegOp(op) + offset);
+ }
+ void use(IrOp op, int offset = 0)
+ {
+ useReg(vmRegOp(op) + offset);
+ }
+ void maybeDef(IrOp op)
+ {
+ if (op.kind == IrOpKind::VmReg)
+ defReg(vmRegOp(op));
+ }
+ void maybeUse(IrOp op)
+ {
+ if (op.kind == IrOpKind::VmReg)
+ useReg(vmRegOp(op));
+ }
+ void defRange(int start, int count)
+ {
+ if (count == -1)
+ {
+ defVarargs(start);
+ }
+ else
+ {
+ for (int i = start; i < start + count; i++)
+ defReg(i);
+ }
+ }
+ void useRange(int start, int count)
+ {
+ if (count == -1)
+ {
+ useVarargs(start);
+ }
+ else
+ {
+ for (int i = start; i < start + count; i++)
+ useReg(i);
+ }
+ }
+ void capture(int reg) {}
+ void clear()
+ {
+ for (int i = 0; i <= maxReg; i++)
+ info[i] = StoreRegInfo();
+ hasGcoToClear = false;
+ }
+ void flushGcoRegs()
+ {
+ for (int i = 0; i <= maxReg; i++)
+ {
+ if (info[i].maybeGco)
+ info[i] = StoreRegInfo();
+ }
+ hasGcoToClear = false;
+ }
+ IrFunction& function;
+ std::array<StoreRegInfo, 256> info;
+ int maxReg = 255;
+ bool hasGcoToClear = false;
+};
+static void markDeadStoresInInst(RemoveDeadStoreState& state, IrBuilder& build, IrFunction& function, IrBlock& block, IrInst& inst, uint32_t index)
+{
+ switch (inst.cmd)
+ {
+ case IrCmd::STORE_TAG:
+ if (inst.a.kind == IrOpKind::VmReg)
+ {
+ int reg = vmRegOp(inst.a);
+ if (function.cfg.captured.regs.test(reg))
+ return;
+ StoreRegInfo& regInfo = state.info[reg];
+ state.killTagStore(regInfo);
+ uint8_t tag = function.tagOp(inst.b);
+ regInfo.tagInstIdx = index;
+ regInfo.maybeGco = isGCO(tag);
+ state.hasGcoToClear |= regInfo.maybeGco;
+ }
+ break;
+ case IrCmd::STORE_EXTRA:
+ if (inst.a.kind == IrOpKind::VmReg)
+ {
+ state.useReg(vmRegOp(inst.a));
+ }
+ break;
+ case IrCmd::STORE_POINTER:
+ if (inst.a.kind == IrOpKind::VmReg)
+ {
+ int reg = vmRegOp(inst.a);
+ if (function.cfg.captured.regs.test(reg))
+ return;
+ StoreRegInfo& regInfo = state.info[reg];
+ state.killValueStore(regInfo);
+ regInfo.valueInstIdx = index;
+ regInfo.maybeGco = true;
+ state.hasGcoToClear = true;
+ }
+ break;
+ case IrCmd::STORE_DOUBLE:
+ case IrCmd::STORE_INT:
+ case IrCmd::STORE_VECTOR:
+ if (inst.a.kind == IrOpKind::VmReg)
+ {
+ int reg = vmRegOp(inst.a);
+ if (function.cfg.captured.regs.test(reg))
+ return;
+ StoreRegInfo& regInfo = state.info[reg];
+ state.killValueStore(regInfo);
+ regInfo.valueInstIdx = index;
+ }
+ break;
+ case IrCmd::STORE_TVALUE:
+ if (inst.a.kind == IrOpKind::VmReg)
+ {
+ int reg = vmRegOp(inst.a);
+ if (function.cfg.captured.regs.test(reg))
+ return;
+ StoreRegInfo& regInfo = state.info[reg];
+ state.killTagStore(regInfo);
+ state.killValueStore(regInfo);
+ state.killTValueStore(regInfo);
+ regInfo.tvalueInstIdx = index;
+ regInfo.maybeGco = true;
+ if (IrInst* arg = function.asInstOp(inst.b))
+ {
+ if (FFlag::LuauCodegenVectorTag2)
+ {
+ if (arg->cmd == IrCmd::TAG_VECTOR)
+ regInfo.maybeGco = false;
+ }
+ else
+ {
+ if (arg->cmd == IrCmd::ADD_VEC || arg->cmd == IrCmd::SUB_VEC || arg->cmd == IrCmd::MUL_VEC || arg->cmd == IrCmd::DIV_VEC ||
+ arg->cmd == IrCmd::UNM_VEC)
+ regInfo.maybeGco = false;
+ }
+ }
+ state.hasGcoToClear |= regInfo.maybeGco;
+ }
+ break;
+ case IrCmd::STORE_SPLIT_TVALUE:
+ if (inst.a.kind == IrOpKind::VmReg)
+ {
+ int reg = vmRegOp(inst.a);
+ if (function.cfg.captured.regs.test(reg))
+ return;
+ StoreRegInfo& regInfo = state.info[reg];
+ state.killTagStore(regInfo);
+ state.killValueStore(regInfo);
+ state.killTValueStore(regInfo);
+ regInfo.tvalueInstIdx = index;
+ regInfo.maybeGco = isGCO(function.tagOp(inst.b));
+ state.hasGcoToClear |= regInfo.maybeGco;
+ }
+ break;
+ case IrCmd::CHECK_TAG:
+ visitVmRegDefsUses(state, function, inst);
+ state.checkLiveIns(inst.c);
+ break;
+ case IrCmd::TRY_NUM_TO_INDEX:
+ state.checkLiveIns(inst.b);
+ break;
+ case IrCmd::TRY_CALL_FASTGETTM:
+ state.checkLiveIns(inst.c);
+ break;
+ case IrCmd::CHECK_FASTCALL_RES:
+ state.checkLiveIns(inst.b);
+ break;
+ case IrCmd::CHECK_TRUTHY:
+ state.checkLiveIns(inst.c);
+ break;
+ case IrCmd::CHECK_READONLY:
+ state.checkLiveIns(inst.b);
+ break;
+ case IrCmd::CHECK_NO_METATABLE:
+ state.checkLiveIns(inst.b);
+ break;
+ case IrCmd::CHECK_SAFE_ENV:
+ state.checkLiveIns(inst.a);
+ break;
+ case IrCmd::CHECK_ARRAY_SIZE:
+ state.checkLiveIns(inst.c);
+ break;
+ case IrCmd::CHECK_SLOT_MATCH:
+ state.checkLiveIns(inst.c);
+ break;
+ case IrCmd::CHECK_NODE_NO_NEXT:
+ state.checkLiveIns(inst.b);
+ break;
+ case IrCmd::CHECK_NODE_VALUE:
+ state.checkLiveIns(inst.b);
+ break;
+ case IrCmd::CHECK_BUFFER_LEN:
+ state.checkLiveIns(inst.d);
+ break;
+ case IrCmd::JUMP:
+ break;
+ case IrCmd::RETURN:
+ visitVmRegDefsUses(state, function, inst);
+ state.checkLiveOuts(block);
+ break;
+ case IrCmd::ADJUST_STACK_TO_REG:
+ break;
+ case IrCmd::CMP_ANY:
+ case IrCmd::DO_ARITH:
+ case IrCmd::DO_LEN:
+ case IrCmd::GET_TABLE:
+ case IrCmd::SET_TABLE:
+ case IrCmd::GET_IMPORT:
+ case IrCmd::CONCAT:
+ case IrCmd::INTERRUPT:
+ case IrCmd::CHECK_GC:
+ case IrCmd::CALL:
+ case IrCmd::FORGLOOP_FALLBACK:
+ case IrCmd::FALLBACK_GETGLOBAL:
+ case IrCmd::FALLBACK_SETGLOBAL:
+ case IrCmd::FALLBACK_GETTABLEKS:
+ case IrCmd::FALLBACK_SETTABLEKS:
+ case IrCmd::FALLBACK_NAMECALL:
+ case IrCmd::FALLBACK_DUPCLOSURE:
+ case IrCmd::FALLBACK_FORGPREP:
+ if (state.hasGcoToClear)
+ state.flushGcoRegs();
+ visitVmRegDefsUses(state, function, inst);
+ break;
+ default:
+ CODEGEN_ASSERT(!isNonTerminatingJump(inst.cmd));
+ visitVmRegDefsUses(state, function, inst);
+ break;
+ }
+}
+static void markDeadStoresInBlock(IrBuilder& build, IrBlock& block, RemoveDeadStoreState& state)
+{
+ IrFunction& function = build.function;
+ for (uint32_t index = block.start; index <= block.finish; index++)
+ {
+ CODEGEN_ASSERT(index < function.instructions.size());
+ IrInst& inst = function.instructions[index];
+ markDeadStoresInInst(state, build, function, block, inst, index);
+ }
+}
+static void markDeadStoresInBlockChain(IrBuilder& build, std::vector<uint8_t>& visited, IrBlock* block)
+{
+ IrFunction& function = build.function;
+ RemoveDeadStoreState state{function};
+ while (block)
+ {
+ uint32_t blockIdx = function.getBlockIndex(*block);
+ CODEGEN_ASSERT(!visited[blockIdx]);
+ visited[blockIdx] = true;
+ markDeadStoresInBlock(build, *block, state);
+ IrInst& termInst = function.instructions[block->finish];
+ IrBlock* nextBlock = nullptr;
+ if (termInst.cmd == IrCmd::JUMP && termInst.a.kind == IrOpKind::Block)
+ {
+ IrBlock& target = function.blockOp(termInst.a);
+ uint32_t targetIdx = function.getBlockIndex(target);
+ if (target.useCount == 1 && !visited[targetIdx] && target.kind != IrBlockKind::Fallback)
+ nextBlock = &target;
+ }
+ block = nextBlock;
+ }
+}
+void markDeadStoresInBlockChains(IrBuilder& build)
+{
+ IrFunction& function = build.function;
+ std::vector<uint8_t> visited(function.blocks.size(), false);
+ for (IrBlock& block : function.blocks)
+ {
+ if (block.kind == IrBlockKind::Fallback || block.kind == IrBlockKind::Dead)
+ continue;
+ if (visited[function.getBlockIndex(block)])
+ continue;
+ markDeadStoresInBlockChain(build, visited, &block);
  }
 }
 }
