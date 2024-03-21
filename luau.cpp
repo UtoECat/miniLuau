@@ -1594,6 +1594,7 @@ struct lua_ExecutionCallbacks
  void (*destroy)(lua_State* L, Proto* proto); // called when function is destroyed
  int (*enter)(lua_State* L, Proto* proto);
  void (*disable)(lua_State* L, Proto* proto); // called when function has to be switched from native to bytecode in the debugger
+ size_t (*getmemorysize)(lua_State* L, Proto* proto);
 };
 typedef struct global_State
 {
@@ -6011,6 +6012,7 @@ int luaopen_coroutine(lua_State* L)
 }
 #line __LINE__ ""
 #line __LINE__ "ldblib.cpp"
+LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauDebugInfoDupArgLeftovers, false)
 static lua_State* getthread(lua_State* L, int* arg)
 {
  if (lua_isthread(L, 1))
@@ -6028,8 +6030,13 @@ static int db_info(lua_State* L)
 {
  int arg;
  lua_State* L1 = getthread(L, &arg);
+ int l1top = 0;
  if (L != L1)
+ {
  lua_rawcheckstack(L1, 1);
+ if (DFFlag::LuauDebugInfoDupArgLeftovers)
+ l1top = lua_gettop(L1);
+ }
  int level;
  if (lua_isnumber(L, arg + 1))
  {
@@ -6053,7 +6060,11 @@ static int db_info(lua_State* L)
  if (unsigned(*it - 'a') < 26)
  {
  if (occurs[*it - 'a'])
+ {
+ if (DFFlag::LuauDebugInfoDupArgLeftovers && L != L1)
+ lua_settop(L1, l1top);
  luaL_argerror(L, arg + 2, "duplicate option");
+ }
  occurs[*it - 'a'] = true;
  }
  switch (*it)
@@ -6672,6 +6683,10 @@ public:
  {
  return status;
  }
+ const lua_State* getThread() const
+ {
+ return L;
+ }
 private:
  lua_State* L;
  int status;
@@ -6686,6 +6701,7 @@ int luaD_rawrunprotected(lua_State* L, Pfunc f, void* ud)
  }
  catch (lua_exception& e)
  {
+ LUAU_ASSERT(e.getThread() == L);
  status = e.getStatus();
  }
  catch (std::exception& e)
@@ -7039,10 +7055,46 @@ int luaD_pcall(lua_State* L, Pfunc func, void* u, ptrdiff_t old_top, ptrdiff_t e
 }
 #line __LINE__ ""
 #line __LINE__ "lfunc.cpp"
+LUAU_FASTFLAGVARIABLE(LuauNewProtoInitAll, false)
 Proto* luaF_newproto(lua_State* L)
 {
  Proto* f = luaM_newgco(L, Proto, sizeof(Proto), L->activememcat);
  luaC_init(L, f, LUA_TPROTO);
+ if (FFlag::LuauNewProtoInitAll)
+ {
+ f->nups = 0;
+ f->numparams = 0;
+ f->is_vararg = 0;
+ f->maxstacksize = 0;
+ f->flags = 0;
+ f->k = NULL;
+ f->code = NULL;
+ f->p = NULL;
+ f->codeentry = NULL;
+ f->execdata = NULL;
+ f->exectarget = 0;
+ f->lineinfo = NULL;
+ f->abslineinfo = NULL;
+ f->locvars = NULL;
+ f->upvalues = NULL;
+ f->source = NULL;
+ f->debugname = NULL;
+ f->debuginsn = NULL;
+ f->typeinfo = NULL;
+ f->userdata = NULL;
+ f->gclist = NULL;
+ f->sizecode = 0;
+ f->sizep = 0;
+ f->sizelocvars = 0;
+ f->sizeupvalues = 0;
+ f->sizek = 0;
+ f->sizelineinfo = 0;
+ f->linegaplog2 = 0;
+ f->linedefined = 0;
+ f->bytecodeid = 0;
+ }
+ else
+ {
  f->k = NULL;
  f->sizek = 0;
  f->p = NULL;
@@ -7070,6 +7122,7 @@ Proto* luaF_newproto(lua_State* L)
  f->exectarget = 0;
  f->typeinfo = NULL;
  f->userdata = NULL;
+ }
  return f;
 }
 Closure* luaF_newLclosure(lua_State* L, int nelems, Table* e, Proto* p)
@@ -8073,6 +8126,7 @@ const char* luaC_statename(int state)
 }
 #line __LINE__ ""
 #line __LINE__ "lgcdebug.cpp"
+LUAU_FASTFLAGVARIABLE(LuauCodegenHeapSizeReport, false)
 static void validateobjref(global_State* g, GCObject* f, GCObject* t)
 {
  LUAU_ASSERT(!isdead(g, t));
@@ -8725,6 +8779,15 @@ static void enumproto(EnumContext* ctx, Proto* p)
 {
  size_t size = sizeof(Proto) + sizeof(Instruction) * p->sizecode + sizeof(Proto*) * p->sizep + sizeof(TValue) * p->sizek + p->sizelineinfo +
  sizeof(LocVar) * p->sizelocvars + sizeof(TString*) * p->sizeupvalues;
+ if (FFlag::LuauCodegenHeapSizeReport)
+ {
+ if (p->execdata && ctx->L->global->ecb.getmemorysize)
+ {
+ size_t nativesize = ctx->L->global->ecb.getmemorysize(ctx->L, p);
+ ctx->node(ctx->context, p->execdata, uint8_t(LUA_TNONE), p->memcat, nativesize, NULL);
+ ctx->edge(ctx->context, enumtopointer(obj2gco(p)), p->execdata, "[native]");
+ }
+ }
  enumnode(ctx, obj2gco(p), size, p->source ? getstr(p->source) : NULL);
  if (p->sizek)
  enumedges(ctx, obj2gco(p), p->k, p->sizek, "constants");
@@ -15907,6 +15970,7 @@ void luau_poscall(lua_State* L, StkId first)
 }
 #line __LINE__ ""
 #line __LINE__ "lvmload.cpp"
+LUAU_FASTFLAGVARIABLE(LuauLoadExceptionSafe, false)
 template<typename T>
 struct TempBuffer
 {
@@ -15919,7 +15983,11 @@ struct TempBuffer
  , count(count)
  {
  }
- ~TempBuffer()
+ TempBuffer(const TempBuffer&) = delete;
+ TempBuffer(TempBuffer&&) = delete;
+ TempBuffer& operator=(const TempBuffer&) = delete;
+ TempBuffer& operator=(TempBuffer&&) = delete;
+ ~TempBuffer() noexcept
  {
  luaM_freearray(L, data, count, T, 0);
  }
@@ -15928,6 +15996,33 @@ struct TempBuffer
  LUAU_ASSERT(index < count);
  return data[index];
  }
+};
+struct ScopedSetGCThreshold
+{
+public:
+ ScopedSetGCThreshold(global_State* global, size_t newThreshold) noexcept
+ : global{global}
+ {
+ if (FFlag::LuauLoadExceptionSafe)
+ {
+ originalThreshold = global->GCthreshold;
+ global->GCthreshold = newThreshold;
+ }
+ }
+ ScopedSetGCThreshold(const ScopedSetGCThreshold&) = delete;
+ ScopedSetGCThreshold(ScopedSetGCThreshold&&) = delete;
+ ScopedSetGCThreshold& operator=(const ScopedSetGCThreshold&) = delete;
+ ScopedSetGCThreshold& operator=(ScopedSetGCThreshold&&) = delete;
+ ~ScopedSetGCThreshold() noexcept
+ {
+ if (FFlag::LuauLoadExceptionSafe)
+ {
+ global->GCthreshold = originalThreshold;
+ }
+ }
+private:
+ global_State* global = nullptr;
+ size_t originalThreshold = 0;
 };
 void luaV_getimport(lua_State* L, Table* env, TValue* k, StkId res, uint32_t id, bool propagatenil)
 {
@@ -16028,8 +16123,12 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  return 1;
  }
  luaC_checkGC(L);
+ const ScopedSetGCThreshold pauseGC{L->global, SIZE_MAX};
  size_t GCthreshold = L->global->GCthreshold;
+ if (!FFlag::LuauLoadExceptionSafe)
+ {
  L->global->GCthreshold = SIZE_MAX;
+ }
  Table* envt = (env == 0) ? L->gt : hvalue(luaA_toobject(L, env));
  TString* source = luaS_new(L, chunkname);
  uint8_t typesversion = 0;
@@ -16071,25 +16170,47 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  }
  offset += typesize;
  }
+ if (FFlag::LuauLoadExceptionSafe)
+ {
+ const int sizecode = readVarInt(data, size, offset);
+ p->code = luaM_newarray(L, sizecode, Instruction, p->memcat);
+ p->sizecode = sizecode;
+ }
+ else
+ {
  p->sizecode = readVarInt(data, size, offset);
  p->code = luaM_newarray(L, p->sizecode, Instruction, p->memcat);
+ }
  for (int j = 0; j < p->sizecode; ++j)
  p->code[j] = read<uint32_t>(data, size, offset);
  p->codeentry = p->code;
+ if (FFlag::LuauLoadExceptionSafe)
+ {
+ const int sizek = readVarInt(data, size, offset);
+ p->k = luaM_newarray(L, sizek, TValue, p->memcat);
+ p->sizek = sizek;
+ }
+ else
+ {
  p->sizek = readVarInt(data, size, offset);
  p->k = luaM_newarray(L, p->sizek, TValue, p->memcat);
-#ifdef HARDMEMTESTS
+ }
+ if (FFlag::LuauLoadExceptionSafe)
+ {
  for (int j = 0; j < p->sizek; ++j)
  {
  setnilvalue(&p->k[j]);
  }
-#endif
+ }
  for (int j = 0; j < p->sizek; ++j)
  {
  switch (read<uint8_t>(data, size, offset))
  {
  case LBC_CONSTANT_NIL:
+ if (!FFlag::LuauLoadExceptionSafe)
+ {
  setnilvalue(&p->k[j]);
+ }
  break;
  case LBC_CONSTANT_BOOLEAN:
  {
@@ -16152,8 +16273,17 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  LUAU_ASSERT(!"Unexpected constant kind");
  }
  }
+ if (FFlag::LuauLoadExceptionSafe)
+ {
+ const int sizep = readVarInt(data, size, offset);
+ p->p = luaM_newarray(L, sizep, Proto*, p->memcat);
+ p->sizep = sizep;
+ }
+ else
+ {
  p->sizep = readVarInt(data, size, offset);
  p->p = luaM_newarray(L, p->sizep, Proto*, p->memcat);
+ }
  for (int j = 0; j < p->sizep; ++j)
  {
  uint32_t fid = readVarInt(data, size, offset);
@@ -16167,8 +16297,17 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  p->linegaplog2 = read<uint8_t>(data, size, offset);
  int intervals = ((p->sizecode - 1) >> p->linegaplog2) + 1;
  int absoffset = (p->sizecode + 3) & ~3;
+ if (FFlag::LuauLoadExceptionSafe)
+ {
+ const int sizelineinfo = absoffset + intervals * sizeof(int);
+ p->lineinfo = luaM_newarray(L, sizelineinfo, uint8_t, p->memcat);
+ p->sizelineinfo = sizelineinfo;
+ }
+ else
+ {
  p->sizelineinfo = absoffset + intervals * sizeof(int);
  p->lineinfo = luaM_newarray(L, p->sizelineinfo, uint8_t, p->memcat);
+ }
  p->abslineinfo = (int*)(p->lineinfo + absoffset);
  uint8_t lastoffset = 0;
  for (int j = 0; j < p->sizecode; ++j)
@@ -16186,8 +16325,17 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  uint8_t debuginfo = read<uint8_t>(data, size, offset);
  if (debuginfo)
  {
+ if (FFlag::LuauLoadExceptionSafe)
+ {
+ const int sizelocvars = readVarInt(data, size, offset);
+ p->locvars = luaM_newarray(L, sizelocvars, LocVar, p->memcat);
+ p->sizelocvars = sizelocvars;
+ }
+ else
+ {
  p->sizelocvars = readVarInt(data, size, offset);
  p->locvars = luaM_newarray(L, p->sizelocvars, LocVar, p->memcat);
+ }
  for (int j = 0; j < p->sizelocvars; ++j)
  {
  p->locvars[j].varname = readString(strings, data, size, offset);
@@ -16195,8 +16343,17 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  p->locvars[j].endpc = readVarInt(data, size, offset);
  p->locvars[j].reg = read<uint8_t>(data, size, offset);
  }
+ if (FFlag::LuauLoadExceptionSafe)
+ {
+ const int sizeupvalues = readVarInt(data, size, offset);
+ p->upvalues = luaM_newarray(L, sizeupvalues, TString*, p->memcat);
+ p->sizeupvalues = sizeupvalues;
+ }
+ else
+ {
  p->sizeupvalues = readVarInt(data, size, offset);
  p->upvalues = luaM_newarray(L, p->sizeupvalues, TString*, p->memcat);
+ }
  for (int j = 0; j < p->sizeupvalues; ++j)
  {
  p->upvalues[j] = readString(strings, data, size, offset);
@@ -16210,7 +16367,10 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  Closure* cl = luaF_newLclosure(L, 0, envt, main);
  setclvalue(L, L->top, cl);
  incr_top(L);
+ if (!FFlag::LuauLoadExceptionSafe)
+ {
  L->global->GCthreshold = GCthreshold;
+ }
  return 0;
 }
 #line __LINE__ ""
@@ -34429,6 +34589,7 @@ inline uint8_t* writef64(uint8_t* target, double value)
  return target + sizeof(value);
 }
 #line __LINE__ "AssemblyBuilderA64.cpp"
+LUAU_FASTFLAG(LuauCodeGenOptVecA64)
 namespace Luau
 {
 namespace CodeGen
@@ -34856,6 +35017,28 @@ void AssemblyBuilderA64::fmov(RegisterA64 dst, RegisterA64 src)
 }
 void AssemblyBuilderA64::fmov(RegisterA64 dst, double src)
 {
+ if (FFlag::LuauCodeGenOptVecA64)
+ {
+ CODEGEN_ASSERT(dst.kind == KindA64::d || dst.kind == KindA64::q);
+ int imm = getFmovImm(src);
+ CODEGEN_ASSERT(imm >= 0 && imm <= 256);
+ if (dst.kind == KindA64::d)
+ {
+ if (imm == 256)
+ placeFMOV("movi", dst, src, 0b001'0111100000'000'1110'01'00000);
+ else
+ placeFMOV("fmov", dst, src, 0b000'11110'01'1'00000000'100'00000 | (imm << 8));
+ }
+ else
+ {
+ if (imm == 256)
+ placeFMOV("movi.4s", dst, src, 0b010'0111100000'000'0000'01'00000);
+ else
+ placeFMOV("fmov.4s", dst, src, 0b010'0111100000'000'1111'0'1'00000 | ((imm >> 5) << 11) | (imm & 31));
+ }
+ }
+ else
+ {
  CODEGEN_ASSERT(dst.kind == KindA64::d);
  int imm = getFmovImm(src);
  CODEGEN_ASSERT(imm >= 0 && imm <= 256);
@@ -34863,6 +35046,7 @@ void AssemblyBuilderA64::fmov(RegisterA64 dst, double src)
  placeFMOV("movi", dst, src, 0b001'0111100000'000'1110'01'00000);
  else
  placeFMOV("fmov", dst, src, 0b000'11110'01'1'00000000'100'00000 | (imm << 8));
+ }
 }
 void AssemblyBuilderA64::fabs(RegisterA64 dst, RegisterA64 src)
 {
@@ -38344,6 +38528,8 @@ using AllocationCallback = void(void* context, void* oldPointer, size_t oldSize,
 bool isSupported();
 void create(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext);
 void create(lua_State* L);
+[[nodiscard]] bool isNativeExecutionEnabled(lua_State* L);
+void setNativeExecutionEnabled(lua_State* L, bool enabled);
 CodeGenCompilationResult compile(lua_State* L, int idx, unsigned int flags = 0, CompilationStats* stats = nullptr);
 using AnnotatorFn = void (*)(void* context, std::string& result, int fid, int instpos);
 enum class IncludeIrPrefix
@@ -38839,7 +39025,7 @@ LUAU_FASTFLAG(DebugCodegenSkipNumbering)
 LUAU_FASTINT(CodegenHeuristicsInstructionLimit)
 LUAU_FASTINT(CodegenHeuristicsBlockLimit)
 LUAU_FASTINT(CodegenHeuristicsBlockInstructionLimit)
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores2)
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores3)
 namespace Luau
 {
 namespace CodeGen
@@ -39036,7 +39222,7 @@ inline bool lowerFunction(IrBuilder& ir, AssemblyBuilder& build, ModuleHelpers& 
  stats->blockLinearizationStats.constPropInstructionCount += constPropInstructionCount;
  }
  }
- if (FFlag::LuauCodegenRemoveDeadStores2)
+ if (FFlag::LuauCodegenRemoveDeadStores3)
  markDeadStoresInBlockChains(ir);
  }
  std::vector<uint32_t> sortedBlocks = getSortedBlockOrder(ir.function);
@@ -39729,6 +39915,7 @@ LUAU_FASTFLAGVARIABLE(DebugCodegenSkipNumbering, false)
 LUAU_FASTINTVARIABLE(CodegenHeuristicsInstructionLimit, 1'048'576) // 1 M
 LUAU_FASTINTVARIABLE(CodegenHeuristicsBlockLimit, 32'768)
 LUAU_FASTINTVARIABLE(CodegenHeuristicsBlockInstructionLimit, 65'536)
+LUAU_FASTFLAG(LuauCodegenHeapSizeReport)
 namespace Luau
 {
 namespace CodeGen
@@ -39742,8 +39929,53 @@ struct NativeProto
  void* execdata;
  uintptr_t exectarget;
 };
+struct ExtraExecData
+{
+ size_t execDataSize;
+ size_t codeSize;
+};
+static int alignTo(int value, int align)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenHeapSizeReport);
+ CODEGEN_ASSERT(align > 0 && (align & (align - 1)) == 0);
+ return (value + (align - 1)) & ~(align - 1);
+}
+static int calculateExecDataSize(Proto* proto)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenHeapSizeReport);
+ int size = proto->sizecode * sizeof(uint32_t);
+ size = alignTo(size, 16);
+ size += sizeof(ExtraExecData);
+ return size;
+}
+ExtraExecData* getExtraExecData(Proto* proto, void* execdata)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenHeapSizeReport);
+ int size = proto->sizecode * sizeof(uint32_t);
+ size = alignTo(size, 16);
+ return reinterpret_cast<ExtraExecData*>(reinterpret_cast<char*>(execdata) + size);
+}
 static NativeProto createNativeProto(Proto* proto, const IrBuilder& ir)
 {
+ if (FFlag::LuauCodegenHeapSizeReport)
+ {
+ int execDataSize = calculateExecDataSize(proto);
+ CODEGEN_ASSERT(execDataSize % 4 == 0);
+ uint32_t* execData = new uint32_t[execDataSize / 4];
+ uint32_t instTarget = ir.function.entryLocation;
+ for (int i = 0; i < proto->sizecode; i++)
+ {
+ CODEGEN_ASSERT(ir.function.bcMapping[i].asmLocation >= instTarget);
+ execData[i] = ir.function.bcMapping[i].asmLocation - instTarget;
+ }
+ execData[0] = 0;
+ ExtraExecData* extra = getExtraExecData(proto, execData);
+ memset(extra, 0, sizeof(ExtraExecData));
+ extra->execDataSize = execDataSize;
+ return {proto, execData, instTarget};
+ }
+ else
+ {
  int sizecode = proto->sizecode;
  uint32_t* instOffsets = new uint32_t[sizecode];
  uint32_t instTarget = ir.function.entryLocation;
@@ -39754,6 +39986,7 @@ static NativeProto createNativeProto(Proto* proto, const IrBuilder& ir)
  }
  instOffsets[0] = 0;
  return {proto, instOffsets, instTarget};
+ }
 }
 static void destroyExecData(void* execdata)
 {
@@ -39810,6 +40043,10 @@ static int onEnter(lua_State* L, Proto* proto)
  uintptr_t target = proto->exectarget + static_cast<uint32_t*>(proto->execdata)[L->ci->savedpc - proto->code];
  return GateFn(data->context.gateEntry)(L, proto, target, &data->context);
 }
+static int onEnterDisabled(lua_State* L, Proto* proto)
+{
+ return 1;
+}
 void onDisable(lua_State* L, Proto* proto)
 {
  if (proto->codeentry == proto->code)
@@ -39834,6 +40071,12 @@ void onDisable(lua_State* L, Proto* proto)
  }
  return false;
  });
+}
+size_t getMemorySize(lua_State* L, Proto* proto)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenHeapSizeReport);
+ ExtraExecData* extra = getExtraExecData(proto, proto->execdata);
+ return extra->execDataSize + extra->codeSize;
 }
 #if defined(__aarch64__)
 unsigned int getCpuFeaturesA64()
@@ -39907,10 +40150,21 @@ void create(lua_State* L, AllocationCallback* allocationCallback, void* allocati
  ecb->destroy = onDestroyFunction;
  ecb->enter = onEnter;
  ecb->disable = onDisable;
+ if (FFlag::LuauCodegenHeapSizeReport)
+ ecb->getmemorysize = getMemorySize;
 }
 void create(lua_State* L)
 {
  create(L, nullptr, nullptr);
+}
+[[nodiscard]] bool isNativeExecutionEnabled(lua_State* L)
+{
+ return getNativeState(L) ? (L->global->ecb.enter == onEnter) : false;
+}
+void setNativeExecutionEnabled(lua_State* L, bool enabled)
+{
+ if (getNativeState(L))
+ L->global->ecb.enter = enabled ? onEnter : onEnterDisabled;
 }
 CodeGenCompilationResult compile(lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
 {
@@ -39978,6 +40232,23 @@ CodeGenCompilationResult compile(lua_State* L, int idx, unsigned int flags, Comp
  destroyExecData(result.execdata);
  return CodeGenCompilationResult::AllocationFailed;
  }
+ if (FFlag::LuauCodegenHeapSizeReport)
+ {
+ if (gPerfLogFn && results.size() > 0)
+ gPerfLogFn(gPerfLogContext, uintptr_t(codeStart), uint32_t(results[0].exectarget), "<luau helpers>");
+ for (size_t i = 0; i < results.size(); ++i)
+ {
+ uint32_t begin = uint32_t(results[i].exectarget);
+ uint32_t end = i + 1 < results.size() ? uint32_t(results[i + 1].exectarget) : uint32_t(build.code.size() * sizeof(build.code[0]));
+ CODEGEN_ASSERT(begin < end);
+ if (gPerfLogFn)
+ logPerfFunction(results[i].p, uintptr_t(codeStart) + begin, end - begin);
+ ExtraExecData* extra = getExtraExecData(results[i].p, results[i].execdata);
+ extra->codeSize = end - begin;
+ }
+ }
+ else
+ {
  if (gPerfLogFn && results.size() > 0)
  {
  gPerfLogFn(gPerfLogContext, uintptr_t(codeStart), uint32_t(results[0].exectarget), "<luau helpers>");
@@ -39987,6 +40258,7 @@ CodeGenCompilationResult compile(lua_State* L, int idx, unsigned int flags, Comp
  uint32_t end = i + 1 < results.size() ? uint32_t(results[i + 1].exectarget) : uint32_t(build.code.size() * sizeof(build.code[0]));
  CODEGEN_ASSERT(begin < end);
  logPerfFunction(results[i].p, uintptr_t(codeStart) + begin, end - begin);
+ }
  }
  }
  for (const NativeProto& result : results)
@@ -41374,6 +41646,7 @@ private:
 } // namespace CodeGen
 }
 #line __LINE__ "EmitBuiltinsX64.cpp"
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores3)
 namespace Luau
 {
 namespace CodeGen
@@ -41387,10 +41660,14 @@ static void emitBuiltinMathFrexp(IrRegAllocX64& regs, AssemblyBuilderX64& build,
  callWrap.addArgument(SizeX64::qword, sTemporarySlot);
  callWrap.call(qword[rNativeContext + offsetof(NativeContext, libm_frexp)]);
  build.vmovsd(luauRegValue(ra), xmm0);
+ if (FFlag::LuauCodegenRemoveDeadStores3)
+ build.mov(luauRegTag(ra), LUA_TNUMBER);
  if (nresults > 1)
  {
  build.vcvtsi2sd(xmm0, xmm0, dword[sTemporarySlot + 0]);
  build.vmovsd(luauRegValue(ra + 1), xmm0);
+ if (FFlag::LuauCodegenRemoveDeadStores3)
+ build.mov(luauRegTag(ra + 1), LUA_TNUMBER);
  }
 }
 static void emitBuiltinMathModf(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, int arg, int nresults)
@@ -41401,8 +41678,14 @@ static void emitBuiltinMathModf(IrRegAllocX64& regs, AssemblyBuilderX64& build, 
  callWrap.call(qword[rNativeContext + offsetof(NativeContext, libm_modf)]);
  build.vmovsd(xmm1, qword[sTemporarySlot + 0]);
  build.vmovsd(luauRegValue(ra), xmm1);
+ if (FFlag::LuauCodegenRemoveDeadStores3)
+ build.mov(luauRegTag(ra), LUA_TNUMBER);
  if (nresults > 1)
+ {
  build.vmovsd(luauRegValue(ra + 1), xmm0);
+ if (FFlag::LuauCodegenRemoveDeadStores3)
+ build.mov(luauRegTag(ra + 1), LUA_TNUMBER);
+ }
 }
 static void emitBuiltinMathSign(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, int arg)
 {
@@ -41418,6 +41701,8 @@ static void emitBuiltinMathSign(IrRegAllocX64& regs, AssemblyBuilderX64& build, 
  build.vcmpltsd(tmp0.reg, tmp1.reg, tmp0.reg);
  build.vblendvpd(tmp0.reg, tmp2.reg, build.f64x2(1, 1), tmp0.reg);
  build.vmovsd(luauRegValue(ra), tmp0.reg);
+ if (FFlag::LuauCodegenRemoveDeadStores3)
+ build.mov(luauRegTag(ra), LUA_TNUMBER);
 }
 void emitBuiltin(IrRegAllocX64& regs, AssemblyBuilderX64& build, int bfid, int ra, int arg, OperandX64 arg2, int nparams, int nresults)
 {
@@ -42064,7 +42349,7 @@ void emitInstForGLoop(AssemblyBuilderX64& build, int ra, int aux, Label& loopRep
 #line __LINE__ ""
 #line __LINE__ "IrAnalysis.cpp"
 #line __LINE__ "IrVisitUseDef.h"
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores2)
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores3)
 namespace Luau
 {
 namespace CodeGen
@@ -42222,7 +42507,7 @@ static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrInst& i
  visitor.def(inst.b);
  break;
  case IrCmd::FALLBACK_FORGPREP:
- if (FFlag::LuauCodegenRemoveDeadStores2)
+ if (FFlag::LuauCodegenRemoveDeadStores3)
  {
  visitor.useRange(vmRegOp(inst.b), 3);
  }
@@ -44018,7 +44303,9 @@ std::string dumpDot(const IrFunction& function, bool includeInst)
 #line __LINE__ ""
 #line __LINE__ "IrLoweringA64.cpp"
 LUAU_FASTFLAGVARIABLE(LuauCodeGenVectorA64, false)
+LUAU_FASTFLAGVARIABLE(LuauCodeGenOptVecA64, false)
 LUAU_FASTFLAG(LuauCodegenVectorTag2)
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores3)
 namespace Luau
 {
 namespace CodeGen
@@ -44162,6 +44449,25 @@ static bool emitBuiltin(
  switch (bfid)
  {
  case LBF_MATH_FREXP:
+ {
+ if (FFlag::LuauCodegenRemoveDeadStores3)
+ {
+ CODEGEN_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
+ emitInvokeLibm1P(build, offsetof(NativeContext, libm_frexp), arg);
+ build.str(d0, mem(rBase, res * sizeof(TValue) + offsetof(TValue, value.n)));
+ RegisterA64 temp = regs.allocTemp(KindA64::w);
+ build.mov(temp, LUA_TNUMBER);
+ build.str(temp, mem(rBase, res * sizeof(TValue) + offsetof(TValue, tt)));
+ if (nresults == 2)
+ {
+ build.ldr(w0, sTemporary);
+ build.scvtf(d1, w0);
+ build.str(d1, mem(rBase, (res + 1) * sizeof(TValue) + offsetof(TValue, value.n)));
+ build.str(temp, mem(rBase, (res + 1) * sizeof(TValue) + offsetof(TValue, tt)));
+ }
+ }
+ else
+ {
  CODEGEN_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
  emitInvokeLibm1P(build, offsetof(NativeContext, libm_frexp), arg);
  build.str(d0, mem(rBase, res * sizeof(TValue) + offsetof(TValue, value.n)));
@@ -44171,16 +44477,39 @@ static bool emitBuiltin(
  build.scvtf(d1, w0);
  build.str(d1, mem(rBase, (res + 1) * sizeof(TValue) + offsetof(TValue, value.n)));
  }
+ }
  return true;
+ }
  case LBF_MATH_MODF:
+ {
+ if (FFlag::LuauCodegenRemoveDeadStores3)
+ {
+ CODEGEN_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
+ emitInvokeLibm1P(build, offsetof(NativeContext, libm_modf), arg);
+ build.ldr(d1, sTemporary);
+ build.str(d1, mem(rBase, res * sizeof(TValue) + offsetof(TValue, value.n)));
+ RegisterA64 temp = regs.allocTemp(KindA64::w);
+ build.mov(temp, LUA_TNUMBER);
+ build.str(temp, mem(rBase, res * sizeof(TValue) + offsetof(TValue, tt)));
+ if (nresults == 2)
+ {
+ build.str(d0, mem(rBase, (res + 1) * sizeof(TValue) + offsetof(TValue, value.n)));
+ build.str(temp, mem(rBase, (res + 1) * sizeof(TValue) + offsetof(TValue, tt)));
+ }
+ }
+ else
+ {
  CODEGEN_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
  emitInvokeLibm1P(build, offsetof(NativeContext, libm_modf), arg);
  build.ldr(d1, sTemporary);
  build.str(d1, mem(rBase, res * sizeof(TValue) + offsetof(TValue, value.n)));
  if (nresults == 2)
  build.str(d0, mem(rBase, (res + 1) * sizeof(TValue) + offsetof(TValue, value.n)));
+ }
  return true;
+ }
  case LBF_MATH_SIGN:
+ {
  CODEGEN_ASSERT(nparams == 1 && nresults == 1);
  build.ldr(d0, mem(rBase, arg * sizeof(TValue) + offsetof(TValue, value.n)));
  build.fcmpz(d0);
@@ -44190,7 +44519,14 @@ static bool emitBuiltin(
  build.fmov(d1, -1.0);
  build.fcsel(d0, d1, d0, getConditionFP(IrCondition::Less));
  build.str(d0, mem(rBase, res * sizeof(TValue) + offsetof(TValue, value.n)));
+ if (FFlag::LuauCodegenRemoveDeadStores3)
+ {
+ RegisterA64 temp = regs.allocTemp(KindA64::w);
+ build.mov(temp, LUA_TNUMBER);
+ build.str(temp, mem(rBase, res * sizeof(TValue) + offsetof(TValue, tt)));
+ }
  return true;
+ }
  default:
  CODEGEN_ASSERT(!"Missing A64 lowering");
  return false;
@@ -45045,6 +45381,26 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  case IrCmd::NUM_TO_VEC:
  {
  inst.regA64 = regs.allocReg(KindA64::q, index);
+ if (FFlag::LuauCodeGenOptVecA64 && FFlag::LuauCodegenVectorTag2 && inst.a.kind == IrOpKind::Constant)
+ {
+ float value = float(doubleOp(inst.a));
+ uint32_t asU32;
+ static_assert(sizeof(asU32) == sizeof(value), "Expecting float to be 32-bit");
+ memcpy(&asU32, &value, sizeof(value));
+ if (AssemblyBuilderA64::isFmovSupported(value))
+ {
+ build.fmov(inst.regA64, value);
+ }
+ else
+ {
+ RegisterA64 temp = regs.allocTemp(KindA64::x);
+ uint32_t vec[4] = {asU32, asU32, asU32, 0};
+ build.adr(temp, vec, sizeof(vec));
+ build.ldr(inst.regA64, temp);
+ }
+ }
+ else
+ {
  RegisterA64 tempd = tempDouble(inst.a);
  RegisterA64 temps = castReg(KindA64::s, tempd);
  RegisterA64 tempw = regs.allocTemp(KindA64::w);
@@ -45054,6 +45410,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  {
  build.mov(tempw, LUA_TVECTOR);
  build.ins_4s(inst.regA64, tempw, 3);
+ }
  }
  break;
  }
@@ -49035,6 +49392,7 @@ BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, 
 }
 } // namespace Luau
 #line __LINE__ "IrTranslateBuiltins.cpp"
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores3)
 static const int kMinMaxUnrolledParams = 5;
 static const int kBit32BinaryOpUnrolledParams = 5;
 namespace Luau
@@ -49061,8 +49419,11 @@ static BuiltinImplResult translateBuiltinNumberToNumber(
  return {BuiltinImplType::None, -1};
  builtinCheckDouble(build, build.vmReg(arg), pcpos);
  build.inst(IrCmd::FASTCALL, build.constUint(bfid), build.vmReg(ra), build.vmReg(arg), args, build.constInt(1), build.constInt(1));
+ if (!FFlag::LuauCodegenRemoveDeadStores3)
+ {
  if (ra != arg)
  build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ }
  return {BuiltinImplType::Full, 1};
 }
 static BuiltinImplResult translateBuiltinNumberToNumberLibm(
@@ -49103,10 +49464,13 @@ static BuiltinImplResult translateBuiltinNumberTo2Number(
  builtinCheckDouble(build, build.vmReg(arg), pcpos);
  build.inst(
  IrCmd::FASTCALL, build.constUint(bfid), build.vmReg(ra), build.vmReg(arg), args, build.constInt(1), build.constInt(nresults == 1 ? 1 : 2));
+ if (!FFlag::LuauCodegenRemoveDeadStores3)
+ {
  if (ra != arg)
  build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
  if (nresults != 1)
  build.inst(IrCmd::STORE_TAG, build.vmReg(ra + 1), build.constTag(LUA_TNUMBER));
+ }
  return {BuiltinImplType::Full, 2};
 }
 static BuiltinImplResult translateBuiltinAssert(IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
@@ -49706,6 +50070,7 @@ BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, 
 #line __LINE__ "IrTranslation.cpp"
 LUAU_FASTFLAGVARIABLE(LuauCodegenVectorTag2, false)
 LUAU_FASTFLAGVARIABLE(LuauCodegenVectorTag, false)
+LUAU_FASTFLAGVARIABLE(LuauCodegenLoadTVTag, false)
 namespace Luau
 {
 namespace CodeGen
@@ -49780,6 +50145,11 @@ static void translateInstLoadConstant(IrBuilder& build, int ra, int k)
  {
  build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), build.constDouble(protok.value.n));
  build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ }
+ else if (FFlag::LuauCodegenLoadTVTag)
+ {
+ IrOp load = build.inst(IrCmd::LOAD_TVALUE, build.vmConst(k), build.constInt(0), build.constTag(protok.tt));
+ build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), load);
  }
  else
  {
@@ -51633,7 +52003,6 @@ IrBlock& getNextBlock(IrFunction& function, const std::vector<uint32_t>& sortedB
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "IrValueLocationTracking.cpp"
-LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauCodegenTrackingMultilocationFix, false)
 namespace Luau
 {
 namespace CodeGen
@@ -51775,7 +52144,7 @@ void IrValueLocationTracking::afterInstLowering(IrInst& inst, uint32_t instIdx)
  case IrCmd::LOAD_DOUBLE:
  case IrCmd::LOAD_INT:
  case IrCmd::LOAD_TVALUE:
- if (DFFlag::LuauCodegenTrackingMultilocationFix && inst.a.kind == IrOpKind::VmReg)
+ if (inst.a.kind == IrOpKind::VmReg)
  invalidateRestoreOp(inst.a, false);
  recordRestoreOp(instIdx, inst.a);
  break;
@@ -51939,6 +52308,8 @@ LUAU_FASTINTVARIABLE(LuauCodeGenReuseSlotLimit, 64)
 LUAU_FASTFLAGVARIABLE(DebugLuauAbortingChecks, false)
 LUAU_FASTFLAG(LuauCodegenVectorTag2)
 LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauCodeGenCoverForgprepEffect, false)
+LUAU_FASTFLAG(LuauCodegenLoadTVTag)
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores3)
 namespace Luau
 {
 namespace CodeGen
@@ -52505,6 +52876,8 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  arg->cmd == IrCmd::UNM_VEC)
  tag = LUA_TVECTOR;
  }
+ if (FFlag::LuauCodegenLoadTVTag && arg->cmd == IrCmd::LOAD_TVALUE && arg->c.kind != IrOpKind::None)
+ tag = function.tagOp(arg->c);
  }
  }
  IrOp value = state.tryGetValue(inst.b);
@@ -52810,6 +53183,34 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  }
  break;
  case IrCmd::FASTCALL:
+ {
+ if (FFlag::LuauCodegenRemoveDeadStores3)
+ {
+ LuauBuiltinFunction bfid = LuauBuiltinFunction(function.uintOp(inst.a));
+ int firstReturnReg = vmRegOp(inst.b);
+ int nresults = function.intOp(inst.f);
+ handleBuiltinEffects(state, bfid, firstReturnReg, nresults);
+ switch (bfid)
+ {
+ case LBF_MATH_MODF:
+ case LBF_MATH_FREXP:
+ state.updateTag(IrOp{IrOpKind::VmReg, uint8_t(firstReturnReg)}, LUA_TNUMBER);
+ if (nresults > 1)
+ state.updateTag(IrOp{IrOpKind::VmReg, uint8_t(firstReturnReg + 1)}, LUA_TNUMBER);
+ break;
+ case LBF_MATH_SIGN:
+ state.updateTag(IrOp{IrOpKind::VmReg, uint8_t(firstReturnReg)}, LUA_TNUMBER);
+ break;
+ default:
+ break;
+ }
+ }
+ else
+ {
+ handleBuiltinEffects(state, LuauBuiltinFunction(function.uintOp(inst.a)), vmRegOp(inst.b), function.intOp(inst.f));
+ }
+ break;
+ }
  case IrCmd::INVOKE_FASTCALL:
  handleBuiltinEffects(state, LuauBuiltinFunction(function.uintOp(inst.a)), vmRegOp(inst.b), function.intOp(inst.f));
  break;
@@ -53274,7 +53675,7 @@ void createLinearBlocks(IrBuilder& build, bool useValueNumbering)
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "OptimizeDeadStore.cpp"
-LUAU_FASTFLAGVARIABLE(LuauCodegenRemoveDeadStores2, false)
+LUAU_FASTFLAGVARIABLE(LuauCodegenRemoveDeadStores3, false)
 LUAU_FASTFLAG(LuauCodegenVectorTag2)
 namespace Luau
 {
@@ -53464,6 +53865,8 @@ static void markDeadStoresInInst(RemoveDeadStoreState& state, IrBuilder& build, 
  StoreRegInfo& regInfo = state.info[reg];
  state.killTagStore(regInfo);
  uint8_t tag = function.tagOp(inst.b);
+ if (tag == LUA_TNIL)
+ state.killValueStore(regInfo);
  regInfo.tagInstIdx = index;
  regInfo.maybeGco = isGCO(tag);
  state.hasGcoToClear |= regInfo.maybeGco;
