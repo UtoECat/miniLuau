@@ -4267,6 +4267,7 @@ LUAI_FUNC void luaM_freegco_(lua_State* L, GCObject* block, size_t osize, uint8_
 LUAI_FUNC void* luaM_realloc_(lua_State* L, void* block, size_t osize, size_t nsize, uint8_t memcat);
 LUAI_FUNC l_noret luaM_toobig(lua_State* L);
 LUAI_FUNC void luaM_getpagewalkinfo(lua_Page* page, char** start, char** end, int* busyBlocks, int* blockSize);
+LUAI_FUNC void luaM_getpageinfo(lua_Page* page, int* pageBlocks, int* busyBlocks, int* blockSize, int* pageSize);
 LUAI_FUNC lua_Page* luaM_getnextgcopage(lua_Page* page);
 LUAI_FUNC void luaM_visitpage(lua_Page* page, void* context, bool (*visitor)(void* context, lua_Page* page, GCObject* gco));
 LUAI_FUNC void luaM_visitgco(lua_State* L, void* context, bool (*visitor)(void* context, lua_Page* page, GCObject* gco));
@@ -9670,6 +9671,13 @@ void luaM_getpagewalkinfo(lua_Page* page, char** start, char** end, int* busyBlo
  *end = data + blockCount * page->blockSize;
  *busyBlocks = page->busyBlocks;
  *blockSize = page->blockSize;
+}
+void luaM_getpageinfo(lua_Page* page, int* pageBlocks, int* busyBlocks, int* blockSize, int* pageSize)
+{
+ *pageBlocks = (page->pageSize - offsetof(lua_Page, data)) / page->blockSize;
+ *busyBlocks = page->busyBlocks;
+ *blockSize = page->blockSize;
+ *pageSize = page->pageSize;
 }
 lua_Page* luaM_getnextgcopage(lua_Page* page)
 {
@@ -26312,6 +26320,8 @@ private:
 };
 }
 #line __LINE__ "BytecodeBuilder.cpp"
+LUAU_FASTFLAGVARIABLE(LuauCompileNoJumpLineRetarget, false)
+LUAU_FASTFLAG(LuauCompileRepeatUntilSkippedLocals)
 namespace Luau
 {
 static_assert(LBC_VERSION_TARGET >= LBC_VERSION_MIN && LBC_VERSION_TARGET <= LBC_VERSION_MAX, "Invalid bytecode version setup");
@@ -27017,7 +27027,10 @@ void BytecodeBuilder::foldJumps()
  if (LUAU_INSN_OP(jumpInsn) == LOP_JUMP && LUAU_INSN_OP(targetInsn) == LOP_RETURN)
  {
  insns[jumpLabel] = targetInsn;
+ if (!FFlag::LuauCompileNoJumpLineRetarget)
+ {
  lines[jumpLabel] = lines[targetLabel];
+ }
  }
  else if (int16_t(offset) == offset)
  {
@@ -27939,11 +27952,19 @@ std::string BytecodeBuilder::dumpCurrentFunction(std::vector<int>& dumpinstoffs)
  for (size_t i = 0; i < debugLocals.size(); ++i)
  {
  const DebugLocal& l = debugLocals[i];
+ if (FFlag::LuauCompileRepeatUntilSkippedLocals && l.startpc == l.endpc)
+ {
+ LUAU_ASSERT(l.startpc < lines.size());
+ formatAppend(result, "local %d: reg %d, start pc %d line %d, no live range\n", int(i), l.reg, l.startpc, lines[l.startpc]);
+ }
+ else
+ {
  LUAU_ASSERT(l.startpc < l.endpc);
  LUAU_ASSERT(l.startpc < lines.size());
  LUAU_ASSERT(l.endpc <= lines.size());
  formatAppend(result, "local %d: reg %d, start pc %d line %d, end pc %d line %d\n", int(i), l.reg, l.startpc, lines[l.startpc],
  l.endpc - 1, lines[l.endpc - 1]);
+ }
  }
  }
  std::vector<int> labels(insns.size(), -1);
@@ -28177,6 +28198,7 @@ LUAU_FASTINTVARIABLE(LuauCompileLoopUnrollThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThreshold, 25)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
+LUAU_FASTFLAGVARIABLE(LuauCompileRepeatUntilSkippedLocals, false)
 namespace Luau
 {
 using namespace Luau::Compile;
@@ -30109,6 +30131,7 @@ struct Compiler
  AstStatBlock* body = stat->body;
  RegScope rs(this);
  bool continueValidated = false;
+ size_t conditionLocals = 0;
  for (size_t i = 0; i < body->body.size; ++i)
  {
  compileStat(body->body.data[i]);
@@ -30117,7 +30140,15 @@ struct Compiler
  {
  validateContinueUntil(loops.back().continueUsed, stat->condition, body, i + 1);
  continueValidated = true;
+ if (FFlag::LuauCompileRepeatUntilSkippedLocals)
+ conditionLocals = localStack.size();
  }
+ }
+ if (FFlag::LuauCompileRepeatUntilSkippedLocals && continueValidated)
+ {
+ setDebugLineEnd(body->body.data[body->body.size - 1]);
+ closeLocals(conditionLocals);
+ popLocals(conditionLocals);
  }
  size_t contLabel = bytecode.emitLabel();
  size_t endLabel;
@@ -39025,7 +39056,7 @@ LUAU_FASTFLAG(DebugCodegenSkipNumbering)
 LUAU_FASTINT(CodegenHeuristicsInstructionLimit)
 LUAU_FASTINT(CodegenHeuristicsBlockLimit)
 LUAU_FASTINT(CodegenHeuristicsBlockInstructionLimit)
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores3)
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores4)
 namespace Luau
 {
 namespace CodeGen
@@ -39222,7 +39253,7 @@ inline bool lowerFunction(IrBuilder& ir, AssemblyBuilder& build, ModuleHelpers& 
  stats->blockLinearizationStats.constPropInstructionCount += constPropInstructionCount;
  }
  }
- if (FFlag::LuauCodegenRemoveDeadStores3)
+ if (FFlag::LuauCodegenRemoveDeadStores4)
  markDeadStoresInBlockChains(ir);
  }
  std::vector<uint32_t> sortedBlocks = getSortedBlockOrder(ir.function);
@@ -39923,7 +39954,7 @@ namespace CodeGen
 static const Instruction kCodeEntryInsn = LOP_NATIVECALL;
 static void* gPerfLogContext = nullptr;
 static PerfLogFn gPerfLogFn = nullptr;
-struct NativeProto
+struct OldNativeProto
 {
  Proto* p;
  void* execdata;
@@ -39955,7 +39986,7 @@ ExtraExecData* getExtraExecData(Proto* proto, void* execdata)
  size = alignTo(size, 16);
  return reinterpret_cast<ExtraExecData*>(reinterpret_cast<char*>(execdata) + size);
 }
-static NativeProto createNativeProto(Proto* proto, const IrBuilder& ir)
+static OldNativeProto createOldNativeProto(Proto* proto, const IrBuilder& ir)
 {
  if (FFlag::LuauCodegenHeapSizeReport)
  {
@@ -40003,7 +40034,7 @@ static void logPerfFunction(Proto* p, uintptr_t addr, unsigned size)
  gPerfLogFn(gPerfLogContext, addr, size, name);
 }
 template<typename AssemblyBuilder>
-static std::optional<NativeProto> createNativeFunction(
+static std::optional<OldNativeProto> createNativeFunction(
  AssemblyBuilder& build, ModuleHelpers& helpers, Proto* proto, uint32_t& totalIrInstCount, CodeGenCompilationResult& result)
 {
  IrBuilder ir;
@@ -40017,7 +40048,7 @@ static std::optional<NativeProto> createNativeFunction(
  totalIrInstCount += instCount;
  if (!lowerFunction(ir, build, helpers, proto, {}, nullptr, result))
  return std::nullopt;
- return createNativeProto(proto, ir);
+ return createOldNativeProto(proto, ir);
 }
 static NativeState* getNativeState(lua_State* L)
 {
@@ -40199,21 +40230,21 @@ CodeGenCompilationResult compile(lua_State* L, int idx, unsigned int flags, Comp
 #else
  X64::assembleHelpers(build, helpers);
 #endif
- std::vector<NativeProto> results;
+ std::vector<OldNativeProto> results;
  results.reserve(protos.size());
  uint32_t totalIrInstCount = 0;
  CodeGenCompilationResult codeGenCompilationResult = CodeGenCompilationResult::Success;
  for (Proto* p : protos)
  {
  CodeGenCompilationResult temp = CodeGenCompilationResult::Success;
- if (std::optional<NativeProto> np = createNativeFunction(build, helpers, p, totalIrInstCount, temp))
+ if (std::optional<OldNativeProto> np = createNativeFunction(build, helpers, p, totalIrInstCount, temp))
  results.push_back(*np);
  else if (codeGenCompilationResult == CodeGenCompilationResult::Success)
  codeGenCompilationResult = temp;
  }
  if (!build.finalize())
  {
- for (NativeProto result : results)
+ for (OldNativeProto result : results)
  destroyExecData(result.execdata);
  return CodeGenCompilationResult::CodeGenAssemblerFinalizationFailure;
  }
@@ -40228,7 +40259,7 @@ CodeGenCompilationResult compile(lua_State* L, int idx, unsigned int flags, Comp
  if (!data->codeAllocator.allocate(build.data.data(), int(build.data.size()), reinterpret_cast<const uint8_t*>(build.code.data()),
  int(build.code.size() * sizeof(build.code[0])), nativeData, sizeNativeData, codeStart))
  {
- for (NativeProto result : results)
+ for (OldNativeProto result : results)
  destroyExecData(result.execdata);
  return CodeGenCompilationResult::AllocationFailed;
  }
@@ -40261,7 +40292,7 @@ CodeGenCompilationResult compile(lua_State* L, int idx, unsigned int flags, Comp
  }
  }
  }
- for (const NativeProto& result : results)
+ for (const OldNativeProto& result : results)
  {
  result.p->execdata = result.execdata;
  result.p->exectarget = uintptr_t(codeStart) + result.exectarget;
@@ -40269,7 +40300,7 @@ CodeGenCompilationResult compile(lua_State* L, int idx, unsigned int flags, Comp
  }
  if (stats != nullptr)
  {
- for (const NativeProto& result : results)
+ for (const OldNativeProto& result : results)
  {
  stats->bytecodeSizeBytes += result.p->sizecode * sizeof(Instruction);
  stats->nativeMetadataSizeBytes += result.p->sizecode * sizeof(uint32_t);
@@ -41646,7 +41677,7 @@ private:
 } // namespace CodeGen
 }
 #line __LINE__ "EmitBuiltinsX64.cpp"
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores3)
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores4)
 namespace Luau
 {
 namespace CodeGen
@@ -41660,13 +41691,13 @@ static void emitBuiltinMathFrexp(IrRegAllocX64& regs, AssemblyBuilderX64& build,
  callWrap.addArgument(SizeX64::qword, sTemporarySlot);
  callWrap.call(qword[rNativeContext + offsetof(NativeContext, libm_frexp)]);
  build.vmovsd(luauRegValue(ra), xmm0);
- if (FFlag::LuauCodegenRemoveDeadStores3)
+ if (FFlag::LuauCodegenRemoveDeadStores4)
  build.mov(luauRegTag(ra), LUA_TNUMBER);
  if (nresults > 1)
  {
  build.vcvtsi2sd(xmm0, xmm0, dword[sTemporarySlot + 0]);
  build.vmovsd(luauRegValue(ra + 1), xmm0);
- if (FFlag::LuauCodegenRemoveDeadStores3)
+ if (FFlag::LuauCodegenRemoveDeadStores4)
  build.mov(luauRegTag(ra + 1), LUA_TNUMBER);
  }
 }
@@ -41678,12 +41709,12 @@ static void emitBuiltinMathModf(IrRegAllocX64& regs, AssemblyBuilderX64& build, 
  callWrap.call(qword[rNativeContext + offsetof(NativeContext, libm_modf)]);
  build.vmovsd(xmm1, qword[sTemporarySlot + 0]);
  build.vmovsd(luauRegValue(ra), xmm1);
- if (FFlag::LuauCodegenRemoveDeadStores3)
+ if (FFlag::LuauCodegenRemoveDeadStores4)
  build.mov(luauRegTag(ra), LUA_TNUMBER);
  if (nresults > 1)
  {
  build.vmovsd(luauRegValue(ra + 1), xmm0);
- if (FFlag::LuauCodegenRemoveDeadStores3)
+ if (FFlag::LuauCodegenRemoveDeadStores4)
  build.mov(luauRegTag(ra + 1), LUA_TNUMBER);
  }
 }
@@ -41701,7 +41732,7 @@ static void emitBuiltinMathSign(IrRegAllocX64& regs, AssemblyBuilderX64& build, 
  build.vcmpltsd(tmp0.reg, tmp1.reg, tmp0.reg);
  build.vblendvpd(tmp0.reg, tmp2.reg, build.f64x2(1, 1), tmp0.reg);
  build.vmovsd(luauRegValue(ra), tmp0.reg);
- if (FFlag::LuauCodegenRemoveDeadStores3)
+ if (FFlag::LuauCodegenRemoveDeadStores4)
  build.mov(luauRegTag(ra), LUA_TNUMBER);
 }
 void emitBuiltin(IrRegAllocX64& regs, AssemblyBuilderX64& build, int bfid, int ra, int arg, OperandX64 arg2, int nparams, int nresults)
@@ -42349,7 +42380,7 @@ void emitInstForGLoop(AssemblyBuilderX64& build, int ra, int aux, Label& loopRep
 #line __LINE__ ""
 #line __LINE__ "IrAnalysis.cpp"
 #line __LINE__ "IrVisitUseDef.h"
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores3)
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores4)
 namespace Luau
 {
 namespace CodeGen
@@ -42507,7 +42538,7 @@ static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrInst& i
  visitor.def(inst.b);
  break;
  case IrCmd::FALLBACK_FORGPREP:
- if (FFlag::LuauCodegenRemoveDeadStores3)
+ if (FFlag::LuauCodegenRemoveDeadStores4)
  {
  visitor.useRange(vmRegOp(inst.b), 3);
  }
@@ -42529,6 +42560,7 @@ static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrInst& i
  visitor.use(inst.a);
  break;
  case IrCmd::CHECK_TAG:
+ if (!FFlag::LuauCodegenRemoveDeadStores4)
  visitor.maybeUse(inst.a);
  break;
  default:
@@ -44305,7 +44337,7 @@ std::string dumpDot(const IrFunction& function, bool includeInst)
 LUAU_FASTFLAGVARIABLE(LuauCodeGenVectorA64, false)
 LUAU_FASTFLAGVARIABLE(LuauCodeGenOptVecA64, false)
 LUAU_FASTFLAG(LuauCodegenVectorTag2)
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores3)
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores4)
 namespace Luau
 {
 namespace CodeGen
@@ -44450,7 +44482,7 @@ static bool emitBuiltin(
  {
  case LBF_MATH_FREXP:
  {
- if (FFlag::LuauCodegenRemoveDeadStores3)
+ if (FFlag::LuauCodegenRemoveDeadStores4)
  {
  CODEGEN_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
  emitInvokeLibm1P(build, offsetof(NativeContext, libm_frexp), arg);
@@ -44482,7 +44514,7 @@ static bool emitBuiltin(
  }
  case LBF_MATH_MODF:
  {
- if (FFlag::LuauCodegenRemoveDeadStores3)
+ if (FFlag::LuauCodegenRemoveDeadStores4)
  {
  CODEGEN_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
  emitInvokeLibm1P(build, offsetof(NativeContext, libm_modf), arg);
@@ -44519,7 +44551,7 @@ static bool emitBuiltin(
  build.fmov(d1, -1.0);
  build.fcsel(d0, d1, d0, getConditionFP(IrCondition::Less));
  build.str(d0, mem(rBase, res * sizeof(TValue) + offsetof(TValue, value.n)));
- if (FFlag::LuauCodegenRemoveDeadStores3)
+ if (FFlag::LuauCodegenRemoveDeadStores4)
  {
  RegisterA64 temp = regs.allocTemp(KindA64::w);
  build.mov(temp, LUA_TNUMBER);
@@ -45616,6 +45648,20 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  {
  Label fresh;
  Label& fail = getTargetLabel(inst.c, fresh);
+ if (FFlag::LuauCodegenRemoveDeadStores4)
+ {
+ if (tagOp(inst.b) == 0)
+ {
+ build.cbnz(regOp(inst.a), fail);
+ }
+ else
+ {
+ build.cmp(regOp(inst.a), tagOp(inst.b));
+ build.b(ConditionA64::NotEqual, fail);
+ }
+ }
+ else
+ {
  RegisterA64 tag = inst.a.kind == IrOpKind::VmReg ? regs.allocTemp(KindA64::w) : regOp(inst.a);
  if (inst.a.kind == IrOpKind::VmReg)
  build.ldr(tag, mem(rBase, vmRegOp(inst.a) * sizeof(TValue) + offsetof(TValue, tt)));
@@ -45627,6 +45673,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  {
  build.cmp(tag, tagOp(inst.b));
  build.b(ConditionA64::NotEqual, fail);
+ }
  }
  finalizeTargetLabel(inst.c, fresh);
  break;
@@ -49392,7 +49439,7 @@ BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, 
 }
 } // namespace Luau
 #line __LINE__ "IrTranslateBuiltins.cpp"
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores3)
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores4)
 static const int kMinMaxUnrolledParams = 5;
 static const int kBit32BinaryOpUnrolledParams = 5;
 namespace Luau
@@ -49419,7 +49466,7 @@ static BuiltinImplResult translateBuiltinNumberToNumber(
  return {BuiltinImplType::None, -1};
  builtinCheckDouble(build, build.vmReg(arg), pcpos);
  build.inst(IrCmd::FASTCALL, build.constUint(bfid), build.vmReg(ra), build.vmReg(arg), args, build.constInt(1), build.constInt(1));
- if (!FFlag::LuauCodegenRemoveDeadStores3)
+ if (!FFlag::LuauCodegenRemoveDeadStores4)
  {
  if (ra != arg)
  build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
@@ -49464,7 +49511,7 @@ static BuiltinImplResult translateBuiltinNumberTo2Number(
  builtinCheckDouble(build, build.vmReg(arg), pcpos);
  build.inst(
  IrCmd::FASTCALL, build.constUint(bfid), build.vmReg(ra), build.vmReg(arg), args, build.constInt(1), build.constInt(nresults == 1 ? 1 : 2));
- if (!FFlag::LuauCodegenRemoveDeadStores3)
+ if (!FFlag::LuauCodegenRemoveDeadStores4)
  {
  if (ra != arg)
  build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
@@ -50069,7 +50116,6 @@ BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, 
 #line __LINE__ ""
 #line __LINE__ "IrTranslation.cpp"
 LUAU_FASTFLAGVARIABLE(LuauCodegenVectorTag2, false)
-LUAU_FASTFLAGVARIABLE(LuauCodegenVectorTag, false)
 LUAU_FASTFLAGVARIABLE(LuauCodegenLoadTVTag, false)
 namespace Luau
 {
@@ -52107,7 +52153,7 @@ void IrValueLocationTracking::beforeInstLowering(IrInst& inst)
  case IrCmd::NEWCLOSURE:
  case IrCmd::FINDUPVAL:
  break;
- case IrCmd::CHECK_TAG:
+ case IrCmd::CHECK_TAG: // TODO: remove with FFlagLuauCodegenRemoveDeadStores4
  case IrCmd::CHECK_TRUTHY:
  case IrCmd::ADD_NUM:
  case IrCmd::SUB_NUM:
@@ -52217,6 +52263,62 @@ void IrValueLocationTracking::invalidateRestoreVmRegs(int start, int count)
 }
 } // namespace Luau
 #line __LINE__ ""
+#line __LINE__ "NativeProtoExecData.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+class NativeModule;
+struct NativeProtoExecDataHeader
+{
+ NativeModule* nativeModule = nullptr;
+ uint32_t bytecodeInstructionCount = 0;
+ size_t nativeCodeSize = 0;
+};
+static_assert(sizeof(NativeProtoExecDataHeader) % sizeof(uint32_t) == 0);
+struct NativeProtoExecDataDeleter
+{
+ void operator()(const uint32_t* instructionOffsets) const noexcept;
+};
+using NativeProtoExecDataPtr = std::unique_ptr<uint32_t[], NativeProtoExecDataDeleter>;
+[[nodiscard]] NativeProtoExecDataPtr createNativeProtoExecData(uint32_t bytecodeInstructionCount);
+[[nodiscard]] NativeProtoExecDataHeader& getNativeProtoExecDataHeader(uint32_t* instructionOffsets) noexcept;
+[[nodiscard]] const NativeProtoExecDataHeader& getNativeProtoExecDataHeader(const uint32_t* instructionOffsets) noexcept;
+}
+} // namespace Luau
+#line __LINE__ "NativeProtoExecData.cpp"
+namespace Luau
+{
+namespace CodeGen
+{
+[[nodiscard]] static size_t computeNativeExecDataSize(uint32_t bytecodeInstructionCount) noexcept
+{
+ return sizeof(NativeProtoExecDataHeader) + (bytecodeInstructionCount * sizeof(uint32_t));
+}
+void NativeProtoExecDataDeleter::operator()(const uint32_t* instructionOffsets) const noexcept
+{
+ const NativeProtoExecDataHeader* header = &getNativeProtoExecDataHeader(instructionOffsets);
+ header->~NativeProtoExecDataHeader();
+ delete[] reinterpret_cast<const uint8_t*>(header);
+}
+[[nodiscard]] NativeProtoExecDataPtr createNativeProtoExecData(uint32_t bytecodeInstructionCount)
+{
+ std::unique_ptr<uint8_t[]> bytes = std::make_unique<uint8_t[]>(computeNativeExecDataSize(bytecodeInstructionCount));
+ new (static_cast<void*>(bytes.get())) NativeProtoExecDataHeader{};
+ return NativeProtoExecDataPtr{reinterpret_cast<uint32_t*>(bytes.release() + sizeof(NativeProtoExecDataHeader))};
+}
+[[nodiscard]] NativeProtoExecDataHeader& getNativeProtoExecDataHeader(uint32_t* instructionOffsets) noexcept
+{
+ return *reinterpret_cast<NativeProtoExecDataHeader*>(reinterpret_cast<uint8_t*>(instructionOffsets) - sizeof(NativeProtoExecDataHeader));
+}
+[[nodiscard]] const NativeProtoExecDataHeader& getNativeProtoExecDataHeader(const uint32_t* instructionOffsets) noexcept
+{
+ return *reinterpret_cast<const NativeProtoExecDataHeader*>(
+ reinterpret_cast<const uint8_t*>(instructionOffsets) - sizeof(NativeProtoExecDataHeader));
+}
+}
+} // namespace Luau
+#line __LINE__ ""
 #line __LINE__ "NativeState.cpp"
 LUAU_FASTINTVARIABLE(LuauCodeGenBlockSize, 4 * 1024 * 1024)
 LUAU_FASTINTVARIABLE(LuauCodeGenMaxTotalSize, 256 * 1024 * 1024)
@@ -52308,8 +52410,8 @@ LUAU_FASTINTVARIABLE(LuauCodeGenReuseSlotLimit, 64)
 LUAU_FASTFLAGVARIABLE(DebugLuauAbortingChecks, false)
 LUAU_FASTFLAG(LuauCodegenVectorTag2)
 LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauCodeGenCoverForgprepEffect, false)
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores4)
 LUAU_FASTFLAG(LuauCodegenLoadTVTag)
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores3)
 namespace Luau
 {
 namespace CodeGen
@@ -52766,7 +52868,7 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  std::tie(activeLoadCmd, activeLoadValue) = state.getPreviousVersionedLoadForTag(value, source);
  if (state.tryGetTag(source) == value)
  {
- if (FFlag::DebugLuauAbortingChecks)
+ if (FFlag::DebugLuauAbortingChecks && !FFlag::LuauCodegenRemoveDeadStores4)
  replace(function, block, index, {IrCmd::CHECK_TAG, inst.a, inst.b, build.undef()});
  else
  kill(function, inst);
@@ -53184,7 +53286,7 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  break;
  case IrCmd::FASTCALL:
  {
- if (FFlag::LuauCodegenRemoveDeadStores3)
+ if (FFlag::LuauCodegenRemoveDeadStores4)
  {
  LuauBuiltinFunction bfid = LuauBuiltinFunction(function.uintOp(inst.a));
  int firstReturnReg = vmRegOp(inst.b);
@@ -53675,8 +53777,9 @@ void createLinearBlocks(IrBuilder& build, bool useValueNumbering)
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "OptimizeDeadStore.cpp"
-LUAU_FASTFLAGVARIABLE(LuauCodegenRemoveDeadStores3, false)
+LUAU_FASTFLAGVARIABLE(LuauCodegenRemoveDeadStores4, false)
 LUAU_FASTFLAG(LuauCodegenVectorTag2)
+LUAU_FASTFLAG(LuauCodegenLoadTVTag)
 namespace Luau
 {
 namespace CodeGen
@@ -53929,6 +54032,8 @@ static void markDeadStoresInInst(RemoveDeadStoreState& state, IrBuilder& build, 
  arg->cmd == IrCmd::UNM_VEC)
  regInfo.maybeGco = false;
  }
+ if (FFlag::LuauCodegenLoadTVTag && arg->cmd == IrCmd::LOAD_TVALUE && arg->c.kind != IrOpKind::None)
+ regInfo.maybeGco = isGCO(function.tagOp(arg->c));
  }
  state.hasGcoToClear |= regInfo.maybeGco;
  }
@@ -53949,7 +54054,6 @@ static void markDeadStoresInInst(RemoveDeadStoreState& state, IrBuilder& build, 
  }
  break;
  case IrCmd::CHECK_TAG:
- visitVmRegDefsUses(state, function, inst);
  state.checkLiveIns(inst.c);
  break;
  case IrCmd::TRY_NUM_TO_INDEX:
@@ -54188,6 +54292,320 @@ void optimizeMemoryOperandsX64(IrFunction& function)
  continue;
  optimizeMemoryOperandsX64(function, block);
  }
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "SharedCodeAllocator.cpp"
+#include <atomic>
+#include <unordered_map>
+namespace Luau
+{
+namespace CodeGen
+{
+using ModuleId = std::array<uint8_t, 16>;
+class NativeProto;
+class NativeModule;
+class NativeModuleRef;
+class SharedCodeAllocator;
+class NativeProto
+{
+public:
+ NativeProto(uint32_t bytecodeId, NativeProtoExecDataPtr nativeExecData);
+ NativeProto(const NativeProto&) = delete;
+ NativeProto(NativeProto&&) noexcept = default;
+ NativeProto& operator=(const NativeProto&) = delete;
+ NativeProto& operator=(NativeProto&&) noexcept = default;
+ void setEntryOffset(uint32_t entryOffset) noexcept;
+ void assignToModule(NativeModule* nativeModule) noexcept;
+ [[nodiscard]] uint32_t getBytecodeId() const noexcept;
+ [[nodiscard]] const uint8_t* getEntryAddress() const noexcept;
+ [[nodiscard]] const NativeProtoExecDataHeader& getNativeExecDataHeader() const noexcept;
+ [[nodiscard]] const uint32_t* getNonOwningPointerToInstructionOffsets() const noexcept;
+ [[nodiscard]] const uint32_t* getOwningPointerToInstructionOffsets() const noexcept;
+ static void releaseOwningPointerToInstructionOffsets(const uint32_t* ownedInstructionOffsets) noexcept;
+private:
+ uint32_t bytecodeId = 0;
+ const uint8_t* entryOffsetOrAddress = nullptr;
+ NativeProtoExecDataPtr nativeExecData = {};
+};
+class NativeModule
+{
+public:
+ NativeModule(
+ SharedCodeAllocator* allocator, const ModuleId& moduleId, const uint8_t* moduleBaseAddress, std::vector<NativeProto> nativeProtos) noexcept;
+ NativeModule(const NativeModule&) = delete;
+ NativeModule(NativeModule&&) = delete;
+ NativeModule& operator=(const NativeModule&) = delete;
+ NativeModule& operator=(NativeModule&&) = delete;
+ ~NativeModule() noexcept;
+ size_t addRef() const noexcept;
+ size_t release() const noexcept;
+ [[nodiscard]] size_t getRefcount() const noexcept;
+ [[nodiscard]] const uint8_t* getModuleBaseAddress() const noexcept;
+ [[nodiscard]] const NativeProto* tryGetNativeProto(uint32_t bytecodeId) const noexcept;
+private:
+ mutable std::atomic<size_t> refcount = 0;
+ SharedCodeAllocator* allocator = nullptr;
+ ModuleId moduleId = {};
+ const uint8_t* moduleBaseAddress = nullptr;
+ std::vector<NativeProto> nativeProtos = {};
+};
+class NativeModuleRef
+{
+public:
+ NativeModuleRef() noexcept = default;
+ NativeModuleRef(NativeModule* nativeModule) noexcept;
+ NativeModuleRef(const NativeModuleRef& other) noexcept;
+ NativeModuleRef(NativeModuleRef&& other) noexcept;
+ NativeModuleRef& operator=(NativeModuleRef other) noexcept;
+ ~NativeModuleRef() noexcept;
+ void reset() noexcept;
+ void swap(NativeModuleRef& other) noexcept;
+ [[nodiscard]] bool empty() const noexcept;
+ explicit operator bool() const noexcept;
+ [[nodiscard]] const NativeModule* get() const noexcept;
+ [[nodiscard]] const NativeModule* operator->() const noexcept;
+ [[nodiscard]] const NativeModule& operator*() const noexcept;
+private:
+ const NativeModule* nativeModule = nullptr;
+};
+class SharedCodeAllocator
+{
+public:
+ SharedCodeAllocator() = default;
+ SharedCodeAllocator(const SharedCodeAllocator&) = delete;
+ SharedCodeAllocator(SharedCodeAllocator&&) = delete;
+ SharedCodeAllocator& operator=(const SharedCodeAllocator&) = delete;
+ SharedCodeAllocator& operator=(SharedCodeAllocator&&) = delete;
+ ~SharedCodeAllocator() noexcept;
+ [[nodiscard]] NativeModuleRef tryGetNativeModule(const ModuleId& moduleId) const noexcept;
+ NativeModuleRef getOrInsertNativeModule(
+ const ModuleId& moduleId, std::vector<NativeProto> nativeProtos, const std::vector<uint8_t>& data, const std::vector<uint8_t>& code);
+ void eraseNativeModuleIfUnreferenced(const ModuleId& moduleId);
+private:
+ struct ModuleIdHash
+ {
+ [[nodiscard]] size_t operator()(const ModuleId& moduleId) const noexcept;
+ };
+ [[nodiscard]] NativeModuleRef tryGetNativeModuleWithLockHeld(const ModuleId& moduleId) const noexcept;
+ mutable std::mutex mutex;
+ const uint8_t* baseAddress = reinterpret_cast<const uint8_t*>(0x0f00'0000);
+ std::unordered_map<ModuleId, std::unique_ptr<NativeModule>, ModuleIdHash, std::equal_to<>> nativeModules;
+};
+}
+} // namespace Luau
+#line __LINE__ "SharedCodeAllocator.cpp"
+#include <string_view>
+namespace Luau
+{
+namespace CodeGen
+{
+NativeProto::NativeProto(uint32_t bytecodeId, NativeProtoExecDataPtr nativeExecData)
+ : bytecodeId{bytecodeId}
+ , nativeExecData{std::move(nativeExecData)}
+{
+}
+void NativeProto::setEntryOffset(uint32_t entryOffset) noexcept
+{
+ entryOffsetOrAddress = reinterpret_cast<const uint8_t*>(static_cast<uintptr_t>(entryOffset));
+}
+void NativeProto::assignToModule(NativeModule* nativeModule) noexcept
+{
+ getNativeProtoExecDataHeader(nativeExecData.get()).nativeModule = nativeModule;
+ entryOffsetOrAddress = nativeModule->getModuleBaseAddress() + reinterpret_cast<uintptr_t>(entryOffsetOrAddress);
+}
+[[nodiscard]] uint32_t NativeProto::getBytecodeId() const noexcept
+{
+ return bytecodeId;
+}
+[[nodiscard]] const uint8_t* NativeProto::getEntryAddress() const noexcept
+{
+ return entryOffsetOrAddress;
+}
+[[nodiscard]] const NativeProtoExecDataHeader& NativeProto::getNativeExecDataHeader() const noexcept
+{
+ return getNativeProtoExecDataHeader(nativeExecData.get());
+}
+[[nodiscard]] const uint32_t* NativeProto::getNonOwningPointerToInstructionOffsets() const noexcept
+{
+ return nativeExecData.get();
+}
+[[nodiscard]] const uint32_t* NativeProto::getOwningPointerToInstructionOffsets() const noexcept
+{
+ getNativeProtoExecDataHeader(nativeExecData.get()).nativeModule->addRef();
+ return nativeExecData.get();
+}
+void NativeProto::releaseOwningPointerToInstructionOffsets(const uint32_t* ownedInstructionOffsets) noexcept
+{
+ getNativeProtoExecDataHeader(ownedInstructionOffsets).nativeModule->release();
+}
+struct NativeProtoBytecodeIdEqual
+{
+ [[nodiscard]] bool operator()(const NativeProto& left, const NativeProto& right) const noexcept
+ {
+ return left.getBytecodeId() == right.getBytecodeId();
+ }
+};
+struct NativeProtoBytecodeIdLess
+{
+ [[nodiscard]] bool operator()(const NativeProto& left, const NativeProto& right) const noexcept
+ {
+ return left.getBytecodeId() < right.getBytecodeId();
+ }
+ [[nodiscard]] bool operator()(const NativeProto& left, uint32_t right) const noexcept
+ {
+ return left.getBytecodeId() < right;
+ }
+ [[nodiscard]] bool operator()(uint32_t left, const NativeProto& right) const noexcept
+ {
+ return left < right.getBytecodeId();
+ }
+};
+NativeModule::NativeModule(
+ SharedCodeAllocator* allocator, const ModuleId& moduleId, const uint8_t* moduleBaseAddress, std::vector<NativeProto> nativeProtos) noexcept
+ : allocator{allocator}
+ , moduleId{moduleId}
+ , moduleBaseAddress{moduleBaseAddress}
+ , nativeProtos{std::move(nativeProtos)}
+{
+ LUAU_ASSERT(allocator != nullptr);
+ LUAU_ASSERT(moduleBaseAddress != nullptr);
+ for (NativeProto& nativeProto : this->nativeProtos)
+ {
+ nativeProto.assignToModule(this);
+ }
+ std::sort(this->nativeProtos.begin(), this->nativeProtos.end(), NativeProtoBytecodeIdLess{});
+ LUAU_ASSERT(std::adjacent_find(this->nativeProtos.begin(), this->nativeProtos.end(), NativeProtoBytecodeIdEqual{}) == this->nativeProtos.end());
+}
+NativeModule::~NativeModule() noexcept
+{
+ LUAU_ASSERT(refcount == 0);
+}
+size_t NativeModule::addRef() const noexcept
+{
+ return refcount.fetch_add(1) + 1;
+}
+size_t NativeModule::release() const noexcept
+{
+ size_t newRefcount = refcount.fetch_sub(1) - 1;
+ if (newRefcount != 0)
+ return newRefcount;
+ allocator->eraseNativeModuleIfUnreferenced(moduleId);
+ return 0;
+}
+[[nodiscard]] size_t NativeModule::getRefcount() const noexcept
+{
+ return refcount;
+}
+[[nodiscard]] const uint8_t* NativeModule::getModuleBaseAddress() const noexcept
+{
+ return moduleBaseAddress;
+}
+[[nodiscard]] const NativeProto* NativeModule::tryGetNativeProto(uint32_t bytecodeId) const noexcept
+{
+ const auto range = std::equal_range(nativeProtos.begin(), nativeProtos.end(), bytecodeId, NativeProtoBytecodeIdLess{});
+ if (range.first == range.second)
+ return nullptr;
+ LUAU_ASSERT(std::next(range.first) == range.second);
+ return &*range.first;
+}
+NativeModuleRef::NativeModuleRef(NativeModule* nativeModule) noexcept
+ : nativeModule{nativeModule}
+{
+ if (nativeModule != nullptr)
+ nativeModule->addRef();
+}
+NativeModuleRef::NativeModuleRef(const NativeModuleRef& other) noexcept
+ : nativeModule{other.nativeModule}
+{
+ if (nativeModule != nullptr)
+ nativeModule->addRef();
+}
+NativeModuleRef::NativeModuleRef(NativeModuleRef&& other) noexcept
+ : nativeModule{std::exchange(other.nativeModule, nullptr)}
+{
+}
+NativeModuleRef& NativeModuleRef::operator=(NativeModuleRef other) noexcept
+{
+ swap(other);
+ return *this;
+}
+NativeModuleRef::~NativeModuleRef() noexcept
+{
+ reset();
+}
+void NativeModuleRef::reset() noexcept
+{
+ if (nativeModule == nullptr)
+ return;
+ nativeModule->release();
+ nativeModule = nullptr;
+}
+void NativeModuleRef::swap(NativeModuleRef& other) noexcept
+{
+ std::swap(nativeModule, other.nativeModule);
+}
+[[nodiscard]] bool NativeModuleRef::empty() const noexcept
+{
+ return nativeModule == nullptr;
+}
+NativeModuleRef::operator bool() const noexcept
+{
+ return nativeModule != nullptr;
+}
+[[nodiscard]] const NativeModule* NativeModuleRef::get() const noexcept
+{
+ return nativeModule;
+}
+[[nodiscard]] const NativeModule* NativeModuleRef::operator->() const noexcept
+{
+ return nativeModule;
+}
+[[nodiscard]] const NativeModule& NativeModuleRef::operator*() const noexcept
+{
+ return *nativeModule;
+}
+SharedCodeAllocator::~SharedCodeAllocator() noexcept
+{
+ LUAU_ASSERT(nativeModules.empty());
+}
+[[nodiscard]] NativeModuleRef SharedCodeAllocator::tryGetNativeModule(const ModuleId& moduleId) const noexcept
+{
+ std::unique_lock lock{mutex};
+ return tryGetNativeModuleWithLockHeld(moduleId);
+}
+NativeModuleRef SharedCodeAllocator::getOrInsertNativeModule(
+ const ModuleId& moduleId, std::vector<NativeProto> nativeProtos, const std::vector<uint8_t>& data, const std::vector<uint8_t>& code)
+{
+ std::unique_lock lock{mutex};
+ if (NativeModuleRef existingModule = tryGetNativeModuleWithLockHeld(moduleId))
+ return existingModule;
+ std::unique_ptr<NativeModule>& nativeModule = nativeModules[moduleId];
+ nativeModule = std::make_unique<NativeModule>(this, moduleId, baseAddress, std::move(nativeProtos));
+ baseAddress += data.size() + code.size();
+ return NativeModuleRef{nativeModule.get()};
+}
+void SharedCodeAllocator::eraseNativeModuleIfUnreferenced(const ModuleId& moduleId)
+{
+ std::unique_lock lock{mutex};
+ const auto it = nativeModules.find(moduleId);
+ if (it == nativeModules.end())
+ return;
+ if (it->second->getRefcount() != 0)
+ return;
+ nativeModules.erase(it);
+}
+[[nodiscard]] NativeModuleRef SharedCodeAllocator::tryGetNativeModuleWithLockHeld(const ModuleId& moduleId) const noexcept
+{
+ const auto it = nativeModules.find(moduleId);
+ if (it == nativeModules.end())
+ return NativeModuleRef{};
+ return NativeModuleRef{it->second.get()};
+}
+[[nodiscard]] size_t SharedCodeAllocator::ModuleIdHash::operator()(const ModuleId& moduleId) const noexcept
+{
+ return std::hash<std::string_view>{}(std::string_view{reinterpret_cast<const char*>(moduleId.data()), moduleId.size()});
 }
 }
 } // namespace Luau
