@@ -125,7 +125,8 @@ enum LuauBytecodeTag
  LBC_VERSION_MIN = 3,
  LBC_VERSION_MAX = 5,
  LBC_VERSION_TARGET = 5,
- LBC_TYPE_VERSION = 1,
+ LBC_TYPE_VERSION_DEPRECATED = 1,
+ LBC_TYPE_VERSION = 2,
  LBC_CONSTANT_NIL = 0,
  LBC_CONSTANT_BOOLEAN,
  LBC_CONSTANT_NUMBER,
@@ -340,7 +341,7 @@ struct FValue
  {
  list = this;
  }
- operator T() const
+ LUAU_FORCEINLINE operator T() const
  {
  return value;
  }
@@ -889,7 +890,6 @@ inline bool isFlagExperimental(const char* flag)
  "LuauInstantiateInSubtyping", // requires some fixes to lua-apps code
  "LuauTinyControlFlowAnalysis", // waiting for updates to packages depended by internal builtin plugins
  "LuauFixIndexerSubtypingOrdering", // requires some small fixes to lua-apps code since this fixes a false negative
- "LuauUpdatedRequireByStringSemantics", // requires some small fixes to fully implement some proposed changes
  nullptr,
  };
  for (const char* item : kList)
@@ -1369,6 +1369,7 @@ typedef struct Proto
  int linegaplog2;
  int linedefined;
  int bytecodeid;
+ int sizetypeinfo;
 } Proto;
 typedef struct LocVar
 {
@@ -4268,7 +4269,7 @@ LUAI_FUNC void* luaM_realloc_(lua_State* L, void* block, size_t osize, size_t ns
 LUAI_FUNC l_noret luaM_toobig(lua_State* L);
 LUAI_FUNC void luaM_getpagewalkinfo(lua_Page* page, char** start, char** end, int* busyBlocks, int* blockSize);
 LUAI_FUNC void luaM_getpageinfo(lua_Page* page, int* pageBlocks, int* busyBlocks, int* blockSize, int* pageSize);
-LUAI_FUNC lua_Page* luaM_getnextgcopage(lua_Page* page);
+LUAI_FUNC lua_Page* luaM_getnextpage(lua_Page* page);
 LUAI_FUNC void luaM_visitpage(lua_Page* page, void* context, bool (*visitor)(void* context, lua_Page* page, GCObject* gco));
 LUAI_FUNC void luaM_visitgco(lua_State* L, void* context, bool (*visitor)(void* context, lua_Page* page, GCObject* gco));
 #line __LINE__ "lbuffer.cpp"
@@ -6013,7 +6014,6 @@ int luaopen_coroutine(lua_State* L)
 }
 #line __LINE__ ""
 #line __LINE__ "ldblib.cpp"
-LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauDebugInfoDupArgLeftovers, false)
 static lua_State* getthread(lua_State* L, int* arg)
 {
  if (lua_isthread(L, 1))
@@ -6035,7 +6035,6 @@ static int db_info(lua_State* L)
  if (L != L1)
  {
  lua_rawcheckstack(L1, 1);
- if (DFFlag::LuauDebugInfoDupArgLeftovers)
  l1top = lua_gettop(L1);
  }
  int level;
@@ -6062,7 +6061,7 @@ static int db_info(lua_State* L)
  {
  if (occurs[*it - 'a'])
  {
- if (DFFlag::LuauDebugInfoDupArgLeftovers && L != L1)
+ if (L != L1)
  lua_settop(L1, l1top);
  luaL_argerror(L, arg + 2, "duplicate option");
  }
@@ -6306,8 +6305,11 @@ int lua_getinfo(lua_State* L, int level, const char* what, lua_Debug* ar)
  CallInfo* ci = NULL;
  if (level < 0)
  {
- const TValue* func = luaA_toobject(L, level);
- api_check(L, ttisfunction(func));
+ if (-level > L->top - L->base)
+ return 0;
+ StkId func = L->top + level;
+ if (!ttisfunction(func))
+ return 0;
  f = clvalue(func);
  }
  else if (unsigned(level) < unsigned(L->ci - L->base_ci))
@@ -7056,13 +7058,11 @@ int luaD_pcall(lua_State* L, Pfunc func, void* u, ptrdiff_t old_top, ptrdiff_t e
 }
 #line __LINE__ ""
 #line __LINE__ "lfunc.cpp"
-LUAU_FASTFLAGVARIABLE(LuauNewProtoInitAll, false)
+LUAU_FASTFLAGVARIABLE(LuauLoadTypeInfo, false)
 Proto* luaF_newproto(lua_State* L)
 {
  Proto* f = luaM_newgco(L, Proto, sizeof(Proto), L->activememcat);
  luaC_init(L, f, LUA_TPROTO);
- if (FFlag::LuauNewProtoInitAll)
- {
  f->nups = 0;
  f->numparams = 0;
  f->is_vararg = 0;
@@ -7093,37 +7093,8 @@ Proto* luaF_newproto(lua_State* L)
  f->linegaplog2 = 0;
  f->linedefined = 0;
  f->bytecodeid = 0;
- }
- else
- {
- f->k = NULL;
- f->sizek = 0;
- f->p = NULL;
- f->sizep = 0;
- f->code = NULL;
- f->sizecode = 0;
- f->sizeupvalues = 0;
- f->nups = 0;
- f->upvalues = NULL;
- f->numparams = 0;
- f->is_vararg = 0;
- f->maxstacksize = 0;
- f->flags = 0;
- f->sizelineinfo = 0;
- f->linegaplog2 = 0;
- f->lineinfo = NULL;
- f->abslineinfo = NULL;
- f->sizelocvars = 0;
- f->locvars = NULL;
- f->source = NULL;
- f->debugname = NULL;
- f->debuginsn = NULL;
- f->codeentry = NULL;
- f->execdata = NULL;
- f->exectarget = 0;
- f->typeinfo = NULL;
- f->userdata = NULL;
- }
+ if (FFlag::LuauLoadTypeInfo)
+ f->sizetypeinfo = 0;
  return f;
 }
 Closure* luaF_newLclosure(lua_State* L, int nelems, Table* e, Proto* p)
@@ -7223,8 +7194,16 @@ void luaF_freeproto(lua_State* L, Proto* f, lua_Page* page)
  luaM_freearray(L, f->debuginsn, f->sizecode, uint8_t, f->memcat);
  if (f->execdata)
  L->global->ecb.destroy(L, f);
+ if (FFlag::LuauLoadTypeInfo)
+ {
+ if (f->typeinfo)
+ luaM_freearray(L, f->typeinfo, f->sizetypeinfo, uint8_t, f->memcat);
+ }
+ else
+ {
  if (f->typeinfo)
  luaM_freearray(L, f->typeinfo, f->numparams + 2, uint8_t, f->memcat);
+ }
  luaM_freegco(L, f, sizeof(Proto), f->memcat, page);
 }
 void luaF_freeclosure(lua_State* L, Closure* c, lua_Page* page)
@@ -7254,6 +7233,7 @@ const LocVar* luaF_findlocal(const Proto* f, int local_reg, int pc)
 }
 #line __LINE__ ""
 #line __LINE__ "lgc.cpp"
+LUAU_FASTFLAG(LuauLoadTypeInfo)
 #define GC_SWEEPPAGESTEPCOST 16
 #define GC_INTERRUPT(state) { void (*interrupt)(lua_State*, int) = g->cb.interrupt; if (LUAU_UNLIKELY(!!interrupt)) interrupt(L, state); }
 #define maskmarks cast_byte(~(bitmask(BLACKBIT) | WHITEBITS))
@@ -7572,8 +7552,16 @@ static size_t propagatemark(global_State* g)
  Proto* p = gco2p(o);
  g->gray = p->gclist;
  traverseproto(g, p);
+ if (FFlag::LuauLoadTypeInfo)
+ {
+ return sizeof(Proto) + sizeof(Instruction) * p->sizecode + sizeof(Proto*) * p->sizep + sizeof(TValue) * p->sizek + p->sizelineinfo +
+ sizeof(LocVar) * p->sizelocvars + sizeof(TString*) * p->sizeupvalues + p->sizetypeinfo;
+ }
+ else
+ {
  return sizeof(Proto) + sizeof(Instruction) * p->sizecode + sizeof(Proto*) * p->sizep + sizeof(TValue) * p->sizek + p->sizelineinfo +
  sizeof(LocVar) * p->sizelocvars + sizeof(TString*) * p->sizeupvalues;
+ }
  }
  default:
  LUAU_ASSERT(0);
@@ -7900,7 +7888,7 @@ static size_t gcstep(lua_State* L, size_t limit)
  {
  while (g->sweepgcopage && cost < limit)
  {
- lua_Page* next = luaM_getnextgcopage(g->sweepgcopage);
+ lua_Page* next = luaM_getnextpage(g->sweepgcopage);
  int steps = sweepgcopage(L, g->sweepgcopage);
  g->sweepgcopage = next;
  cost += steps * GC_SWEEPPAGESTEPCOST;
@@ -8127,7 +8115,6 @@ const char* luaC_statename(int state)
 }
 #line __LINE__ ""
 #line __LINE__ "lgcdebug.cpp"
-LUAU_FASTFLAGVARIABLE(LuauCodegenHeapSizeReport, false)
 static void validateobjref(global_State* g, GCObject* f, GCObject* t)
 {
  LUAU_ASSERT(!isdead(g, t));
@@ -8780,14 +8767,11 @@ static void enumproto(EnumContext* ctx, Proto* p)
 {
  size_t size = sizeof(Proto) + sizeof(Instruction) * p->sizecode + sizeof(Proto*) * p->sizep + sizeof(TValue) * p->sizek + p->sizelineinfo +
  sizeof(LocVar) * p->sizelocvars + sizeof(TString*) * p->sizeupvalues;
- if (FFlag::LuauCodegenHeapSizeReport)
- {
  if (p->execdata && ctx->L->global->ecb.getmemorysize)
  {
  size_t nativesize = ctx->L->global->ecb.getmemorysize(ctx->L, p);
  ctx->node(ctx->context, p->execdata, uint8_t(LUA_TNONE), p->memcat, nativesize, NULL);
  ctx->edge(ctx->context, enumtopointer(obj2gco(p)), p->execdata, "[native]");
- }
  }
  enumnode(ctx, obj2gco(p), size, p->source ? getstr(p->source) : NULL);
  if (p->sizek)
@@ -9360,8 +9344,8 @@ struct lua_Page
 {
  lua_Page* prev;
  lua_Page* next;
- lua_Page* gcolistprev;
- lua_Page* gcolistnext;
+ lua_Page* listprev;
+ lua_Page* listnext;
  int pageSize;
  int blockSize; // block size in bytes, including block header (for non-GCO)
  void* freeList;
@@ -9378,7 +9362,7 @@ l_noret luaM_toobig(lua_State* L)
 {
  luaG_runerror(L, "memory allocation error: block too big");
 }
-static lua_Page* newpage(lua_State* L, lua_Page** gcopageset, int pageSize, int blockSize, int blockCount)
+static lua_Page* newpage(lua_State* L, lua_Page** pageset, int pageSize, int blockSize, int blockCount)
 {
  global_State* g = L->global;
  LUAU_ASSERT(pageSize - int(offsetof(lua_Page, data)) >= blockSize * blockCount);
@@ -9388,23 +9372,23 @@ static lua_Page* newpage(lua_State* L, lua_Page** gcopageset, int pageSize, int 
  ASAN_POISON_MEMORY_REGION(page->data, blockSize * blockCount);
  page->prev = NULL;
  page->next = NULL;
- page->gcolistprev = NULL;
- page->gcolistnext = NULL;
+ page->listprev = NULL;
+ page->listnext = NULL;
  page->pageSize = pageSize;
  page->blockSize = blockSize;
  page->freeList = NULL;
  page->freeNext = (blockCount - 1) * blockSize;
  page->busyBlocks = 0;
- if (gcopageset)
+ if (pageset)
  {
- page->gcolistnext = *gcopageset;
- if (page->gcolistnext)
- page->gcolistnext->gcolistprev = page;
- *gcopageset = page;
+ page->listnext = *pageset;
+ if (page->listnext)
+ page->listnext->listprev = page;
+ *pageset = page;
  }
  return page;
 }
-LUAU_NOINLINE static lua_Page* newclasspage(lua_State* L, lua_Page** freepageset, lua_Page** gcopageset, uint8_t sizeClass, bool storeMetadata)
+LUAU_NOINLINE static lua_Page* newclasspage(lua_State* L, lua_Page** freepageset, lua_Page** pageset, uint8_t sizeClass, bool storeMetadata)
 {
  if (FFlag::LuauExtendedSizeClasses)
  {
@@ -9412,7 +9396,7 @@ LUAU_NOINLINE static lua_Page* newclasspage(lua_State* L, lua_Page** freepageset
  int pageSize = sizeOfClass > int(kLargePageThreshold) ? kLargePageSize : kSmallPageSize;
  int blockSize = sizeOfClass + (storeMetadata ? kBlockHeader : 0);
  int blockCount = (pageSize - offsetof(lua_Page, data)) / blockSize;
- lua_Page* page = newpage(L, gcopageset, pageSize, blockSize, blockCount);
+ lua_Page* page = newpage(L, pageset, pageSize, blockSize, blockCount);
  LUAU_ASSERT(!freepageset[sizeClass]);
  freepageset[sizeClass] = page;
  return page;
@@ -9421,27 +9405,27 @@ LUAU_NOINLINE static lua_Page* newclasspage(lua_State* L, lua_Page** freepageset
  {
  int blockSize = kSizeClassConfig.sizeOfClass[sizeClass] + (storeMetadata ? kBlockHeader : 0);
  int blockCount = (kSmallPageSize - offsetof(lua_Page, data)) / blockSize;
- lua_Page* page = newpage(L, gcopageset, kSmallPageSize, blockSize, blockCount);
+ lua_Page* page = newpage(L, pageset, kSmallPageSize, blockSize, blockCount);
  LUAU_ASSERT(!freepageset[sizeClass]);
  freepageset[sizeClass] = page;
  return page;
  }
 }
-static void freepage(lua_State* L, lua_Page** gcopageset, lua_Page* page)
+static void freepage(lua_State* L, lua_Page** pageset, lua_Page* page)
 {
  global_State* g = L->global;
- if (gcopageset)
+ if (pageset)
  {
- if (page->gcolistnext)
- page->gcolistnext->gcolistprev = page->gcolistprev;
- if (page->gcolistprev)
- page->gcolistprev->gcolistnext = page->gcolistnext;
- else if (*gcopageset == page)
- *gcopageset = page->gcolistnext;
+ if (page->listnext)
+ page->listnext->listprev = page->listprev;
+ if (page->listprev)
+ page->listprev->listnext = page->listnext;
+ else if (*pageset == page)
+ *pageset = page->listnext;
  }
  (*g->frealloc)(g->ud, page, page->pageSize, 0);
 }
-static void freeclasspage(lua_State* L, lua_Page** freepageset, lua_Page** gcopageset, lua_Page* page, uint8_t sizeClass)
+static void freeclasspage(lua_State* L, lua_Page** freepageset, lua_Page** pageset, lua_Page* page, uint8_t sizeClass)
 {
  if (page->next)
  page->next->prev = page->prev;
@@ -9449,7 +9433,7 @@ static void freeclasspage(lua_State* L, lua_Page** freepageset, lua_Page** gcopa
  page->prev->next = page->next;
  else if (freepageset[sizeClass] == page)
  freepageset[sizeClass] = page->next;
- freepage(L, gcopageset, page);
+ freepage(L, pageset, page);
 }
 static void* newblock(lua_State* L, int sizeClass)
 {
@@ -9679,9 +9663,9 @@ void luaM_getpageinfo(lua_Page* page, int* pageBlocks, int* busyBlocks, int* blo
  *blockSize = page->blockSize;
  *pageSize = page->pageSize;
 }
-lua_Page* luaM_getnextgcopage(lua_Page* page)
+lua_Page* luaM_getnextpage(lua_Page* page)
 {
- return page->gcolistnext;
+ return page->listnext;
 }
 void luaM_visitpage(lua_Page* page, void* context, bool (*visitor)(void* context, lua_Page* page, GCObject* gco))
 {
@@ -9708,7 +9692,7 @@ void luaM_visitgco(lua_State* L, void* context, bool (*visitor)(void* context, l
  global_State* g = L->global;
  for (lua_Page* curr = g->allgcopages; curr;)
  {
- lua_Page* next = curr->gcolistnext;
+ lua_Page* next = curr->listnext;
  luaM_visitpage(curr, context, visitor);
  curr = next;
  }
@@ -12798,6 +12782,8 @@ void luaH_clear(Table* tt)
 }
 #line __LINE__ ""
 #line __LINE__ "ltablib.cpp"
+LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauFastCrossTableMove, false)
+LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauFasterConcat, false)
 static int foreachi(lua_State* L)
 {
  luaL_checktype(L, 1, LUA_TTABLE);
@@ -12891,6 +12877,52 @@ static void moveelements(lua_State* L, int srct, int dstt, int f, int e, int t)
  }
  luaC_barrierfast(L, dst);
  }
+ else if (DFFlag::LuauFastCrossTableMove && dst != src)
+ {
+ int slicestart = f < 1 ? 0 : (f > src->sizearray ? src->sizearray : f - 1);
+ int sliceend = e < 1 ? 0 : (e > src->sizearray ? src->sizearray : e);
+ LUAU_ASSERT(slicestart <= sliceend);
+ int slicecount = sliceend - slicestart;
+ if (slicecount > 0)
+ {
+ int dstslicestart = f < 1 ? -f + 1 : 0;
+ for (int i = 0; i < slicecount; ++i)
+ {
+ lua_rawgeti(L, srct, slicestart + i + 1);
+ lua_rawseti(L, dstt, dstslicestart + t + i);
+ }
+ }
+ int hashpartsize = sizenode(src);
+ if (n <= hashpartsize)
+ {
+ for (int i = 0; i < n; ++i)
+ {
+ if (cast_to(unsigned int, f + i - 1) < cast_to(unsigned int, src->sizearray))
+ continue;
+ lua_rawgeti(L, srct, f + i);
+ lua_rawseti(L, dstt, t + i);
+ }
+ }
+ else
+ {
+ int i = hashpartsize;
+ while (i--)
+ {
+ LuaNode* node = gnode(src, i);
+ if (ttisnumber(gkey(node)))
+ {
+ double n = nvalue(gkey(node));
+ int k;
+ luai_num2int(k, n);
+ if (luai_numeq(cast_num(k), n) && k >= f && k <= e)
+ {
+ lua_rawgeti(L, srct, k);
+ lua_rawseti(L, dstt, t - f + k);
+ }
+ }
+ }
+ }
+ }
  else
  {
  if (t > e || t <= f || dst != src)
@@ -12976,30 +13008,39 @@ static int tmove(lua_State* L)
  lua_pushvalue(L, tt);
  return 1;
 }
-static void addfield(lua_State* L, luaL_Strbuf* b, int i)
+static void addfield(lua_State* L, luaL_Strbuf* b, int i, Table* t)
 {
+ if (DFFlag::LuauFasterConcat && t && unsigned(i - 1) < unsigned(t->sizearray) && ttisstring(&t->array[i - 1]))
+ {
+ TString* ts = tsvalue(&t->array[i - 1]);
+ luaL_addlstring(b, getstr(ts), ts->len);
+ }
+ else
+ {
  int tt = lua_rawgeti(L, 1, i);
  if (tt != LUA_TSTRING && tt != LUA_TNUMBER)
  luaL_error(L, "invalid value (%s) at index %d in table for 'concat'", luaL_typename(L, -1), i);
  luaL_addvalue(b);
+ }
 }
 static int tconcat(lua_State* L)
 {
- luaL_Strbuf b;
  size_t lsep;
- int i, last;
  const char* sep = luaL_optlstring(L, 2, "", &lsep);
  luaL_checktype(L, 1, LUA_TTABLE);
- i = luaL_optinteger(L, 3, 1);
- last = luaL_opt(L, luaL_checkinteger, 4, lua_objlen(L, 1));
+ int i = luaL_optinteger(L, 3, 1);
+ int last = luaL_opt(L, luaL_checkinteger, 4, lua_objlen(L, 1));
+ Table* t = DFFlag::LuauFasterConcat ? hvalue(L->base) : NULL;
+ luaL_Strbuf b;
  luaL_buffinit(L, &b);
  for (; i < last; i++)
  {
- addfield(L, &b, i);
+ addfield(L, &b, i, t);
+ if (!DFFlag::LuauFasterConcat || lsep != 0)
  luaL_addlstring(&b, sep, lsep);
  }
  if (i == last)
- addfield(L, &b, i);
+ addfield(L, &b, i, t);
  luaL_pushresult(&b);
  return 1;
 }
@@ -15978,7 +16019,7 @@ void luau_poscall(lua_State* L, StkId first)
 }
 #line __LINE__ ""
 #line __LINE__ "lvmload.cpp"
-LUAU_FASTFLAGVARIABLE(LuauLoadExceptionSafe, false)
+LUAU_FASTFLAG(LuauLoadTypeInfo)
 template<typename T>
 struct TempBuffer
 {
@@ -16011,11 +16052,8 @@ public:
  ScopedSetGCThreshold(global_State* global, size_t newThreshold) noexcept
  : global{global}
  {
- if (FFlag::LuauLoadExceptionSafe)
- {
  originalThreshold = global->GCthreshold;
  global->GCthreshold = newThreshold;
- }
  }
  ScopedSetGCThreshold(const ScopedSetGCThreshold&) = delete;
  ScopedSetGCThreshold(ScopedSetGCThreshold&&) = delete;
@@ -16023,10 +16061,7 @@ public:
  ScopedSetGCThreshold& operator=(ScopedSetGCThreshold&&) = delete;
  ~ScopedSetGCThreshold() noexcept
  {
- if (FFlag::LuauLoadExceptionSafe)
- {
  global->GCthreshold = originalThreshold;
- }
  }
 private:
  global_State* global = nullptr;
@@ -16132,11 +16167,6 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  }
  luaC_checkGC(L);
  const ScopedSetGCThreshold pauseGC{L->global, SIZE_MAX};
- size_t GCthreshold = L->global->GCthreshold;
- if (!FFlag::LuauLoadExceptionSafe)
- {
- L->global->GCthreshold = SIZE_MAX;
- }
  Table* envt = (env == 0) ? L->gt : hvalue(luaA_toobject(L, env));
  TString* source = luaS_new(L, chunkname);
  uint8_t typesversion = 0;
@@ -16166,8 +16196,54 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  if (version >= 4)
  {
  p->flags = read<uint8_t>(data, size, offset);
+ if (FFlag::LuauLoadTypeInfo)
+ {
+ if (typesversion == 1)
+ {
  uint32_t typesize = readVarInt(data, size, offset);
- if (typesize && typesversion == LBC_TYPE_VERSION)
+ if (typesize)
+ {
+ uint8_t* types = (uint8_t*)data + offset;
+ LUAU_ASSERT(typesize == unsigned(2 + p->numparams));
+ LUAU_ASSERT(types[0] == LBC_TYPE_FUNCTION);
+ LUAU_ASSERT(types[1] == p->numparams);
+ int headersize = typesize > 127 ? 4 : 3;
+ p->typeinfo = luaM_newarray(L, headersize + typesize, uint8_t, p->memcat);
+ p->sizetypeinfo = headersize + typesize;
+ if (headersize == 4)
+ {
+ p->typeinfo[0] = (typesize & 127) | (1 << 7);
+ p->typeinfo[1] = typesize >> 7;
+ p->typeinfo[2] = 0;
+ p->typeinfo[3] = 0;
+ }
+ else
+ {
+ p->typeinfo[0] = uint8_t(typesize);
+ p->typeinfo[1] = 0;
+ p->typeinfo[2] = 0;
+ }
+ memcpy(p->typeinfo + headersize, types, typesize);
+ }
+ offset += typesize;
+ }
+ else if (typesversion == 2)
+ {
+ uint32_t typesize = readVarInt(data, size, offset);
+ if (typesize)
+ {
+ uint8_t* types = (uint8_t*)data + offset;
+ p->typeinfo = luaM_newarray(L, typesize, uint8_t, p->memcat);
+ p->sizetypeinfo = typesize;
+ memcpy(p->typeinfo, types, typesize);
+ offset += typesize;
+ }
+ }
+ }
+ else
+ {
+ uint32_t typesize = readVarInt(data, size, offset);
+ if (typesize && typesversion == LBC_TYPE_VERSION_DEPRECATED)
  {
  uint8_t* types = (uint8_t*)data + offset;
  LUAU_ASSERT(typesize == unsigned(2 + p->numparams));
@@ -16178,47 +16254,25 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  }
  offset += typesize;
  }
- if (FFlag::LuauLoadExceptionSafe)
- {
+ }
  const int sizecode = readVarInt(data, size, offset);
  p->code = luaM_newarray(L, sizecode, Instruction, p->memcat);
  p->sizecode = sizecode;
- }
- else
- {
- p->sizecode = readVarInt(data, size, offset);
- p->code = luaM_newarray(L, p->sizecode, Instruction, p->memcat);
- }
  for (int j = 0; j < p->sizecode; ++j)
  p->code[j] = read<uint32_t>(data, size, offset);
  p->codeentry = p->code;
- if (FFlag::LuauLoadExceptionSafe)
- {
  const int sizek = readVarInt(data, size, offset);
  p->k = luaM_newarray(L, sizek, TValue, p->memcat);
  p->sizek = sizek;
- }
- else
- {
- p->sizek = readVarInt(data, size, offset);
- p->k = luaM_newarray(L, p->sizek, TValue, p->memcat);
- }
- if (FFlag::LuauLoadExceptionSafe)
- {
  for (int j = 0; j < p->sizek; ++j)
  {
  setnilvalue(&p->k[j]);
- }
  }
  for (int j = 0; j < p->sizek; ++j)
  {
  switch (read<uint8_t>(data, size, offset))
  {
  case LBC_CONSTANT_NIL:
- if (!FFlag::LuauLoadExceptionSafe)
- {
- setnilvalue(&p->k[j]);
- }
  break;
  case LBC_CONSTANT_BOOLEAN:
  {
@@ -16281,17 +16335,9 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  LUAU_ASSERT(!"Unexpected constant kind");
  }
  }
- if (FFlag::LuauLoadExceptionSafe)
- {
  const int sizep = readVarInt(data, size, offset);
  p->p = luaM_newarray(L, sizep, Proto*, p->memcat);
  p->sizep = sizep;
- }
- else
- {
- p->sizep = readVarInt(data, size, offset);
- p->p = luaM_newarray(L, p->sizep, Proto*, p->memcat);
- }
  for (int j = 0; j < p->sizep; ++j)
  {
  uint32_t fid = readVarInt(data, size, offset);
@@ -16305,17 +16351,9 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  p->linegaplog2 = read<uint8_t>(data, size, offset);
  int intervals = ((p->sizecode - 1) >> p->linegaplog2) + 1;
  int absoffset = (p->sizecode + 3) & ~3;
- if (FFlag::LuauLoadExceptionSafe)
- {
  const int sizelineinfo = absoffset + intervals * sizeof(int);
  p->lineinfo = luaM_newarray(L, sizelineinfo, uint8_t, p->memcat);
  p->sizelineinfo = sizelineinfo;
- }
- else
- {
- p->sizelineinfo = absoffset + intervals * sizeof(int);
- p->lineinfo = luaM_newarray(L, p->sizelineinfo, uint8_t, p->memcat);
- }
  p->abslineinfo = (int*)(p->lineinfo + absoffset);
  uint8_t lastoffset = 0;
  for (int j = 0; j < p->sizecode; ++j)
@@ -16333,17 +16371,9 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  uint8_t debuginfo = read<uint8_t>(data, size, offset);
  if (debuginfo)
  {
- if (FFlag::LuauLoadExceptionSafe)
- {
  const int sizelocvars = readVarInt(data, size, offset);
  p->locvars = luaM_newarray(L, sizelocvars, LocVar, p->memcat);
  p->sizelocvars = sizelocvars;
- }
- else
- {
- p->sizelocvars = readVarInt(data, size, offset);
- p->locvars = luaM_newarray(L, p->sizelocvars, LocVar, p->memcat);
- }
  for (int j = 0; j < p->sizelocvars; ++j)
  {
  p->locvars[j].varname = readString(strings, data, size, offset);
@@ -16351,17 +16381,10 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  p->locvars[j].endpc = readVarInt(data, size, offset);
  p->locvars[j].reg = read<uint8_t>(data, size, offset);
  }
- if (FFlag::LuauLoadExceptionSafe)
- {
  const int sizeupvalues = readVarInt(data, size, offset);
+ LUAU_ASSERT(sizeupvalues == p->nups);
  p->upvalues = luaM_newarray(L, sizeupvalues, TString*, p->memcat);
  p->sizeupvalues = sizeupvalues;
- }
- else
- {
- p->sizeupvalues = readVarInt(data, size, offset);
- p->upvalues = luaM_newarray(L, p->sizeupvalues, TString*, p->memcat);
- }
  for (int j = 0; j < p->sizeupvalues; ++j)
  {
  p->upvalues[j] = readString(strings, data, size, offset);
@@ -16375,10 +16398,6 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  Closure* cl = luaF_newLclosure(L, 0, envt, main);
  setclvalue(L, L->top, cl);
  incr_top(L);
- if (!FFlag::LuauLoadExceptionSafe)
- {
- L->global->GCthreshold = GCthreshold;
- }
  return 0;
 }
 #line __LINE__ ""
@@ -25701,6 +25720,7 @@ struct CompileOptions
 {
  int optimizationLevel = 1;
  int debugLevel = 1;
+ int typeInfoLevel = 0;
  int coverageLevel = 0;
  const char* vectorLib = nullptr;
  const char* vectorCtor = nullptr;
@@ -26155,6 +26175,8 @@ public:
  void foldJumps();
  void expandJumps();
  void setFunctionTypeInfo(std::string value);
+ void pushLocalTypeInfo(LuauBytecodeType type, uint8_t reg, uint32_t startpc, uint32_t endpc);
+ void pushUpvalTypeInfo(LuauBytecodeType type);
  void setDebugFunctionName(StringRef name);
  void setDebugFunctionLineDefined(int line);
  void setDebugLine(int line);
@@ -26172,6 +26194,7 @@ public:
  Dump_Source = 1 << 2,
  Dump_Locals = 1 << 3,
  Dump_Remarks = 1 << 4,
+ Dump_Types = 1 << 5,
  };
  void setDumpFlags(uint32_t flags)
  {
@@ -26262,6 +26285,17 @@ private:
  {
  unsigned int name;
  };
+ struct TypedLocal
+ {
+ LuauBytecodeType type;
+ uint8_t reg;
+ uint32_t startpc;
+ uint32_t endpc;
+ };
+ struct TypedUpval
+ {
+ LuauBytecodeType type;
+ };
  struct Jump
  {
  uint32_t source;
@@ -26296,6 +26330,8 @@ private:
  int debugLine = 0;
  std::vector<DebugLocal> debugLocals;
  std::vector<DebugUpval> debugUpvals;
+ std::vector<TypedLocal> typedLocals;
+ std::vector<TypedUpval> typedUpvals;
  DenseHashMap<StringRef, unsigned int, StringRefHash> stringTable;
  std::vector<StringRef> debugStrings;
  std::vector<std::pair<uint32_t, uint32_t>> debugRemarks;
@@ -26305,6 +26341,7 @@ private:
  uint32_t dumpFlags = 0;
  std::vector<std::string> dumpSource;
  std::vector<std::pair<int, std::string>> dumpRemarks;
+ std::string tempTypeInfo;
  std::string (BytecodeBuilder::*dumpFunctionPtr)(std::vector<int>&) const = nullptr;
  void validate() const;
  void validateInstructions() const;
@@ -26312,7 +26349,7 @@ private:
  std::string dumpCurrentFunction(std::vector<int>& dumpinstoffs) const;
  void dumpConstant(std::string& result, int k) const;
  void dumpInstruction(const uint32_t* opcode, std::string& output, int targetLabel) const;
- void writeFunction(std::string& ss, uint32_t id, uint8_t flags) const;
+ void writeFunction(std::string& ss, uint32_t id, uint8_t flags);
  void writeLineInfo(std::string& ss) const;
  void writeStringTable(std::string& ss) const;
  int32_t addConstant(const ConstantKey& key, const Constant& value);
@@ -26322,6 +26359,7 @@ private:
 #line __LINE__ "BytecodeBuilder.cpp"
 LUAU_FASTFLAGVARIABLE(LuauCompileNoJumpLineRetarget, false)
 LUAU_FASTFLAG(LuauCompileRepeatUntilSkippedLocals)
+LUAU_FASTFLAGVARIABLE(LuauCompileTypeInfo, false)
 namespace Luau
 {
 static_assert(LBC_VERSION_TARGET >= LBC_VERSION_MIN && LBC_VERSION_TARGET <= LBC_VERSION_MAX, "Invalid bytecode version setup");
@@ -26531,6 +26569,11 @@ void BytecodeBuilder::endFunction(uint8_t maxstacksize, uint8_t numupvalues, uin
  tableShapes.clear();
  debugLocals.clear();
  debugUpvals.clear();
+ if (FFlag::LuauCompileTypeInfo)
+ {
+ typedLocals.clear();
+ typedUpvals.clear();
+ }
  constantMap.clear();
  tableShapeMap.clear();
  protoMap.clear();
@@ -26719,6 +26762,23 @@ void BytecodeBuilder::setFunctionTypeInfo(std::string value)
 {
  functions[currentFunction].typeinfo = std::move(value);
 }
+void BytecodeBuilder::pushLocalTypeInfo(LuauBytecodeType type, uint8_t reg, uint32_t startpc, uint32_t endpc)
+{
+ LUAU_ASSERT(FFlag::LuauCompileTypeInfo);
+ TypedLocal local;
+ local.type = type;
+ local.reg = reg;
+ local.startpc = startpc;
+ local.endpc = endpc;
+ typedLocals.push_back(local);
+}
+void BytecodeBuilder::pushUpvalTypeInfo(LuauBytecodeType type)
+{
+ LUAU_ASSERT(FFlag::LuauCompileTypeInfo);
+ TypedUpval upval;
+ upval.type = type;
+ typedUpvals.push_back(upval);
+}
 void BytecodeBuilder::setDebugFunctionName(StringRef name)
 {
  unsigned int index = addStringTableEntry(name);
@@ -26789,7 +26849,6 @@ void BytecodeBuilder::finalize()
  LUAU_ASSERT(version >= LBC_VERSION_MIN && version <= LBC_VERSION_MAX);
  bytecode = char(version);
  uint8_t typesversion = getTypeEncodingVersion();
- LUAU_ASSERT(typesversion == 1);
  writeByte(bytecode, typesversion);
  writeStringTable(bytecode);
  writeVarInt(bytecode, uint32_t(functions.size()));
@@ -26798,7 +26857,7 @@ void BytecodeBuilder::finalize()
  LUAU_ASSERT(mainFunction < functions.size());
  writeVarInt(bytecode, mainFunction);
 }
-void BytecodeBuilder::writeFunction(std::string& ss, uint32_t id, uint8_t flags) const
+void BytecodeBuilder::writeFunction(std::string& ss, uint32_t id, uint8_t flags)
 {
  LUAU_ASSERT(id < functions.size());
  const Function& func = functions[id];
@@ -26807,8 +26866,38 @@ void BytecodeBuilder::writeFunction(std::string& ss, uint32_t id, uint8_t flags)
  writeByte(ss, func.numupvalues);
  writeByte(ss, func.isvararg);
  writeByte(ss, flags);
+ if (FFlag::LuauCompileTypeInfo)
+ {
+ if (!func.typeinfo.empty() || !typedUpvals.empty() || !typedLocals.empty())
+ {
+ tempTypeInfo.clear();
+ writeVarInt(tempTypeInfo, uint32_t(func.typeinfo.size()));
+ writeVarInt(tempTypeInfo, uint32_t(typedUpvals.size()));
+ writeVarInt(tempTypeInfo, uint32_t(typedLocals.size()));
+ tempTypeInfo.append(func.typeinfo);
+ for (const TypedUpval& l : typedUpvals)
+ writeByte(tempTypeInfo, l.type);
+ for (const TypedLocal& l : typedLocals)
+ {
+ writeByte(tempTypeInfo, l.type);
+ writeByte(tempTypeInfo, l.reg);
+ writeVarInt(tempTypeInfo, l.startpc);
+ LUAU_ASSERT(l.endpc >= l.startpc);
+ writeVarInt(tempTypeInfo, l.endpc - l.startpc);
+ }
+ writeVarInt(ss, uint32_t(tempTypeInfo.size()));
+ ss.append(tempTypeInfo);
+ }
+ else
+ {
+ writeVarInt(ss, 0);
+ }
+ }
+ else
+ {
  writeVarInt(ss, uint32_t(func.typeinfo.size()));
  ss.append(func.typeinfo);
+ }
  writeVarInt(ss, uint32_t(insns.size()));
  for (uint32_t insn : insns)
  writeInt(ss, insn);
@@ -27125,7 +27214,7 @@ uint8_t BytecodeBuilder::getVersion()
 }
 uint8_t BytecodeBuilder::getTypeEncodingVersion()
 {
- return LBC_TYPE_VERSION;
+ return FFlag::LuauCompileTypeInfo ? LBC_TYPE_VERSION : LBC_TYPE_VERSION_DEPRECATED;
 }
 #ifdef LUAU_ASSERTENABLED
 void BytecodeBuilder::validate() const
@@ -27940,6 +28029,37 @@ void BytecodeBuilder::dumpInstruction(const uint32_t* code, std::string& result,
  LUAU_ASSERT(!"Unsupported opcode");
  }
 }
+static const char* getBaseTypeString(uint8_t type)
+{
+ uint8_t tag = type & ~LBC_TYPE_OPTIONAL_BIT;
+ switch (tag)
+ {
+ case LBC_TYPE_NIL:
+ return "nil";
+ case LBC_TYPE_BOOLEAN:
+ return "boolean";
+ case LBC_TYPE_NUMBER:
+ return "number";
+ case LBC_TYPE_STRING:
+ return "string";
+ case LBC_TYPE_TABLE:
+ return "table";
+ case LBC_TYPE_FUNCTION:
+ return "function";
+ case LBC_TYPE_THREAD:
+ return "thread";
+ case LBC_TYPE_USERDATA:
+ return "userdata";
+ case LBC_TYPE_VECTOR:
+ return "vector";
+ case LBC_TYPE_BUFFER:
+ return "buffer";
+ case LBC_TYPE_ANY:
+ return "any";
+ }
+ LUAU_ASSERT(!"Unhandled type in getBaseTypeString");
+ return nullptr;
+}
 std::string BytecodeBuilder::dumpCurrentFunction(std::vector<int>& dumpinstoffs) const
 {
  if ((dumpFlags & Dump_Code) == 0)
@@ -27964,6 +28084,34 @@ std::string BytecodeBuilder::dumpCurrentFunction(std::vector<int>& dumpinstoffs)
  LUAU_ASSERT(l.endpc <= lines.size());
  formatAppend(result, "local %d: reg %d, start pc %d line %d, end pc %d line %d\n", int(i), l.reg, l.startpc, lines[l.startpc],
  l.endpc - 1, lines[l.endpc - 1]);
+ }
+ }
+ }
+ if (FFlag::LuauCompileTypeInfo)
+ {
+ if (dumpFlags & Dump_Types)
+ {
+ const std::string& typeinfo = functions.back().typeinfo;
+ for (uint8_t i = 2; i < typeinfo.size(); ++i)
+ {
+ uint8_t et = typeinfo[i];
+ const char* base = getBaseTypeString(et);
+ const char* optional = (et & LBC_TYPE_OPTIONAL_BIT) ? "?" : "";
+ formatAppend(result, "R%d: %s%s [argument]\n", i - 2, base, optional);
+ }
+ for (size_t i = 0; i < typedUpvals.size(); ++i)
+ {
+ const TypedUpval& l = typedUpvals[i];
+ const char* base = getBaseTypeString(l.type);
+ const char* optional = (l.type & LBC_TYPE_OPTIONAL_BIT) ? "?" : "";
+ formatAppend(result, "U%d: %s%s\n", int(i), base, optional);
+ }
+ for (size_t i = 0; i < typedLocals.size(); ++i)
+ {
+ const TypedLocal& l = typedLocals[i];
+ const char* base = getBaseTypeString(l.type);
+ const char* optional = (l.type & LBC_TYPE_OPTIONAL_BIT) ? "?" : "";
+ formatAppend(result, "R%d: %s%s from %d to %d\n", l.reg, base, optional, l.startpc, l.endpc);
  }
  }
  }
@@ -28087,37 +28235,6 @@ std::string BytecodeBuilder::dumpSourceRemarks() const
  }
  return result;
 }
-static const char* getBaseTypeString(uint8_t type)
-{
- uint8_t tag = type & ~LBC_TYPE_OPTIONAL_BIT;
- switch (tag)
- {
- case LBC_TYPE_NIL:
- return "nil";
- case LBC_TYPE_BOOLEAN:
- return "boolean";
- case LBC_TYPE_NUMBER:
- return "number";
- case LBC_TYPE_STRING:
- return "string";
- case LBC_TYPE_TABLE:
- return "table";
- case LBC_TYPE_FUNCTION:
- return "function";
- case LBC_TYPE_THREAD:
- return "thread";
- case LBC_TYPE_USERDATA:
- return "userdata";
- case LBC_TYPE_VECTOR:
- return "vector";
- case LBC_TYPE_BUFFER:
- return "buffer";
- case LBC_TYPE_ANY:
- return "any";
- }
- LUAU_ASSERT(!"Unhandled type in getBaseTypeString");
- return nullptr;
-}
 std::string BytecodeBuilder::dumpTypeInfo() const
 {
  std::string result;
@@ -28189,7 +28306,8 @@ void predictTableShapes(DenseHashMap<AstExprTable*, TableShape>& shapes, AstNode
 #line __LINE__ "Types.h"
 namespace Luau
 {
-void buildTypeMap(DenseHashMap<AstExprFunction*, std::string>& typeMap, AstNode* root, const char* vectorType);
+void buildTypeMap(DenseHashMap<AstExprFunction*, std::string>& functionTypes, DenseHashMap<AstLocal*, LuauBytecodeType>& localTypes, AstNode* root,
+ const char* vectorType);
 }
 #line __LINE__ "Compiler.cpp"
 #include <bitset>
@@ -28199,6 +28317,8 @@ LUAU_FASTINTVARIABLE(LuauCompileInlineThreshold, 25)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
 LUAU_FASTFLAGVARIABLE(LuauCompileRepeatUntilSkippedLocals, false)
+LUAU_FASTFLAG(LuauCompileTypeInfo)
+LUAU_FASTFLAGVARIABLE(LuauTypeInfoLookupImprovement, false)
 namespace Luau
 {
 using namespace Luau::Compile;
@@ -28207,6 +28327,7 @@ static const uint32_t kMaxUpvalueCount = 200;
 static const uint32_t kMaxLocalCount = 200;
 static const uint32_t kMaxInstructionCount = 1'000'000'000;
 static const uint8_t kInvalidReg = 255;
+static const uint32_t kDefaultAllocPc = ~0u;
 CompileError::CompileError(const Location& location, const std::string& message)
  : location(location)
  , message(message)
@@ -28258,7 +28379,8 @@ struct Compiler
  , locstants(nullptr)
  , tableShapes(nullptr)
  , builtins(nullptr)
- , typeMap(nullptr)
+ , functionTypes(nullptr)
+ , localTypes(nullptr)
  {
  localStack.reserve(16);
  upvals.reserve(16);
@@ -28335,15 +28457,20 @@ struct Compiler
  bool self = func->self != 0;
  uint32_t fid = bytecode.beginFunction(uint8_t(self + func->args.size), func->vararg);
  setDebugLine(func);
- if (std::string* funcType = typeMap.find(func))
+ if (!FFlag::LuauCompileTypeInfo)
+ {
+ if (std::string* funcType = functionTypes.find(func))
  bytecode.setFunctionTypeInfo(std::move(*funcType));
+ }
  if (func->vararg)
  bytecode.emitABC(LOP_PREPVARARGS, uint8_t(self + func->args.size), 0, 0);
  uint8_t args = allocReg(func, self + unsigned(func->args.size));
  if (func->self)
- pushLocal(func->self, args);
+ pushLocal(func->self, args, kDefaultAllocPc);
  for (size_t i = 0; i < func->args.size; ++i)
- pushLocal(func->args.data[i], uint8_t(args + self + i));
+ pushLocal(func->args.data[i], uint8_t(args + self + i), kDefaultAllocPc);
+ if (FFlag::LuauCompileTypeInfo)
+ argCount = localStack.size();
  AstStatBlock* stat = func->body;
  for (size_t i = 0; i < stat->body.size; ++i)
  compileStat(stat->body.data[i]);
@@ -28363,12 +28490,27 @@ struct Compiler
  for (AstLocal* l : upvals)
  bytecode.pushDebugUpval(sref(l->name));
  }
+ if (FFlag::LuauCompileTypeInfo && options.typeInfoLevel >= 1)
+ {
+ for (AstLocal* l : upvals)
+ {
+ LuauBytecodeType ty = LBC_TYPE_ANY;
+ if (LuauBytecodeType* recordedTy = localTypes.find(l))
+ ty = *recordedTy;
+ bytecode.pushUpvalTypeInfo(ty);
+ }
+ }
  if (options.optimizationLevel >= 1)
  bytecode.foldJumps();
  bytecode.expandJumps();
  popLocals(0);
  if (bytecode.getInstructionCount() > kMaxInstructionCount)
  CompileError::raise(func->location, "Exceeded function instruction limit; split the function into parts to compile");
+ if (FFlag::LuauCompileTypeInfo)
+ {
+ if (std::string* funcType = functionTypes.find(func))
+ bytecode.setFunctionTypeInfo(std::move(*funcType));
+ }
  if (func->functionDepth == 0 && !hasLoops)
  protoflags |= LPF_NATIVE_COLD;
  bytecode.endFunction(uint8_t(stackSize), uint8_t(upvals.size()), protoflags);
@@ -28389,6 +28531,8 @@ struct Compiler
  }
  upvals.clear();
  stackSize = 0;
+ if (FFlag::LuauCompileTypeInfo)
+ argCount = 0;
  hasLoops = false;
  return fid;
  }
@@ -28586,6 +28730,7 @@ struct Compiler
  {
  unsigned int tail = unsigned(func->args.size - expr->args.size) + 1;
  uint8_t reg = allocReg(arg, tail);
+ uint32_t allocpc = FFlag::LuauCompileTypeInfo ? bytecode.getDebugPC() : kDefaultAllocPc;
  if (AstExprCall* expr = arg->as<AstExprCall>())
  compileExprCall(expr, reg, tail, true);
  else if (AstExprVarargs* expr = arg->as<AstExprVarargs>())
@@ -28593,16 +28738,25 @@ struct Compiler
  else
  LUAU_ASSERT(!"Unexpected expression type");
  for (size_t j = i; j < func->args.size; ++j)
+ {
+ if (FFlag::LuauCompileTypeInfo)
+ args.push_back({func->args.data[j], uint8_t(reg + (j - i)), {Constant::Type_Unknown}, allocpc});
+ else
  args.push_back({func->args.data[j], uint8_t(reg + (j - i))});
+ }
  break;
  }
  else if (Variable* vv = variables.find(var); vv && vv->written)
  {
  uint8_t reg = allocReg(arg, 1);
+ uint32_t allocpc = FFlag::LuauCompileTypeInfo ? bytecode.getDebugPC() : kDefaultAllocPc;
  if (arg)
  compileExprTemp(arg, reg);
  else
  bytecode.emitABC(LOP_LOADNIL, reg, 0, 0);
+ if (FFlag::LuauCompileTypeInfo)
+ args.push_back({var, reg, {Constant::Type_Unknown}, allocpc});
+ else
  args.push_back({var, reg});
  }
  else if (arg == nullptr)
@@ -28619,12 +28773,19 @@ struct Compiler
  Variable* lv = le ? variables.find(le->local) : nullptr;
  if (int reg = le ? getExprLocalReg(le) : -1; reg >= 0 && (!lv || !lv->written))
  {
+ if (FFlag::LuauTypeInfoLookupImprovement)
+ args.push_back({var, uint8_t(reg), {Constant::Type_Unknown}, kDefaultAllocPc});
+ else
  args.push_back({var, uint8_t(reg)});
  }
  else
  {
  uint8_t temp = allocReg(arg, 1);
+ uint32_t allocpc = FFlag::LuauCompileTypeInfo ? bytecode.getDebugPC() : kDefaultAllocPc;
  compileExprTemp(arg, temp);
+ if (FFlag::LuauCompileTypeInfo)
+ args.push_back({var, temp, {Constant::Type_Unknown}, allocpc});
+ else
  args.push_back({var, temp});
  }
  }
@@ -28635,7 +28796,10 @@ struct Compiler
  {
  if (arg.value.type == Constant::Type_Unknown)
  {
- pushLocal(arg.local, arg.reg);
+ if (FFlag::LuauCompileTypeInfo)
+ pushLocal(arg.local, arg.reg, arg.allocpc);
+ else
+ pushLocal(arg.local, arg.reg, kDefaultAllocPc);
  }
  else
  {
@@ -30242,15 +30406,16 @@ struct Compiler
  Variable* rv = variables.find(re->local);
  if (int reg = getExprLocalReg(re); reg >= 0 && (!lv || !lv->written) && (!rv || !rv->written))
  {
- pushLocal(stat->vars.data[0], uint8_t(reg));
+ pushLocal(stat->vars.data[0], uint8_t(reg), kDefaultAllocPc);
  return;
  }
  }
  }
  uint8_t vars = allocReg(stat, unsigned(stat->vars.size));
+ uint32_t allocpc = FFlag::LuauCompileTypeInfo ? bytecode.getDebugPC() : kDefaultAllocPc;
  compileExprListTemp(stat->values, vars, uint8_t(stat->vars.size), true);
  for (size_t i = 0; i < stat->vars.size; ++i)
- pushLocal(stat->vars.data[i], uint8_t(vars + i));
+ pushLocal(stat->vars.data[i], uint8_t(vars + i), allocpc);
  }
  bool tryCompileUnrolledFor(AstStatFor* stat, int thresholdBase, int thresholdMaxBoost)
  {
@@ -30333,6 +30498,7 @@ struct Compiler
  hasLoops = true;
  uint8_t regs = allocReg(stat, 3);
  uint8_t varreg = regs + 2;
+ uint32_t varregallocpc = FFlag::LuauCompileTypeInfo ? bytecode.getDebugPC() : kDefaultAllocPc;
  if (Variable* il = variables.find(stat->var); il && il->written)
  varreg = allocReg(stat, 1);
  compileExprTemp(stat->from, uint8_t(regs + 2));
@@ -30346,7 +30512,7 @@ struct Compiler
  size_t loopLabel = bytecode.emitLabel();
  if (varreg != regs + 2)
  bytecode.emitABC(LOP_MOVE, varreg, regs + 2, 0);
- pushLocal(stat->var, varreg);
+ pushLocal(stat->var, varreg, varregallocpc);
  compileStat(stat->body);
  closeLocals(oldLocals);
  popLocals(oldLocals);
@@ -30372,6 +30538,7 @@ struct Compiler
  compileExprListTemp(stat->values, regs, 3, true);
  uint8_t vars = allocReg(stat, std::max(unsigned(stat->vars.size), 2u));
  LUAU_ASSERT(vars == regs + 3);
+ uint32_t varsallocpc = FFlag::LuauCompileTypeInfo ? bytecode.getDebugPC() : kDefaultAllocPc;
  LuauOpcode skipOp = LOP_FORGPREP;
  if (options.optimizationLevel >= 1 && stat->vars.size <= 2)
  {
@@ -30394,7 +30561,7 @@ struct Compiler
  bytecode.emitAD(skipOp, regs, 0);
  size_t loopLabel = bytecode.emitLabel();
  for (size_t i = 0; i < stat->vars.size; ++i)
- pushLocal(stat->vars.data[i], uint8_t(vars + i));
+ pushLocal(stat->vars.data[i], uint8_t(vars + i), varsallocpc);
  compileStat(stat->body);
  closeLocals(oldLocals);
  popLocals(oldLocals);
@@ -30685,7 +30852,7 @@ struct Compiler
  else if (AstStatLocalFunction* stat = node->as<AstStatLocalFunction>())
  {
  uint8_t var = allocReg(stat, 1);
- pushLocal(stat->name, var);
+ pushLocal(stat->name, var, kDefaultAllocPc);
  compileExprFunction(stat->func, var);
  Local& l = locals[stat->name];
  l.debugpc = bytecode.getDebugPC();
@@ -30726,7 +30893,7 @@ struct Compiler
  for (AstLocal* local : visitor.upvals)
  getUpval(local);
  }
- void pushLocal(AstLocal* local, uint8_t reg)
+ void pushLocal(AstLocal* local, uint8_t reg, uint32_t allocpc)
  {
  if (localStack.size() >= kMaxLocalCount)
  CompileError::raise(
@@ -30737,6 +30904,8 @@ struct Compiler
  l.reg = reg;
  l.allocated = true;
  l.debugpc = bytecode.getDebugPC();
+ if (FFlag::LuauCompileTypeInfo)
+ l.allocpc = allocpc == kDefaultAllocPc ? l.debugpc : allocpc;
  }
  bool areLocalsCaptured(size_t start)
  {
@@ -30783,6 +30952,14 @@ struct Compiler
  {
  uint32_t debugpc = bytecode.getDebugPC();
  bytecode.pushDebugLocal(sref(localStack[i]->name), l->reg, l->debugpc, debugpc);
+ }
+ if (FFlag::LuauCompileTypeInfo && options.typeInfoLevel >= 1 && i >= argCount)
+ {
+ uint32_t debugpc = bytecode.getDebugPC();
+ LuauBytecodeType ty = LBC_TYPE_ANY;
+ if (LuauBytecodeType* recordedTy = localTypes.find(localStack[i]))
+ ty = *recordedTy;
+ bytecode.pushLocalTypeInfo(ty, l->reg, l->allocpc, debugpc);
  }
  }
  localStack.resize(start);
@@ -30992,6 +31169,7 @@ struct Compiler
  bool allocated = false;
  bool captured = false;
  uint32_t debugpc = 0;
+ uint32_t allocpc = 0;
  };
  struct LoopJump
  {
@@ -31014,6 +31192,7 @@ struct Compiler
  AstLocal* local;
  uint8_t reg;
  Constant value;
+ uint32_t allocpc;
  };
  struct InlineFrame
  {
@@ -31038,11 +31217,13 @@ struct Compiler
  DenseHashMap<AstLocal*, Constant> locstants;
  DenseHashMap<AstExprTable*, TableShape> tableShapes;
  DenseHashMap<AstExprCall*, int> builtins;
- DenseHashMap<AstExprFunction*, std::string> typeMap;
+ DenseHashMap<AstExprFunction*, std::string> functionTypes;
+ DenseHashMap<AstLocal*, LuauBytecodeType> localTypes;
  const DenseHashMap<AstExprCall*, int>* builtinsFold = nullptr;
  bool builtinsFoldMathK = false;
  unsigned int regTop = 0;
  unsigned int stackSize = 0;
+ size_t argCount = 0;
  bool hasLoops = false;
  bool getfenvUsed = false;
  bool setfenvUsed = false;
@@ -31069,6 +31250,8 @@ void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, c
  {
  mainFlags |= LPF_NATIVE_MODULE;
  options.optimizationLevel = 2;
+ if (FFlag::LuauCompileTypeInfo)
+ options.typeInfoLevel = 1;
  }
  }
  AstStatBlock* root = parseResult.root;
@@ -31095,8 +31278,16 @@ void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, c
  std::vector<AstExprFunction*> functions;
  Compiler::FunctionVisitor functionVisitor(&compiler, functions);
  root->visit(&functionVisitor);
+ if (FFlag::LuauCompileTypeInfo)
+ {
+ if (options.typeInfoLevel >= 1)
+ buildTypeMap(compiler.functionTypes, compiler.localTypes, root, options.vectorType);
+ }
+ else
+ {
  if (functionVisitor.hasTypes)
- buildTypeMap(compiler.typeMap, root, options.vectorType);
+ buildTypeMap(compiler.functionTypes, compiler.localTypes, root, options.vectorType);
+ }
  for (AstExprFunction* expr : functions)
  compiler.compileFunction(expr, 0);
  AstExprFunction main(root->location, AstArray<AstGenericType>(), AstArray<AstGenericTypePack>(),
@@ -31836,6 +32027,25 @@ int getTripCount(double from, double to, double step)
 }
 } // namespace Luau
 #line __LINE__ ""
+#line __LINE__ "lcode.cpp"
+char* luau_compile(const char* source, size_t size, lua_CompileOptions* options, size_t* outsize)
+{
+ LUAU_ASSERT(outsize);
+ Luau::CompileOptions opts;
+ if (options)
+ {
+ static_assert(sizeof(lua_CompileOptions) == sizeof(Luau::CompileOptions), "C and C++ interface must match");
+ memcpy(static_cast<void*>(&opts), options, sizeof(opts));
+ }
+ std::string result = compile(std::string(source, size), opts);
+ char* copy = static_cast<char*>(malloc(result.size()));
+ if (!copy)
+ return nullptr;
+ memcpy(copy, result.data(), result.size());
+ *outsize = result.size();
+ return copy;
+}
+#line __LINE__ ""
 #line __LINE__ "TableShape.cpp"
 namespace Luau
 {
@@ -31961,6 +32171,7 @@ void predictTableShapes(DenseHashMap<AstExprTable*, TableShape>& shapes, AstNode
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "Types.cpp"
+LUAU_FASTFLAG(LuauCompileTypeInfo)
 namespace Luau
 {
 static bool isGeneric(AstName name, const AstArray<AstGenericType>& generics)
@@ -32073,12 +32284,15 @@ static std::string getFunctionType(const AstExprFunction* func, const DenseHashM
 }
 struct TypeMapVisitor : AstVisitor
 {
- DenseHashMap<AstExprFunction*, std::string>& typeMap;
+ DenseHashMap<AstExprFunction*, std::string>& functionTypes;
+ DenseHashMap<AstLocal*, LuauBytecodeType>& localTypes;
  const char* vectorType;
  DenseHashMap<AstName, AstStatTypeAlias*> typeAliases;
  std::vector<std::pair<AstName, AstStatTypeAlias*>> typeAliasStack;
- TypeMapVisitor(DenseHashMap<AstExprFunction*, std::string>& typeMap, const char* vectorType)
- : typeMap(typeMap)
+ TypeMapVisitor(
+ DenseHashMap<AstExprFunction*, std::string>& functionTypes, DenseHashMap<AstLocal*, LuauBytecodeType>& localTypes, const char* vectorType)
+ : functionTypes(functionTypes)
+ , localTypes(localTypes)
  , vectorType(vectorType)
  , typeAliases(AstName())
  {
@@ -32125,13 +32339,28 @@ struct TypeMapVisitor : AstVisitor
  {
  std::string type = getFunctionType(node, typeAliases, vectorType);
  if (!type.empty())
- typeMap[node] = std::move(type);
+ functionTypes[node] = std::move(type);
+ return true;
+ }
+ bool visit(AstExprLocal* node) override
+ {
+ if (FFlag::LuauCompileTypeInfo)
+ {
+ AstLocal* local = node->local;
+ if (AstType* annotation = local->annotation)
+ {
+ LuauBytecodeType ty = getType(annotation, {}, typeAliases, true, vectorType);
+ if (ty != LBC_TYPE_ANY)
+ localTypes[local] = ty;
+ }
+ }
  return true;
  }
 };
-void buildTypeMap(DenseHashMap<AstExprFunction*, std::string>& typeMap, AstNode* root, const char* vectorType)
+void buildTypeMap(DenseHashMap<AstExprFunction*, std::string>& functionTypes, DenseHashMap<AstLocal*, LuauBytecodeType>& localTypes, AstNode* root,
+ const char* vectorType)
 {
- TypeMapVisitor visitor(typeMap, vectorType);
+ TypeMapVisitor visitor(functionTypes, localTypes, vectorType);
  root->visit(&visitor);
 }
 }
@@ -32215,25 +32444,6 @@ void trackValues(DenseHashMap<AstName, Global>& globals, DenseHashMap<AstLocal*,
 }
 }
 } // namespace Luau
-#line __LINE__ ""
-#line __LINE__ "lcode.cpp"
-char* luau_compile(const char* source, size_t size, lua_CompileOptions* options, size_t* outsize)
-{
- LUAU_ASSERT(outsize);
- Luau::CompileOptions opts;
- if (options)
- {
- static_assert(sizeof(lua_CompileOptions) == sizeof(Luau::CompileOptions), "C and C++ interface must match");
- memcpy(static_cast<void*>(&opts), options, sizeof(opts));
- }
- std::string result = compile(std::string(source, size), opts);
- char* copy = static_cast<char*>(malloc(result.size()));
- if (!copy)
- return nullptr;
- memcpy(copy, result.data(), result.size());
- *outsize = result.size();
- return copy;
-}
 #line __LINE__ ""
 #ifdef LUAU_ENABLE_CODEGEN
 #undef VM_INTERRUPT
@@ -33041,6 +33251,20 @@ struct BytecodeTypes
  uint8_t b = LBC_TYPE_ANY;
  uint8_t c = LBC_TYPE_ANY;
 };
+struct BytecodeRegTypeInfo
+{
+ uint8_t type = LBC_TYPE_ANY;
+ uint8_t reg = 0;
+ int startpc = 0; // First point where variable is alive (could be before variable has been assigned a value)
+ int endpc = 0;
+};
+struct BytecodeTypeInfo
+{
+ std::vector<uint8_t> argumentTypes;
+ std::vector<BytecodeRegTypeInfo> regTypes;
+ std::vector<uint8_t> upvalueTypes;
+ std::vector<uint32_t> regTypeOffsets;
+};
 struct IrFunction
 {
  std::vector<IrBlock> blocks;
@@ -33053,6 +33277,7 @@ struct IrFunction
  uint32_t entryLocation = 0;
  std::vector<IrOp> valueRestoreOps;
  std::vector<uint32_t> validRestoreOpBlocks;
+ BytecodeTypeInfo bcTypeInfo;
  Proto* proto = nullptr;
  bool variadic = false;
  CfgInfo cfg;
@@ -33299,6 +33524,7 @@ namespace Luau
 namespace CodeGen
 {
 struct IrFunction;
+void loadBytecodeTypeInfo(IrFunction& function);
 void buildBytecodeBlocks(IrFunction& function, const std::vector<uint8_t>& jumpTargets);
 void analyzeBytecodeTypes(IrFunction& function);
 }
@@ -33599,6 +33825,8 @@ void afterInstForNLoop(IrBuilder& build, const Instruction* pc);
 }
 } // namespace Luau
 #line __LINE__ "IrBuilder.cpp"
+LUAU_FASTFLAG(LuauLoadTypeInfo)
+LUAU_FASTFLAG(LuauTypeInfoLookupImprovement)
 namespace Luau
 {
 namespace CodeGen
@@ -33608,13 +33836,15 @@ IrBuilder::IrBuilder()
  : constantMap({IrConstKind::Tag, ~0ull})
 {
 }
-static bool hasTypedParameters(Proto* proto)
+static bool hasTypedParameters_DEPRECATED(Proto* proto)
 {
+ CODEGEN_ASSERT(!FFlag::LuauLoadTypeInfo);
  return proto->typeinfo && proto->numparams != 0;
 }
-static void buildArgumentTypeChecks(IrBuilder& build, Proto* proto)
+static void buildArgumentTypeChecks_DEPRECATED(IrBuilder& build, Proto* proto)
 {
- CODEGEN_ASSERT(hasTypedParameters(proto));
+ CODEGEN_ASSERT(!FFlag::LuauLoadTypeInfo);
+ CODEGEN_ASSERT(hasTypedParameters_DEPRECATED(proto));
  for (int i = 0; i < proto->numparams; ++i)
  {
  uint8_t et = proto->typeinfo[2 + i];
@@ -33677,11 +33907,97 @@ static void buildArgumentTypeChecks(IrBuilder& build, Proto* proto)
  build.beginBlock(next);
  }
 }
+static bool hasTypedParameters(const BytecodeTypeInfo& typeInfo)
+{
+ CODEGEN_ASSERT(FFlag::LuauLoadTypeInfo);
+ if (FFlag::LuauTypeInfoLookupImprovement)
+ {
+ for (auto el : typeInfo.argumentTypes)
+ {
+ if (el != LBC_TYPE_ANY)
+ return true;
+ }
+ return false;
+ }
+ else
+ {
+ return !typeInfo.argumentTypes.empty();
+ }
+}
+static void buildArgumentTypeChecks(IrBuilder& build)
+{
+ CODEGEN_ASSERT(FFlag::LuauLoadTypeInfo);
+ const BytecodeTypeInfo& typeInfo = build.function.bcTypeInfo;
+ CODEGEN_ASSERT(hasTypedParameters(typeInfo));
+ for (size_t i = 0; i < typeInfo.argumentTypes.size(); i++)
+ {
+ uint8_t et = typeInfo.argumentTypes[i];
+ uint8_t tag = et & ~LBC_TYPE_OPTIONAL_BIT;
+ uint8_t optional = et & LBC_TYPE_OPTIONAL_BIT;
+ if (tag == LBC_TYPE_ANY)
+ continue;
+ IrOp load = build.inst(IrCmd::LOAD_TAG, build.vmReg(uint8_t(i)));
+ IrOp nextCheck;
+ if (optional)
+ {
+ nextCheck = build.block(IrBlockKind::Internal);
+ IrOp fallbackCheck = build.block(IrBlockKind::Internal);
+ build.inst(IrCmd::JUMP_EQ_TAG, load, build.constTag(LUA_TNIL), nextCheck, fallbackCheck);
+ build.beginBlock(fallbackCheck);
+ }
+ switch (tag)
+ {
+ case LBC_TYPE_NIL:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TNIL), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ case LBC_TYPE_BOOLEAN:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TBOOLEAN), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ case LBC_TYPE_NUMBER:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TNUMBER), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ case LBC_TYPE_STRING:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TSTRING), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ case LBC_TYPE_TABLE:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TTABLE), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ case LBC_TYPE_FUNCTION:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TFUNCTION), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ case LBC_TYPE_THREAD:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TTHREAD), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ case LBC_TYPE_USERDATA:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TUSERDATA), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ case LBC_TYPE_VECTOR:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TVECTOR), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ case LBC_TYPE_BUFFER:
+ build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TBUFFER), build.vmExit(kVmExitEntryGuardPc));
+ break;
+ }
+ if (optional)
+ {
+ build.inst(IrCmd::JUMP, nextCheck);
+ build.beginBlock(nextCheck);
+ }
+ }
+ if (!(typeInfo.argumentTypes.back() & LBC_TYPE_OPTIONAL_BIT))
+ {
+ IrOp next = build.block(IrBlockKind::Internal);
+ build.inst(IrCmd::JUMP, next);
+ build.beginBlock(next);
+ }
+}
 void IrBuilder::buildFunctionIr(Proto* proto)
 {
  function.proto = proto;
  function.variadic = proto->is_vararg != 0;
- bool generateTypeChecks = hasTypedParameters(proto);
+ if (FFlag::LuauLoadTypeInfo)
+ loadBytecodeTypeInfo(function);
+ bool generateTypeChecks = FFlag::LuauLoadTypeInfo ? hasTypedParameters(function.bcTypeInfo) : hasTypedParameters_DEPRECATED(proto);
  IrOp entry = generateTypeChecks ? block(IrBlockKind::Internal) : IrOp{};
  rebuildBytecodeBasicBlocks(proto);
  analyzeBytecodeTypes(function);
@@ -33689,7 +34005,10 @@ void IrBuilder::buildFunctionIr(Proto* proto)
  if (generateTypeChecks)
  {
  beginBlock(entry);
- buildArgumentTypeChecks(*this, proto);
+ if (FFlag::LuauLoadTypeInfo)
+ buildArgumentTypeChecks(*this);
+ else
+ buildArgumentTypeChecks_DEPRECATED(*this, proto);
  inst(IrCmd::JUMP, blockAtInst(0));
  }
  else
@@ -34238,7 +34557,524 @@ IrOp IrBuilder::vmExit(uint32_t pcpos)
 #line __LINE__ ""
 #undef hasTypedParameters
 #define hasTypedParameters hasTypedParameters_2
-#line __LINE__ "AssemblyBuilderA64.cpp"
+#define kCodeEntryInsn kCodeEntryInsn_2
+#define logPerfFunction logPerfFunction_2
+#define onCloseState onCloseState_2
+#define onDestroyFunction onDestroyFunction_2
+#define onEnter onEnter_2
+#define onEnterDisabled onEnterDisabled_2
+#define getMemorySize getMemorySize_2
+#define createNativeFunction createNativeFunction_2
+#line __LINE__ "CodeGenContext.cpp"
+#line __LINE__ "SharedCodeAllocator.h"
+#line __LINE__ "CodeGen.h"
+struct lua_State;
+namespace Luau
+{
+namespace CodeGen
+{
+enum CodeGenFlags
+{
+ CodeGen_OnlyNativeModules = 1 << 0,
+ CodeGen_ColdFunctions = 1 << 1,
+};
+enum class CodeGenCompilationResult
+{
+ Success = 0,
+ NothingToCompile = 1, // There were no new functions to compile
+ NotNativeModule = 2,
+ CodeGenNotInitialized = 3,
+ CodeGenOverflowInstructionLimit = 4, // Instruction limit overflow
+ CodeGenOverflowBlockLimit = 5,
+ CodeGenOverflowBlockInstructionLimit = 6, // Block instruction limit overflow
+ CodeGenAssemblerFinalizationFailure = 7,
+ CodeGenLoweringFailure = 8, // Lowering failed
+ AllocationFailed = 9,
+};
+struct ProtoCompilationFailure
+{
+ CodeGenCompilationResult result = CodeGenCompilationResult::Success;
+ std::string debugname;
+ int line = -1;
+};
+struct CompilationResult
+{
+ CodeGenCompilationResult result = CodeGenCompilationResult::Success;
+ std::vector<ProtoCompilationFailure> protoFailures;
+ [[nodiscard]] bool hasErrors() const
+ {
+ return result != CodeGenCompilationResult::Success || !protoFailures.empty();
+ }
+};
+struct CompilationStats
+{
+ size_t bytecodeSizeBytes = 0;
+ size_t nativeCodeSizeBytes = 0;
+ size_t nativeDataSizeBytes = 0;
+ size_t nativeMetadataSizeBytes = 0;
+ uint32_t functionsTotal = 0;
+ uint32_t functionsCompiled = 0;
+ uint32_t functionsBound = 0;
+};
+using AllocationCallback = void(void* context, void* oldPointer, size_t oldSize, void* newPointer, size_t newSize);
+bool isSupported();
+class SharedCodeGenContext;
+struct SharedCodeGenContextDeleter
+{
+ void operator()(const SharedCodeGenContext* context) const noexcept;
+};
+using UniqueSharedCodeGenContext = std::unique_ptr<SharedCodeGenContext, SharedCodeGenContextDeleter>;
+[[nodiscard]] UniqueSharedCodeGenContext createSharedCodeGenContext();
+[[nodiscard]] UniqueSharedCodeGenContext createSharedCodeGenContext(AllocationCallback* allocationCallback, void* allocationCallbackContext);
+[[nodiscard]] UniqueSharedCodeGenContext createSharedCodeGenContext(
+ size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext);
+void destroySharedCodeGenContext(const SharedCodeGenContext* codeGenContext) noexcept;
+void create(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext);
+void create(lua_State* L);
+void create(lua_State* L, SharedCodeGenContext* codeGenContext);
+[[nodiscard]] bool isNativeExecutionEnabled(lua_State* L);
+void setNativeExecutionEnabled(lua_State* L, bool enabled);
+using ModuleId = std::array<uint8_t, 16>;
+CompilationResult compile(lua_State* L, int idx, unsigned int flags = 0, CompilationStats* stats = nullptr);
+CompilationResult compile(const ModuleId& moduleId, lua_State* L, int idx, unsigned int flags = 0, CompilationStats* stats = nullptr);
+using AnnotatorFn = void (*)(void* context, std::string& result, int fid, int instpos);
+enum class IncludeIrPrefix
+{
+ No,
+ Yes
+};
+enum class IncludeUseInfo
+{
+ No,
+ Yes
+};
+enum class IncludeCfgInfo
+{
+ No,
+ Yes
+};
+enum class IncludeRegFlowInfo
+{
+ No,
+ Yes
+};
+struct AssemblyOptions
+{
+ enum Target
+ {
+ Host,
+ A64,
+ A64_NoFeatures,
+ X64_Windows,
+ X64_SystemV,
+ };
+ Target target = Host;
+ unsigned int flags = 0;
+ bool outputBinary = false;
+ bool includeAssembly = false;
+ bool includeIr = false;
+ bool includeOutlinedCode = false;
+ bool includeIrTypes = false;
+ IncludeIrPrefix includeIrPrefix = IncludeIrPrefix::Yes;
+ IncludeUseInfo includeUseInfo = IncludeUseInfo::Yes;
+ IncludeCfgInfo includeCfgInfo = IncludeCfgInfo::Yes;
+ IncludeRegFlowInfo includeRegFlowInfo = IncludeRegFlowInfo::Yes;
+ AnnotatorFn annotator = nullptr;
+ void* annotatorContext = nullptr;
+};
+struct BlockLinearizationStats
+{
+ unsigned int constPropInstructionCount = 0;
+ double timeSeconds = 0.0;
+ BlockLinearizationStats& operator+=(const BlockLinearizationStats& that)
+ {
+ this->constPropInstructionCount += that.constPropInstructionCount;
+ this->timeSeconds += that.timeSeconds;
+ return *this;
+ }
+ BlockLinearizationStats operator+(const BlockLinearizationStats& other) const
+ {
+ BlockLinearizationStats result(*this);
+ result += other;
+ return result;
+ }
+};
+enum FunctionStatsFlags
+{
+ FunctionStats_Enable = 1 << 0,
+ FunctionStats_BytecodeSummary = 1 << 1,
+};
+struct FunctionStats
+{
+ std::string name;
+ int line = -1;
+ unsigned bcodeCount = 0;
+ unsigned irCount = 0;
+ unsigned asmCount = 0;
+ unsigned asmSize = 0;
+ std::vector<std::vector<unsigned>> bytecodeSummary;
+};
+struct LoweringStats
+{
+ unsigned totalFunctions = 0;
+ unsigned skippedFunctions = 0;
+ int spillsToSlot = 0;
+ int spillsToRestore = 0;
+ unsigned maxSpillSlotsUsed = 0;
+ unsigned blocksPreOpt = 0;
+ unsigned blocksPostOpt = 0;
+ unsigned maxBlockInstructions = 0;
+ int regAllocErrors = 0;
+ int loweringErrors = 0;
+ BlockLinearizationStats blockLinearizationStats;
+ unsigned functionStatsFlags = 0;
+ std::vector<FunctionStats> functions;
+ LoweringStats operator+(const LoweringStats& other) const
+ {
+ LoweringStats result(*this);
+ result += other;
+ return result;
+ }
+ LoweringStats& operator+=(const LoweringStats& that)
+ {
+ this->totalFunctions += that.totalFunctions;
+ this->skippedFunctions += that.skippedFunctions;
+ this->spillsToSlot += that.spillsToSlot;
+ this->spillsToRestore += that.spillsToRestore;
+ this->maxSpillSlotsUsed = std::max(this->maxSpillSlotsUsed, that.maxSpillSlotsUsed);
+ this->blocksPreOpt += that.blocksPreOpt;
+ this->blocksPostOpt += that.blocksPostOpt;
+ this->maxBlockInstructions = std::max(this->maxBlockInstructions, that.maxBlockInstructions);
+ this->regAllocErrors += that.regAllocErrors;
+ this->loweringErrors += that.loweringErrors;
+ this->blockLinearizationStats += that.blockLinearizationStats;
+ if (this->functionStatsFlags & FunctionStats_Enable)
+ this->functions.insert(this->functions.end(), that.functions.begin(), that.functions.end());
+ return *this;
+ }
+};
+std::string getAssembly(lua_State* L, int idx, AssemblyOptions options = {}, LoweringStats* stats = nullptr);
+using PerfLogFn = void (*)(void* context, uintptr_t addr, unsigned size, const char* symbol);
+void setPerfLog(void* context, PerfLogFn logFn);
+}
+} // namespace Luau
+#line __LINE__ "SharedCodeAllocator.h"
+#line __LINE__ "NativeProtoExecData.h"
+namespace Luau
+{
+namespace CodeGen
+{
+class NativeModule;
+struct NativeProtoExecDataHeader
+{
+ NativeModule* nativeModule = nullptr;
+ const uint8_t* entryOffsetOrAddress = nullptr;
+ uint32_t bytecodeId = 0;
+ uint32_t bytecodeInstructionCount = 0;
+ size_t nativeCodeSize = 0;
+};
+static_assert(sizeof(NativeProtoExecDataHeader) % sizeof(uint32_t) == 0);
+struct NativeProtoExecDataDeleter
+{
+ void operator()(const uint32_t* instructionOffsets) const noexcept;
+};
+using NativeProtoExecDataPtr = std::unique_ptr<uint32_t[], NativeProtoExecDataDeleter>;
+[[nodiscard]] NativeProtoExecDataPtr createNativeProtoExecData(uint32_t bytecodeInstructionCount);
+void destroyNativeProtoExecData(const uint32_t* instructionOffsets) noexcept;
+[[nodiscard]] NativeProtoExecDataHeader& getNativeProtoExecDataHeader(uint32_t* instructionOffsets) noexcept;
+[[nodiscard]] const NativeProtoExecDataHeader& getNativeProtoExecDataHeader(const uint32_t* instructionOffsets) noexcept;
+}
+} // namespace Luau
+#line __LINE__ "SharedCodeAllocator.h"
+#include <atomic>
+#include <unordered_map>
+namespace Luau
+{
+namespace CodeGen
+{
+struct CodeAllocator;
+class NativeModule;
+class NativeModuleRef;
+class SharedCodeAllocator;
+class NativeModule
+{
+public:
+ NativeModule(SharedCodeAllocator* allocator, const std::optional<ModuleId>& moduleId, const uint8_t* moduleBaseAddress,
+ std::vector<NativeProtoExecDataPtr> nativeProtos) noexcept;
+ NativeModule(const NativeModule&) = delete;
+ NativeModule(NativeModule&&) = delete;
+ NativeModule& operator=(const NativeModule&) = delete;
+ NativeModule& operator=(NativeModule&&) = delete;
+ ~NativeModule() noexcept;
+ size_t addRef() const noexcept;
+ size_t addRefs(size_t count) const noexcept;
+ size_t release() const noexcept;
+ [[nodiscard]] size_t getRefcount() const noexcept;
+ [[nodiscard]] const std::optional<ModuleId>& getModuleId() const noexcept;
+ [[nodiscard]] const uint8_t* getModuleBaseAddress() const noexcept;
+ [[nodiscard]] const uint32_t* tryGetNativeProto(uint32_t bytecodeId) const noexcept;
+ [[nodiscard]] const std::vector<NativeProtoExecDataPtr>& getNativeProtos() const noexcept;
+private:
+ mutable std::atomic<size_t> refcount = 0;
+ SharedCodeAllocator* allocator = nullptr;
+ std::optional<ModuleId> moduleId = {};
+ const uint8_t* moduleBaseAddress = nullptr;
+ std::vector<NativeProtoExecDataPtr> nativeProtos = {};
+};
+class NativeModuleRef
+{
+public:
+ NativeModuleRef() noexcept = default;
+ NativeModuleRef(const NativeModule* nativeModule) noexcept;
+ NativeModuleRef(const NativeModuleRef& other) noexcept;
+ NativeModuleRef(NativeModuleRef&& other) noexcept;
+ NativeModuleRef& operator=(NativeModuleRef other) noexcept;
+ ~NativeModuleRef() noexcept;
+ void reset() noexcept;
+ void swap(NativeModuleRef& other) noexcept;
+ [[nodiscard]] bool empty() const noexcept;
+ explicit operator bool() const noexcept;
+ [[nodiscard]] const NativeModule* get() const noexcept;
+ [[nodiscard]] const NativeModule* operator->() const noexcept;
+ [[nodiscard]] const NativeModule& operator*() const noexcept;
+private:
+ const NativeModule* nativeModule = nullptr;
+};
+class SharedCodeAllocator
+{
+public:
+ SharedCodeAllocator(CodeAllocator* codeAllocator) noexcept;
+ SharedCodeAllocator(const SharedCodeAllocator&) = delete;
+ SharedCodeAllocator(SharedCodeAllocator&&) = delete;
+ SharedCodeAllocator& operator=(const SharedCodeAllocator&) = delete;
+ SharedCodeAllocator& operator=(SharedCodeAllocator&&) = delete;
+ ~SharedCodeAllocator() noexcept;
+ [[nodiscard]] NativeModuleRef tryGetNativeModule(const ModuleId& moduleId) const noexcept;
+ std::pair<NativeModuleRef, bool> getOrInsertNativeModule(const ModuleId& moduleId, std::vector<NativeProtoExecDataPtr> nativeProtos,
+ const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize);
+ NativeModuleRef insertAnonymousNativeModule(
+ std::vector<NativeProtoExecDataPtr> nativeProtos, const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize);
+ void eraseNativeModuleIfUnreferenced(const NativeModule& nativeModule);
+private:
+ struct ModuleIdHash
+ {
+ [[nodiscard]] size_t operator()(const ModuleId& moduleId) const noexcept;
+ };
+ [[nodiscard]] NativeModuleRef tryGetNativeModuleWithLockHeld(const ModuleId& moduleId) const noexcept;
+ mutable std::mutex mutex;
+ std::unordered_map<ModuleId, std::unique_ptr<NativeModule>, ModuleIdHash, std::equal_to<>> identifiedModules;
+ std::atomic<size_t> anonymousModuleCount = 0;
+ CodeAllocator* codeAllocator = nullptr;
+};
+}
+} // namespace Luau
+#line __LINE__ "CodeGenContext.h"
+#line __LINE__ "NativeState.h"
+#line __LINE__ "CodeAllocator.h"
+namespace Luau
+{
+namespace CodeGen
+{
+constexpr uint32_t kCodeAlignment = 32;
+struct CodeAllocator
+{
+ CodeAllocator(size_t blockSize, size_t maxTotalSize);
+ CodeAllocator(size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext);
+ ~CodeAllocator();
+ bool allocate(
+ const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize, uint8_t*& result, size_t& resultSize, uint8_t*& resultCodeStart);
+ void* context = nullptr;
+ void* (*createBlockUnwindInfo)(void* context, uint8_t* block, size_t blockSize, size_t& startOffset) = nullptr;
+ void (*destroyBlockUnwindInfo)(void* context, void* unwindData) = nullptr;
+private:
+ static const size_t kMaxReservedDataSize = 256;
+ bool allocateNewBlock(size_t& unwindInfoSize);
+ uint8_t* allocatePages(size_t size) const;
+ void freePages(uint8_t* mem, size_t size) const;
+ uint8_t* blockPos = nullptr;
+ uint8_t* blockEnd = nullptr;
+ std::vector<uint8_t*> blocks;
+ std::vector<void*> unwindInfos;
+ size_t blockSize = 0;
+ size_t maxTotalSize = 0;
+ AllocationCallback* allocationCallback = nullptr;
+ void* allocationCallbackContext = nullptr;
+};
+}
+} // namespace Luau
+#line __LINE__ "NativeState.h"
+typedef int (*luau_FastFunction)(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams);
+namespace Luau
+{
+namespace CodeGen
+{
+class UnwindBuilder;
+struct NativeContext
+{
+ uint8_t* gateEntry = nullptr;
+ uint8_t* gateExit = nullptr;
+ int (*luaV_lessthan)(lua_State* L, const TValue* l, const TValue* r) = nullptr;
+ int (*luaV_lessequal)(lua_State* L, const TValue* l, const TValue* r) = nullptr;
+ int (*luaV_equalval)(lua_State* L, const TValue* t1, const TValue* t2) = nullptr;
+ void (*luaV_doarith)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc, TMS op) = nullptr;
+ void (*luaV_dolen)(lua_State* L, StkId ra, const TValue* rb) = nullptr;
+ void (*luaV_gettable)(lua_State* L, const TValue* t, TValue* key, StkId val) = nullptr;
+ void (*luaV_settable)(lua_State* L, const TValue* t, TValue* key, StkId val) = nullptr;
+ void (*luaV_getimport)(lua_State* L, Table* env, TValue* k, StkId res, uint32_t id, bool propagatenil) = nullptr;
+ void (*luaV_concat)(lua_State* L, int total, int last) = nullptr;
+ int (*luaH_getn)(Table* t) = nullptr;
+ Table* (*luaH_new)(lua_State* L, int narray, int lnhash) = nullptr;
+ Table* (*luaH_clone)(lua_State* L, Table* tt) = nullptr;
+ void (*luaH_resizearray)(lua_State* L, Table* t, int nasize) = nullptr;
+ TValue* (*luaH_setnum)(lua_State* L, Table* t, int key);
+ void (*luaC_barriertable)(lua_State* L, Table* t, GCObject* v) = nullptr;
+ void (*luaC_barrierf)(lua_State* L, GCObject* o, GCObject* v) = nullptr;
+ void (*luaC_barrierback)(lua_State* L, GCObject* o, GCObject** gclist) = nullptr;
+ size_t (*luaC_step)(lua_State* L, bool assist) = nullptr;
+ void (*luaF_close)(lua_State* L, StkId level) = nullptr;
+ UpVal* (*luaF_findupval)(lua_State* L, StkId level) = nullptr;
+ Closure* (*luaF_newLclosure)(lua_State* L, int nelems, Table* e, Proto* p) = nullptr;
+ const TValue* (*luaT_gettm)(Table* events, TMS event, TString* ename) = nullptr;
+ const TString* (*luaT_objtypenamestr)(lua_State* L, const TValue* o) = nullptr;
+ double (*libm_exp)(double) = nullptr;
+ double (*libm_pow)(double, double) = nullptr;
+ double (*libm_fmod)(double, double) = nullptr;
+ double (*libm_asin)(double) = nullptr;
+ double (*libm_sin)(double) = nullptr;
+ double (*libm_sinh)(double) = nullptr;
+ double (*libm_acos)(double) = nullptr;
+ double (*libm_cos)(double) = nullptr;
+ double (*libm_cosh)(double) = nullptr;
+ double (*libm_atan)(double) = nullptr;
+ double (*libm_atan2)(double, double) = nullptr;
+ double (*libm_tan)(double) = nullptr;
+ double (*libm_tanh)(double) = nullptr;
+ double (*libm_log)(double) = nullptr;
+ double (*libm_log2)(double) = nullptr;
+ double (*libm_log10)(double) = nullptr;
+ double (*libm_ldexp)(double, int) = nullptr;
+ double (*libm_round)(double) = nullptr;
+ double (*libm_frexp)(double, int*) = nullptr;
+ double (*libm_modf)(double, double*) = nullptr;
+ bool (*forgLoopTableIter)(lua_State* L, Table* h, int index, TValue* ra) = nullptr;
+ bool (*forgLoopNodeIter)(lua_State* L, Table* h, int index, TValue* ra) = nullptr;
+ bool (*forgLoopNonTableFallback)(lua_State* L, int insnA, int aux) = nullptr;
+ void (*forgPrepXnextFallback)(lua_State* L, TValue* ra, int pc) = nullptr;
+ Closure* (*callProlog)(lua_State* L, TValue* ra, StkId argtop, int nresults) = nullptr;
+ void (*callEpilogC)(lua_State* L, int nresults, int n) = nullptr;
+ Closure* (*callFallback)(lua_State* L, StkId ra, StkId argtop, int nresults) = nullptr;
+ const Instruction* (*executeGETGLOBAL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executeSETGLOBAL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executeGETTABLEKS)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executeSETTABLEKS)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executeNAMECALL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executeSETLIST)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executeFORGPREP)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ void (*executeGETVARARGSMultRet)(lua_State* L, const Instruction* pc, StkId base, int rai) = nullptr;
+ void (*executeGETVARARGSConst)(lua_State* L, StkId base, int rai, int b) = nullptr;
+ const Instruction* (*executeDUPCLOSURE)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ const Instruction* (*executePREPVARARGS)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+ luau_FastFunction luauF_table[256] = {};
+};
+using GateFn = int (*)(lua_State*, Proto*, uintptr_t, NativeContext*);
+struct NativeState
+{
+ NativeState();
+ NativeState(AllocationCallback* allocationCallback, void* allocationCallbackContext);
+ ~NativeState();
+ CodeAllocator codeAllocator;
+ std::unique_ptr<UnwindBuilder> unwindBuilder;
+ uint8_t* gateData = nullptr;
+ size_t gateDataSize = 0;
+ NativeContext context;
+};
+void initFunctions(NativeState& data);
+void initFunctions(NativeContext& context);
+}
+} // namespace Luau
+#line __LINE__ "CodeGenContext.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct ModuleBindResult
+{
+ CodeGenCompilationResult compilationResult = {};
+ uint32_t functionsBound = 0;
+};
+class BaseCodeGenContext
+{
+public:
+ BaseCodeGenContext(size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext);
+ [[nodiscard]] bool initHeaderFunctions();
+ [[nodiscard]] virtual std::optional<ModuleBindResult> tryBindExistingModule(
+ const ModuleId& moduleId, const std::vector<Proto*>& moduleProtos) = 0;
+ [[nodiscard]] virtual ModuleBindResult bindModule(const std::optional<ModuleId>& moduleId, const std::vector<Proto*>& moduleProtos,
+ std::vector<NativeProtoExecDataPtr> nativeExecDatas, const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize) = 0;
+ virtual void onCloseState() noexcept = 0;
+ virtual void onDestroyFunction(void* execdata) noexcept = 0;
+ CodeAllocator codeAllocator;
+ std::unique_ptr<UnwindBuilder> unwindBuilder;
+ uint8_t* gateData = nullptr;
+ size_t gateDataSize = 0;
+ NativeContext context;
+};
+class StandaloneCodeGenContext final : public BaseCodeGenContext
+{
+public:
+ StandaloneCodeGenContext(size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext);
+ [[nodiscard]] virtual std::optional<ModuleBindResult> tryBindExistingModule(
+ const ModuleId& moduleId, const std::vector<Proto*>& moduleProtos) override;
+ [[nodiscard]] virtual ModuleBindResult bindModule(const std::optional<ModuleId>& moduleId, const std::vector<Proto*>& moduleProtos,
+ std::vector<NativeProtoExecDataPtr> nativeExecDatas, const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize) override;
+ virtual void onCloseState() noexcept override;
+ virtual void onDestroyFunction(void* execdata) noexcept override;
+private:
+};
+class SharedCodeGenContext final : public BaseCodeGenContext
+{
+public:
+ SharedCodeGenContext(size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext);
+ [[nodiscard]] virtual std::optional<ModuleBindResult> tryBindExistingModule(
+ const ModuleId& moduleId, const std::vector<Proto*>& moduleProtos) override;
+ [[nodiscard]] virtual ModuleBindResult bindModule(const std::optional<ModuleId>& moduleId, const std::vector<Proto*>& moduleProtos,
+ std::vector<NativeProtoExecDataPtr> nativeExecDatas, const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize) override;
+ virtual void onCloseState() noexcept override;
+ virtual void onDestroyFunction(void* execdata) noexcept override;
+private:
+ SharedCodeAllocator sharedAllocator;
+};
+void create_NEW(lua_State* L);
+void create_NEW(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext);
+void create_NEW(lua_State* L, size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext);
+void create_NEW(lua_State* L, SharedCodeGenContext* codeGenContext);
+CompilationResult compile_NEW(lua_State* L, int idx, unsigned int flags, CompilationStats* stats);
+CompilationResult compile_NEW(const ModuleId& moduleId, lua_State* L, int idx, unsigned int flags, CompilationStats* stats);
+[[nodiscard]] bool isNativeExecutionEnabled_NEW(lua_State* L);
+void setNativeExecutionEnabled_NEW(lua_State* L, bool enabled);
+}
+} // namespace Luau
+#line __LINE__ "CodeGenContext.cpp"
+#line __LINE__ "CodeGenA64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+class BaseCodeGenContext;
+struct NativeState;
+struct ModuleHelpers;
+namespace A64
+{
+class AssemblyBuilderA64;
+bool initHeaderFunctions(NativeState& data);
+bool initHeaderFunctions(BaseCodeGenContext& codeGenContext);
+void assembleHelpers(AssemblyBuilderA64& build, ModuleHelpers& helpers);
+}
+} // namespace CodeGen
+}
+#line __LINE__ "CodeGenContext.cpp"
+#line __LINE__ "CodeGenLower.h"
+#line __LINE__ "AssemblyBuilderA64.h"
 #line __LINE__ "AddressA64.h"
 namespace Luau
 {
@@ -34506,6 +35342,1633 @@ private:
 }
 } // namespace CodeGen
 }
+#line __LINE__ "CodeGenLower.h"
+#line __LINE__ "AssemblyBuilderX64.h"
+#line __LINE__ "ConditionX64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+enum class ConditionX64 : uint8_t
+{
+ Overflow,
+ NoOverflow,
+ Carry,
+ NoCarry,
+ Below,
+ BelowEqual,
+ Above,
+ AboveEqual,
+ Equal,
+ Less,
+ LessEqual,
+ Greater,
+ GreaterEqual,
+ NotBelow,
+ NotBelowEqual,
+ NotAbove,
+ NotAboveEqual,
+ NotEqual,
+ NotLess,
+ NotLessEqual,
+ NotGreater,
+ NotGreaterEqual,
+ Zero,
+ NotZero,
+ Parity,
+ NotParity,
+ Count
+};
+inline ConditionX64 getReverseCondition(ConditionX64 cond)
+{
+ switch (cond)
+ {
+ case ConditionX64::Overflow:
+ return ConditionX64::NoOverflow;
+ case ConditionX64::NoOverflow:
+ return ConditionX64::Overflow;
+ case ConditionX64::Carry:
+ return ConditionX64::NoCarry;
+ case ConditionX64::NoCarry:
+ return ConditionX64::Carry;
+ case ConditionX64::Below:
+ return ConditionX64::NotBelow;
+ case ConditionX64::BelowEqual:
+ return ConditionX64::NotBelowEqual;
+ case ConditionX64::Above:
+ return ConditionX64::NotAbove;
+ case ConditionX64::AboveEqual:
+ return ConditionX64::NotAboveEqual;
+ case ConditionX64::Equal:
+ return ConditionX64::NotEqual;
+ case ConditionX64::Less:
+ return ConditionX64::NotLess;
+ case ConditionX64::LessEqual:
+ return ConditionX64::NotLessEqual;
+ case ConditionX64::Greater:
+ return ConditionX64::NotGreater;
+ case ConditionX64::GreaterEqual:
+ return ConditionX64::NotGreaterEqual;
+ case ConditionX64::NotBelow:
+ return ConditionX64::Below;
+ case ConditionX64::NotBelowEqual:
+ return ConditionX64::BelowEqual;
+ case ConditionX64::NotAbove:
+ return ConditionX64::Above;
+ case ConditionX64::NotAboveEqual:
+ return ConditionX64::AboveEqual;
+ case ConditionX64::NotEqual:
+ return ConditionX64::Equal;
+ case ConditionX64::NotLess:
+ return ConditionX64::Less;
+ case ConditionX64::NotLessEqual:
+ return ConditionX64::LessEqual;
+ case ConditionX64::NotGreater:
+ return ConditionX64::Greater;
+ case ConditionX64::NotGreaterEqual:
+ return ConditionX64::GreaterEqual;
+ case ConditionX64::Zero:
+ return ConditionX64::NotZero;
+ case ConditionX64::NotZero:
+ return ConditionX64::Zero;
+ case ConditionX64::Parity:
+ return ConditionX64::NotParity;
+ case ConditionX64::NotParity:
+ return ConditionX64::Parity;
+ case ConditionX64::Count:
+ CODEGEN_ASSERT(!"invalid ConditionX64 value");
+ }
+ return ConditionX64::Count;
+}
+}
+} // namespace Luau
+#line __LINE__ "AssemblyBuilderX64.h"
+#line __LINE__ "OperandX64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+namespace X64
+{
+enum class CategoryX64 : uint8_t
+{
+ reg,
+ mem,
+ imm,
+};
+struct OperandX64
+{
+ constexpr OperandX64(RegisterX64 reg)
+ : cat(CategoryX64::reg)
+ , index(noreg)
+ , base(reg)
+ , memSize(SizeX64::none)
+ , scale(1)
+ , imm(0)
+ {
+ }
+ constexpr OperandX64(int32_t imm)
+ : cat(CategoryX64::imm)
+ , index(noreg)
+ , base(noreg)
+ , memSize(SizeX64::none)
+ , scale(1)
+ , imm(imm)
+ {
+ }
+ constexpr explicit OperandX64(SizeX64 size, RegisterX64 index, uint8_t scale, RegisterX64 base, int32_t disp)
+ : cat(CategoryX64::mem)
+ , index(index)
+ , base(base)
+ , memSize(size)
+ , scale(scale)
+ , imm(disp)
+ {
+ }
+ CategoryX64 cat;
+ RegisterX64 index;
+ RegisterX64 base;
+ SizeX64 memSize : 4;
+ uint8_t scale : 4;
+ int32_t imm;
+ constexpr OperandX64 operator[](OperandX64&& addr) const
+ {
+ CODEGEN_ASSERT(cat == CategoryX64::mem);
+ CODEGEN_ASSERT(index == noreg && scale == 1 && base == noreg && imm == 0);
+ CODEGEN_ASSERT(addr.memSize == SizeX64::none);
+ addr.cat = CategoryX64::mem;
+ addr.memSize = memSize;
+ return addr;
+ }
+};
+constexpr OperandX64 addr{SizeX64::none, noreg, 1, noreg, 0};
+constexpr OperandX64 byte{SizeX64::byte, noreg, 1, noreg, 0};
+constexpr OperandX64 word{SizeX64::word, noreg, 1, noreg, 0};
+constexpr OperandX64 dword{SizeX64::dword, noreg, 1, noreg, 0};
+constexpr OperandX64 qword{SizeX64::qword, noreg, 1, noreg, 0};
+constexpr OperandX64 xmmword{SizeX64::xmmword, noreg, 1, noreg, 0};
+constexpr OperandX64 ymmword{SizeX64::ymmword, noreg, 1, noreg, 0};
+constexpr OperandX64 operator*(RegisterX64 reg, uint8_t scale)
+{
+ if (scale == 1)
+ return OperandX64(reg);
+ CODEGEN_ASSERT(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+ CODEGEN_ASSERT(reg.index != 0b100 && "can't scale SP");
+ return OperandX64(SizeX64::none, reg, scale, noreg, 0);
+}
+constexpr OperandX64 operator+(RegisterX64 reg, int32_t disp)
+{
+ return OperandX64(SizeX64::none, noreg, 1, reg, disp);
+}
+constexpr OperandX64 operator-(RegisterX64 reg, int32_t disp)
+{
+ return OperandX64(SizeX64::none, noreg, 1, reg, -disp);
+}
+constexpr OperandX64 operator+(RegisterX64 base, RegisterX64 index)
+{
+ CODEGEN_ASSERT(index.index != 4 && "sp cannot be used as index");
+ CODEGEN_ASSERT(base.size == index.size);
+ return OperandX64(SizeX64::none, index, 1, base, 0);
+}
+constexpr OperandX64 operator+(OperandX64 op, int32_t disp)
+{
+ CODEGEN_ASSERT(op.cat == CategoryX64::mem);
+ CODEGEN_ASSERT(op.memSize == SizeX64::none);
+ op.imm += disp;
+ return op;
+}
+constexpr OperandX64 operator+(OperandX64 op, RegisterX64 base)
+{
+ CODEGEN_ASSERT(op.cat == CategoryX64::mem);
+ CODEGEN_ASSERT(op.memSize == SizeX64::none);
+ CODEGEN_ASSERT(op.base == noreg);
+ CODEGEN_ASSERT(op.index == noreg || op.index.size == base.size);
+ op.base = base;
+ return op;
+}
+constexpr OperandX64 operator+(RegisterX64 base, OperandX64 op)
+{
+ CODEGEN_ASSERT(op.cat == CategoryX64::mem);
+ CODEGEN_ASSERT(op.memSize == SizeX64::none);
+ CODEGEN_ASSERT(op.base == noreg);
+ CODEGEN_ASSERT(op.index == noreg || op.index.size == base.size);
+ op.base = base;
+ return op;
+}
+}
+} // namespace CodeGen
+}
+#line __LINE__ "AssemblyBuilderX64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+namespace X64
+{
+enum class RoundingModeX64
+{
+ RoundToNearestEven = 0b00,
+ RoundToNegativeInfinity = 0b01,
+ RoundToPositiveInfinity = 0b10,
+ RoundToZero = 0b11,
+};
+enum class AlignmentDataX64
+{
+ Nop,
+ Int3,
+ Ud2,
+};
+enum class ABIX64
+{
+ Windows,
+ SystemV,
+};
+class AssemblyBuilderX64
+{
+public:
+ explicit AssemblyBuilderX64(bool logText, ABIX64 abi);
+ explicit AssemblyBuilderX64(bool logText);
+ ~AssemblyBuilderX64();
+ void add(OperandX64 lhs, OperandX64 rhs);
+ void sub(OperandX64 lhs, OperandX64 rhs);
+ void cmp(OperandX64 lhs, OperandX64 rhs);
+ void and_(OperandX64 lhs, OperandX64 rhs);
+ void or_(OperandX64 lhs, OperandX64 rhs);
+ void xor_(OperandX64 lhs, OperandX64 rhs);
+ void sal(OperandX64 lhs, OperandX64 rhs);
+ void sar(OperandX64 lhs, OperandX64 rhs);
+ void shl(OperandX64 lhs, OperandX64 rhs);
+ void shr(OperandX64 lhs, OperandX64 rhs);
+ void rol(OperandX64 lhs, OperandX64 rhs);
+ void ror(OperandX64 lhs, OperandX64 rhs);
+ void mov(OperandX64 lhs, OperandX64 rhs);
+ void mov64(RegisterX64 lhs, int64_t imm);
+ void movsx(RegisterX64 lhs, OperandX64 rhs);
+ void movzx(RegisterX64 lhs, OperandX64 rhs);
+ void div(OperandX64 op);
+ void idiv(OperandX64 op);
+ void mul(OperandX64 op);
+ void imul(OperandX64 op);
+ void neg(OperandX64 op);
+ void not_(OperandX64 op);
+ void dec(OperandX64 op);
+ void inc(OperandX64 op);
+ void imul(OperandX64 lhs, OperandX64 rhs);
+ void imul(OperandX64 dst, OperandX64 lhs, int32_t rhs);
+ void test(OperandX64 lhs, OperandX64 rhs);
+ void lea(OperandX64 lhs, OperandX64 rhs);
+ void setcc(ConditionX64 cond, OperandX64 op);
+ void cmov(ConditionX64 cond, RegisterX64 lhs, OperandX64 rhs);
+ void push(OperandX64 op);
+ void pop(OperandX64 op);
+ void ret();
+ void jcc(ConditionX64 cond, Label& label);
+ void jmp(Label& label);
+ void jmp(OperandX64 op);
+ void call(Label& label);
+ void call(OperandX64 op);
+ void lea(RegisterX64 lhs, Label& label);
+ void int3();
+ void ud2();
+ void bsr(RegisterX64 dst, OperandX64 src);
+ void bsf(RegisterX64 dst, OperandX64 src);
+ void bswap(RegisterX64 dst);
+ void nop(uint32_t length = 1);
+ void align(uint32_t alignment, AlignmentDataX64 data = AlignmentDataX64::Nop);
+ void vaddpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vaddps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vaddsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vaddss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vsubsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vsubps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vmulsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vmulps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vdivsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vdivps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vandps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vandpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vandnpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vxorpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vorps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vorpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vucomisd(OperandX64 src1, OperandX64 src2);
+ void vcvttsd2si(OperandX64 dst, OperandX64 src);
+ void vcvtsi2sd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vcvtsd2ss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vcvtss2sd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vroundsd(OperandX64 dst, OperandX64 src1, OperandX64 src2, RoundingModeX64 roundingMode);
+ void vsqrtpd(OperandX64 dst, OperandX64 src);
+ void vsqrtps(OperandX64 dst, OperandX64 src);
+ void vsqrtsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vsqrtss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vmovsd(OperandX64 dst, OperandX64 src);
+ void vmovsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vmovss(OperandX64 dst, OperandX64 src);
+ void vmovss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vmovapd(OperandX64 dst, OperandX64 src);
+ void vmovaps(OperandX64 dst, OperandX64 src);
+ void vmovupd(OperandX64 dst, OperandX64 src);
+ void vmovups(OperandX64 dst, OperandX64 src);
+ void vmovq(OperandX64 lhs, OperandX64 rhs);
+ void vmaxsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vminsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vcmpltsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+ void vblendvpd(RegisterX64 dst, RegisterX64 src1, OperandX64 mask, RegisterX64 src3);
+ void vpshufps(RegisterX64 dst, RegisterX64 src1, OperandX64 src2, uint8_t shuffle);
+ void vpinsrd(RegisterX64 dst, RegisterX64 src1, OperandX64 src2, uint8_t offset);
+ bool finalize();
+ Label setLabel();
+ void setLabel(Label& label);
+ uint32_t getLabelOffset(const Label& label)
+ {
+ CODEGEN_ASSERT(label.location != ~0u);
+ return label.location;
+ }
+ OperandX64 i32(int32_t value);
+ OperandX64 i64(int64_t value);
+ OperandX64 f32(float value);
+ OperandX64 f64(double value);
+ OperandX64 u32x4(uint32_t x, uint32_t y, uint32_t z, uint32_t w);
+ OperandX64 f32x4(float x, float y, float z, float w);
+ OperandX64 f64x2(double x, double y);
+ OperandX64 bytes(const void* ptr, size_t size, size_t align = 8);
+ void logAppend(const char* fmt, ...) LUAU_PRINTF_ATTR(2, 3);
+ uint32_t getCodeSize() const;
+ unsigned getInstructionCount() const;
+ std::vector<uint8_t> data;
+ std::vector<uint8_t> code;
+ std::string text;
+ const bool logText = false;
+ const ABIX64 abi;
+private:
+ void placeBinary(const char* name, OperandX64 lhs, OperandX64 rhs, uint8_t codeimm8, uint8_t codeimm, uint8_t codeimmImm8, uint8_t code8rev,
+ uint8_t coderev, uint8_t code8, uint8_t code, uint8_t opreg);
+ void placeBinaryRegMemAndImm(OperandX64 lhs, OperandX64 rhs, uint8_t code8, uint8_t code, uint8_t codeImm8, uint8_t opreg);
+ void placeBinaryRegAndRegMem(OperandX64 lhs, OperandX64 rhs, uint8_t code8, uint8_t code);
+ void placeBinaryRegMemAndReg(OperandX64 lhs, OperandX64 rhs, uint8_t code8, uint8_t code);
+ void placeUnaryModRegMem(const char* name, OperandX64 op, uint8_t code8, uint8_t code, uint8_t opreg);
+ void placeShift(const char* name, OperandX64 lhs, OperandX64 rhs, uint8_t opreg);
+ void placeJcc(const char* name, Label& label, uint8_t cc);
+ void placeAvx(const char* name, OperandX64 dst, OperandX64 src, uint8_t code, bool setW, uint8_t mode, uint8_t prefix);
+ void placeAvx(const char* name, OperandX64 dst, OperandX64 src, uint8_t code, uint8_t coderev, bool setW, uint8_t mode, uint8_t prefix);
+ void placeAvx(const char* name, OperandX64 dst, OperandX64 src1, OperandX64 src2, uint8_t code, bool setW, uint8_t mode, uint8_t prefix);
+ void placeAvx(
+ const char* name, OperandX64 dst, OperandX64 src1, OperandX64 src2, uint8_t imm8, uint8_t code, bool setW, uint8_t mode, uint8_t prefix);
+ void placeRegAndModRegMem(OperandX64 lhs, OperandX64 rhs, int32_t extraCodeBytes = 0);
+ void placeModRegMem(OperandX64 rhs, uint8_t regop, int32_t extraCodeBytes = 0);
+ void placeRex(RegisterX64 op);
+ void placeRex(OperandX64 op);
+ void placeRexNoW(OperandX64 op);
+ void placeRex(RegisterX64 lhs, OperandX64 rhs);
+ void placeVex(OperandX64 dst, OperandX64 src1, OperandX64 src2, bool setW, uint8_t mode, uint8_t prefix);
+ void placeImm8Or32(int32_t imm);
+ void placeImm8(int32_t imm);
+ void placeImm16(int16_t imm);
+ void placeImm32(int32_t imm);
+ void placeImm64(int64_t imm);
+ void placeLabel(Label& label);
+ void place(uint8_t byte);
+ void commit();
+ LUAU_NOINLINE void extend();
+ size_t allocateData(size_t size, size_t align);
+ LUAU_NOINLINE void log(const char* opcode);
+ LUAU_NOINLINE void log(const char* opcode, OperandX64 op);
+ LUAU_NOINLINE void log(const char* opcode, OperandX64 op1, OperandX64 op2);
+ LUAU_NOINLINE void log(const char* opcode, OperandX64 op1, OperandX64 op2, OperandX64 op3);
+ LUAU_NOINLINE void log(const char* opcode, OperandX64 op1, OperandX64 op2, OperandX64 op3, OperandX64 op4);
+ LUAU_NOINLINE void log(Label label);
+ LUAU_NOINLINE void log(const char* opcode, Label label);
+ LUAU_NOINLINE void log(const char* opcode, RegisterX64 reg, Label label);
+ void log(OperandX64 op);
+ const char* getSizeName(SizeX64 size) const;
+ const char* getRegisterName(RegisterX64 reg) const;
+ uint32_t nextLabel = 1;
+ std::vector<Label> pendingLabels;
+ std::vector<uint32_t> labelLocations;
+ DenseHashMap<uint32_t, int32_t> constCache32;
+ DenseHashMap<uint64_t, int32_t> constCache64;
+ bool finalized = false;
+ size_t dataPos = 0;
+ uint8_t* codePos = nullptr;
+ uint8_t* codeEnd = nullptr;
+ unsigned instructionCount = 0;
+};
+}
+} // namespace CodeGen
+}
+#line __LINE__ "CodeGenLower.h"
+#line __LINE__ "IrDump.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct CfgInfo;
+const char* getCmdName(IrCmd cmd);
+const char* getBlockKindName(IrBlockKind kind);
+struct IrToStringContext
+{
+ std::string& result;
+ const std::vector<IrBlock>& blocks;
+ const std::vector<IrConst>& constants;
+ const CfgInfo& cfg;
+};
+void toString(IrToStringContext& ctx, const IrInst& inst, uint32_t index);
+void toString(IrToStringContext& ctx, const IrBlock& block, uint32_t index);
+void toString(IrToStringContext& ctx, IrOp op);
+void toString(std::string& result, IrConst constant);
+const char* getBytecodeTypeName(uint8_t type);
+void toString(std::string& result, const BytecodeTypes& bcTypes);
+void toStringDetailed(
+ IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, const IrInst& inst, uint32_t instIdx, IncludeUseInfo includeUseInfo);
+void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, IncludeUseInfo includeUseInfo, IncludeCfgInfo includeCfgInfo,
+ IncludeRegFlowInfo includeRegFlowInfo);
+std::string toString(const IrFunction& function, IncludeUseInfo includeUseInfo);
+std::string dump(const IrFunction& function);
+std::string toDot(const IrFunction& function, bool includeInst);
+std::string toDotCfg(const IrFunction& function);
+std::string toDotDjGraph(const IrFunction& function);
+std::string dumpDot(const IrFunction& function, bool includeInst);
+}
+} // namespace Luau
+#line __LINE__ "CodeGenLower.h"
+#line __LINE__ "OptimizeConstProp.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct IrBuilder;
+void constPropInBlockChains(IrBuilder& build, bool useValueNumbering);
+void createLinearBlocks(IrBuilder& build, bool useValueNumbering);
+}
+} // namespace Luau
+#line __LINE__ "CodeGenLower.h"
+#line __LINE__ "OptimizeDeadStore.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct IrBuilder;
+void markDeadStoresInBlockChains(IrBuilder& build);
+}
+} // namespace Luau
+#line __LINE__ "CodeGenLower.h"
+#line __LINE__ "OptimizeFinalX64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+void optimizeMemoryOperandsX64(IrFunction& function);
+}
+} // namespace Luau
+#line __LINE__ "CodeGenLower.h"
+#line __LINE__ "EmitCommon.h"
+namespace Luau
+{
+namespace CodeGen
+{
+constexpr unsigned kTValueSizeLog2 = 4;
+constexpr unsigned kLuaNodeSizeLog2 = 5;
+constexpr unsigned kOffsetOfTKeyTagNext = 12; // offsetof cannot be used on a bit field
+constexpr unsigned kTKeyTagBits = 4;
+constexpr unsigned kTKeyTagMask = (1 << kTKeyTagBits) - 1;
+constexpr unsigned kOffsetOfInstructionC = 3;
+struct ModuleHelpers
+{
+ Label exitContinueVm;
+ Label exitNoContinueVm;
+ Label exitContinueVmClearNativeFlag;
+ Label updatePcAndContinueInVm;
+ Label return_;
+ Label interrupt;
+ Label continueCall; // x0: closure
+};
+}
+} // namespace Luau
+#line __LINE__ "CodeGenLower.h"
+#line __LINE__ "IrLoweringA64.h"
+#line __LINE__ "IrRegAllocA64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct LoweringStats;
+namespace A64
+{
+class AssemblyBuilderA64;
+struct IrRegAllocA64
+{
+ IrRegAllocA64(IrFunction& function, LoweringStats* stats, std::initializer_list<std::pair<RegisterA64, RegisterA64>> regs);
+ RegisterA64 allocReg(KindA64 kind, uint32_t index);
+ RegisterA64 allocTemp(KindA64 kind);
+ RegisterA64 allocReuse(KindA64 kind, uint32_t index, std::initializer_list<IrOp> oprefs);
+ RegisterA64 takeReg(RegisterA64 reg, uint32_t index);
+ void freeReg(RegisterA64 reg);
+ void freeLastUseReg(IrInst& target, uint32_t index);
+ void freeLastUseRegs(const IrInst& inst, uint32_t index);
+ void freeTempRegs();
+ size_t spill(AssemblyBuilderA64& build, uint32_t index, std::initializer_list<RegisterA64> live = {});
+ void restore(AssemblyBuilderA64& build, size_t start);
+ void restoreReg(AssemblyBuilderA64& build, IrInst& inst);
+ struct Set
+ {
+ uint32_t base = 0;
+ uint32_t free = 0;
+ uint32_t temp = 0;
+ uint32_t defs[32];
+ };
+ struct Spill
+ {
+ uint32_t inst;
+ RegisterA64 origin;
+ int8_t slot;
+ };
+ Set& getSet(KindA64 kind);
+ IrFunction& function;
+ LoweringStats* stats = nullptr;
+ Set gpr, simd;
+ std::vector<Spill> spills;
+ uint32_t freeSpillSlots = 0;
+ bool error = false;
+};
+}
+} // namespace CodeGen
+}
+#line __LINE__ "IrLoweringA64.h"
+#line __LINE__ "IrValueLocationTracking.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct IrValueLocationTracking
+{
+ IrValueLocationTracking(IrFunction& function);
+ void setRestoreCallack(void* context, void (*callback)(void* context, IrInst& inst));
+ void beforeInstLowering(IrInst& inst);
+ void afterInstLowering(IrInst& inst, uint32_t instIdx);
+ void recordRestoreOp(uint32_t instIdx, IrOp location);
+ void invalidateRestoreOp(IrOp location, bool skipValueInvalidation);
+ void invalidateRestoreVmRegs(int start, int count);
+ IrFunction& function;
+ std::array<uint32_t, 256> vmRegValue;
+ int maxReg = 0;
+ void* restoreCallbackCtx = nullptr;
+ void (*restoreCallback)(void* context, IrInst& inst) = nullptr;
+};
+}
+} // namespace Luau
+#line __LINE__ "IrLoweringA64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct ModuleHelpers;
+struct AssemblyOptions;
+struct LoweringStats;
+namespace A64
+{
+struct IrLoweringA64
+{
+ IrLoweringA64(AssemblyBuilderA64& build, ModuleHelpers& helpers, IrFunction& function, LoweringStats* stats);
+ void lowerInst(IrInst& inst, uint32_t index, const IrBlock& next);
+ void finishBlock(const IrBlock& curr, const IrBlock& next);
+ void finishFunction();
+ bool hasError() const;
+ bool isFallthroughBlock(const IrBlock& target, const IrBlock& next);
+ void jumpOrFallthrough(IrBlock& target, const IrBlock& next);
+ Label& getTargetLabel(IrOp op, Label& fresh);
+ void finalizeTargetLabel(IrOp op, Label& fresh);
+ RegisterA64 tempDouble(IrOp op);
+ RegisterA64 tempInt(IrOp op);
+ RegisterA64 tempUint(IrOp op);
+ AddressA64 tempAddr(IrOp op, int offset);
+ AddressA64 tempAddrBuffer(IrOp bufferOp, IrOp indexOp);
+ RegisterA64 regOp(IrOp op);
+ IrConst constOp(IrOp op) const;
+ uint8_t tagOp(IrOp op) const;
+ int intOp(IrOp op) const;
+ unsigned uintOp(IrOp op) const;
+ double doubleOp(IrOp op) const;
+ IrBlock& blockOp(IrOp op) const;
+ Label& labelOp(IrOp op) const;
+ struct InterruptHandler
+ {
+ Label self;
+ unsigned int pcpos;
+ Label next;
+ };
+ struct ExitHandler
+ {
+ Label self;
+ unsigned int pcpos;
+ };
+ AssemblyBuilderA64& build;
+ ModuleHelpers& helpers;
+ IrFunction& function;
+ LoweringStats* stats = nullptr;
+ IrRegAllocA64 regs;
+ IrValueLocationTracking valueTracker;
+ std::vector<InterruptHandler> interruptHandlers;
+ std::vector<ExitHandler> exitHandlers;
+ DenseHashMap<uint32_t, uint32_t> exitHandlerMap;
+ bool error = false;
+};
+}
+} // namespace CodeGen
+}
+#line __LINE__ "CodeGenLower.h"
+#line __LINE__ "IrLoweringX64.h"
+#line __LINE__ "IrRegAllocX64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct LoweringStats;
+namespace X64
+{
+constexpr uint8_t kNoStackSlot = 0xff;
+struct IrSpillX64
+{
+ uint32_t instIdx = 0;
+ IrValueKind valueKind = IrValueKind::Unknown;
+ unsigned spillId = 0;
+ uint8_t stackSlot = kNoStackSlot;
+ RegisterX64 originalLoc = noreg;
+};
+struct IrRegAllocX64
+{
+ IrRegAllocX64(AssemblyBuilderX64& build, IrFunction& function, LoweringStats* stats);
+ RegisterX64 allocReg(SizeX64 size, uint32_t instIdx);
+ RegisterX64 allocRegOrReuse(SizeX64 size, uint32_t instIdx, std::initializer_list<IrOp> oprefs);
+ RegisterX64 takeReg(RegisterX64 reg, uint32_t instIdx);
+ bool canTakeReg(RegisterX64 reg) const;
+ void freeReg(RegisterX64 reg);
+ void freeLastUseReg(IrInst& target, uint32_t instIdx);
+ void freeLastUseRegs(const IrInst& inst, uint32_t instIdx);
+ bool isLastUseReg(const IrInst& target, uint32_t instIdx) const;
+ bool shouldFreeGpr(RegisterX64 reg) const;
+ unsigned findSpillStackSlot(IrValueKind valueKind);
+ IrOp getRestoreOp(const IrInst& inst) const;
+ bool hasRestoreOp(const IrInst& inst) const;
+ OperandX64 getRestoreAddress(const IrInst& inst, IrOp restoreOp);
+ void preserve(IrInst& inst);
+ void restore(IrInst& inst, bool intoOriginalLocation);
+ void preserveAndFreeInstValues();
+ uint32_t findInstructionWithFurthestNextUse(const std::array<uint32_t, 16>& regInstUsers) const;
+ void assertFree(RegisterX64 reg) const;
+ void assertAllFree() const;
+ void assertNoSpills() const;
+ AssemblyBuilderX64& build;
+ IrFunction& function;
+ LoweringStats* stats = nullptr;
+ uint32_t currInstIdx = ~0u;
+ std::array<bool, 16> freeGprMap;
+ std::array<uint32_t, 16> gprInstUsers;
+ std::array<bool, 16> freeXmmMap;
+ std::array<uint32_t, 16> xmmInstUsers;
+ uint8_t usableXmmRegCount = 0;
+ std::bitset<256> usedSpillSlots;
+ unsigned maxUsedSlot = 0;
+ unsigned nextSpillId = 1;
+ std::vector<IrSpillX64> spills;
+};
+struct ScopedRegX64
+{
+ explicit ScopedRegX64(IrRegAllocX64& owner);
+ ScopedRegX64(IrRegAllocX64& owner, SizeX64 size);
+ ScopedRegX64(IrRegAllocX64& owner, RegisterX64 reg);
+ ~ScopedRegX64();
+ ScopedRegX64(const ScopedRegX64&) = delete;
+ ScopedRegX64& operator=(const ScopedRegX64&) = delete;
+ void take(RegisterX64 reg);
+ void alloc(SizeX64 size);
+ void free();
+ RegisterX64 release();
+ IrRegAllocX64& owner;
+ RegisterX64 reg;
+};
+struct ScopedSpills
+{
+ explicit ScopedSpills(IrRegAllocX64& owner);
+ ~ScopedSpills();
+ ScopedSpills(const ScopedSpills&) = delete;
+ ScopedSpills& operator=(const ScopedSpills&) = delete;
+ IrRegAllocX64& owner;
+ unsigned startSpillId = 0;
+};
+}
+} // namespace CodeGen
+}
+#line __LINE__ "IrLoweringX64.h"
+struct Proto;
+namespace Luau
+{
+namespace CodeGen
+{
+struct ModuleHelpers;
+struct AssemblyOptions;
+struct LoweringStats;
+namespace X64
+{
+struct IrLoweringX64
+{
+ IrLoweringX64(AssemblyBuilderX64& build, ModuleHelpers& helpers, IrFunction& function, LoweringStats* stats);
+ void lowerInst(IrInst& inst, uint32_t index, const IrBlock& next);
+ void finishBlock(const IrBlock& curr, const IrBlock& next);
+ void finishFunction();
+ bool hasError() const;
+ bool isFallthroughBlock(const IrBlock& target, const IrBlock& next);
+ void jumpOrFallthrough(IrBlock& target, const IrBlock& next);
+ Label& getTargetLabel(IrOp op, Label& fresh);
+ void finalizeTargetLabel(IrOp op, Label& fresh);
+ void jumpOrAbortOnUndef(ConditionX64 cond, IrOp target, const IrBlock& next);
+ void jumpOrAbortOnUndef(IrOp target, const IrBlock& next);
+ void storeDoubleAsFloat(OperandX64 dst, IrOp src);
+ OperandX64 memRegDoubleOp(IrOp op);
+ OperandX64 memRegUintOp(IrOp op);
+ OperandX64 memRegTagOp(IrOp op);
+ RegisterX64 regOp(IrOp op);
+ OperandX64 bufferAddrOp(IrOp bufferOp, IrOp indexOp);
+ RegisterX64 vecOp(IrOp op, ScopedRegX64& tmp);
+ IrConst constOp(IrOp op) const;
+ uint8_t tagOp(IrOp op) const;
+ int intOp(IrOp op) const;
+ unsigned uintOp(IrOp op) const;
+ double doubleOp(IrOp op) const;
+ IrBlock& blockOp(IrOp op) const;
+ Label& labelOp(IrOp op) const;
+ OperandX64 vectorAndMaskOp();
+ struct InterruptHandler
+ {
+ Label self;
+ unsigned int pcpos;
+ Label next;
+ };
+ struct ExitHandler
+ {
+ Label self;
+ unsigned int pcpos;
+ };
+ AssemblyBuilderX64& build;
+ ModuleHelpers& helpers;
+ IrFunction& function;
+ LoweringStats* stats = nullptr;
+ IrRegAllocX64 regs;
+ IrValueLocationTracking valueTracker;
+ std::vector<InterruptHandler> interruptHandlers;
+ std::vector<ExitHandler> exitHandlers;
+ DenseHashMap<uint32_t, uint32_t> exitHandlerMap;
+ OperandX64 vectorAndMask = noreg;
+ OperandX64 vectorOrMask = noreg;
+};
+}
+} // namespace CodeGen
+}
+#line __LINE__ "CodeGenLower.h"
+LUAU_FASTFLAG(DebugCodegenNoOpt)
+LUAU_FASTFLAG(DebugCodegenOptSize)
+LUAU_FASTFLAG(DebugCodegenSkipNumbering)
+LUAU_FASTINT(CodegenHeuristicsInstructionLimit)
+LUAU_FASTINT(CodegenHeuristicsBlockLimit)
+LUAU_FASTINT(CodegenHeuristicsBlockInstructionLimit)
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores5)
+namespace Luau
+{
+namespace CodeGen
+{
+inline void gatherFunctions(std::vector<Proto*>& results, Proto* proto, unsigned int flags)
+{
+ if (results.size() <= size_t(proto->bytecodeid))
+ results.resize(proto->bytecodeid + 1);
+ if (results[proto->bytecodeid])
+ return;
+ if ((proto->flags & LPF_NATIVE_COLD) == 0 || (flags & CodeGen_ColdFunctions) != 0)
+ results[proto->bytecodeid] = proto;
+ for (int i = 0; i < proto->sizep; i++)
+ gatherFunctions(results, proto->p[i], flags);
+}
+inline unsigned getInstructionCount(const std::vector<IrInst>& instructions, IrCmd cmd)
+{
+ return unsigned(std::count_if(instructions.begin(), instructions.end(), [&cmd](const IrInst& inst) {
+ return inst.cmd == cmd;
+ }));
+}
+template<typename AssemblyBuilder, typename IrLowering>
+inline bool lowerImpl(AssemblyBuilder& build, IrLowering& lowering, IrFunction& function, const std::vector<uint32_t>& sortedBlocks, int bytecodeid,
+ AssemblyOptions options)
+{
+ std::vector<uint32_t> bcLocations(function.instructions.size() + 1, ~0u);
+ for (size_t i = 0; i < function.bcMapping.size(); ++i)
+ {
+ uint32_t irLocation = function.bcMapping[i].irLocation;
+ if (irLocation != ~0u)
+ bcLocations[irLocation] = uint32_t(i);
+ }
+ bool outputEnabled = options.includeAssembly || options.includeIr;
+ IrToStringContext ctx{build.text, function.blocks, function.constants, function.cfg};
+ size_t textSize = build.text.length();
+ uint32_t codeSize = build.getCodeSize();
+ bool seenFallback = false;
+ IrBlock dummy;
+ dummy.start = ~0u;
+ CODEGEN_ASSERT(sortedBlocks[0] == 0);
+ for (size_t i = 0; i < sortedBlocks.size(); ++i)
+ {
+ uint32_t blockIndex = sortedBlocks[i];
+ IrBlock& block = function.blocks[blockIndex];
+ if (block.kind == IrBlockKind::Dead)
+ continue;
+ CODEGEN_ASSERT(block.start != ~0u);
+ CODEGEN_ASSERT(block.finish != ~0u);
+ if (block.kind == IrBlockKind::Fallback && !seenFallback)
+ {
+ textSize = build.text.length();
+ codeSize = build.getCodeSize();
+ seenFallback = true;
+ }
+ if (options.includeIr)
+ {
+ if (options.includeIrPrefix == IncludeIrPrefix::Yes)
+ build.logAppend("# ");
+ toStringDetailed(ctx, block, blockIndex, options.includeUseInfo, options.includeCfgInfo, options.includeRegFlowInfo);
+ }
+ function.validRestoreOpBlocks.push_back(blockIndex);
+ build.setLabel(block.label);
+ if (blockIndex == function.entryBlock)
+ {
+ function.entryLocation = build.getLabelOffset(block.label);
+ }
+ IrBlock& nextBlock = getNextBlock(function, sortedBlocks, dummy, i);
+ if (block.expectedNextBlock != ~0u)
+ CODEGEN_ASSERT(function.getBlockIndex(nextBlock) == block.expectedNextBlock);
+ for (uint32_t index = block.start; index <= block.finish; index++)
+ {
+ CODEGEN_ASSERT(index < function.instructions.size());
+ uint32_t bcLocation = bcLocations[index];
+ if (outputEnabled && options.annotator && bcLocation != ~0u)
+ {
+ options.annotator(options.annotatorContext, build.text, bytecodeid, bcLocation);
+ BytecodeTypes bcTypes = function.getBytecodeTypesAt(bcLocation);
+ if (bcTypes.result != LBC_TYPE_ANY || bcTypes.a != LBC_TYPE_ANY || bcTypes.b != LBC_TYPE_ANY || bcTypes.c != LBC_TYPE_ANY)
+ {
+ toString(ctx.result, bcTypes);
+ build.logAppend("\n");
+ }
+ }
+ if (bcLocation != ~0u)
+ {
+ Label label = (index == block.start) ? block.label : build.setLabel();
+ function.bcMapping[bcLocation].asmLocation = build.getLabelOffset(label);
+ }
+ IrInst& inst = function.instructions[index];
+ if (isPseudo(inst.cmd))
+ {
+ CODEGEN_ASSERT(inst.useCount == 0);
+ continue;
+ }
+ CODEGEN_ASSERT(inst.lastUse == 0 || inst.useCount != 0);
+ if (options.includeIr)
+ {
+ if (options.includeIrPrefix == IncludeIrPrefix::Yes)
+ build.logAppend("# ");
+ toStringDetailed(ctx, block, blockIndex, inst, index, options.includeUseInfo);
+ }
+ lowering.lowerInst(inst, index, nextBlock);
+ if (lowering.hasError())
+ {
+ for (size_t j = i + 1; j < sortedBlocks.size(); ++j)
+ {
+ IrBlock& abandoned = function.blocks[sortedBlocks[j]];
+ build.setLabel(abandoned.label);
+ }
+ lowering.finishFunction();
+ return false;
+ }
+ }
+ lowering.finishBlock(block, nextBlock);
+ if (options.includeIr && options.includeIrPrefix == IncludeIrPrefix::Yes)
+ build.logAppend("#\n");
+ if (block.expectedNextBlock == ~0u)
+ function.validRestoreOpBlocks.clear();
+ }
+ if (!seenFallback)
+ {
+ textSize = build.text.length();
+ codeSize = build.getCodeSize();
+ }
+ lowering.finishFunction();
+ if (outputEnabled && !options.includeOutlinedCode && textSize < build.text.size())
+ {
+ build.text.resize(textSize);
+ if (options.includeAssembly)
+ build.logAppend("; skipping %u bytes of outlined code\n", unsigned((build.getCodeSize() - codeSize) * sizeof(build.code[0])));
+ }
+ return true;
+}
+inline bool lowerIr(X64::AssemblyBuilderX64& build, IrBuilder& ir, const std::vector<uint32_t>& sortedBlocks, ModuleHelpers& helpers, Proto* proto,
+ AssemblyOptions options, LoweringStats* stats)
+{
+ optimizeMemoryOperandsX64(ir.function);
+ X64::IrLoweringX64 lowering(build, helpers, ir.function, stats);
+ return lowerImpl(build, lowering, ir.function, sortedBlocks, proto->bytecodeid, options);
+}
+inline bool lowerIr(A64::AssemblyBuilderA64& build, IrBuilder& ir, const std::vector<uint32_t>& sortedBlocks, ModuleHelpers& helpers, Proto* proto,
+ AssemblyOptions options, LoweringStats* stats)
+{
+ A64::IrLoweringA64 lowering(build, helpers, ir.function, stats);
+ return lowerImpl(build, lowering, ir.function, sortedBlocks, proto->bytecodeid, options);
+}
+template<typename AssemblyBuilder>
+inline bool lowerFunction(IrBuilder& ir, AssemblyBuilder& build, ModuleHelpers& helpers, Proto* proto, AssemblyOptions options, LoweringStats* stats,
+ CodeGenCompilationResult& codeGenCompilationResult)
+{
+ killUnusedBlocks(ir.function);
+ unsigned preOptBlockCount = 0;
+ unsigned maxBlockInstructions = 0;
+ for (const IrBlock& block : ir.function.blocks)
+ {
+ preOptBlockCount += (block.kind != IrBlockKind::Dead);
+ unsigned blockInstructions = block.finish - block.start;
+ maxBlockInstructions = std::max(maxBlockInstructions, blockInstructions);
+ }
+ if (stats)
+ {
+ stats->blocksPreOpt += preOptBlockCount;
+ stats->maxBlockInstructions = maxBlockInstructions;
+ }
+ if (preOptBlockCount >= unsigned(FInt::CodegenHeuristicsBlockLimit.value))
+ {
+ codeGenCompilationResult = CodeGenCompilationResult::CodeGenOverflowBlockLimit;
+ return false;
+ }
+ if (maxBlockInstructions >= unsigned(FInt::CodegenHeuristicsBlockInstructionLimit.value))
+ {
+ codeGenCompilationResult = CodeGenCompilationResult::CodeGenOverflowBlockInstructionLimit;
+ return false;
+ }
+ computeCfgInfo(ir.function);
+ if (!FFlag::DebugCodegenNoOpt)
+ {
+ bool useValueNumbering = !FFlag::DebugCodegenSkipNumbering;
+ constPropInBlockChains(ir, useValueNumbering);
+ if (!FFlag::DebugCodegenOptSize)
+ {
+ double startTime = 0.0;
+ unsigned constPropInstructionCount = 0;
+ if (stats)
+ {
+ constPropInstructionCount = getInstructionCount(ir.function.instructions, IrCmd::SUBSTITUTE);
+ startTime = lua_clock();
+ }
+ createLinearBlocks(ir, useValueNumbering);
+ if (stats)
+ {
+ stats->blockLinearizationStats.timeSeconds += lua_clock() - startTime;
+ constPropInstructionCount = getInstructionCount(ir.function.instructions, IrCmd::SUBSTITUTE) - constPropInstructionCount;
+ stats->blockLinearizationStats.constPropInstructionCount += constPropInstructionCount;
+ }
+ }
+ if (FFlag::LuauCodegenRemoveDeadStores5)
+ markDeadStoresInBlockChains(ir);
+ }
+ std::vector<uint32_t> sortedBlocks = getSortedBlockOrder(ir.function);
+ updateLastUseLocations(ir.function, sortedBlocks);
+ if (stats)
+ {
+ for (const IrBlock& block : ir.function.blocks)
+ {
+ if (block.kind != IrBlockKind::Dead)
+ ++stats->blocksPostOpt;
+ }
+ }
+ bool result = lowerIr(build, ir, sortedBlocks, helpers, proto, options, stats);
+ if (!result)
+ codeGenCompilationResult = CodeGenCompilationResult::CodeGenLoweringFailure;
+ return result;
+}
+}
+} // namespace Luau
+#line __LINE__ "CodeGenContext.cpp"
+#line __LINE__ "CodeGenX64.h"
+namespace Luau
+{
+namespace CodeGen
+{
+class BaseCodeGenContext;
+struct NativeState;
+struct ModuleHelpers;
+namespace X64
+{
+class AssemblyBuilderX64;
+bool initHeaderFunctions(NativeState& data);
+bool initHeaderFunctions(BaseCodeGenContext& codeGenContext);
+void assembleHelpers(AssemblyBuilderX64& build, ModuleHelpers& helpers);
+}
+} // namespace CodeGen
+}
+#line __LINE__ "CodeGenContext.cpp"
+#line __LINE__ "CodeBlockUnwind.h"
+namespace Luau
+{
+namespace CodeGen
+{
+void* createBlockUnwindInfo(void* context, uint8_t* block, size_t blockSize, size_t& startOffset);
+void destroyBlockUnwindInfo(void* context, void* unwindData);
+bool isUnwindSupported();
+}
+} // namespace Luau
+#line __LINE__ "CodeGenContext.cpp"
+#line __LINE__ "UnwindBuilder.h"
+namespace Luau
+{
+namespace CodeGen
+{
+static uint32_t kFullBlockFuncton = ~0u;
+class UnwindBuilder
+{
+public:
+ enum Arch
+ {
+ X64,
+ A64
+ };
+ virtual ~UnwindBuilder() = default;
+ virtual void setBeginOffset(size_t beginOffset) = 0;
+ virtual size_t getBeginOffset() const = 0;
+ virtual void startInfo(Arch arch) = 0;
+ virtual void startFunction() = 0;
+ virtual void finishFunction(uint32_t beginOffset, uint32_t endOffset) = 0;
+ virtual void finishInfo() = 0;
+ virtual void prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs) = 0;
+ virtual void prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame, std::initializer_list<X64::RegisterX64> gpr,
+ const std::vector<X64::RegisterX64>& simd) = 0;
+ virtual size_t getSize() const = 0;
+ virtual size_t getFunctionCount() const = 0;
+ virtual void finalize(char* target, size_t offset, void* funcAddress, size_t funcSize) const = 0;
+};
+}
+} // namespace Luau
+#line __LINE__ "CodeGenContext.cpp"
+#line __LINE__ "UnwindBuilderDwarf2.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct UnwindFunctionDwarf2
+{
+ uint32_t beginOffset;
+ uint32_t endOffset;
+ uint32_t fdeEntryStartPos;
+};
+class UnwindBuilderDwarf2 : public UnwindBuilder
+{
+public:
+ void setBeginOffset(size_t beginOffset) override;
+ size_t getBeginOffset() const override;
+ void startInfo(Arch arch) override;
+ void startFunction() override;
+ void finishFunction(uint32_t beginOffset, uint32_t endOffset) override;
+ void finishInfo() override;
+ void prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs) override;
+ void prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame, std::initializer_list<X64::RegisterX64> gpr,
+ const std::vector<X64::RegisterX64>& simd) override;
+ size_t getSize() const override;
+ size_t getFunctionCount() const override;
+ void finalize(char* target, size_t offset, void* funcAddress, size_t funcSize) const override;
+private:
+ size_t beginOffset = 0;
+ std::vector<UnwindFunctionDwarf2> unwindFunctions;
+ static const unsigned kRawDataLimit = 1024;
+ uint8_t rawData[kRawDataLimit];
+ uint8_t* pos = rawData;
+ uint8_t* fdeEntryStart = nullptr;
+};
+}
+} // namespace Luau
+#line __LINE__ "CodeGenContext.cpp"
+#line __LINE__ "UnwindBuilderWin.h"
+namespace Luau
+{
+namespace CodeGen
+{
+struct UnwindFunctionWin
+{
+ uint32_t beginOffset;
+ uint32_t endOffset;
+ uint32_t unwindInfoOffset;
+};
+struct UnwindInfoWin
+{
+ uint8_t version : 3;
+ uint8_t flags : 5;
+ uint8_t prologsize;
+ uint8_t unwindcodecount;
+ uint8_t framereg : 4;
+ uint8_t frameregoff : 4;
+};
+struct UnwindCodeWin
+{
+ uint8_t offset;
+ uint8_t opcode : 4;
+ uint8_t opinfo : 4;
+};
+class UnwindBuilderWin : public UnwindBuilder
+{
+public:
+ void setBeginOffset(size_t beginOffset) override;
+ size_t getBeginOffset() const override;
+ void startInfo(Arch arch) override;
+ void startFunction() override;
+ void finishFunction(uint32_t beginOffset, uint32_t endOffset) override;
+ void finishInfo() override;
+ void prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs) override;
+ void prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame, std::initializer_list<X64::RegisterX64> gpr,
+ const std::vector<X64::RegisterX64>& simd) override;
+ size_t getSize() const override;
+ size_t getFunctionCount() const override;
+ void finalize(char* target, size_t offset, void* funcAddress, size_t funcSize) const override;
+private:
+ size_t beginOffset = 0;
+ static const unsigned kRawDataLimit = 1024;
+ uint8_t rawData[kRawDataLimit];
+ uint8_t* rawDataPos = rawData;
+ std::vector<UnwindFunctionWin> unwindFunctions;
+ std::vector<UnwindCodeWin> unwindCodes;
+ uint8_t prologSize = 0;
+ X64::RegisterX64 frameReg = X64::noreg;
+ uint8_t frameRegOffset = 0;
+};
+}
+} // namespace Luau
+#line __LINE__ "CodeGenContext.cpp"
+LUAU_FASTFLAGVARIABLE(LuauCodegenContext, false)
+LUAU_FASTFLAGVARIABLE(LuauCodegenCheckNullContext, false)
+LUAU_FASTINT(LuauCodeGenBlockSize)
+LUAU_FASTINT(LuauCodeGenMaxTotalSize)
+namespace Luau
+{
+namespace CodeGen
+{
+static const Instruction kCodeEntryInsn = LOP_NATIVECALL;
+extern void* gPerfLogContext;
+extern PerfLogFn gPerfLogFn;
+unsigned int getCpuFeaturesA64();
+static void logPerfFunction(Proto* p, uintptr_t addr, unsigned size)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ CODEGEN_ASSERT(p->source);
+ const char* source = getstr(p->source);
+ source = (source[0] == '=' || source[0] == '@') ? source + 1 : "[string]";
+ char name[256];
+ snprintf(name, sizeof(name), "<luau> %s:%d %s", source, p->linedefined, p->debugname ? getstr(p->debugname) : "");
+ if (gPerfLogFn)
+ gPerfLogFn(gPerfLogContext, addr, size, name);
+}
+static void logPerfFunctions(
+ const std::vector<Proto*>& moduleProtos, const uint8_t* nativeModuleBaseAddress, const std::vector<NativeProtoExecDataPtr>& nativeProtos)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ if (gPerfLogFn == nullptr)
+ return;
+ if (nativeProtos.size() > 0)
+ gPerfLogFn(gPerfLogContext, uintptr_t(nativeModuleBaseAddress),
+ unsigned(getNativeProtoExecDataHeader(nativeProtos[0].get()).entryOffsetOrAddress - nativeModuleBaseAddress), "<luau helpers>");
+ auto protoIt = moduleProtos.begin();
+ for (const NativeProtoExecDataPtr& nativeProto : nativeProtos)
+ {
+ const NativeProtoExecDataHeader& header = getNativeProtoExecDataHeader(nativeProto.get());
+ while (protoIt != moduleProtos.end() && uint32_t((**protoIt).bytecodeid) != header.bytecodeId)
+ {
+ ++protoIt;
+ }
+ CODEGEN_ASSERT(protoIt != moduleProtos.end());
+ logPerfFunction(*protoIt, uintptr_t(header.entryOffsetOrAddress), uint32_t(header.nativeCodeSize));
+ }
+}
+template<bool Release, typename NativeProtosVector>
+[[nodiscard]] static uint32_t bindNativeProtos(const std::vector<Proto*>& moduleProtos, NativeProtosVector& nativeProtos)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ uint32_t protosBound = 0;
+ auto protoIt = moduleProtos.begin();
+ for (auto& nativeProto : nativeProtos)
+ {
+ const NativeProtoExecDataHeader& header = getNativeProtoExecDataHeader(nativeProto.get());
+ while (protoIt != moduleProtos.end() && uint32_t((**protoIt).bytecodeid) != header.bytecodeId)
+ {
+ ++protoIt;
+ }
+ CODEGEN_ASSERT(protoIt != moduleProtos.end());
+ Proto* proto = *protoIt;
+ if constexpr (Release)
+ {
+ proto->execdata = nativeProto.release();
+ }
+ else
+ {
+ proto->execdata = nativeProto.get();
+ }
+ proto->exectarget = reinterpret_cast<uintptr_t>(header.entryOffsetOrAddress);
+ proto->codeentry = &kCodeEntryInsn;
+ ++protosBound;
+ }
+ return protosBound;
+}
+BaseCodeGenContext::BaseCodeGenContext(size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext)
+ : codeAllocator{blockSize, maxTotalSize, allocationCallback, allocationCallbackContext}
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ CODEGEN_ASSERT(isSupported());
+#if defined(_WIN32)
+ unwindBuilder = std::make_unique<UnwindBuilderWin>();
+#else
+ unwindBuilder = std::make_unique<UnwindBuilderDwarf2>();
+#endif
+ codeAllocator.context = unwindBuilder.get();
+ codeAllocator.createBlockUnwindInfo = createBlockUnwindInfo;
+ codeAllocator.destroyBlockUnwindInfo = destroyBlockUnwindInfo;
+ initFunctions(context);
+}
+[[nodiscard]] bool BaseCodeGenContext::initHeaderFunctions()
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+#if defined(__x86_64__) || defined(_M_X64)
+ if (!X64::initHeaderFunctions(*this))
+ return false;
+#elif defined(__aarch64__)
+ if (!A64::initHeaderFunctions(*this))
+ return false;
+#endif
+ if (gPerfLogFn)
+ gPerfLogFn(gPerfLogContext, uintptr_t(context.gateEntry), 4096, "<luau gate>");
+ return true;
+}
+StandaloneCodeGenContext::StandaloneCodeGenContext(
+ size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext)
+ : BaseCodeGenContext{blockSize, maxTotalSize, allocationCallback, allocationCallbackContext}
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+}
+[[nodiscard]] std::optional<ModuleBindResult> StandaloneCodeGenContext::tryBindExistingModule(const ModuleId&, const std::vector<Proto*>&)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ return {};
+}
+[[nodiscard]] ModuleBindResult StandaloneCodeGenContext::bindModule(const std::optional<ModuleId>&, const std::vector<Proto*>& moduleProtos,
+ std::vector<NativeProtoExecDataPtr> nativeProtos, const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ uint8_t* nativeData = nullptr;
+ size_t sizeNativeData = 0;
+ uint8_t* codeStart = nullptr;
+ if (!codeAllocator.allocate(data, int(dataSize), code, int(codeSize), nativeData, sizeNativeData, codeStart))
+ {
+ return {CodeGenCompilationResult::AllocationFailed};
+ }
+ for (const NativeProtoExecDataPtr& nativeProto : nativeProtos)
+ {
+ NativeProtoExecDataHeader& header = getNativeProtoExecDataHeader(nativeProto.get());
+ header.entryOffsetOrAddress = codeStart + reinterpret_cast<uintptr_t>(header.entryOffsetOrAddress);
+ }
+ logPerfFunctions(moduleProtos, codeStart, nativeProtos);
+ const uint32_t protosBound = bindNativeProtos<true>(moduleProtos, nativeProtos);
+ return {CodeGenCompilationResult::Success, protosBound};
+}
+void StandaloneCodeGenContext::onCloseState() noexcept
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ delete this;
+}
+void StandaloneCodeGenContext::onDestroyFunction(void* execdata) noexcept
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ destroyNativeProtoExecData(static_cast<uint32_t*>(execdata));
+}
+SharedCodeGenContext::SharedCodeGenContext(
+ size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext)
+ : BaseCodeGenContext{blockSize, maxTotalSize, allocationCallback, allocationCallbackContext}
+ , sharedAllocator{&codeAllocator}
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+}
+[[nodiscard]] std::optional<ModuleBindResult> SharedCodeGenContext::tryBindExistingModule(
+ const ModuleId& moduleId, const std::vector<Proto*>& moduleProtos)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ NativeModuleRef nativeModule = sharedAllocator.tryGetNativeModule(moduleId);
+ if (nativeModule.empty())
+ {
+ return {};
+ }
+ const uint32_t protosBound = bindNativeProtos<false>(moduleProtos, nativeModule->getNativeProtos());
+ nativeModule->addRefs(protosBound);
+ return {{CodeGenCompilationResult::Success, protosBound}};
+}
+[[nodiscard]] ModuleBindResult SharedCodeGenContext::bindModule(const std::optional<ModuleId>& moduleId, const std::vector<Proto*>& moduleProtos,
+ std::vector<NativeProtoExecDataPtr> nativeProtos, const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ const std::pair<NativeModuleRef, bool> insertionResult = [&]() -> std::pair<NativeModuleRef, bool> {
+ if (moduleId.has_value())
+ {
+ return sharedAllocator.getOrInsertNativeModule(*moduleId, std::move(nativeProtos), data, dataSize, code, codeSize);
+ }
+ else
+ {
+ return {sharedAllocator.insertAnonymousNativeModule(std::move(nativeProtos), data, dataSize, code, codeSize), true};
+ }
+ }();
+ if (insertionResult.first.empty())
+ return {CodeGenCompilationResult::AllocationFailed};
+ if (insertionResult.second)
+ logPerfFunctions(moduleProtos, insertionResult.first->getModuleBaseAddress(), insertionResult.first->getNativeProtos());
+ const uint32_t protosBound = bindNativeProtos<false>(moduleProtos, insertionResult.first->getNativeProtos());
+ insertionResult.first->addRefs(protosBound);
+ return {CodeGenCompilationResult::Success, protosBound};
+}
+void SharedCodeGenContext::onCloseState() noexcept
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+}
+void SharedCodeGenContext::onDestroyFunction(void* execdata) noexcept
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ getNativeProtoExecDataHeader(static_cast<const uint32_t*>(execdata)).nativeModule->release();
+}
+[[nodiscard]] UniqueSharedCodeGenContext createSharedCodeGenContext()
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ return createSharedCodeGenContext(size_t(FInt::LuauCodeGenBlockSize), size_t(FInt::LuauCodeGenMaxTotalSize), nullptr, nullptr);
+}
+[[nodiscard]] UniqueSharedCodeGenContext createSharedCodeGenContext(AllocationCallback* allocationCallback, void* allocationCallbackContext)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ return createSharedCodeGenContext(
+ size_t(FInt::LuauCodeGenBlockSize), size_t(FInt::LuauCodeGenMaxTotalSize), allocationCallback, allocationCallbackContext);
+}
+[[nodiscard]] UniqueSharedCodeGenContext createSharedCodeGenContext(
+ size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ UniqueSharedCodeGenContext codeGenContext{new SharedCodeGenContext{blockSize, maxTotalSize, nullptr, nullptr}};
+ if (!codeGenContext->initHeaderFunctions())
+ return {};
+ return codeGenContext;
+}
+void destroySharedCodeGenContext(const SharedCodeGenContext* codeGenContext) noexcept
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ delete codeGenContext;
+}
+void SharedCodeGenContextDeleter::operator()(const SharedCodeGenContext* codeGenContext) const noexcept
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ destroySharedCodeGenContext(codeGenContext);
+}
+[[nodiscard]] static BaseCodeGenContext* getCodeGenContext(lua_State* L) noexcept
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ return static_cast<BaseCodeGenContext*>(L->global->ecb.context);
+}
+static void onCloseState(lua_State* L) noexcept
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ getCodeGenContext(L)->onCloseState();
+ L->global->ecb = lua_ExecutionCallbacks{};
+}
+static void onDestroyFunction(lua_State* L, Proto* proto) noexcept
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ getCodeGenContext(L)->onDestroyFunction(proto->execdata);
+ proto->execdata = nullptr;
+ proto->exectarget = 0;
+ proto->codeentry = proto->code;
+}
+static int onEnter(lua_State* L, Proto* proto)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ BaseCodeGenContext* codeGenContext = getCodeGenContext(L);
+ CODEGEN_ASSERT(proto->execdata);
+ CODEGEN_ASSERT(L->ci->savedpc >= proto->code && L->ci->savedpc < proto->code + proto->sizecode);
+ uintptr_t target = proto->exectarget + static_cast<uint32_t*>(proto->execdata)[L->ci->savedpc - proto->code];
+ return GateFn(codeGenContext->context.gateEntry)(L, proto, target, &codeGenContext->context);
+}
+static int onEnterDisabled(lua_State* L, Proto* proto)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ return 1;
+}
+void onDisable(lua_State* L, Proto* proto);
+static size_t getMemorySize(lua_State* L, Proto* proto)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ const NativeProtoExecDataHeader& execDataHeader = getNativeProtoExecDataHeader(static_cast<const uint32_t*>(proto->execdata));
+ const size_t execDataSize = sizeof(NativeProtoExecDataHeader) + execDataHeader.bytecodeInstructionCount * sizeof(Instruction);
+ return execDataSize + execDataHeader.nativeCodeSize;
+}
+static void initializeExecutionCallbacks(lua_State* L, BaseCodeGenContext* codeGenContext) noexcept
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ CODEGEN_ASSERT(!FFlag::LuauCodegenCheckNullContext || codeGenContext != nullptr);
+ lua_ExecutionCallbacks* ecb = &L->global->ecb;
+ ecb->context = codeGenContext;
+ ecb->close = onCloseState;
+ ecb->destroy = onDestroyFunction;
+ ecb->enter = onEnter;
+ ecb->disable = onDisable;
+ ecb->getmemorysize = getMemorySize;
+}
+void create_NEW(lua_State* L)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ return create_NEW(L, size_t(FInt::LuauCodeGenBlockSize), size_t(FInt::LuauCodeGenMaxTotalSize), nullptr, nullptr);
+}
+void create_NEW(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ return create_NEW(L, size_t(FInt::LuauCodeGenBlockSize), size_t(FInt::LuauCodeGenMaxTotalSize), allocationCallback, allocationCallbackContext);
+}
+void create_NEW(lua_State* L, size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ std::unique_ptr<StandaloneCodeGenContext> codeGenContext =
+ std::make_unique<StandaloneCodeGenContext>(blockSize, maxTotalSize, allocationCallback, allocationCallbackContext);
+ if (!codeGenContext->initHeaderFunctions())
+ return;
+ initializeExecutionCallbacks(L, codeGenContext.release());
+}
+void create_NEW(lua_State* L, SharedCodeGenContext* codeGenContext)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ initializeExecutionCallbacks(L, codeGenContext);
+}
+[[nodiscard]] static NativeProtoExecDataPtr createNativeProtoExecData(Proto* proto, const IrBuilder& ir)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ NativeProtoExecDataPtr nativeExecData = createNativeProtoExecData(proto->sizecode);
+ uint32_t instTarget = ir.function.entryLocation;
+ for (int i = 0; i < proto->sizecode; ++i)
+ {
+ CODEGEN_ASSERT(ir.function.bcMapping[i].asmLocation >= instTarget);
+ nativeExecData[i] = ir.function.bcMapping[i].asmLocation - instTarget;
+ }
+ nativeExecData[0] = 0;
+ NativeProtoExecDataHeader& header = getNativeProtoExecDataHeader(nativeExecData.get());
+ header.entryOffsetOrAddress = reinterpret_cast<const uint8_t*>(static_cast<uintptr_t>(instTarget));
+ header.bytecodeId = uint32_t(proto->bytecodeid);
+ header.bytecodeInstructionCount = proto->sizecode;
+ return nativeExecData;
+}
+template<typename AssemblyBuilder>
+[[nodiscard]] static NativeProtoExecDataPtr createNativeFunction(
+ AssemblyBuilder& build, ModuleHelpers& helpers, Proto* proto, uint32_t& totalIrInstCount, CodeGenCompilationResult& result)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ IrBuilder ir;
+ ir.buildFunctionIr(proto);
+ unsigned instCount = unsigned(ir.function.instructions.size());
+ if (totalIrInstCount + instCount >= unsigned(FInt::CodegenHeuristicsInstructionLimit.value))
+ {
+ result = CodeGenCompilationResult::CodeGenOverflowInstructionLimit;
+ return {};
+ }
+ totalIrInstCount += instCount;
+ if (!lowerFunction(ir, build, helpers, proto, {}, nullptr, result))
+ {
+ return {};
+ }
+ return createNativeProtoExecData(proto, ir);
+}
+[[nodiscard]] static CompilationResult compileInternal(
+ const std::optional<ModuleId>& moduleId, lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ CODEGEN_ASSERT(lua_isLfunction(L, idx));
+ const TValue* func = luaA_toobject(L, idx);
+ Proto* root = clvalue(func)->l.p;
+ if ((flags & CodeGen_OnlyNativeModules) != 0 && (root->flags & LPF_NATIVE_MODULE) == 0)
+ return CompilationResult{CodeGenCompilationResult::NotNativeModule};
+ BaseCodeGenContext* codeGenContext = getCodeGenContext(L);
+ if (codeGenContext == nullptr)
+ return CompilationResult{CodeGenCompilationResult::CodeGenNotInitialized};
+ std::vector<Proto*> protos;
+ gatherFunctions(protos, root, flags);
+ protos.erase(std::remove_if(protos.begin(), protos.end(),
+ [](Proto* p) {
+ return p == nullptr || p->execdata != nullptr;
+ }),
+ protos.end());
+ if (protos.empty())
+ return CompilationResult{CodeGenCompilationResult::NothingToCompile};
+ if (stats != nullptr)
+ stats->functionsTotal = uint32_t(protos.size());
+ if (moduleId.has_value())
+ {
+ if (std::optional<ModuleBindResult> existingModuleBindResult = codeGenContext->tryBindExistingModule(*moduleId, protos))
+ {
+ if (stats != nullptr)
+ stats->functionsBound = existingModuleBindResult->functionsBound;
+ return CompilationResult{existingModuleBindResult->compilationResult};
+ }
+ }
+#if defined(__aarch64__)
+ static unsigned int cpuFeatures = getCpuFeaturesA64();
+ A64::AssemblyBuilderA64 build( false, cpuFeatures);
+#else
+ X64::AssemblyBuilderX64 build( false);
+#endif
+ ModuleHelpers helpers;
+#if defined(__aarch64__)
+ A64::assembleHelpers(build, helpers);
+#else
+ X64::assembleHelpers(build, helpers);
+#endif
+ CompilationResult compilationResult;
+ std::vector<NativeProtoExecDataPtr> nativeProtos;
+ nativeProtos.reserve(protos.size());
+ uint32_t totalIrInstCount = 0;
+ for (size_t i = 0; i != protos.size(); ++i)
+ {
+ CodeGenCompilationResult protoResult = CodeGenCompilationResult::Success;
+ NativeProtoExecDataPtr nativeExecData = createNativeFunction(build, helpers, protos[i], totalIrInstCount, protoResult);
+ if (nativeExecData != nullptr)
+ {
+ nativeProtos.push_back(std::move(nativeExecData));
+ }
+ else
+ {
+ compilationResult.protoFailures.push_back(
+ {protoResult, protos[i]->debugname ? getstr(protos[i]->debugname) : "", protos[i]->linedefined});
+ }
+ }
+ if (!build.finalize())
+ {
+ compilationResult.result = CodeGenCompilationResult::CodeGenAssemblerFinalizationFailure;
+ return compilationResult;
+ }
+ if (nativeProtos.empty())
+ return compilationResult;
+ if (stats != nullptr)
+ {
+ for (const NativeProtoExecDataPtr& nativeExecData : nativeProtos)
+ {
+ NativeProtoExecDataHeader& header = getNativeProtoExecDataHeader(nativeExecData.get());
+ stats->bytecodeSizeBytes += header.bytecodeInstructionCount * sizeof(Instruction);
+ stats->nativeMetadataSizeBytes += header.bytecodeInstructionCount * sizeof(uint32_t);
+ }
+ stats->functionsCompiled += uint32_t(nativeProtos.size());
+ stats->nativeCodeSizeBytes += build.code.size() * sizeof(build.code[0]);
+ stats->nativeDataSizeBytes += build.data.size();
+ }
+ for (size_t i = 0; i < nativeProtos.size(); ++i)
+ {
+ NativeProtoExecDataHeader& header = getNativeProtoExecDataHeader(nativeProtos[i].get());
+ uint32_t begin = uint32_t(reinterpret_cast<uintptr_t>(header.entryOffsetOrAddress));
+ uint32_t end = i + 1 < nativeProtos.size() ? uint32_t(uintptr_t(getNativeProtoExecDataHeader(nativeProtos[i + 1].get()).entryOffsetOrAddress))
+ : uint32_t(build.code.size() * sizeof(build.code[0]));
+ CODEGEN_ASSERT(begin < end);
+ header.nativeCodeSize = end - begin;
+ }
+ const ModuleBindResult bindResult =
+ codeGenContext->bindModule(moduleId, protos, std::move(nativeProtos), reinterpret_cast<const uint8_t*>(build.data.data()), build.data.size(),
+ reinterpret_cast<const uint8_t*>(build.code.data()), build.code.size() * sizeof(build.code[0]));
+ if (stats != nullptr)
+ stats->functionsBound = bindResult.functionsBound;
+ if (bindResult.compilationResult != CodeGenCompilationResult::Success)
+ compilationResult.result = bindResult.compilationResult;
+ return compilationResult;
+}
+CompilationResult compile_NEW(const ModuleId& moduleId, lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ return compileInternal(moduleId, L, idx, flags, stats);
+}
+CompilationResult compile_NEW(lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ return compileInternal({}, L, idx, flags, stats);
+}
+[[nodiscard]] bool isNativeExecutionEnabled_NEW(lua_State* L)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ return getCodeGenContext(L) != nullptr && L->global->ecb.enter == onEnter;
+}
+void setNativeExecutionEnabled_NEW(lua_State* L, bool enabled)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ if (getCodeGenContext(L) != nullptr)
+ L->global->ecb.enter = enabled ? onEnter : onEnterDisabled;
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#undef kCodeEntryInsn
+#undef logPerfFunction
+#undef onCloseState
+#undef onDestroyFunction
+#undef onEnter
+#undef onEnterDisabled
+#undef getMemorySize
+#undef createNativeFunction
 #line __LINE__ "AssemblyBuilderA64.cpp"
 #line __LINE__ "BitUtils.h"
 #ifdef _MSC_VER
@@ -34620,7 +37083,6 @@ inline uint8_t* writef64(uint8_t* target, double value)
  return target + sizeof(value);
 }
 #line __LINE__ "AssemblyBuilderA64.cpp"
-LUAU_FASTFLAG(LuauCodeGenOptVecA64)
 namespace Luau
 {
 namespace CodeGen
@@ -35048,8 +37510,6 @@ void AssemblyBuilderA64::fmov(RegisterA64 dst, RegisterA64 src)
 }
 void AssemblyBuilderA64::fmov(RegisterA64 dst, double src)
 {
- if (FFlag::LuauCodeGenOptVecA64)
- {
  CODEGEN_ASSERT(dst.kind == KindA64::d || dst.kind == KindA64::q);
  int imm = getFmovImm(src);
  CODEGEN_ASSERT(imm >= 0 && imm <= 256);
@@ -35066,17 +37526,6 @@ void AssemblyBuilderA64::fmov(RegisterA64 dst, double src)
  placeFMOV("movi.4s", dst, src, 0b010'0111100000'000'0000'01'00000);
  else
  placeFMOV("fmov.4s", dst, src, 0b010'0111100000'000'1111'0'1'00000 | ((imm >> 5) << 11) | (imm & 31));
- }
- }
- else
- {
- CODEGEN_ASSERT(dst.kind == KindA64::d);
- int imm = getFmovImm(src);
- CODEGEN_ASSERT(imm >= 0 && imm <= 256);
- if (imm == 256)
- placeFMOV("movi", dst, src, 0b001'0111100000'000'1110'01'00000);
- else
- placeFMOV("fmov", dst, src, 0b000'11110'01'1'00000000'100'00000 | (imm << 8));
  }
 }
 void AssemblyBuilderA64::fabs(RegisterA64 dst, RegisterA64 src)
@@ -35855,419 +38304,6 @@ void AssemblyBuilderA64::log(AddressA64 addr)
 }
 #line __LINE__ ""
 #line __LINE__ "AssemblyBuilderX64.cpp"
-#line __LINE__ "ConditionX64.h"
-namespace Luau
-{
-namespace CodeGen
-{
-enum class ConditionX64 : uint8_t
-{
- Overflow,
- NoOverflow,
- Carry,
- NoCarry,
- Below,
- BelowEqual,
- Above,
- AboveEqual,
- Equal,
- Less,
- LessEqual,
- Greater,
- GreaterEqual,
- NotBelow,
- NotBelowEqual,
- NotAbove,
- NotAboveEqual,
- NotEqual,
- NotLess,
- NotLessEqual,
- NotGreater,
- NotGreaterEqual,
- Zero,
- NotZero,
- Parity,
- NotParity,
- Count
-};
-inline ConditionX64 getReverseCondition(ConditionX64 cond)
-{
- switch (cond)
- {
- case ConditionX64::Overflow:
- return ConditionX64::NoOverflow;
- case ConditionX64::NoOverflow:
- return ConditionX64::Overflow;
- case ConditionX64::Carry:
- return ConditionX64::NoCarry;
- case ConditionX64::NoCarry:
- return ConditionX64::Carry;
- case ConditionX64::Below:
- return ConditionX64::NotBelow;
- case ConditionX64::BelowEqual:
- return ConditionX64::NotBelowEqual;
- case ConditionX64::Above:
- return ConditionX64::NotAbove;
- case ConditionX64::AboveEqual:
- return ConditionX64::NotAboveEqual;
- case ConditionX64::Equal:
- return ConditionX64::NotEqual;
- case ConditionX64::Less:
- return ConditionX64::NotLess;
- case ConditionX64::LessEqual:
- return ConditionX64::NotLessEqual;
- case ConditionX64::Greater:
- return ConditionX64::NotGreater;
- case ConditionX64::GreaterEqual:
- return ConditionX64::NotGreaterEqual;
- case ConditionX64::NotBelow:
- return ConditionX64::Below;
- case ConditionX64::NotBelowEqual:
- return ConditionX64::BelowEqual;
- case ConditionX64::NotAbove:
- return ConditionX64::Above;
- case ConditionX64::NotAboveEqual:
- return ConditionX64::AboveEqual;
- case ConditionX64::NotEqual:
- return ConditionX64::Equal;
- case ConditionX64::NotLess:
- return ConditionX64::Less;
- case ConditionX64::NotLessEqual:
- return ConditionX64::LessEqual;
- case ConditionX64::NotGreater:
- return ConditionX64::Greater;
- case ConditionX64::NotGreaterEqual:
- return ConditionX64::GreaterEqual;
- case ConditionX64::Zero:
- return ConditionX64::NotZero;
- case ConditionX64::NotZero:
- return ConditionX64::Zero;
- case ConditionX64::Parity:
- return ConditionX64::NotParity;
- case ConditionX64::NotParity:
- return ConditionX64::Parity;
- case ConditionX64::Count:
- CODEGEN_ASSERT(!"invalid ConditionX64 value");
- }
- return ConditionX64::Count;
-}
-}
-} // namespace Luau
-#line __LINE__ "AssemblyBuilderX64.h"
-#line __LINE__ "OperandX64.h"
-namespace Luau
-{
-namespace CodeGen
-{
-namespace X64
-{
-enum class CategoryX64 : uint8_t
-{
- reg,
- mem,
- imm,
-};
-struct OperandX64
-{
- constexpr OperandX64(RegisterX64 reg)
- : cat(CategoryX64::reg)
- , index(noreg)
- , base(reg)
- , memSize(SizeX64::none)
- , scale(1)
- , imm(0)
- {
- }
- constexpr OperandX64(int32_t imm)
- : cat(CategoryX64::imm)
- , index(noreg)
- , base(noreg)
- , memSize(SizeX64::none)
- , scale(1)
- , imm(imm)
- {
- }
- constexpr explicit OperandX64(SizeX64 size, RegisterX64 index, uint8_t scale, RegisterX64 base, int32_t disp)
- : cat(CategoryX64::mem)
- , index(index)
- , base(base)
- , memSize(size)
- , scale(scale)
- , imm(disp)
- {
- }
- CategoryX64 cat;
- RegisterX64 index;
- RegisterX64 base;
- SizeX64 memSize : 4;
- uint8_t scale : 4;
- int32_t imm;
- constexpr OperandX64 operator[](OperandX64&& addr) const
- {
- CODEGEN_ASSERT(cat == CategoryX64::mem);
- CODEGEN_ASSERT(index == noreg && scale == 1 && base == noreg && imm == 0);
- CODEGEN_ASSERT(addr.memSize == SizeX64::none);
- addr.cat = CategoryX64::mem;
- addr.memSize = memSize;
- return addr;
- }
-};
-constexpr OperandX64 addr{SizeX64::none, noreg, 1, noreg, 0};
-constexpr OperandX64 byte{SizeX64::byte, noreg, 1, noreg, 0};
-constexpr OperandX64 word{SizeX64::word, noreg, 1, noreg, 0};
-constexpr OperandX64 dword{SizeX64::dword, noreg, 1, noreg, 0};
-constexpr OperandX64 qword{SizeX64::qword, noreg, 1, noreg, 0};
-constexpr OperandX64 xmmword{SizeX64::xmmword, noreg, 1, noreg, 0};
-constexpr OperandX64 ymmword{SizeX64::ymmword, noreg, 1, noreg, 0};
-constexpr OperandX64 operator*(RegisterX64 reg, uint8_t scale)
-{
- if (scale == 1)
- return OperandX64(reg);
- CODEGEN_ASSERT(scale == 1 || scale == 2 || scale == 4 || scale == 8);
- CODEGEN_ASSERT(reg.index != 0b100 && "can't scale SP");
- return OperandX64(SizeX64::none, reg, scale, noreg, 0);
-}
-constexpr OperandX64 operator+(RegisterX64 reg, int32_t disp)
-{
- return OperandX64(SizeX64::none, noreg, 1, reg, disp);
-}
-constexpr OperandX64 operator-(RegisterX64 reg, int32_t disp)
-{
- return OperandX64(SizeX64::none, noreg, 1, reg, -disp);
-}
-constexpr OperandX64 operator+(RegisterX64 base, RegisterX64 index)
-{
- CODEGEN_ASSERT(index.index != 4 && "sp cannot be used as index");
- CODEGEN_ASSERT(base.size == index.size);
- return OperandX64(SizeX64::none, index, 1, base, 0);
-}
-constexpr OperandX64 operator+(OperandX64 op, int32_t disp)
-{
- CODEGEN_ASSERT(op.cat == CategoryX64::mem);
- CODEGEN_ASSERT(op.memSize == SizeX64::none);
- op.imm += disp;
- return op;
-}
-constexpr OperandX64 operator+(OperandX64 op, RegisterX64 base)
-{
- CODEGEN_ASSERT(op.cat == CategoryX64::mem);
- CODEGEN_ASSERT(op.memSize == SizeX64::none);
- CODEGEN_ASSERT(op.base == noreg);
- CODEGEN_ASSERT(op.index == noreg || op.index.size == base.size);
- op.base = base;
- return op;
-}
-constexpr OperandX64 operator+(RegisterX64 base, OperandX64 op)
-{
- CODEGEN_ASSERT(op.cat == CategoryX64::mem);
- CODEGEN_ASSERT(op.memSize == SizeX64::none);
- CODEGEN_ASSERT(op.base == noreg);
- CODEGEN_ASSERT(op.index == noreg || op.index.size == base.size);
- op.base = base;
- return op;
-}
-}
-} // namespace CodeGen
-}
-#line __LINE__ "AssemblyBuilderX64.h"
-namespace Luau
-{
-namespace CodeGen
-{
-namespace X64
-{
-enum class RoundingModeX64
-{
- RoundToNearestEven = 0b00,
- RoundToNegativeInfinity = 0b01,
- RoundToPositiveInfinity = 0b10,
- RoundToZero = 0b11,
-};
-enum class AlignmentDataX64
-{
- Nop,
- Int3,
- Ud2,
-};
-enum class ABIX64
-{
- Windows,
- SystemV,
-};
-class AssemblyBuilderX64
-{
-public:
- explicit AssemblyBuilderX64(bool logText, ABIX64 abi);
- explicit AssemblyBuilderX64(bool logText);
- ~AssemblyBuilderX64();
- void add(OperandX64 lhs, OperandX64 rhs);
- void sub(OperandX64 lhs, OperandX64 rhs);
- void cmp(OperandX64 lhs, OperandX64 rhs);
- void and_(OperandX64 lhs, OperandX64 rhs);
- void or_(OperandX64 lhs, OperandX64 rhs);
- void xor_(OperandX64 lhs, OperandX64 rhs);
- void sal(OperandX64 lhs, OperandX64 rhs);
- void sar(OperandX64 lhs, OperandX64 rhs);
- void shl(OperandX64 lhs, OperandX64 rhs);
- void shr(OperandX64 lhs, OperandX64 rhs);
- void rol(OperandX64 lhs, OperandX64 rhs);
- void ror(OperandX64 lhs, OperandX64 rhs);
- void mov(OperandX64 lhs, OperandX64 rhs);
- void mov64(RegisterX64 lhs, int64_t imm);
- void movsx(RegisterX64 lhs, OperandX64 rhs);
- void movzx(RegisterX64 lhs, OperandX64 rhs);
- void div(OperandX64 op);
- void idiv(OperandX64 op);
- void mul(OperandX64 op);
- void imul(OperandX64 op);
- void neg(OperandX64 op);
- void not_(OperandX64 op);
- void dec(OperandX64 op);
- void inc(OperandX64 op);
- void imul(OperandX64 lhs, OperandX64 rhs);
- void imul(OperandX64 dst, OperandX64 lhs, int32_t rhs);
- void test(OperandX64 lhs, OperandX64 rhs);
- void lea(OperandX64 lhs, OperandX64 rhs);
- void setcc(ConditionX64 cond, OperandX64 op);
- void cmov(ConditionX64 cond, RegisterX64 lhs, OperandX64 rhs);
- void push(OperandX64 op);
- void pop(OperandX64 op);
- void ret();
- void jcc(ConditionX64 cond, Label& label);
- void jmp(Label& label);
- void jmp(OperandX64 op);
- void call(Label& label);
- void call(OperandX64 op);
- void lea(RegisterX64 lhs, Label& label);
- void int3();
- void ud2();
- void bsr(RegisterX64 dst, OperandX64 src);
- void bsf(RegisterX64 dst, OperandX64 src);
- void bswap(RegisterX64 dst);
- void nop(uint32_t length = 1);
- void align(uint32_t alignment, AlignmentDataX64 data = AlignmentDataX64::Nop);
- void vaddpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vaddps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vaddsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vaddss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vsubsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vsubps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vmulsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vmulps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vdivsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vdivps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vandps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vandpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vandnpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vxorpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vorps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vorpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vucomisd(OperandX64 src1, OperandX64 src2);
- void vcvttsd2si(OperandX64 dst, OperandX64 src);
- void vcvtsi2sd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vcvtsd2ss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vcvtss2sd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vroundsd(OperandX64 dst, OperandX64 src1, OperandX64 src2, RoundingModeX64 roundingMode);
- void vsqrtpd(OperandX64 dst, OperandX64 src);
- void vsqrtps(OperandX64 dst, OperandX64 src);
- void vsqrtsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vsqrtss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vmovsd(OperandX64 dst, OperandX64 src);
- void vmovsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vmovss(OperandX64 dst, OperandX64 src);
- void vmovss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vmovapd(OperandX64 dst, OperandX64 src);
- void vmovaps(OperandX64 dst, OperandX64 src);
- void vmovupd(OperandX64 dst, OperandX64 src);
- void vmovups(OperandX64 dst, OperandX64 src);
- void vmovq(OperandX64 lhs, OperandX64 rhs);
- void vmaxsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vminsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vcmpltsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
- void vblendvpd(RegisterX64 dst, RegisterX64 src1, OperandX64 mask, RegisterX64 src3);
- void vpshufps(RegisterX64 dst, RegisterX64 src1, OperandX64 src2, uint8_t shuffle);
- void vpinsrd(RegisterX64 dst, RegisterX64 src1, OperandX64 src2, uint8_t offset);
- bool finalize();
- Label setLabel();
- void setLabel(Label& label);
- uint32_t getLabelOffset(const Label& label)
- {
- CODEGEN_ASSERT(label.location != ~0u);
- return label.location;
- }
- OperandX64 i32(int32_t value);
- OperandX64 i64(int64_t value);
- OperandX64 f32(float value);
- OperandX64 f64(double value);
- OperandX64 u32x4(uint32_t x, uint32_t y, uint32_t z, uint32_t w);
- OperandX64 f32x4(float x, float y, float z, float w);
- OperandX64 f64x2(double x, double y);
- OperandX64 bytes(const void* ptr, size_t size, size_t align = 8);
- void logAppend(const char* fmt, ...) LUAU_PRINTF_ATTR(2, 3);
- uint32_t getCodeSize() const;
- unsigned getInstructionCount() const;
- std::vector<uint8_t> data;
- std::vector<uint8_t> code;
- std::string text;
- const bool logText = false;
- const ABIX64 abi;
-private:
- void placeBinary(const char* name, OperandX64 lhs, OperandX64 rhs, uint8_t codeimm8, uint8_t codeimm, uint8_t codeimmImm8, uint8_t code8rev,
- uint8_t coderev, uint8_t code8, uint8_t code, uint8_t opreg);
- void placeBinaryRegMemAndImm(OperandX64 lhs, OperandX64 rhs, uint8_t code8, uint8_t code, uint8_t codeImm8, uint8_t opreg);
- void placeBinaryRegAndRegMem(OperandX64 lhs, OperandX64 rhs, uint8_t code8, uint8_t code);
- void placeBinaryRegMemAndReg(OperandX64 lhs, OperandX64 rhs, uint8_t code8, uint8_t code);
- void placeUnaryModRegMem(const char* name, OperandX64 op, uint8_t code8, uint8_t code, uint8_t opreg);
- void placeShift(const char* name, OperandX64 lhs, OperandX64 rhs, uint8_t opreg);
- void placeJcc(const char* name, Label& label, uint8_t cc);
- void placeAvx(const char* name, OperandX64 dst, OperandX64 src, uint8_t code, bool setW, uint8_t mode, uint8_t prefix);
- void placeAvx(const char* name, OperandX64 dst, OperandX64 src, uint8_t code, uint8_t coderev, bool setW, uint8_t mode, uint8_t prefix);
- void placeAvx(const char* name, OperandX64 dst, OperandX64 src1, OperandX64 src2, uint8_t code, bool setW, uint8_t mode, uint8_t prefix);
- void placeAvx(
- const char* name, OperandX64 dst, OperandX64 src1, OperandX64 src2, uint8_t imm8, uint8_t code, bool setW, uint8_t mode, uint8_t prefix);
- void placeRegAndModRegMem(OperandX64 lhs, OperandX64 rhs, int32_t extraCodeBytes = 0);
- void placeModRegMem(OperandX64 rhs, uint8_t regop, int32_t extraCodeBytes = 0);
- void placeRex(RegisterX64 op);
- void placeRex(OperandX64 op);
- void placeRexNoW(OperandX64 op);
- void placeRex(RegisterX64 lhs, OperandX64 rhs);
- void placeVex(OperandX64 dst, OperandX64 src1, OperandX64 src2, bool setW, uint8_t mode, uint8_t prefix);
- void placeImm8Or32(int32_t imm);
- void placeImm8(int32_t imm);
- void placeImm16(int16_t imm);
- void placeImm32(int32_t imm);
- void placeImm64(int64_t imm);
- void placeLabel(Label& label);
- void place(uint8_t byte);
- void commit();
- LUAU_NOINLINE void extend();
- size_t allocateData(size_t size, size_t align);
- LUAU_NOINLINE void log(const char* opcode);
- LUAU_NOINLINE void log(const char* opcode, OperandX64 op);
- LUAU_NOINLINE void log(const char* opcode, OperandX64 op1, OperandX64 op2);
- LUAU_NOINLINE void log(const char* opcode, OperandX64 op1, OperandX64 op2, OperandX64 op3);
- LUAU_NOINLINE void log(const char* opcode, OperandX64 op1, OperandX64 op2, OperandX64 op3, OperandX64 op4);
- LUAU_NOINLINE void log(Label label);
- LUAU_NOINLINE void log(const char* opcode, Label label);
- LUAU_NOINLINE void log(const char* opcode, RegisterX64 reg, Label label);
- void log(OperandX64 op);
- const char* getSizeName(SizeX64 size) const;
- const char* getRegisterName(RegisterX64 reg) const;
- uint32_t nextLabel = 1;
- std::vector<Label> pendingLabels;
- std::vector<uint32_t> labelLocations;
- DenseHashMap<uint32_t, int32_t> constCache32;
- DenseHashMap<uint64_t, int32_t> constCache64;
- bool finalized = false;
- size_t dataPos = 0;
- uint8_t* codePos = nullptr;
- uint8_t* codeEnd = nullptr;
- unsigned instructionCount = 0;
-};
-}
-} // namespace CodeGen
-}
-#line __LINE__ "AssemblyBuilderX64.cpp"
 namespace Luau
 {
 namespace CodeGen
@@ -36936,7 +38972,7 @@ void AssemblyBuilderX64::vcvtss2sd(OperandX64 dst, OperandX64 src1, OperandX64 s
  CODEGEN_ASSERT(src2.base.size == SizeX64::xmmword);
  else
  CODEGEN_ASSERT(src2.memSize == SizeX64::dword);
- placeAvx("vcvtsd2ss", dst, src1, src2, 0x5a, false, AVX_0F, AVX_F3);
+ placeAvx("vcvtss2sd", dst, src1, src2, 0x5a, false, AVX_0F, AVX_F3);
 }
 void AssemblyBuilderX64::vroundsd(OperandX64 dst, OperandX64 src1, OperandX64 src2, RoundingModeX64 roundingMode)
 {
@@ -37682,13 +39718,178 @@ const char* AssemblyBuilderX64::getRegisterName(RegisterX64 reg) const
 }
 #line __LINE__ ""
 #line __LINE__ "BytecodeAnalysis.cpp"
+LUAU_FASTFLAG(LuauCodegenDirectUserdataFlow)
+LUAU_FASTFLAG(LuauLoadTypeInfo)
+LUAU_FASTFLAGVARIABLE(LuauCodegenTypeInfo, false) // New analysis is flagged separately
+LUAU_FASTFLAG(LuauTypeInfoLookupImprovement)
 namespace Luau
 {
 namespace CodeGen
 {
 static bool hasTypedParameters(Proto* proto)
 {
+ CODEGEN_ASSERT(!FFlag::LuauLoadTypeInfo);
  return proto->typeinfo && proto->numparams != 0;
+}
+template<typename T>
+static T read(uint8_t* data, size_t& offset)
+{
+ CODEGEN_ASSERT(FFlag::LuauLoadTypeInfo);
+ T result;
+ memcpy(&result, data + offset, sizeof(T));
+ offset += sizeof(T);
+ return result;
+}
+static uint32_t readVarInt(uint8_t* data, size_t& offset)
+{
+ CODEGEN_ASSERT(FFlag::LuauLoadTypeInfo);
+ uint32_t result = 0;
+ uint32_t shift = 0;
+ uint8_t byte;
+ do
+ {
+ byte = read<uint8_t>(data, offset);
+ result |= (byte & 127) << shift;
+ shift += 7;
+ } while (byte & 128);
+ return result;
+}
+void loadBytecodeTypeInfo(IrFunction& function)
+{
+ CODEGEN_ASSERT(FFlag::LuauLoadTypeInfo);
+ Proto* proto = function.proto;
+ if (FFlag::LuauTypeInfoLookupImprovement)
+ {
+ if (!proto)
+ return;
+ }
+ else
+ {
+ if (!proto || !proto->typeinfo)
+ return;
+ }
+ BytecodeTypeInfo& typeInfo = function.bcTypeInfo;
+ if (FFlag::LuauTypeInfoLookupImprovement && !proto->typeinfo)
+ {
+ typeInfo.argumentTypes.resize(proto->numparams, LBC_TYPE_ANY);
+ typeInfo.upvalueTypes.resize(proto->nups, LBC_TYPE_ANY);
+ return;
+ }
+ uint8_t* data = proto->typeinfo;
+ size_t offset = 0;
+ uint32_t typeSize = readVarInt(data, offset);
+ uint32_t upvalCount = readVarInt(data, offset);
+ uint32_t localCount = readVarInt(data, offset);
+ CODEGEN_ASSERT(upvalCount == unsigned(proto->nups));
+ if (typeSize != 0)
+ {
+ uint8_t* types = (uint8_t*)data + offset;
+ CODEGEN_ASSERT(typeSize == uint32_t(2 + proto->numparams));
+ CODEGEN_ASSERT(types[0] == LBC_TYPE_FUNCTION);
+ CODEGEN_ASSERT(types[1] == proto->numparams);
+ typeInfo.argumentTypes.resize(proto->numparams);
+ memcpy(typeInfo.argumentTypes.data(), types + 2, proto->numparams);
+ offset += typeSize;
+ }
+ if (upvalCount != 0)
+ {
+ typeInfo.upvalueTypes.resize(upvalCount);
+ uint8_t* types = (uint8_t*)data + offset;
+ memcpy(typeInfo.upvalueTypes.data(), types, upvalCount);
+ offset += upvalCount;
+ }
+ if (localCount != 0)
+ {
+ typeInfo.regTypes.resize(localCount);
+ for (uint32_t i = 0; i < localCount; i++)
+ {
+ BytecodeRegTypeInfo& info = typeInfo.regTypes[i];
+ info.type = read<uint8_t>(data, offset);
+ info.reg = read<uint8_t>(data, offset);
+ info.startpc = readVarInt(data, offset);
+ info.endpc = info.startpc + readVarInt(data, offset);
+ }
+ }
+ CODEGEN_ASSERT(offset == size_t(proto->sizetypeinfo));
+}
+static void prepareRegTypeInfoLookups(BytecodeTypeInfo& typeInfo)
+{
+ CODEGEN_ASSERT(FFlag::LuauTypeInfoLookupImprovement);
+ std::sort(typeInfo.regTypes.begin(), typeInfo.regTypes.end(), [](const BytecodeRegTypeInfo& a, const BytecodeRegTypeInfo& b) {
+ if (a.reg != b.reg)
+ return a.reg < b.reg;
+ return a.endpc < b.endpc;
+ });
+ typeInfo.regTypeOffsets.resize(256 + 1);
+ for (size_t i = 0; i < typeInfo.regTypes.size(); i++)
+ {
+ const BytecodeRegTypeInfo& el = typeInfo.regTypes[i];
+ typeInfo.regTypeOffsets[el.reg + 1] = uint32_t(i + 1);
+ }
+ for (size_t i = 1; i < typeInfo.regTypeOffsets.size(); i++)
+ {
+ uint32_t& el = typeInfo.regTypeOffsets[i];
+ if (el == 0)
+ el = typeInfo.regTypeOffsets[i - 1];
+ }
+}
+static BytecodeRegTypeInfo* findRegType(BytecodeTypeInfo& info, uint8_t reg, int pc)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenTypeInfo);
+ if (FFlag::LuauTypeInfoLookupImprovement)
+ {
+ auto b = info.regTypes.begin() + info.regTypeOffsets[reg];
+ auto e = info.regTypes.begin() + info.regTypeOffsets[reg + 1];
+ if (b == e)
+ return nullptr;
+ if (pc >= (e - 1)->endpc)
+ return nullptr;
+ for (auto it = b; it != e; ++it)
+ {
+ CODEGEN_ASSERT(it->reg == reg);
+ if (pc >= it->startpc && pc < it->endpc)
+ return &*it;
+ }
+ return nullptr;
+ }
+ else
+ {
+ for (BytecodeRegTypeInfo& el : info.regTypes)
+ {
+ if (reg == el.reg && pc >= el.startpc && pc < el.endpc)
+ return &el;
+ }
+ return nullptr;
+ }
+}
+static void refineRegType(BytecodeTypeInfo& info, uint8_t reg, int pc, uint8_t ty)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenTypeInfo);
+ if (ty != LBC_TYPE_ANY)
+ {
+ if (BytecodeRegTypeInfo* regType = findRegType(info, reg, pc))
+ {
+ if (regType->type == LBC_TYPE_ANY)
+ regType->type = ty;
+ }
+ else if (FFlag::LuauTypeInfoLookupImprovement && reg < info.argumentTypes.size())
+ {
+ if (info.argumentTypes[reg] == LBC_TYPE_ANY)
+ info.argumentTypes[reg] = ty;
+ }
+ }
+}
+static void refineUpvalueType(BytecodeTypeInfo& info, int up, uint8_t ty)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenTypeInfo);
+ if (ty != LBC_TYPE_ANY)
+ {
+ if (size_t(up) < info.upvalueTypes.size())
+ {
+ if (info.upvalueTypes[up] == LBC_TYPE_ANY)
+ info.upvalueTypes[up] = ty;
+ }
+ }
 }
 static uint8_t getBytecodeConstantTag(Proto* proto, unsigned ki)
 {
@@ -38037,6 +40238,9 @@ void analyzeBytecodeTypes(IrFunction& function)
 {
  Proto* proto = function.proto;
  CODEGEN_ASSERT(proto);
+ BytecodeTypeInfo& bcTypeInfo = function.bcTypeInfo;
+ if (FFlag::LuauTypeInfoLookupImprovement)
+ prepareRegTypeInfoLookups(bcTypeInfo);
  uint8_t regTags[256];
  memset(regTags, LBC_TYPE_ANY, 256);
  function.bcTypes.resize(proto->sizecode);
@@ -38044,6 +40248,16 @@ void analyzeBytecodeTypes(IrFunction& function)
  {
  CODEGEN_ASSERT(block.startpc != -1);
  CODEGEN_ASSERT(block.finishpc != -1);
+ if (FFlag::LuauLoadTypeInfo)
+ {
+ for (size_t i = 0; i < bcTypeInfo.argumentTypes.size(); i++)
+ {
+ uint8_t et = bcTypeInfo.argumentTypes[i];
+ regTags[i] = et & ~LBC_TYPE_OPTIONAL_BIT;
+ }
+ }
+ else
+ {
  if (hasTypedParameters(proto))
  {
  for (int i = 0; i < proto->numparams; ++i)
@@ -38052,12 +40266,21 @@ void analyzeBytecodeTypes(IrFunction& function)
  regTags[i] = et & ~LBC_TYPE_OPTIONAL_BIT;
  }
  }
+ }
  for (int i = proto->numparams; i < proto->maxstacksize; ++i)
  regTags[i] = LBC_TYPE_ANY;
  for (int i = block.startpc; i <= block.finishpc;)
  {
  const Instruction* pc = &proto->code[i];
  LuauOpcode op = LuauOpcode(LUAU_INSN_OP(*pc));
+ if (FFlag::LuauCodegenTypeInfo)
+ {
+ for (BytecodeRegTypeInfo& el : bcTypeInfo.regTypes)
+ {
+ if (el.type != LBC_TYPE_ANY && i >= el.startpc && i < el.endpc)
+ regTags[el.reg] = el.type;
+ }
+ }
  BytecodeTypes& bcType = function.bcTypes[i];
  switch (op)
  {
@@ -38075,6 +40298,8 @@ void analyzeBytecodeTypes(IrFunction& function)
  int ra = LUAU_INSN_A(*pc);
  regTags[ra] = LBC_TYPE_BOOLEAN;
  bcType.result = regTags[ra];
+ if (FFlag::LuauCodegenTypeInfo)
+ refineRegType(bcTypeInfo, ra, i, bcType.result);
  break;
  }
  case LOP_LOADN:
@@ -38082,6 +40307,8 @@ void analyzeBytecodeTypes(IrFunction& function)
  int ra = LUAU_INSN_A(*pc);
  regTags[ra] = LBC_TYPE_NUMBER;
  bcType.result = regTags[ra];
+ if (FFlag::LuauCodegenTypeInfo)
+ refineRegType(bcTypeInfo, ra, i, bcType.result);
  break;
  }
  case LOP_LOADK:
@@ -38091,6 +40318,8 @@ void analyzeBytecodeTypes(IrFunction& function)
  bcType.a = getBytecodeConstantTag(proto, kb);
  regTags[ra] = bcType.a;
  bcType.result = regTags[ra];
+ if (FFlag::LuauCodegenTypeInfo)
+ refineRegType(bcTypeInfo, ra, i, bcType.result);
  break;
  }
  case LOP_LOADKX:
@@ -38100,6 +40329,8 @@ void analyzeBytecodeTypes(IrFunction& function)
  bcType.a = getBytecodeConstantTag(proto, kb);
  regTags[ra] = bcType.a;
  bcType.result = regTags[ra];
+ if (FFlag::LuauCodegenTypeInfo)
+ refineRegType(bcTypeInfo, ra, i, bcType.result);
  break;
  }
  case LOP_MOVE:
@@ -38109,6 +40340,8 @@ void analyzeBytecodeTypes(IrFunction& function)
  bcType.a = regTags[rb];
  regTags[ra] = regTags[rb];
  bcType.result = regTags[ra];
+ if (FFlag::LuauCodegenTypeInfo)
+ refineRegType(bcTypeInfo, ra, i, bcType.result);
  break;
  }
  case LOP_GETTABLE:
@@ -38354,6 +40587,8 @@ void analyzeBytecodeTypes(IrFunction& function)
  regTags[ra + 2] = bcType.b;
  regTags[ra + 3] = bcType.c;
  regTags[ra] = bcType.result;
+ if (FFlag::LuauCodegenTypeInfo)
+ refineRegType(bcTypeInfo, ra, i, bcType.result);
  break;
  }
  case LOP_FASTCALL1:
@@ -38367,6 +40602,8 @@ void analyzeBytecodeTypes(IrFunction& function)
  applyBuiltinCall(bfid, bcType);
  regTags[LUAU_INSN_B(*pc)] = bcType.a;
  regTags[ra] = bcType.result;
+ if (FFlag::LuauCodegenTypeInfo)
+ refineRegType(bcTypeInfo, ra, i, bcType.result);
  break;
  }
  case LOP_FASTCALL2:
@@ -38380,6 +40617,8 @@ void analyzeBytecodeTypes(IrFunction& function)
  regTags[LUAU_INSN_B(*pc)] = bcType.a;
  regTags[int(pc[1])] = bcType.b;
  regTags[ra] = bcType.result;
+ if (FFlag::LuauCodegenTypeInfo)
+ refineRegType(bcTypeInfo, ra, i, bcType.result);
  break;
  }
  case LOP_FORNPREP:
@@ -38388,6 +40627,12 @@ void analyzeBytecodeTypes(IrFunction& function)
  regTags[ra] = LBC_TYPE_NUMBER;
  regTags[ra + 1] = LBC_TYPE_NUMBER;
  regTags[ra + 2] = LBC_TYPE_NUMBER;
+ if (FFlag::LuauCodegenTypeInfo)
+ {
+ refineRegType(bcTypeInfo, ra, i, regTags[ra]);
+ refineRegType(bcTypeInfo, ra + 1, i, regTags[ra + 1]);
+ refineRegType(bcTypeInfo, ra + 2, i, regTags[ra + 2]);
+ }
  break;
  }
  case LOP_FORNLOOP:
@@ -38413,6 +40658,48 @@ void analyzeBytecodeTypes(IrFunction& function)
  bcType.result = regTags[ra];
  break;
  }
+ case LOP_NAMECALL:
+ {
+ if (FFlag::LuauCodegenDirectUserdataFlow)
+ {
+ int ra = LUAU_INSN_A(*pc);
+ int rb = LUAU_INSN_B(*pc);
+ uint32_t kc = pc[1];
+ bcType.a = regTags[rb];
+ bcType.b = getBytecodeConstantTag(proto, kc);
+ regTags[ra] = LBC_TYPE_FUNCTION;
+ regTags[ra + 1] = bcType.a;
+ bcType.result = LBC_TYPE_FUNCTION;
+ }
+ break;
+ }
+ case LOP_GETUPVAL:
+ {
+ if (FFlag::LuauCodegenTypeInfo)
+ {
+ int ra = LUAU_INSN_A(*pc);
+ int up = LUAU_INSN_B(*pc);
+ bcType.a = LBC_TYPE_ANY;
+ if (size_t(up) < bcTypeInfo.upvalueTypes.size())
+ {
+ uint8_t et = bcTypeInfo.upvalueTypes[up];
+ bcType.a = et & ~LBC_TYPE_OPTIONAL_BIT;
+ }
+ regTags[ra] = bcType.a;
+ bcType.result = regTags[ra];
+ }
+ break;
+ }
+ case LOP_SETUPVAL:
+ {
+ if (FFlag::LuauCodegenTypeInfo)
+ {
+ int ra = LUAU_INSN_A(*pc);
+ int up = LUAU_INSN_B(*pc);
+ refineUpvalueType(bcTypeInfo, up, regTags[ra]);
+ }
+ break;
+ }
  case LOP_GETGLOBAL:
  case LOP_SETGLOBAL:
  case LOP_CALL:
@@ -38433,8 +40720,6 @@ void analyzeBytecodeTypes(IrFunction& function)
  case LOP_JUMPXEQKN:
  case LOP_JUMPXEQKS:
  case LOP_SETLIST:
- case LOP_GETUPVAL:
- case LOP_SETUPVAL:
  case LOP_CLOSEUPVALS:
  case LOP_FORGLOOP:
  case LOP_FORGPREP_NEXT:
@@ -38446,7 +40731,6 @@ void analyzeBytecodeTypes(IrFunction& function)
  case LOP_COVERAGE:
  case LOP_GETIMPORT:
  case LOP_CAPTURE:
- case LOP_NAMECALL:
  case LOP_PREPVARARGS:
  case LOP_GETVARARGS:
  case LOP_FORGPREP:
@@ -38521,759 +40805,6 @@ std::vector<FunctionBytecodeSummary> summarizeBytecode(lua_State* L, int idx, un
 }
 } // namespace Luau
 #line __LINE__ "BytecodeSummary.cpp"
-#line __LINE__ "CodeGenLower.h"
-#line __LINE__ "CodeGen.h"
-struct lua_State;
-namespace Luau
-{
-namespace CodeGen
-{
-enum CodeGenFlags
-{
- CodeGen_OnlyNativeModules = 1 << 0,
- CodeGen_ColdFunctions = 1 << 1,
-};
-enum class CodeGenCompilationResult
-{
- Success = 0,
- NothingToCompile = 1, // There were no new functions to compile
- NotNativeModule = 2,
- CodeGenNotInitialized = 3,
- CodeGenOverflowInstructionLimit = 4, // Instruction limit overflow
- CodeGenOverflowBlockLimit = 5,
- CodeGenOverflowBlockInstructionLimit = 6, // Block instruction limit overflow
- CodeGenAssemblerFinalizationFailure = 7,
- CodeGenLoweringFailure = 8, // Lowering failed
- AllocationFailed = 9,
-};
-struct CompilationStats
-{
- size_t bytecodeSizeBytes = 0;
- size_t nativeCodeSizeBytes = 0;
- size_t nativeDataSizeBytes = 0;
- size_t nativeMetadataSizeBytes = 0;
- uint32_t functionsTotal = 0;
- uint32_t functionsCompiled = 0;
-};
-using AllocationCallback = void(void* context, void* oldPointer, size_t oldSize, void* newPointer, size_t newSize);
-bool isSupported();
-void create(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext);
-void create(lua_State* L);
-[[nodiscard]] bool isNativeExecutionEnabled(lua_State* L);
-void setNativeExecutionEnabled(lua_State* L, bool enabled);
-CodeGenCompilationResult compile(lua_State* L, int idx, unsigned int flags = 0, CompilationStats* stats = nullptr);
-using AnnotatorFn = void (*)(void* context, std::string& result, int fid, int instpos);
-enum class IncludeIrPrefix
-{
- No,
- Yes
-};
-enum class IncludeUseInfo
-{
- No,
- Yes
-};
-enum class IncludeCfgInfo
-{
- No,
- Yes
-};
-enum class IncludeRegFlowInfo
-{
- No,
- Yes
-};
-struct AssemblyOptions
-{
- enum Target
- {
- Host,
- A64,
- A64_NoFeatures,
- X64_Windows,
- X64_SystemV,
- };
- Target target = Host;
- unsigned int flags = 0;
- bool outputBinary = false;
- bool includeAssembly = false;
- bool includeIr = false;
- bool includeOutlinedCode = false;
- IncludeIrPrefix includeIrPrefix = IncludeIrPrefix::Yes;
- IncludeUseInfo includeUseInfo = IncludeUseInfo::Yes;
- IncludeCfgInfo includeCfgInfo = IncludeCfgInfo::Yes;
- IncludeRegFlowInfo includeRegFlowInfo = IncludeRegFlowInfo::Yes;
- AnnotatorFn annotator = nullptr;
- void* annotatorContext = nullptr;
-};
-struct BlockLinearizationStats
-{
- unsigned int constPropInstructionCount = 0;
- double timeSeconds = 0.0;
- BlockLinearizationStats& operator+=(const BlockLinearizationStats& that)
- {
- this->constPropInstructionCount += that.constPropInstructionCount;
- this->timeSeconds += that.timeSeconds;
- return *this;
- }
- BlockLinearizationStats operator+(const BlockLinearizationStats& other) const
- {
- BlockLinearizationStats result(*this);
- result += other;
- return result;
- }
-};
-enum FunctionStatsFlags
-{
- FunctionStats_Enable = 1 << 0,
- FunctionStats_BytecodeSummary = 1 << 1,
-};
-struct FunctionStats
-{
- std::string name;
- int line = -1;
- unsigned bcodeCount = 0;
- unsigned irCount = 0;
- unsigned asmCount = 0;
- unsigned asmSize = 0;
- std::vector<std::vector<unsigned>> bytecodeSummary;
-};
-struct LoweringStats
-{
- unsigned totalFunctions = 0;
- unsigned skippedFunctions = 0;
- int spillsToSlot = 0;
- int spillsToRestore = 0;
- unsigned maxSpillSlotsUsed = 0;
- unsigned blocksPreOpt = 0;
- unsigned blocksPostOpt = 0;
- unsigned maxBlockInstructions = 0;
- int regAllocErrors = 0;
- int loweringErrors = 0;
- BlockLinearizationStats blockLinearizationStats;
- unsigned functionStatsFlags = 0;
- std::vector<FunctionStats> functions;
- LoweringStats operator+(const LoweringStats& other) const
- {
- LoweringStats result(*this);
- result += other;
- return result;
- }
- LoweringStats& operator+=(const LoweringStats& that)
- {
- this->totalFunctions += that.totalFunctions;
- this->skippedFunctions += that.skippedFunctions;
- this->spillsToSlot += that.spillsToSlot;
- this->spillsToRestore += that.spillsToRestore;
- this->maxSpillSlotsUsed = std::max(this->maxSpillSlotsUsed, that.maxSpillSlotsUsed);
- this->blocksPreOpt += that.blocksPreOpt;
- this->blocksPostOpt += that.blocksPostOpt;
- this->maxBlockInstructions = std::max(this->maxBlockInstructions, that.maxBlockInstructions);
- this->regAllocErrors += that.regAllocErrors;
- this->loweringErrors += that.loweringErrors;
- this->blockLinearizationStats += that.blockLinearizationStats;
- if (this->functionStatsFlags & FunctionStats_Enable)
- this->functions.insert(this->functions.end(), that.functions.begin(), that.functions.end());
- return *this;
- }
-};
-std::string getAssembly(lua_State* L, int idx, AssemblyOptions options = {}, LoweringStats* stats = nullptr);
-using PerfLogFn = void (*)(void* context, uintptr_t addr, unsigned size, const char* symbol);
-void setPerfLog(void* context, PerfLogFn logFn);
-}
-} // namespace Luau
-#line __LINE__ "CodeGenLower.h"
-#line __LINE__ "IrDump.h"
-namespace Luau
-{
-namespace CodeGen
-{
-struct CfgInfo;
-const char* getCmdName(IrCmd cmd);
-const char* getBlockKindName(IrBlockKind kind);
-struct IrToStringContext
-{
- std::string& result;
- const std::vector<IrBlock>& blocks;
- const std::vector<IrConst>& constants;
- const CfgInfo& cfg;
-};
-void toString(IrToStringContext& ctx, const IrInst& inst, uint32_t index);
-void toString(IrToStringContext& ctx, const IrBlock& block, uint32_t index);
-void toString(IrToStringContext& ctx, IrOp op);
-void toString(std::string& result, IrConst constant);
-void toString(std::string& result, const BytecodeTypes& bcTypes);
-void toStringDetailed(
- IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, const IrInst& inst, uint32_t instIdx, IncludeUseInfo includeUseInfo);
-void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, IncludeUseInfo includeUseInfo, IncludeCfgInfo includeCfgInfo,
- IncludeRegFlowInfo includeRegFlowInfo);
-std::string toString(const IrFunction& function, IncludeUseInfo includeUseInfo);
-std::string dump(const IrFunction& function);
-std::string toDot(const IrFunction& function, bool includeInst);
-std::string toDotCfg(const IrFunction& function);
-std::string toDotDjGraph(const IrFunction& function);
-std::string dumpDot(const IrFunction& function, bool includeInst);
-}
-} // namespace Luau
-#line __LINE__ "CodeGenLower.h"
-#line __LINE__ "OptimizeConstProp.h"
-namespace Luau
-{
-namespace CodeGen
-{
-struct IrBuilder;
-void constPropInBlockChains(IrBuilder& build, bool useValueNumbering);
-void createLinearBlocks(IrBuilder& build, bool useValueNumbering);
-}
-} // namespace Luau
-#line __LINE__ "CodeGenLower.h"
-#line __LINE__ "OptimizeDeadStore.h"
-namespace Luau
-{
-namespace CodeGen
-{
-struct IrBuilder;
-void markDeadStoresInBlockChains(IrBuilder& build);
-}
-} // namespace Luau
-#line __LINE__ "CodeGenLower.h"
-#line __LINE__ "OptimizeFinalX64.h"
-namespace Luau
-{
-namespace CodeGen
-{
-void optimizeMemoryOperandsX64(IrFunction& function);
-}
-} // namespace Luau
-#line __LINE__ "CodeGenLower.h"
-#line __LINE__ "EmitCommon.h"
-namespace Luau
-{
-namespace CodeGen
-{
-constexpr unsigned kTValueSizeLog2 = 4;
-constexpr unsigned kLuaNodeSizeLog2 = 5;
-constexpr unsigned kOffsetOfTKeyTagNext = 12; // offsetof cannot be used on a bit field
-constexpr unsigned kTKeyTagBits = 4;
-constexpr unsigned kTKeyTagMask = (1 << kTKeyTagBits) - 1;
-constexpr unsigned kOffsetOfInstructionC = 3;
-struct ModuleHelpers
-{
- Label exitContinueVm;
- Label exitNoContinueVm;
- Label exitContinueVmClearNativeFlag;
- Label updatePcAndContinueInVm;
- Label return_;
- Label interrupt;
- Label continueCall; // x0: closure
-};
-}
-} // namespace Luau
-#line __LINE__ "CodeGenLower.h"
-#line __LINE__ "IrLoweringA64.h"
-#line __LINE__ "IrRegAllocA64.h"
-namespace Luau
-{
-namespace CodeGen
-{
-struct LoweringStats;
-namespace A64
-{
-class AssemblyBuilderA64;
-struct IrRegAllocA64
-{
- IrRegAllocA64(IrFunction& function, LoweringStats* stats, std::initializer_list<std::pair<RegisterA64, RegisterA64>> regs);
- RegisterA64 allocReg(KindA64 kind, uint32_t index);
- RegisterA64 allocTemp(KindA64 kind);
- RegisterA64 allocReuse(KindA64 kind, uint32_t index, std::initializer_list<IrOp> oprefs);
- RegisterA64 takeReg(RegisterA64 reg, uint32_t index);
- void freeReg(RegisterA64 reg);
- void freeLastUseReg(IrInst& target, uint32_t index);
- void freeLastUseRegs(const IrInst& inst, uint32_t index);
- void freeTempRegs();
- size_t spill(AssemblyBuilderA64& build, uint32_t index, std::initializer_list<RegisterA64> live = {});
- void restore(AssemblyBuilderA64& build, size_t start);
- void restoreReg(AssemblyBuilderA64& build, IrInst& inst);
- struct Set
- {
- uint32_t base = 0;
- uint32_t free = 0;
- uint32_t temp = 0;
- uint32_t defs[32];
- };
- struct Spill
- {
- uint32_t inst;
- RegisterA64 origin;
- int8_t slot;
- };
- Set& getSet(KindA64 kind);
- IrFunction& function;
- LoweringStats* stats = nullptr;
- Set gpr, simd;
- std::vector<Spill> spills;
- uint32_t freeSpillSlots = 0;
- bool error = false;
-};
-}
-} // namespace CodeGen
-}
-#line __LINE__ "IrLoweringA64.h"
-#line __LINE__ "IrValueLocationTracking.h"
-namespace Luau
-{
-namespace CodeGen
-{
-struct IrValueLocationTracking
-{
- IrValueLocationTracking(IrFunction& function);
- void setRestoreCallack(void* context, void (*callback)(void* context, IrInst& inst));
- void beforeInstLowering(IrInst& inst);
- void afterInstLowering(IrInst& inst, uint32_t instIdx);
- void recordRestoreOp(uint32_t instIdx, IrOp location);
- void invalidateRestoreOp(IrOp location, bool skipValueInvalidation);
- void invalidateRestoreVmRegs(int start, int count);
- IrFunction& function;
- std::array<uint32_t, 256> vmRegValue;
- int maxReg = 0;
- void* restoreCallbackCtx = nullptr;
- void (*restoreCallback)(void* context, IrInst& inst) = nullptr;
-};
-}
-} // namespace Luau
-#line __LINE__ "IrLoweringA64.h"
-namespace Luau
-{
-namespace CodeGen
-{
-struct ModuleHelpers;
-struct AssemblyOptions;
-struct LoweringStats;
-namespace A64
-{
-struct IrLoweringA64
-{
- IrLoweringA64(AssemblyBuilderA64& build, ModuleHelpers& helpers, IrFunction& function, LoweringStats* stats);
- void lowerInst(IrInst& inst, uint32_t index, const IrBlock& next);
- void finishBlock(const IrBlock& curr, const IrBlock& next);
- void finishFunction();
- bool hasError() const;
- bool isFallthroughBlock(const IrBlock& target, const IrBlock& next);
- void jumpOrFallthrough(IrBlock& target, const IrBlock& next);
- Label& getTargetLabel(IrOp op, Label& fresh);
- void finalizeTargetLabel(IrOp op, Label& fresh);
- RegisterA64 tempDouble(IrOp op);
- RegisterA64 tempInt(IrOp op);
- RegisterA64 tempUint(IrOp op);
- AddressA64 tempAddr(IrOp op, int offset);
- AddressA64 tempAddrBuffer(IrOp bufferOp, IrOp indexOp);
- RegisterA64 regOp(IrOp op);
- IrConst constOp(IrOp op) const;
- uint8_t tagOp(IrOp op) const;
- int intOp(IrOp op) const;
- unsigned uintOp(IrOp op) const;
- double doubleOp(IrOp op) const;
- IrBlock& blockOp(IrOp op) const;
- Label& labelOp(IrOp op) const;
- struct InterruptHandler
- {
- Label self;
- unsigned int pcpos;
- Label next;
- };
- struct ExitHandler
- {
- Label self;
- unsigned int pcpos;
- };
- AssemblyBuilderA64& build;
- ModuleHelpers& helpers;
- IrFunction& function;
- LoweringStats* stats = nullptr;
- IrRegAllocA64 regs;
- IrValueLocationTracking valueTracker;
- std::vector<InterruptHandler> interruptHandlers;
- std::vector<ExitHandler> exitHandlers;
- DenseHashMap<uint32_t, uint32_t> exitHandlerMap;
- bool error = false;
-};
-}
-} // namespace CodeGen
-}
-#line __LINE__ "CodeGenLower.h"
-#line __LINE__ "IrLoweringX64.h"
-#line __LINE__ "IrRegAllocX64.h"
-namespace Luau
-{
-namespace CodeGen
-{
-struct LoweringStats;
-namespace X64
-{
-constexpr uint8_t kNoStackSlot = 0xff;
-struct IrSpillX64
-{
- uint32_t instIdx = 0;
- IrValueKind valueKind = IrValueKind::Unknown;
- unsigned spillId = 0;
- uint8_t stackSlot = kNoStackSlot;
- RegisterX64 originalLoc = noreg;
-};
-struct IrRegAllocX64
-{
- IrRegAllocX64(AssemblyBuilderX64& build, IrFunction& function, LoweringStats* stats);
- RegisterX64 allocReg(SizeX64 size, uint32_t instIdx);
- RegisterX64 allocRegOrReuse(SizeX64 size, uint32_t instIdx, std::initializer_list<IrOp> oprefs);
- RegisterX64 takeReg(RegisterX64 reg, uint32_t instIdx);
- bool canTakeReg(RegisterX64 reg) const;
- void freeReg(RegisterX64 reg);
- void freeLastUseReg(IrInst& target, uint32_t instIdx);
- void freeLastUseRegs(const IrInst& inst, uint32_t instIdx);
- bool isLastUseReg(const IrInst& target, uint32_t instIdx) const;
- bool shouldFreeGpr(RegisterX64 reg) const;
- unsigned findSpillStackSlot(IrValueKind valueKind);
- IrOp getRestoreOp(const IrInst& inst) const;
- bool hasRestoreOp(const IrInst& inst) const;
- OperandX64 getRestoreAddress(const IrInst& inst, IrOp restoreOp);
- void preserve(IrInst& inst);
- void restore(IrInst& inst, bool intoOriginalLocation);
- void preserveAndFreeInstValues();
- uint32_t findInstructionWithFurthestNextUse(const std::array<uint32_t, 16>& regInstUsers) const;
- void assertFree(RegisterX64 reg) const;
- void assertAllFree() const;
- void assertNoSpills() const;
- AssemblyBuilderX64& build;
- IrFunction& function;
- LoweringStats* stats = nullptr;
- uint32_t currInstIdx = ~0u;
- std::array<bool, 16> freeGprMap;
- std::array<uint32_t, 16> gprInstUsers;
- std::array<bool, 16> freeXmmMap;
- std::array<uint32_t, 16> xmmInstUsers;
- uint8_t usableXmmRegCount = 0;
- std::bitset<256> usedSpillSlots;
- unsigned maxUsedSlot = 0;
- unsigned nextSpillId = 1;
- std::vector<IrSpillX64> spills;
-};
-struct ScopedRegX64
-{
- explicit ScopedRegX64(IrRegAllocX64& owner);
- ScopedRegX64(IrRegAllocX64& owner, SizeX64 size);
- ScopedRegX64(IrRegAllocX64& owner, RegisterX64 reg);
- ~ScopedRegX64();
- ScopedRegX64(const ScopedRegX64&) = delete;
- ScopedRegX64& operator=(const ScopedRegX64&) = delete;
- void take(RegisterX64 reg);
- void alloc(SizeX64 size);
- void free();
- RegisterX64 release();
- IrRegAllocX64& owner;
- RegisterX64 reg;
-};
-struct ScopedSpills
-{
- explicit ScopedSpills(IrRegAllocX64& owner);
- ~ScopedSpills();
- ScopedSpills(const ScopedSpills&) = delete;
- ScopedSpills& operator=(const ScopedSpills&) = delete;
- IrRegAllocX64& owner;
- unsigned startSpillId = 0;
-};
-}
-} // namespace CodeGen
-}
-#line __LINE__ "IrLoweringX64.h"
-struct Proto;
-namespace Luau
-{
-namespace CodeGen
-{
-struct ModuleHelpers;
-struct AssemblyOptions;
-struct LoweringStats;
-namespace X64
-{
-struct IrLoweringX64
-{
- IrLoweringX64(AssemblyBuilderX64& build, ModuleHelpers& helpers, IrFunction& function, LoweringStats* stats);
- void lowerInst(IrInst& inst, uint32_t index, const IrBlock& next);
- void finishBlock(const IrBlock& curr, const IrBlock& next);
- void finishFunction();
- bool hasError() const;
- bool isFallthroughBlock(const IrBlock& target, const IrBlock& next);
- void jumpOrFallthrough(IrBlock& target, const IrBlock& next);
- Label& getTargetLabel(IrOp op, Label& fresh);
- void finalizeTargetLabel(IrOp op, Label& fresh);
- void jumpOrAbortOnUndef(ConditionX64 cond, IrOp target, const IrBlock& next);
- void jumpOrAbortOnUndef(IrOp target, const IrBlock& next);
- void storeDoubleAsFloat(OperandX64 dst, IrOp src);
- OperandX64 memRegDoubleOp(IrOp op);
- OperandX64 memRegUintOp(IrOp op);
- OperandX64 memRegTagOp(IrOp op);
- RegisterX64 regOp(IrOp op);
- OperandX64 bufferAddrOp(IrOp bufferOp, IrOp indexOp);
- RegisterX64 vecOp(IrOp op, ScopedRegX64& tmp);
- IrConst constOp(IrOp op) const;
- uint8_t tagOp(IrOp op) const;
- int intOp(IrOp op) const;
- unsigned uintOp(IrOp op) const;
- double doubleOp(IrOp op) const;
- IrBlock& blockOp(IrOp op) const;
- Label& labelOp(IrOp op) const;
- OperandX64 vectorAndMaskOp();
- OperandX64 vectorOrMaskOp();
- struct InterruptHandler
- {
- Label self;
- unsigned int pcpos;
- Label next;
- };
- struct ExitHandler
- {
- Label self;
- unsigned int pcpos;
- };
- AssemblyBuilderX64& build;
- ModuleHelpers& helpers;
- IrFunction& function;
- LoweringStats* stats = nullptr;
- IrRegAllocX64 regs;
- IrValueLocationTracking valueTracker;
- std::vector<InterruptHandler> interruptHandlers;
- std::vector<ExitHandler> exitHandlers;
- DenseHashMap<uint32_t, uint32_t> exitHandlerMap;
- OperandX64 vectorAndMask = noreg;
- OperandX64 vectorOrMask = noreg;
-};
-}
-} // namespace CodeGen
-}
-#line __LINE__ "CodeGenLower.h"
-LUAU_FASTFLAG(DebugCodegenNoOpt)
-LUAU_FASTFLAG(DebugCodegenOptSize)
-LUAU_FASTFLAG(DebugCodegenSkipNumbering)
-LUAU_FASTINT(CodegenHeuristicsInstructionLimit)
-LUAU_FASTINT(CodegenHeuristicsBlockLimit)
-LUAU_FASTINT(CodegenHeuristicsBlockInstructionLimit)
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores4)
-namespace Luau
-{
-namespace CodeGen
-{
-inline void gatherFunctions(std::vector<Proto*>& results, Proto* proto, unsigned int flags)
-{
- if (results.size() <= size_t(proto->bytecodeid))
- results.resize(proto->bytecodeid + 1);
- if (results[proto->bytecodeid])
- return;
- if ((proto->flags & LPF_NATIVE_COLD) == 0 || (flags & CodeGen_ColdFunctions) != 0)
- results[proto->bytecodeid] = proto;
- for (int i = 0; i < proto->sizep; i++)
- gatherFunctions(results, proto->p[i], flags);
-}
-inline unsigned getInstructionCount(const std::vector<IrInst>& instructions, IrCmd cmd)
-{
- return unsigned(std::count_if(instructions.begin(), instructions.end(), [&cmd](const IrInst& inst) {
- return inst.cmd == cmd;
- }));
-}
-template<typename AssemblyBuilder, typename IrLowering>
-inline bool lowerImpl(AssemblyBuilder& build, IrLowering& lowering, IrFunction& function, const std::vector<uint32_t>& sortedBlocks, int bytecodeid,
- AssemblyOptions options)
-{
- std::vector<uint32_t> bcLocations(function.instructions.size() + 1, ~0u);
- for (size_t i = 0; i < function.bcMapping.size(); ++i)
- {
- uint32_t irLocation = function.bcMapping[i].irLocation;
- if (irLocation != ~0u)
- bcLocations[irLocation] = uint32_t(i);
- }
- bool outputEnabled = options.includeAssembly || options.includeIr;
- IrToStringContext ctx{build.text, function.blocks, function.constants, function.cfg};
- size_t textSize = build.text.length();
- uint32_t codeSize = build.getCodeSize();
- bool seenFallback = false;
- IrBlock dummy;
- dummy.start = ~0u;
- CODEGEN_ASSERT(sortedBlocks[0] == 0);
- for (size_t i = 0; i < sortedBlocks.size(); ++i)
- {
- uint32_t blockIndex = sortedBlocks[i];
- IrBlock& block = function.blocks[blockIndex];
- if (block.kind == IrBlockKind::Dead)
- continue;
- CODEGEN_ASSERT(block.start != ~0u);
- CODEGEN_ASSERT(block.finish != ~0u);
- if (block.kind == IrBlockKind::Fallback && !seenFallback)
- {
- textSize = build.text.length();
- codeSize = build.getCodeSize();
- seenFallback = true;
- }
- if (options.includeIr)
- {
- if (options.includeIrPrefix == IncludeIrPrefix::Yes)
- build.logAppend("# ");
- toStringDetailed(ctx, block, blockIndex, options.includeUseInfo, options.includeCfgInfo, options.includeRegFlowInfo);
- }
- function.validRestoreOpBlocks.push_back(blockIndex);
- build.setLabel(block.label);
- if (blockIndex == function.entryBlock)
- {
- function.entryLocation = build.getLabelOffset(block.label);
- }
- IrBlock& nextBlock = getNextBlock(function, sortedBlocks, dummy, i);
- if (block.expectedNextBlock != ~0u)
- CODEGEN_ASSERT(function.getBlockIndex(nextBlock) == block.expectedNextBlock);
- for (uint32_t index = block.start; index <= block.finish; index++)
- {
- CODEGEN_ASSERT(index < function.instructions.size());
- uint32_t bcLocation = bcLocations[index];
- if (outputEnabled && options.annotator && bcLocation != ~0u)
- {
- options.annotator(options.annotatorContext, build.text, bytecodeid, bcLocation);
- BytecodeTypes bcTypes = function.getBytecodeTypesAt(bcLocation);
- if (bcTypes.result != LBC_TYPE_ANY || bcTypes.a != LBC_TYPE_ANY || bcTypes.b != LBC_TYPE_ANY || bcTypes.c != LBC_TYPE_ANY)
- {
- toString(ctx.result, bcTypes);
- build.logAppend("\n");
- }
- }
- if (bcLocation != ~0u)
- {
- Label label = (index == block.start) ? block.label : build.setLabel();
- function.bcMapping[bcLocation].asmLocation = build.getLabelOffset(label);
- }
- IrInst& inst = function.instructions[index];
- if (isPseudo(inst.cmd))
- {
- CODEGEN_ASSERT(inst.useCount == 0);
- continue;
- }
- CODEGEN_ASSERT(inst.lastUse == 0 || inst.useCount != 0);
- if (options.includeIr)
- {
- if (options.includeIrPrefix == IncludeIrPrefix::Yes)
- build.logAppend("# ");
- toStringDetailed(ctx, block, blockIndex, inst, index, options.includeUseInfo);
- }
- lowering.lowerInst(inst, index, nextBlock);
- if (lowering.hasError())
- {
- for (size_t j = i + 1; j < sortedBlocks.size(); ++j)
- {
- IrBlock& abandoned = function.blocks[sortedBlocks[j]];
- build.setLabel(abandoned.label);
- }
- lowering.finishFunction();
- return false;
- }
- }
- lowering.finishBlock(block, nextBlock);
- if (options.includeIr && options.includeIrPrefix == IncludeIrPrefix::Yes)
- build.logAppend("#\n");
- if (block.expectedNextBlock == ~0u)
- function.validRestoreOpBlocks.clear();
- }
- if (!seenFallback)
- {
- textSize = build.text.length();
- codeSize = build.getCodeSize();
- }
- lowering.finishFunction();
- if (outputEnabled && !options.includeOutlinedCode && textSize < build.text.size())
- {
- build.text.resize(textSize);
- if (options.includeAssembly)
- build.logAppend("; skipping %u bytes of outlined code\n", unsigned((build.getCodeSize() - codeSize) * sizeof(build.code[0])));
- }
- return true;
-}
-inline bool lowerIr(X64::AssemblyBuilderX64& build, IrBuilder& ir, const std::vector<uint32_t>& sortedBlocks, ModuleHelpers& helpers, Proto* proto,
- AssemblyOptions options, LoweringStats* stats)
-{
- optimizeMemoryOperandsX64(ir.function);
- X64::IrLoweringX64 lowering(build, helpers, ir.function, stats);
- return lowerImpl(build, lowering, ir.function, sortedBlocks, proto->bytecodeid, options);
-}
-inline bool lowerIr(A64::AssemblyBuilderA64& build, IrBuilder& ir, const std::vector<uint32_t>& sortedBlocks, ModuleHelpers& helpers, Proto* proto,
- AssemblyOptions options, LoweringStats* stats)
-{
- A64::IrLoweringA64 lowering(build, helpers, ir.function, stats);
- return lowerImpl(build, lowering, ir.function, sortedBlocks, proto->bytecodeid, options);
-}
-template<typename AssemblyBuilder>
-inline bool lowerFunction(IrBuilder& ir, AssemblyBuilder& build, ModuleHelpers& helpers, Proto* proto, AssemblyOptions options, LoweringStats* stats,
- CodeGenCompilationResult& codeGenCompilationResult)
-{
- killUnusedBlocks(ir.function);
- unsigned preOptBlockCount = 0;
- unsigned maxBlockInstructions = 0;
- for (const IrBlock& block : ir.function.blocks)
- {
- preOptBlockCount += (block.kind != IrBlockKind::Dead);
- unsigned blockInstructions = block.finish - block.start;
- maxBlockInstructions = std::max(maxBlockInstructions, blockInstructions);
- }
- if (stats)
- {
- stats->blocksPreOpt += preOptBlockCount;
- stats->maxBlockInstructions = maxBlockInstructions;
- }
- if (preOptBlockCount >= unsigned(FInt::CodegenHeuristicsBlockLimit.value))
- {
- codeGenCompilationResult = CodeGenCompilationResult::CodeGenOverflowBlockLimit;
- return false;
- }
- if (maxBlockInstructions >= unsigned(FInt::CodegenHeuristicsBlockInstructionLimit.value))
- {
- codeGenCompilationResult = CodeGenCompilationResult::CodeGenOverflowBlockInstructionLimit;
- return false;
- }
- computeCfgInfo(ir.function);
- if (!FFlag::DebugCodegenNoOpt)
- {
- bool useValueNumbering = !FFlag::DebugCodegenSkipNumbering;
- constPropInBlockChains(ir, useValueNumbering);
- if (!FFlag::DebugCodegenOptSize)
- {
- double startTime = 0.0;
- unsigned constPropInstructionCount = 0;
- if (stats)
- {
- constPropInstructionCount = getInstructionCount(ir.function.instructions, IrCmd::SUBSTITUTE);
- startTime = lua_clock();
- }
- createLinearBlocks(ir, useValueNumbering);
- if (stats)
- {
- stats->blockLinearizationStats.timeSeconds += lua_clock() - startTime;
- constPropInstructionCount = getInstructionCount(ir.function.instructions, IrCmd::SUBSTITUTE) - constPropInstructionCount;
- stats->blockLinearizationStats.constPropInstructionCount += constPropInstructionCount;
- }
- }
- if (FFlag::LuauCodegenRemoveDeadStores4)
- markDeadStoresInBlockChains(ir);
- }
- std::vector<uint32_t> sortedBlocks = getSortedBlockOrder(ir.function);
- updateLastUseLocations(ir.function, sortedBlocks);
- if (stats)
- {
- for (const IrBlock& block : ir.function.blocks)
- {
- if (block.kind != IrBlockKind::Dead)
- ++stats->blocksPostOpt;
- }
- }
- bool result = lowerIr(build, ir, sortedBlocks, helpers, proto, options, stats);
- if (!result)
- codeGenCompilationResult = CodeGenCompilationResult::CodeGenLoweringFailure;
- return result;
-}
-}
-} // namespace Luau
-#line __LINE__ "BytecodeSummary.cpp"
 namespace Luau
 {
 namespace CodeGen
@@ -39325,38 +40856,6 @@ std::vector<FunctionBytecodeSummary> summarizeBytecode(lua_State* L, int idx, un
 }
 } // namespace Luau
 #line __LINE__ ""
-#line __LINE__ "CodeAllocator.cpp"
-namespace Luau
-{
-namespace CodeGen
-{
-constexpr uint32_t kCodeAlignment = 32;
-struct CodeAllocator
-{
- CodeAllocator(size_t blockSize, size_t maxTotalSize);
- CodeAllocator(size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext);
- ~CodeAllocator();
- bool allocate(
- const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize, uint8_t*& result, size_t& resultSize, uint8_t*& resultCodeStart);
- void* context = nullptr;
- void* (*createBlockUnwindInfo)(void* context, uint8_t* block, size_t blockSize, size_t& startOffset) = nullptr;
- void (*destroyBlockUnwindInfo)(void* context, void* unwindData) = nullptr;
-private:
- static const size_t kMaxReservedDataSize = 256;
- bool allocateNewBlock(size_t& unwindInfoSize);
- uint8_t* allocatePages(size_t size) const;
- void freePages(uint8_t* mem, size_t size) const;
- uint8_t* blockPos = nullptr;
- uint8_t* blockEnd = nullptr;
- std::vector<uint8_t*> blocks;
- std::vector<void*> unwindInfos;
- size_t blockSize = 0;
- size_t maxTotalSize = 0;
- AllocationCallback* allocationCallback = nullptr;
- void* allocationCallbackContext = nullptr;
-};
-}
-} // namespace Luau
 #line __LINE__ "CodeAllocator.cpp"
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -39550,47 +41049,6 @@ void CodeAllocator::freePages(uint8_t* mem, size_t size) const
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "CodeBlockUnwind.cpp"
-namespace Luau
-{
-namespace CodeGen
-{
-void* createBlockUnwindInfo(void* context, uint8_t* block, size_t blockSize, size_t& startOffset);
-void destroyBlockUnwindInfo(void* context, void* unwindData);
-bool isUnwindSupported();
-}
-} // namespace Luau
-#line __LINE__ "CodeBlockUnwind.cpp"
-#line __LINE__ "UnwindBuilder.h"
-namespace Luau
-{
-namespace CodeGen
-{
-static uint32_t kFullBlockFuncton = ~0u;
-class UnwindBuilder
-{
-public:
- enum Arch
- {
- X64,
- A64
- };
- virtual ~UnwindBuilder() = default;
- virtual void setBeginOffset(size_t beginOffset) = 0;
- virtual size_t getBeginOffset() const = 0;
- virtual void startInfo(Arch arch) = 0;
- virtual void startFunction() = 0;
- virtual void finishFunction(uint32_t beginOffset, uint32_t endOffset) = 0;
- virtual void finishInfo() = 0;
- virtual void prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs) = 0;
- virtual void prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame, std::initializer_list<X64::RegisterX64> gpr,
- const std::vector<X64::RegisterX64>& simd) = 0;
- virtual size_t getSize() const = 0;
- virtual size_t getFunctionCount() const = 0;
- virtual void finalize(char* target, size_t offset, void* funcAddress, size_t funcSize) const = 0;
-};
-}
-} // namespace Luau
-#line __LINE__ "CodeBlockUnwind.cpp"
 #if defined(_WIN32) && defined(_M_X64)
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -39666,11 +41124,13 @@ void* createBlockUnwindInfo(void* context, uint8_t* block, size_t blockSize, siz
  char* unwindData = (char*)block;
  unwind->finalize(unwindData, unwindSize, block, blockSize);
 #if defined(_WIN32) && defined(_M_X64)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
  if (!RtlAddFunctionTable((RUNTIME_FUNCTION*)block, uint32_t(unwind->getFunctionCount()), uintptr_t(block)))
  {
  CODEGEN_ASSERT(!"Failed to allocate function table");
  return nullptr;
  }
+#endif
 #elif defined(__linux__) || defined(__APPLE__)
  if (!__register_frame)
  return nullptr;
@@ -39688,8 +41148,10 @@ void* createBlockUnwindInfo(void* context, uint8_t* block, size_t blockSize, siz
 void destroyBlockUnwindInfo(void* context, void* unwindData)
 {
 #if defined(_WIN32) && defined(_M_X64)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
  if (!RtlDeleteFunctionTable((RUNTIME_FUNCTION*)unwindData))
  CODEGEN_ASSERT(!"Failed to deallocate function table");
+#endif
 #elif defined(__linux__) || defined(__APPLE__)
  if (!__deregister_frame)
  {
@@ -39703,6 +41165,8 @@ bool isUnwindSupported()
 {
 #if defined(_WIN32) && defined(_M_X64)
  return true;
+#elif defined(__ANDROID__)
+ return false;
 #elif defined(__APPLE__) && defined(__aarch64__)
  char ver[256];
  size_t verLength = sizeof(ver);
@@ -39712,609 +41176,6 @@ bool isUnwindSupported()
 #else
  return false;
 #endif
-}
-}
-} // namespace Luau
-#line __LINE__ ""
-#line __LINE__ "CodeGen.cpp"
-#line __LINE__ "UnwindBuilderDwarf2.h"
-namespace Luau
-{
-namespace CodeGen
-{
-struct UnwindFunctionDwarf2
-{
- uint32_t beginOffset;
- uint32_t endOffset;
- uint32_t fdeEntryStartPos;
-};
-class UnwindBuilderDwarf2 : public UnwindBuilder
-{
-public:
- void setBeginOffset(size_t beginOffset) override;
- size_t getBeginOffset() const override;
- void startInfo(Arch arch) override;
- void startFunction() override;
- void finishFunction(uint32_t beginOffset, uint32_t endOffset) override;
- void finishInfo() override;
- void prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs) override;
- void prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame, std::initializer_list<X64::RegisterX64> gpr,
- const std::vector<X64::RegisterX64>& simd) override;
- size_t getSize() const override;
- size_t getFunctionCount() const override;
- void finalize(char* target, size_t offset, void* funcAddress, size_t funcSize) const override;
-private:
- size_t beginOffset = 0;
- std::vector<UnwindFunctionDwarf2> unwindFunctions;
- static const unsigned kRawDataLimit = 1024;
- uint8_t rawData[kRawDataLimit];
- uint8_t* pos = rawData;
- uint8_t* fdeEntryStart = nullptr;
-};
-}
-} // namespace Luau
-#line __LINE__ "CodeGen.cpp"
-#line __LINE__ "UnwindBuilderWin.h"
-namespace Luau
-{
-namespace CodeGen
-{
-struct UnwindFunctionWin
-{
- uint32_t beginOffset;
- uint32_t endOffset;
- uint32_t unwindInfoOffset;
-};
-struct UnwindInfoWin
-{
- uint8_t version : 3;
- uint8_t flags : 5;
- uint8_t prologsize;
- uint8_t unwindcodecount;
- uint8_t framereg : 4;
- uint8_t frameregoff : 4;
-};
-struct UnwindCodeWin
-{
- uint8_t offset;
- uint8_t opcode : 4;
- uint8_t opinfo : 4;
-};
-class UnwindBuilderWin : public UnwindBuilder
-{
-public:
- void setBeginOffset(size_t beginOffset) override;
- size_t getBeginOffset() const override;
- void startInfo(Arch arch) override;
- void startFunction() override;
- void finishFunction(uint32_t beginOffset, uint32_t endOffset) override;
- void finishInfo() override;
- void prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs) override;
- void prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame, std::initializer_list<X64::RegisterX64> gpr,
- const std::vector<X64::RegisterX64>& simd) override;
- size_t getSize() const override;
- size_t getFunctionCount() const override;
- void finalize(char* target, size_t offset, void* funcAddress, size_t funcSize) const override;
-private:
- size_t beginOffset = 0;
- static const unsigned kRawDataLimit = 1024;
- uint8_t rawData[kRawDataLimit];
- uint8_t* rawDataPos = rawData;
- std::vector<UnwindFunctionWin> unwindFunctions;
- std::vector<UnwindCodeWin> unwindCodes;
- uint8_t prologSize = 0;
- X64::RegisterX64 frameReg = X64::noreg;
- uint8_t frameRegOffset = 0;
-};
-}
-} // namespace Luau
-#line __LINE__ "CodeGen.cpp"
-#line __LINE__ "NativeState.h"
-typedef int (*luau_FastFunction)(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams);
-namespace Luau
-{
-namespace CodeGen
-{
-class UnwindBuilder;
-struct NativeContext
-{
- uint8_t* gateEntry = nullptr;
- uint8_t* gateExit = nullptr;
- int (*luaV_lessthan)(lua_State* L, const TValue* l, const TValue* r) = nullptr;
- int (*luaV_lessequal)(lua_State* L, const TValue* l, const TValue* r) = nullptr;
- int (*luaV_equalval)(lua_State* L, const TValue* t1, const TValue* t2) = nullptr;
- void (*luaV_doarith)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc, TMS op) = nullptr;
- void (*luaV_dolen)(lua_State* L, StkId ra, const TValue* rb) = nullptr;
- void (*luaV_gettable)(lua_State* L, const TValue* t, TValue* key, StkId val) = nullptr;
- void (*luaV_settable)(lua_State* L, const TValue* t, TValue* key, StkId val) = nullptr;
- void (*luaV_getimport)(lua_State* L, Table* env, TValue* k, StkId res, uint32_t id, bool propagatenil) = nullptr;
- void (*luaV_concat)(lua_State* L, int total, int last) = nullptr;
- int (*luaH_getn)(Table* t) = nullptr;
- Table* (*luaH_new)(lua_State* L, int narray, int lnhash) = nullptr;
- Table* (*luaH_clone)(lua_State* L, Table* tt) = nullptr;
- void (*luaH_resizearray)(lua_State* L, Table* t, int nasize) = nullptr;
- TValue* (*luaH_setnum)(lua_State* L, Table* t, int key);
- void (*luaC_barriertable)(lua_State* L, Table* t, GCObject* v) = nullptr;
- void (*luaC_barrierf)(lua_State* L, GCObject* o, GCObject* v) = nullptr;
- void (*luaC_barrierback)(lua_State* L, GCObject* o, GCObject** gclist) = nullptr;
- size_t (*luaC_step)(lua_State* L, bool assist) = nullptr;
- void (*luaF_close)(lua_State* L, StkId level) = nullptr;
- UpVal* (*luaF_findupval)(lua_State* L, StkId level) = nullptr;
- Closure* (*luaF_newLclosure)(lua_State* L, int nelems, Table* e, Proto* p) = nullptr;
- const TValue* (*luaT_gettm)(Table* events, TMS event, TString* ename) = nullptr;
- const TString* (*luaT_objtypenamestr)(lua_State* L, const TValue* o) = nullptr;
- double (*libm_exp)(double) = nullptr;
- double (*libm_pow)(double, double) = nullptr;
- double (*libm_fmod)(double, double) = nullptr;
- double (*libm_asin)(double) = nullptr;
- double (*libm_sin)(double) = nullptr;
- double (*libm_sinh)(double) = nullptr;
- double (*libm_acos)(double) = nullptr;
- double (*libm_cos)(double) = nullptr;
- double (*libm_cosh)(double) = nullptr;
- double (*libm_atan)(double) = nullptr;
- double (*libm_atan2)(double, double) = nullptr;
- double (*libm_tan)(double) = nullptr;
- double (*libm_tanh)(double) = nullptr;
- double (*libm_log)(double) = nullptr;
- double (*libm_log2)(double) = nullptr;
- double (*libm_log10)(double) = nullptr;
- double (*libm_ldexp)(double, int) = nullptr;
- double (*libm_round)(double) = nullptr;
- double (*libm_frexp)(double, int*) = nullptr;
- double (*libm_modf)(double, double*) = nullptr;
- bool (*forgLoopTableIter)(lua_State* L, Table* h, int index, TValue* ra) = nullptr;
- bool (*forgLoopNodeIter)(lua_State* L, Table* h, int index, TValue* ra) = nullptr;
- bool (*forgLoopNonTableFallback)(lua_State* L, int insnA, int aux) = nullptr;
- void (*forgPrepXnextFallback)(lua_State* L, TValue* ra, int pc) = nullptr;
- Closure* (*callProlog)(lua_State* L, TValue* ra, StkId argtop, int nresults) = nullptr;
- void (*callEpilogC)(lua_State* L, int nresults, int n) = nullptr;
- Closure* (*callFallback)(lua_State* L, StkId ra, StkId argtop, int nresults) = nullptr;
- const Instruction* (*executeGETGLOBAL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
- const Instruction* (*executeSETGLOBAL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
- const Instruction* (*executeGETTABLEKS)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
- const Instruction* (*executeSETTABLEKS)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
- const Instruction* (*executeNAMECALL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
- const Instruction* (*executeSETLIST)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
- const Instruction* (*executeFORGPREP)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
- void (*executeGETVARARGSMultRet)(lua_State* L, const Instruction* pc, StkId base, int rai) = nullptr;
- void (*executeGETVARARGSConst)(lua_State* L, StkId base, int rai, int b) = nullptr;
- const Instruction* (*executeDUPCLOSURE)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
- const Instruction* (*executePREPVARARGS)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
- luau_FastFunction luauF_table[256] = {};
-};
-using GateFn = int (*)(lua_State*, Proto*, uintptr_t, NativeContext*);
-struct NativeState
-{
- NativeState();
- NativeState(AllocationCallback* allocationCallback, void* allocationCallbackContext);
- ~NativeState();
- CodeAllocator codeAllocator;
- std::unique_ptr<UnwindBuilder> unwindBuilder;
- uint8_t* gateData = nullptr;
- size_t gateDataSize = 0;
- NativeContext context;
-};
-void initFunctions(NativeState& data);
-}
-} // namespace Luau
-#line __LINE__ "CodeGen.cpp"
-#line __LINE__ "CodeGenA64.h"
-namespace Luau
-{
-namespace CodeGen
-{
-struct NativeState;
-struct ModuleHelpers;
-namespace A64
-{
-class AssemblyBuilderA64;
-bool initHeaderFunctions(NativeState& data);
-void assembleHelpers(AssemblyBuilderA64& build, ModuleHelpers& helpers);
-}
-} // namespace CodeGen
-}
-#line __LINE__ "CodeGen.cpp"
-#line __LINE__ "CodeGenX64.h"
-namespace Luau
-{
-namespace CodeGen
-{
-struct NativeState;
-struct ModuleHelpers;
-namespace X64
-{
-class AssemblyBuilderX64;
-bool initHeaderFunctions(NativeState& data);
-void assembleHelpers(AssemblyBuilderX64& build, ModuleHelpers& helpers);
-}
-} // namespace CodeGen
-}
-#line __LINE__ "CodeGen.cpp"
-#if defined(__x86_64__) || defined(_M_X64)
-#ifdef _MSC_VER
-#else
-#endif
-#endif
-#if defined(__aarch64__)
-#ifdef __APPLE__
-#endif
-#endif
-LUAU_FASTFLAGVARIABLE(DebugCodegenNoOpt, false)
-LUAU_FASTFLAGVARIABLE(DebugCodegenOptSize, false)
-LUAU_FASTFLAGVARIABLE(DebugCodegenSkipNumbering, false)
-LUAU_FASTINTVARIABLE(CodegenHeuristicsInstructionLimit, 1'048'576) // 1 M
-LUAU_FASTINTVARIABLE(CodegenHeuristicsBlockLimit, 32'768)
-LUAU_FASTINTVARIABLE(CodegenHeuristicsBlockInstructionLimit, 65'536)
-LUAU_FASTFLAG(LuauCodegenHeapSizeReport)
-namespace Luau
-{
-namespace CodeGen
-{
-static const Instruction kCodeEntryInsn = LOP_NATIVECALL;
-static void* gPerfLogContext = nullptr;
-static PerfLogFn gPerfLogFn = nullptr;
-struct OldNativeProto
-{
- Proto* p;
- void* execdata;
- uintptr_t exectarget;
-};
-struct ExtraExecData
-{
- size_t execDataSize;
- size_t codeSize;
-};
-static int alignTo(int value, int align)
-{
- CODEGEN_ASSERT(FFlag::LuauCodegenHeapSizeReport);
- CODEGEN_ASSERT(align > 0 && (align & (align - 1)) == 0);
- return (value + (align - 1)) & ~(align - 1);
-}
-static int calculateExecDataSize(Proto* proto)
-{
- CODEGEN_ASSERT(FFlag::LuauCodegenHeapSizeReport);
- int size = proto->sizecode * sizeof(uint32_t);
- size = alignTo(size, 16);
- size += sizeof(ExtraExecData);
- return size;
-}
-ExtraExecData* getExtraExecData(Proto* proto, void* execdata)
-{
- CODEGEN_ASSERT(FFlag::LuauCodegenHeapSizeReport);
- int size = proto->sizecode * sizeof(uint32_t);
- size = alignTo(size, 16);
- return reinterpret_cast<ExtraExecData*>(reinterpret_cast<char*>(execdata) + size);
-}
-static OldNativeProto createOldNativeProto(Proto* proto, const IrBuilder& ir)
-{
- if (FFlag::LuauCodegenHeapSizeReport)
- {
- int execDataSize = calculateExecDataSize(proto);
- CODEGEN_ASSERT(execDataSize % 4 == 0);
- uint32_t* execData = new uint32_t[execDataSize / 4];
- uint32_t instTarget = ir.function.entryLocation;
- for (int i = 0; i < proto->sizecode; i++)
- {
- CODEGEN_ASSERT(ir.function.bcMapping[i].asmLocation >= instTarget);
- execData[i] = ir.function.bcMapping[i].asmLocation - instTarget;
- }
- execData[0] = 0;
- ExtraExecData* extra = getExtraExecData(proto, execData);
- memset(extra, 0, sizeof(ExtraExecData));
- extra->execDataSize = execDataSize;
- return {proto, execData, instTarget};
- }
- else
- {
- int sizecode = proto->sizecode;
- uint32_t* instOffsets = new uint32_t[sizecode];
- uint32_t instTarget = ir.function.entryLocation;
- for (int i = 0; i < sizecode; i++)
- {
- CODEGEN_ASSERT(ir.function.bcMapping[i].asmLocation >= instTarget);
- instOffsets[i] = ir.function.bcMapping[i].asmLocation - instTarget;
- }
- instOffsets[0] = 0;
- return {proto, instOffsets, instTarget};
- }
-}
-static void destroyExecData(void* execdata)
-{
- delete[] static_cast<uint32_t*>(execdata);
-}
-static void logPerfFunction(Proto* p, uintptr_t addr, unsigned size)
-{
- CODEGEN_ASSERT(p->source);
- const char* source = getstr(p->source);
- source = (source[0] == '=' || source[0] == '@') ? source + 1 : "[string]";
- char name[256];
- snprintf(name, sizeof(name), "<luau> %s:%d %s", source, p->linedefined, p->debugname ? getstr(p->debugname) : "");
- if (gPerfLogFn)
- gPerfLogFn(gPerfLogContext, addr, size, name);
-}
-template<typename AssemblyBuilder>
-static std::optional<OldNativeProto> createNativeFunction(
- AssemblyBuilder& build, ModuleHelpers& helpers, Proto* proto, uint32_t& totalIrInstCount, CodeGenCompilationResult& result)
-{
- IrBuilder ir;
- ir.buildFunctionIr(proto);
- unsigned instCount = unsigned(ir.function.instructions.size());
- if (totalIrInstCount + instCount >= unsigned(FInt::CodegenHeuristicsInstructionLimit.value))
- {
- result = CodeGenCompilationResult::CodeGenOverflowInstructionLimit;
- return std::nullopt;
- }
- totalIrInstCount += instCount;
- if (!lowerFunction(ir, build, helpers, proto, {}, nullptr, result))
- return std::nullopt;
- return createOldNativeProto(proto, ir);
-}
-static NativeState* getNativeState(lua_State* L)
-{
- return static_cast<NativeState*>(L->global->ecb.context);
-}
-static void onCloseState(lua_State* L)
-{
- delete getNativeState(L);
- L->global->ecb = lua_ExecutionCallbacks();
-}
-static void onDestroyFunction(lua_State* L, Proto* proto)
-{
- destroyExecData(proto->execdata);
- proto->execdata = nullptr;
- proto->exectarget = 0;
- proto->codeentry = proto->code;
-}
-static int onEnter(lua_State* L, Proto* proto)
-{
- NativeState* data = getNativeState(L);
- CODEGEN_ASSERT(proto->execdata);
- CODEGEN_ASSERT(L->ci->savedpc >= proto->code && L->ci->savedpc < proto->code + proto->sizecode);
- uintptr_t target = proto->exectarget + static_cast<uint32_t*>(proto->execdata)[L->ci->savedpc - proto->code];
- return GateFn(data->context.gateEntry)(L, proto, target, &data->context);
-}
-static int onEnterDisabled(lua_State* L, Proto* proto)
-{
- return 1;
-}
-void onDisable(lua_State* L, Proto* proto)
-{
- if (proto->codeentry == proto->code)
- return;
- proto->codeentry = proto->code;
- proto->exectarget = 0;
- luaM_visitgco(L, proto, [](void* context, lua_Page* page, GCObject* gco) {
- Proto* proto = (Proto*)context;
- if (gco->gch.tt != LUA_TTHREAD)
- return false;
- lua_State* th = gco2th(gco);
- for (CallInfo* ci = th->ci; ci > th->base_ci; ci--)
- {
- if (isLua(ci))
- {
- Proto* p = clvalue(ci->func)->l.p;
- if (p == proto)
- {
- ci->flags &= ~LUA_CALLINFO_NATIVE;
- }
- }
- }
- return false;
- });
-}
-size_t getMemorySize(lua_State* L, Proto* proto)
-{
- CODEGEN_ASSERT(FFlag::LuauCodegenHeapSizeReport);
- ExtraExecData* extra = getExtraExecData(proto, proto->execdata);
- return extra->execDataSize + extra->codeSize;
-}
-#if defined(__aarch64__)
-unsigned int getCpuFeaturesA64()
-{
- unsigned int result = 0;
-#ifdef __APPLE__
- int jscvt = 0;
- size_t jscvtLen = sizeof(jscvt);
- if (sysctlbyname("hw.optional.arm.FEAT_JSCVT", &jscvt, &jscvtLen, nullptr, 0) == 0 && jscvt == 1)
- result |= A64::Feature_JSCVT;
-#endif
- return result;
-}
-#endif
-bool isSupported()
-{
- if (LUA_EXTRA_SIZE != 1)
- return false;
- if (sizeof(TValue) != 16)
- return false;
- if (sizeof(LuaNode) != 32)
- return false;
-#if defined(_WIN32)
- if (!isUnwindSupported())
- return false;
-#else
- if (!LUA_USE_LONGJMP && !isUnwindSupported())
- return false;
-#endif
-#if defined(__x86_64__) || defined(_M_X64)
- int cpuinfo[4] = {};
-#ifdef _MSC_VER
- __cpuid(cpuinfo, 1);
-#else
- __cpuid(1, cpuinfo[0], cpuinfo[1], cpuinfo[2], cpuinfo[3]);
-#endif
- if ((cpuinfo[2] & (1 << 28)) == 0)
- return false;
- return true;
-#elif defined(__aarch64__)
- return true;
-#else
- return false;
-#endif
-}
-void create(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext)
-{
- CODEGEN_ASSERT(isSupported());
- std::unique_ptr<NativeState> data = std::make_unique<NativeState>(allocationCallback, allocationCallbackContext);
-#if defined(_WIN32)
- data->unwindBuilder = std::make_unique<UnwindBuilderWin>();
-#else
- data->unwindBuilder = std::make_unique<UnwindBuilderDwarf2>();
-#endif
- data->codeAllocator.context = data->unwindBuilder.get();
- data->codeAllocator.createBlockUnwindInfo = createBlockUnwindInfo;
- data->codeAllocator.destroyBlockUnwindInfo = destroyBlockUnwindInfo;
- initFunctions(*data);
-#if defined(__x86_64__) || defined(_M_X64)
- if (!X64::initHeaderFunctions(*data))
- return;
-#elif defined(__aarch64__)
- if (!A64::initHeaderFunctions(*data))
- return;
-#endif
- if (gPerfLogFn)
- gPerfLogFn(gPerfLogContext, uintptr_t(data->context.gateEntry), 4096, "<luau gate>");
- lua_ExecutionCallbacks* ecb = &L->global->ecb;
- ecb->context = data.release();
- ecb->close = onCloseState;
- ecb->destroy = onDestroyFunction;
- ecb->enter = onEnter;
- ecb->disable = onDisable;
- if (FFlag::LuauCodegenHeapSizeReport)
- ecb->getmemorysize = getMemorySize;
-}
-void create(lua_State* L)
-{
- create(L, nullptr, nullptr);
-}
-[[nodiscard]] bool isNativeExecutionEnabled(lua_State* L)
-{
- return getNativeState(L) ? (L->global->ecb.enter == onEnter) : false;
-}
-void setNativeExecutionEnabled(lua_State* L, bool enabled)
-{
- if (getNativeState(L))
- L->global->ecb.enter = enabled ? onEnter : onEnterDisabled;
-}
-CodeGenCompilationResult compile(lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
-{
- CODEGEN_ASSERT(lua_isLfunction(L, idx));
- const TValue* func = luaA_toobject(L, idx);
- Proto* root = clvalue(func)->l.p;
- if ((flags & CodeGen_OnlyNativeModules) != 0 && (root->flags & LPF_NATIVE_MODULE) == 0)
- return CodeGenCompilationResult::NotNativeModule;
- NativeState* data = getNativeState(L);
- if (!data)
- return CodeGenCompilationResult::CodeGenNotInitialized;
- std::vector<Proto*> protos;
- gatherFunctions(protos, root, flags);
- protos.erase(std::remove_if(protos.begin(), protos.end(),
- [](Proto* p) {
- return p == nullptr || p->execdata != nullptr;
- }),
- protos.end());
- if (protos.empty())
- return CodeGenCompilationResult::NothingToCompile;
- if (stats != nullptr)
- stats->functionsTotal = uint32_t(protos.size());
-#if defined(__aarch64__)
- static unsigned int cpuFeatures = getCpuFeaturesA64();
- A64::AssemblyBuilderA64 build( false, cpuFeatures);
-#else
- X64::AssemblyBuilderX64 build( false);
-#endif
- ModuleHelpers helpers;
-#if defined(__aarch64__)
- A64::assembleHelpers(build, helpers);
-#else
- X64::assembleHelpers(build, helpers);
-#endif
- std::vector<OldNativeProto> results;
- results.reserve(protos.size());
- uint32_t totalIrInstCount = 0;
- CodeGenCompilationResult codeGenCompilationResult = CodeGenCompilationResult::Success;
- for (Proto* p : protos)
- {
- CodeGenCompilationResult temp = CodeGenCompilationResult::Success;
- if (std::optional<OldNativeProto> np = createNativeFunction(build, helpers, p, totalIrInstCount, temp))
- results.push_back(*np);
- else if (codeGenCompilationResult == CodeGenCompilationResult::Success)
- codeGenCompilationResult = temp;
- }
- if (!build.finalize())
- {
- for (OldNativeProto result : results)
- destroyExecData(result.execdata);
- return CodeGenCompilationResult::CodeGenAssemblerFinalizationFailure;
- }
- if (results.empty())
- {
- LUAU_ASSERT(codeGenCompilationResult != CodeGenCompilationResult::Success);
- return codeGenCompilationResult;
- }
- uint8_t* nativeData = nullptr;
- size_t sizeNativeData = 0;
- uint8_t* codeStart = nullptr;
- if (!data->codeAllocator.allocate(build.data.data(), int(build.data.size()), reinterpret_cast<const uint8_t*>(build.code.data()),
- int(build.code.size() * sizeof(build.code[0])), nativeData, sizeNativeData, codeStart))
- {
- for (OldNativeProto result : results)
- destroyExecData(result.execdata);
- return CodeGenCompilationResult::AllocationFailed;
- }
- if (FFlag::LuauCodegenHeapSizeReport)
- {
- if (gPerfLogFn && results.size() > 0)
- gPerfLogFn(gPerfLogContext, uintptr_t(codeStart), uint32_t(results[0].exectarget), "<luau helpers>");
- for (size_t i = 0; i < results.size(); ++i)
- {
- uint32_t begin = uint32_t(results[i].exectarget);
- uint32_t end = i + 1 < results.size() ? uint32_t(results[i + 1].exectarget) : uint32_t(build.code.size() * sizeof(build.code[0]));
- CODEGEN_ASSERT(begin < end);
- if (gPerfLogFn)
- logPerfFunction(results[i].p, uintptr_t(codeStart) + begin, end - begin);
- ExtraExecData* extra = getExtraExecData(results[i].p, results[i].execdata);
- extra->codeSize = end - begin;
- }
- }
- else
- {
- if (gPerfLogFn && results.size() > 0)
- {
- gPerfLogFn(gPerfLogContext, uintptr_t(codeStart), uint32_t(results[0].exectarget), "<luau helpers>");
- for (size_t i = 0; i < results.size(); ++i)
- {
- uint32_t begin = uint32_t(results[i].exectarget);
- uint32_t end = i + 1 < results.size() ? uint32_t(results[i + 1].exectarget) : uint32_t(build.code.size() * sizeof(build.code[0]));
- CODEGEN_ASSERT(begin < end);
- logPerfFunction(results[i].p, uintptr_t(codeStart) + begin, end - begin);
- }
- }
- }
- for (const OldNativeProto& result : results)
- {
- result.p->execdata = result.execdata;
- result.p->exectarget = uintptr_t(codeStart) + result.exectarget;
- result.p->codeentry = &kCodeEntryInsn;
- }
- if (stats != nullptr)
- {
- for (const OldNativeProto& result : results)
- {
- stats->bytecodeSizeBytes += result.p->sizecode * sizeof(Instruction);
- stats->nativeMetadataSizeBytes += result.p->sizecode * sizeof(uint32_t);
- }
- stats->functionsCompiled += uint32_t(results.size());
- stats->nativeCodeSizeBytes += build.code.size();
- stats->nativeDataSizeBytes += build.data.size();
- }
- return codeGenCompilationResult;
-}
-void setPerfLog(void* context, PerfLogFn logFn)
-{
- gPerfLogContext = context;
- gPerfLogFn = logFn;
 }
 }
 } // namespace Luau
@@ -40543,6 +41404,27 @@ bool initHeaderFunctions(NativeState& data)
  data.context.gateExit = codeStart + build.getLabelOffset(entryLocations.epilogueStart);
  return true;
 }
+bool initHeaderFunctions(BaseCodeGenContext& codeGenContext)
+{
+ AssemblyBuilderA64 build( false);
+ UnwindBuilder& unwind = *codeGenContext.unwindBuilder.get();
+ unwind.startInfo(UnwindBuilder::A64);
+ EntryLocations entryLocations = buildEntryFunction(build, unwind);
+ build.finalize();
+ unwind.finishInfo();
+ CODEGEN_ASSERT(build.data.empty());
+ uint8_t* codeStart = nullptr;
+ if (!codeGenContext.codeAllocator.allocate(build.data.data(), int(build.data.size()), reinterpret_cast<const uint8_t*>(build.code.data()),
+ int(build.code.size() * sizeof(build.code[0])), codeGenContext.gateData, codeGenContext.gateDataSize, codeStart))
+ {
+ CODEGEN_ASSERT(!"Failed to create entry function");
+ return false;
+ }
+ unwind.setBeginOffset(build.getLabelOffset(entryLocations.prologueEnd));
+ codeGenContext.context.gateEntry = codeStart + build.getLabelOffset(entryLocations.start);
+ codeGenContext.context.gateExit = codeStart + build.getLabelOffset(entryLocations.epilogueStart);
+ return true;
+}
 void assembleHelpers(AssemblyBuilderA64& build, ModuleHelpers& helpers)
 {
  if (build.logText)
@@ -40579,6 +41461,7 @@ void assembleHelpers(AssemblyBuilderA64& build, ModuleHelpers& helpers)
 }
 #line __LINE__ ""
 #line __LINE__ "CodeGenAssembly.cpp"
+LUAU_FASTFLAG(LuauCodegenTypeInfo)
 namespace Luau
 {
 namespace CodeGen
@@ -40606,6 +41489,28 @@ static void logFunctionHeader(AssemblyBuilder& build, Proto* proto)
  build.logAppend(" line %d\n", proto->linedefined);
  else
  build.logAppend("\n");
+}
+template<typename AssemblyBuilder>
+static void logFunctionTypes(AssemblyBuilder& build, const IrFunction& function)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenTypeInfo);
+ const BytecodeTypeInfo& typeInfo = function.bcTypeInfo;
+ for (size_t i = 0; i < typeInfo.argumentTypes.size(); i++)
+ {
+ uint8_t ty = typeInfo.argumentTypes[i];
+ if (ty != LBC_TYPE_ANY)
+ build.logAppend("; R%d: %s [argument]\n", int(i), getBytecodeTypeName(ty));
+ }
+ for (size_t i = 0; i < typeInfo.upvalueTypes.size(); i++)
+ {
+ uint8_t ty = typeInfo.upvalueTypes[i];
+ if (ty != LBC_TYPE_ANY)
+ build.logAppend("; U%d: %s\n", int(i), getBytecodeTypeName(ty));
+ }
+ for (const BytecodeRegTypeInfo& el : typeInfo.regTypes)
+ {
+ build.logAppend("; R%d: %s from %d to %d\n", el.reg, getBytecodeTypeName(el.type), el.startpc, el.endpc);
+ }
 }
 unsigned getInstructionCount(const Instruction* insns, const unsigned size)
 {
@@ -40652,6 +41557,8 @@ static std::string getAssemblyImpl(AssemblyBuilder& build, const TValue* func, A
  unsigned asmCount = build.getInstructionCount();
  if (options.includeAssembly || options.includeIr)
  logFunctionHeader(build, p);
+ if (FFlag::LuauCodegenTypeInfo && options.includeIrTypes)
+ logFunctionTypes(build, ir.function);
  CodeGenCompilationResult result = CodeGenCompilationResult::Success;
  if (!lowerFunction(ir, build, helpers, p, options, stats, result))
  {
@@ -40670,7 +41577,7 @@ static std::string getAssemblyImpl(AssemblyBuilder& build, const TValue* func, A
  if (stats && (stats->functionStatsFlags & FunctionStats_Enable))
  {
  FunctionStats functionStat;
- functionStat.name = p->debugname ? getstr(p->debugname) : "";
+ functionStat.name = p->debugname ? getstr(p->debugname) : p->bytecodeid == root->bytecodeid ? "[top level]" : "[anonymous]";
  functionStat.line = p->linedefined;
  functionStat.bcodeCount = getInstructionCount(p->code, p->sizecode);
  functionStat.irCount = unsigned(ir.function.instructions.size());
@@ -40737,6 +41644,432 @@ std::string getAssembly(lua_State* L, int idx, AssemblyOptions options, Lowering
  CODEGEN_ASSERT(!"Unknown target");
  return std::string();
  }
+}
+}
+} // namespace Luau
+#line __LINE__ ""
+#line __LINE__ "CodeGen.cpp"
+#if defined(__x86_64__) || defined(_M_X64)
+#ifdef _MSC_VER
+#else
+#endif
+#endif
+#if defined(__aarch64__)
+#ifdef __APPLE__
+#endif
+#endif
+LUAU_FASTFLAGVARIABLE(DebugCodegenNoOpt, false)
+LUAU_FASTFLAGVARIABLE(DebugCodegenOptSize, false)
+LUAU_FASTFLAGVARIABLE(DebugCodegenSkipNumbering, false)
+LUAU_FASTINTVARIABLE(CodegenHeuristicsInstructionLimit, 1'048'576) // 1 M
+LUAU_FASTINTVARIABLE(CodegenHeuristicsBlockLimit, 32'768)
+LUAU_FASTINTVARIABLE(CodegenHeuristicsBlockInstructionLimit, 65'536)
+LUAU_FASTFLAG(LuauCodegenContext)
+namespace Luau
+{
+namespace CodeGen
+{
+static const Instruction kCodeEntryInsn = LOP_NATIVECALL;
+void* gPerfLogContext = nullptr;
+PerfLogFn gPerfLogFn = nullptr;
+struct OldNativeProto
+{
+ Proto* p;
+ void* execdata;
+ uintptr_t exectarget;
+};
+struct ExtraExecData
+{
+ size_t execDataSize;
+ size_t codeSize;
+};
+static int alignTo(int value, int align)
+{
+ CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
+ CODEGEN_ASSERT(align > 0 && (align & (align - 1)) == 0);
+ return (value + (align - 1)) & ~(align - 1);
+}
+static int calculateExecDataSize(Proto* proto)
+{
+ CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
+ int size = proto->sizecode * sizeof(uint32_t);
+ size = alignTo(size, 16);
+ size += sizeof(ExtraExecData);
+ return size;
+}
+ExtraExecData* getExtraExecData(Proto* proto, void* execdata)
+{
+ CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
+ int size = proto->sizecode * sizeof(uint32_t);
+ size = alignTo(size, 16);
+ return reinterpret_cast<ExtraExecData*>(reinterpret_cast<char*>(execdata) + size);
+}
+static OldNativeProto createOldNativeProto(Proto* proto, const IrBuilder& ir)
+{
+ CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
+ int execDataSize = calculateExecDataSize(proto);
+ CODEGEN_ASSERT(execDataSize % 4 == 0);
+ uint32_t* execData = new uint32_t[execDataSize / 4];
+ uint32_t instTarget = ir.function.entryLocation;
+ for (int i = 0; i < proto->sizecode; i++)
+ {
+ CODEGEN_ASSERT(ir.function.bcMapping[i].asmLocation >= instTarget);
+ execData[i] = ir.function.bcMapping[i].asmLocation - instTarget;
+ }
+ execData[0] = 0;
+ ExtraExecData* extra = getExtraExecData(proto, execData);
+ memset(extra, 0, sizeof(ExtraExecData));
+ extra->execDataSize = execDataSize;
+ return {proto, execData, instTarget};
+}
+static void destroyExecData(void* execdata)
+{
+ CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
+ delete[] static_cast<uint32_t*>(execdata);
+}
+static void logPerfFunction(Proto* p, uintptr_t addr, unsigned size)
+{
+ CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
+ CODEGEN_ASSERT(p->source);
+ const char* source = getstr(p->source);
+ source = (source[0] == '=' || source[0] == '@') ? source + 1 : "[string]";
+ char name[256];
+ snprintf(name, sizeof(name), "<luau> %s:%d %s", source, p->linedefined, p->debugname ? getstr(p->debugname) : "");
+ if (gPerfLogFn)
+ gPerfLogFn(gPerfLogContext, addr, size, name);
+}
+template<typename AssemblyBuilder>
+static std::optional<OldNativeProto> createNativeFunction(
+ AssemblyBuilder& build, ModuleHelpers& helpers, Proto* proto, uint32_t& totalIrInstCount, CodeGenCompilationResult& result)
+{
+ CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
+ IrBuilder ir;
+ ir.buildFunctionIr(proto);
+ unsigned instCount = unsigned(ir.function.instructions.size());
+ if (totalIrInstCount + instCount >= unsigned(FInt::CodegenHeuristicsInstructionLimit.value))
+ {
+ result = CodeGenCompilationResult::CodeGenOverflowInstructionLimit;
+ return std::nullopt;
+ }
+ totalIrInstCount += instCount;
+ if (!lowerFunction(ir, build, helpers, proto, {}, nullptr, result))
+ return std::nullopt;
+ return createOldNativeProto(proto, ir);
+}
+static NativeState* getNativeState(lua_State* L)
+{
+ CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
+ return static_cast<NativeState*>(L->global->ecb.context);
+}
+static void onCloseState(lua_State* L)
+{
+ CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
+ delete getNativeState(L);
+ L->global->ecb = lua_ExecutionCallbacks();
+}
+static void onDestroyFunction(lua_State* L, Proto* proto)
+{
+ CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
+ destroyExecData(proto->execdata);
+ proto->execdata = nullptr;
+ proto->exectarget = 0;
+ proto->codeentry = proto->code;
+}
+static int onEnter(lua_State* L, Proto* proto)
+{
+ CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
+ NativeState* data = getNativeState(L);
+ CODEGEN_ASSERT(proto->execdata);
+ CODEGEN_ASSERT(L->ci->savedpc >= proto->code && L->ci->savedpc < proto->code + proto->sizecode);
+ uintptr_t target = proto->exectarget + static_cast<uint32_t*>(proto->execdata)[L->ci->savedpc - proto->code];
+ return GateFn(data->context.gateEntry)(L, proto, target, &data->context);
+}
+static int onEnterDisabled(lua_State* L, Proto* proto)
+{
+ CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
+ return 1;
+}
+void onDisable(lua_State* L, Proto* proto)
+{
+ if (proto->codeentry == proto->code)
+ return;
+ proto->codeentry = proto->code;
+ proto->exectarget = 0;
+ luaM_visitgco(L, proto, [](void* context, lua_Page* page, GCObject* gco) {
+ Proto* proto = (Proto*)context;
+ if (gco->gch.tt != LUA_TTHREAD)
+ return false;
+ lua_State* th = gco2th(gco);
+ for (CallInfo* ci = th->ci; ci > th->base_ci; ci--)
+ {
+ if (isLua(ci))
+ {
+ Proto* p = clvalue(ci->func)->l.p;
+ if (p == proto)
+ {
+ ci->flags &= ~LUA_CALLINFO_NATIVE;
+ }
+ }
+ }
+ return false;
+ });
+}
+static size_t getMemorySize(lua_State* L, Proto* proto)
+{
+ CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
+ ExtraExecData* extra = getExtraExecData(proto, proto->execdata);
+ return extra->execDataSize + extra->codeSize;
+}
+#if defined(__aarch64__)
+unsigned int getCpuFeaturesA64()
+{
+ unsigned int result = 0;
+#ifdef __APPLE__
+ int jscvt = 0;
+ size_t jscvtLen = sizeof(jscvt);
+ if (sysctlbyname("hw.optional.arm.FEAT_JSCVT", &jscvt, &jscvtLen, nullptr, 0) == 0 && jscvt == 1)
+ result |= A64::Feature_JSCVT;
+#endif
+ return result;
+}
+#endif
+bool isSupported()
+{
+ if (LUA_EXTRA_SIZE != 1)
+ return false;
+ if (sizeof(TValue) != 16)
+ return false;
+ if (sizeof(LuaNode) != 32)
+ return false;
+#if defined(_WIN32)
+ if (!isUnwindSupported())
+ return false;
+#else
+ if (!LUA_USE_LONGJMP && !isUnwindSupported())
+ return false;
+#endif
+#if defined(__x86_64__) || defined(_M_X64)
+ int cpuinfo[4] = {};
+#ifdef _MSC_VER
+ __cpuid(cpuinfo, 1);
+#else
+ __cpuid(1, cpuinfo[0], cpuinfo[1], cpuinfo[2], cpuinfo[3]);
+#endif
+ if ((cpuinfo[2] & (1 << 28)) == 0)
+ return false;
+ return true;
+#elif defined(__aarch64__)
+ return true;
+#else
+ return false;
+#endif
+}
+static void create_OLD(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext)
+{
+ CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
+ CODEGEN_ASSERT(isSupported());
+ std::unique_ptr<NativeState> data = std::make_unique<NativeState>(allocationCallback, allocationCallbackContext);
+#if defined(_WIN32)
+ data->unwindBuilder = std::make_unique<UnwindBuilderWin>();
+#else
+ data->unwindBuilder = std::make_unique<UnwindBuilderDwarf2>();
+#endif
+ data->codeAllocator.context = data->unwindBuilder.get();
+ data->codeAllocator.createBlockUnwindInfo = createBlockUnwindInfo;
+ data->codeAllocator.destroyBlockUnwindInfo = destroyBlockUnwindInfo;
+ initFunctions(*data);
+#if defined(__x86_64__) || defined(_M_X64)
+ if (!X64::initHeaderFunctions(*data))
+ return;
+#elif defined(__aarch64__)
+ if (!A64::initHeaderFunctions(*data))
+ return;
+#endif
+ if (gPerfLogFn)
+ gPerfLogFn(gPerfLogContext, uintptr_t(data->context.gateEntry), 4096, "<luau gate>");
+ lua_ExecutionCallbacks* ecb = &L->global->ecb;
+ ecb->context = data.release();
+ ecb->close = onCloseState;
+ ecb->destroy = onDestroyFunction;
+ ecb->enter = onEnter;
+ ecb->disable = onDisable;
+ ecb->getmemorysize = getMemorySize;
+}
+void create(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext)
+{
+ if (FFlag::LuauCodegenContext)
+ {
+ create_NEW(L, allocationCallback, allocationCallbackContext);
+ }
+ else
+ {
+ create_OLD(L, allocationCallback, allocationCallbackContext);
+ }
+}
+void create(lua_State* L)
+{
+ if (FFlag::LuauCodegenContext)
+ {
+ create_NEW(L);
+ }
+ else
+ {
+ create(L, nullptr, nullptr);
+ }
+}
+void create(lua_State* L, SharedCodeGenContext* codeGenContext)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ create_NEW(L, codeGenContext);
+}
+[[nodiscard]] bool isNativeExecutionEnabled(lua_State* L)
+{
+ if (FFlag::LuauCodegenContext)
+ {
+ return isNativeExecutionEnabled_NEW(L);
+ }
+ else
+ {
+ return getNativeState(L) ? (L->global->ecb.enter == onEnter) : false;
+ }
+}
+void setNativeExecutionEnabled(lua_State* L, bool enabled)
+{
+ if (FFlag::LuauCodegenContext)
+ {
+ setNativeExecutionEnabled_NEW(L, enabled);
+ }
+ else
+ {
+ if (getNativeState(L))
+ L->global->ecb.enter = enabled ? onEnter : onEnterDisabled;
+ }
+}
+static CompilationResult compile_OLD(lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
+{
+ CompilationResult compilationResult;
+ CODEGEN_ASSERT(lua_isLfunction(L, idx));
+ const TValue* func = luaA_toobject(L, idx);
+ Proto* root = clvalue(func)->l.p;
+ if ((flags & CodeGen_OnlyNativeModules) != 0 && (root->flags & LPF_NATIVE_MODULE) == 0)
+ {
+ compilationResult.result = CodeGenCompilationResult::NotNativeModule;
+ return compilationResult;
+ }
+ NativeState* data = getNativeState(L);
+ if (!data)
+ {
+ compilationResult.result = CodeGenCompilationResult::CodeGenNotInitialized;
+ return compilationResult;
+ }
+ std::vector<Proto*> protos;
+ gatherFunctions(protos, root, flags);
+ protos.erase(std::remove_if(protos.begin(), protos.end(),
+ [](Proto* p) {
+ return p == nullptr || p->execdata != nullptr;
+ }),
+ protos.end());
+ if (protos.empty())
+ {
+ compilationResult.result = CodeGenCompilationResult::NothingToCompile;
+ return compilationResult;
+ }
+ if (stats != nullptr)
+ stats->functionsTotal = uint32_t(protos.size());
+#if defined(__aarch64__)
+ static unsigned int cpuFeatures = getCpuFeaturesA64();
+ A64::AssemblyBuilderA64 build( false, cpuFeatures);
+#else
+ X64::AssemblyBuilderX64 build( false);
+#endif
+ ModuleHelpers helpers;
+#if defined(__aarch64__)
+ A64::assembleHelpers(build, helpers);
+#else
+ X64::assembleHelpers(build, helpers);
+#endif
+ std::vector<OldNativeProto> results;
+ results.reserve(protos.size());
+ uint32_t totalIrInstCount = 0;
+ for (Proto* p : protos)
+ {
+ CodeGenCompilationResult protoResult = CodeGenCompilationResult::Success;
+ if (std::optional<OldNativeProto> np = createNativeFunction(build, helpers, p, totalIrInstCount, protoResult))
+ results.push_back(*np);
+ else
+ compilationResult.protoFailures.push_back({protoResult, p->debugname ? getstr(p->debugname) : "", p->linedefined});
+ }
+ if (!build.finalize())
+ {
+ for (OldNativeProto result : results)
+ destroyExecData(result.execdata);
+ compilationResult.result = CodeGenCompilationResult::CodeGenAssemblerFinalizationFailure;
+ return compilationResult;
+ }
+ if (results.empty())
+ return compilationResult;
+ uint8_t* nativeData = nullptr;
+ size_t sizeNativeData = 0;
+ uint8_t* codeStart = nullptr;
+ if (!data->codeAllocator.allocate(build.data.data(), int(build.data.size()), reinterpret_cast<const uint8_t*>(build.code.data()),
+ int(build.code.size() * sizeof(build.code[0])), nativeData, sizeNativeData, codeStart))
+ {
+ for (OldNativeProto result : results)
+ destroyExecData(result.execdata);
+ compilationResult.result = CodeGenCompilationResult::AllocationFailed;
+ return compilationResult;
+ }
+ if (gPerfLogFn && results.size() > 0)
+ gPerfLogFn(gPerfLogContext, uintptr_t(codeStart), uint32_t(results[0].exectarget), "<luau helpers>");
+ for (size_t i = 0; i < results.size(); ++i)
+ {
+ uint32_t begin = uint32_t(results[i].exectarget);
+ uint32_t end = i + 1 < results.size() ? uint32_t(results[i + 1].exectarget) : uint32_t(build.code.size() * sizeof(build.code[0]));
+ CODEGEN_ASSERT(begin < end);
+ if (gPerfLogFn)
+ logPerfFunction(results[i].p, uintptr_t(codeStart) + begin, end - begin);
+ ExtraExecData* extra = getExtraExecData(results[i].p, results[i].execdata);
+ extra->codeSize = end - begin;
+ }
+ for (const OldNativeProto& result : results)
+ {
+ result.p->execdata = result.execdata;
+ result.p->exectarget = uintptr_t(codeStart) + result.exectarget;
+ result.p->codeentry = &kCodeEntryInsn;
+ }
+ if (stats != nullptr)
+ {
+ for (const OldNativeProto& result : results)
+ {
+ stats->bytecodeSizeBytes += result.p->sizecode * sizeof(Instruction);
+ stats->nativeMetadataSizeBytes += result.p->sizecode * sizeof(uint32_t);
+ }
+ stats->functionsCompiled += uint32_t(results.size());
+ stats->nativeCodeSizeBytes += build.code.size();
+ stats->nativeDataSizeBytes += build.data.size();
+ }
+ return compilationResult;
+}
+CompilationResult compile(lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
+{
+ if (FFlag::LuauCodegenContext)
+ {
+ return compile_NEW(L, idx, flags, stats);
+ }
+ else
+ {
+ return compile_OLD(L, idx, flags, stats);
+ }
+}
+CompilationResult compile(const ModuleId& moduleId, lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ return compile_NEW(moduleId, L, idx, flags, stats);
+}
+void setPerfLog(void* context, PerfLogFn logFn)
+{
+ gPerfLogContext = context;
+ gPerfLogFn = logFn;
 }
 }
 } // namespace Luau
@@ -41572,6 +42905,27 @@ bool initHeaderFunctions(NativeState& data)
  data.context.gateExit = codeStart + build.getLabelOffset(entryLocations.epilogueStart);
  return true;
 }
+bool initHeaderFunctions(BaseCodeGenContext& codeGenContext)
+{
+ AssemblyBuilderX64 build( false);
+ UnwindBuilder& unwind = *codeGenContext.unwindBuilder.get();
+ unwind.startInfo(UnwindBuilder::X64);
+ EntryLocations entryLocations = buildEntryFunction(build, unwind);
+ build.finalize();
+ unwind.finishInfo();
+ CODEGEN_ASSERT(build.data.empty());
+ uint8_t* codeStart = nullptr;
+ if (!codeGenContext.codeAllocator.allocate(build.data.data(), int(build.data.size()), build.code.data(), int(build.code.size()),
+ codeGenContext.gateData, codeGenContext.gateDataSize, codeStart))
+ {
+ CODEGEN_ASSERT(!"Failed to create entry function");
+ return false;
+ }
+ unwind.setBeginOffset(build.getLabelOffset(entryLocations.prologueEnd));
+ codeGenContext.context.gateEntry = codeStart + build.getLabelOffset(entryLocations.start);
+ codeGenContext.context.gateExit = codeStart + build.getLabelOffset(entryLocations.epilogueStart);
+ return true;
+}
 void assembleHelpers(X64::AssemblyBuilderX64& build, ModuleHelpers& helpers)
 {
  if (build.logText)
@@ -41677,7 +43031,7 @@ private:
 } // namespace CodeGen
 }
 #line __LINE__ "EmitBuiltinsX64.cpp"
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores4)
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores5)
 namespace Luau
 {
 namespace CodeGen
@@ -41691,13 +43045,13 @@ static void emitBuiltinMathFrexp(IrRegAllocX64& regs, AssemblyBuilderX64& build,
  callWrap.addArgument(SizeX64::qword, sTemporarySlot);
  callWrap.call(qword[rNativeContext + offsetof(NativeContext, libm_frexp)]);
  build.vmovsd(luauRegValue(ra), xmm0);
- if (FFlag::LuauCodegenRemoveDeadStores4)
+ if (FFlag::LuauCodegenRemoveDeadStores5)
  build.mov(luauRegTag(ra), LUA_TNUMBER);
  if (nresults > 1)
  {
  build.vcvtsi2sd(xmm0, xmm0, dword[sTemporarySlot + 0]);
  build.vmovsd(luauRegValue(ra + 1), xmm0);
- if (FFlag::LuauCodegenRemoveDeadStores4)
+ if (FFlag::LuauCodegenRemoveDeadStores5)
  build.mov(luauRegTag(ra + 1), LUA_TNUMBER);
  }
 }
@@ -41709,12 +43063,12 @@ static void emitBuiltinMathModf(IrRegAllocX64& regs, AssemblyBuilderX64& build, 
  callWrap.call(qword[rNativeContext + offsetof(NativeContext, libm_modf)]);
  build.vmovsd(xmm1, qword[sTemporarySlot + 0]);
  build.vmovsd(luauRegValue(ra), xmm1);
- if (FFlag::LuauCodegenRemoveDeadStores4)
+ if (FFlag::LuauCodegenRemoveDeadStores5)
  build.mov(luauRegTag(ra), LUA_TNUMBER);
  if (nresults > 1)
  {
  build.vmovsd(luauRegValue(ra + 1), xmm0);
- if (FFlag::LuauCodegenRemoveDeadStores4)
+ if (FFlag::LuauCodegenRemoveDeadStores5)
  build.mov(luauRegTag(ra + 1), LUA_TNUMBER);
  }
 }
@@ -41732,7 +43086,7 @@ static void emitBuiltinMathSign(IrRegAllocX64& regs, AssemblyBuilderX64& build, 
  build.vcmpltsd(tmp0.reg, tmp1.reg, tmp0.reg);
  build.vblendvpd(tmp0.reg, tmp2.reg, build.f64x2(1, 1), tmp0.reg);
  build.vmovsd(luauRegValue(ra), tmp0.reg);
- if (FFlag::LuauCodegenRemoveDeadStores4)
+ if (FFlag::LuauCodegenRemoveDeadStores5)
  build.mov(luauRegTag(ra), LUA_TNUMBER);
 }
 void emitBuiltin(IrRegAllocX64& regs, AssemblyBuilderX64& build, int bfid, int ra, int arg, OperandX64 arg2, int nparams, int nresults)
@@ -42380,7 +43734,7 @@ void emitInstForGLoop(AssemblyBuilderX64& build, int ra, int aux, Label& loopRep
 #line __LINE__ ""
 #line __LINE__ "IrAnalysis.cpp"
 #line __LINE__ "IrVisitUseDef.h"
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores4)
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores5)
 namespace Luau
 {
 namespace CodeGen
@@ -42538,7 +43892,7 @@ static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrInst& i
  visitor.def(inst.b);
  break;
  case IrCmd::FALLBACK_FORGPREP:
- if (FFlag::LuauCodegenRemoveDeadStores4)
+ if (FFlag::LuauCodegenRemoveDeadStores5)
  {
  visitor.useRange(vmRegOp(inst.b), 3);
  }
@@ -42560,7 +43914,7 @@ static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrInst& i
  visitor.use(inst.a);
  break;
  case IrCmd::CHECK_TAG:
- if (!FFlag::LuauCodegenRemoveDeadStores4)
+ if (!FFlag::LuauCodegenRemoveDeadStores5)
  visitor.maybeUse(inst.a);
  break;
  default:
@@ -43942,30 +45296,30 @@ void toString(std::string& result, IrConst constant)
 }
 const char* getBytecodeTypeName(uint8_t type)
 {
- switch (type)
+ switch (type & ~LBC_TYPE_OPTIONAL_BIT)
  {
  case LBC_TYPE_NIL:
- return "nil";
+ return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "nil?" : "nil";
  case LBC_TYPE_BOOLEAN:
- return "boolean";
+ return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "boolean?" : "boolean";
  case LBC_TYPE_NUMBER:
- return "number";
+ return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "number?" : "number";
  case LBC_TYPE_STRING:
- return "string";
+ return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "string?" : "string";
  case LBC_TYPE_TABLE:
- return "table";
+ return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "table?" : "table";
  case LBC_TYPE_FUNCTION:
- return "function";
+ return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "function?" : "function";
  case LBC_TYPE_THREAD:
- return "thread";
+ return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "thread?" : "thread";
  case LBC_TYPE_USERDATA:
- return "userdata";
+ return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "userdata?" : "userdata";
  case LBC_TYPE_VECTOR:
- return "vector";
+ return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "vector?" : "vector";
  case LBC_TYPE_BUFFER:
- return "buffer";
+ return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "buffer?" : "buffer";
  case LBC_TYPE_ANY:
- return "any";
+ return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "any?" : "any";
  }
  CODEGEN_ASSERT(!"Unhandled type in getBytecodeTypeName");
  return nullptr;
@@ -44334,10 +45688,7 @@ std::string dumpDot(const IrFunction& function, bool includeInst)
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "IrLoweringA64.cpp"
-LUAU_FASTFLAGVARIABLE(LuauCodeGenVectorA64, false)
-LUAU_FASTFLAGVARIABLE(LuauCodeGenOptVecA64, false)
-LUAU_FASTFLAG(LuauCodegenVectorTag2)
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores4)
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores5)
 namespace Luau
 {
 namespace CodeGen
@@ -44482,7 +45833,7 @@ static bool emitBuiltin(
  {
  case LBF_MATH_FREXP:
  {
- if (FFlag::LuauCodegenRemoveDeadStores4)
+ if (FFlag::LuauCodegenRemoveDeadStores5)
  {
  CODEGEN_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
  emitInvokeLibm1P(build, offsetof(NativeContext, libm_frexp), arg);
@@ -44514,7 +45865,7 @@ static bool emitBuiltin(
  }
  case LBF_MATH_MODF:
  {
- if (FFlag::LuauCodegenRemoveDeadStores4)
+ if (FFlag::LuauCodegenRemoveDeadStores5)
  {
  CODEGEN_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
  emitInvokeLibm1P(build, offsetof(NativeContext, libm_modf), arg);
@@ -44551,7 +45902,7 @@ static bool emitBuiltin(
  build.fmov(d1, -1.0);
  build.fcsel(d0, d1, d0, getConditionFP(IrCondition::Less));
  build.str(d0, mem(rBase, res * sizeof(TValue) + offsetof(TValue, value.n)));
- if (FFlag::LuauCodegenRemoveDeadStores4)
+ if (FFlag::LuauCodegenRemoveDeadStores5)
  {
  RegisterA64 temp = regs.allocTemp(KindA64::w);
  build.mov(temp, LUA_TNUMBER);
@@ -44977,134 +46328,31 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  case IrCmd::ADD_VEC:
  {
  inst.regA64 = regs.allocReuse(KindA64::q, index, {inst.a, inst.b});
- if (FFlag::LuauCodeGenVectorA64)
- {
  build.fadd(inst.regA64, regOp(inst.a), regOp(inst.b));
- if (!FFlag::LuauCodegenVectorTag2)
- {
- RegisterA64 tempw = regs.allocTemp(KindA64::w);
- build.mov(tempw, LUA_TVECTOR);
- build.ins_4s(inst.regA64, tempw, 3);
- }
- }
- else
- {
- RegisterA64 tempa = regs.allocTemp(KindA64::s);
- RegisterA64 tempb = regs.allocTemp(KindA64::s);
- for (uint8_t i = 0; i < 3; i++)
- {
- build.dup_4s(tempa, regOp(inst.a), i);
- build.dup_4s(tempb, regOp(inst.b), i);
- build.fadd(tempa, tempa, tempb);
- build.ins_4s(inst.regA64, i, castReg(KindA64::q, tempa), 0);
- }
- }
  break;
  }
  case IrCmd::SUB_VEC:
  {
  inst.regA64 = regs.allocReuse(KindA64::q, index, {inst.a, inst.b});
- if (FFlag::LuauCodeGenVectorA64)
- {
  build.fsub(inst.regA64, regOp(inst.a), regOp(inst.b));
- if (!FFlag::LuauCodegenVectorTag2)
- {
- RegisterA64 tempw = regs.allocTemp(KindA64::w);
- build.mov(tempw, LUA_TVECTOR);
- build.ins_4s(inst.regA64, tempw, 3);
- }
- }
- else
- {
- RegisterA64 tempa = regs.allocTemp(KindA64::s);
- RegisterA64 tempb = regs.allocTemp(KindA64::s);
- for (uint8_t i = 0; i < 3; i++)
- {
- build.dup_4s(tempa, regOp(inst.a), i);
- build.dup_4s(tempb, regOp(inst.b), i);
- build.fsub(tempa, tempa, tempb);
- build.ins_4s(inst.regA64, i, castReg(KindA64::q, tempa), 0);
- }
- }
  break;
  }
  case IrCmd::MUL_VEC:
  {
  inst.regA64 = regs.allocReuse(KindA64::q, index, {inst.a, inst.b});
- if (FFlag::LuauCodeGenVectorA64)
- {
  build.fmul(inst.regA64, regOp(inst.a), regOp(inst.b));
- if (!FFlag::LuauCodegenVectorTag2)
- {
- RegisterA64 tempw = regs.allocTemp(KindA64::w);
- build.mov(tempw, LUA_TVECTOR);
- build.ins_4s(inst.regA64, tempw, 3);
- }
- }
- else
- {
- RegisterA64 tempa = regs.allocTemp(KindA64::s);
- RegisterA64 tempb = regs.allocTemp(KindA64::s);
- for (uint8_t i = 0; i < 3; i++)
- {
- build.dup_4s(tempa, regOp(inst.a), i);
- build.dup_4s(tempb, regOp(inst.b), i);
- build.fmul(tempa, tempa, tempb);
- build.ins_4s(inst.regA64, i, castReg(KindA64::q, tempa), 0);
- }
- }
  break;
  }
  case IrCmd::DIV_VEC:
  {
  inst.regA64 = regs.allocReuse(KindA64::q, index, {inst.a, inst.b});
- if (FFlag::LuauCodeGenVectorA64)
- {
  build.fdiv(inst.regA64, regOp(inst.a), regOp(inst.b));
- if (!FFlag::LuauCodegenVectorTag2)
- {
- RegisterA64 tempw = regs.allocTemp(KindA64::w);
- build.mov(tempw, LUA_TVECTOR);
- build.ins_4s(inst.regA64, tempw, 3);
- }
- }
- else
- {
- RegisterA64 tempa = regs.allocTemp(KindA64::s);
- RegisterA64 tempb = regs.allocTemp(KindA64::s);
- for (uint8_t i = 0; i < 3; i++)
- {
- build.dup_4s(tempa, regOp(inst.a), i);
- build.dup_4s(tempb, regOp(inst.b), i);
- build.fdiv(tempa, tempa, tempb);
- build.ins_4s(inst.regA64, i, castReg(KindA64::q, tempa), 0);
- }
- }
  break;
  }
  case IrCmd::UNM_VEC:
  {
  inst.regA64 = regs.allocReuse(KindA64::q, index, {inst.a});
- if (FFlag::LuauCodeGenVectorA64)
- {
  build.fneg(inst.regA64, regOp(inst.a));
- if (!FFlag::LuauCodegenVectorTag2)
- {
- RegisterA64 tempw = regs.allocTemp(KindA64::w);
- build.mov(tempw, LUA_TVECTOR);
- build.ins_4s(inst.regA64, tempw, 3);
- }
- }
- else
- {
- RegisterA64 tempa = regs.allocTemp(KindA64::s);
- for (uint8_t i = 0; i < 3; i++)
- {
- build.dup_4s(tempa, regOp(inst.a), i);
- build.fneg(tempa, tempa);
- build.ins_4s(inst.regA64, i, castReg(KindA64::q, tempa), 0);
- }
- }
  break;
  }
  case IrCmd::NOT_ANY:
@@ -45413,7 +46661,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  case IrCmd::NUM_TO_VEC:
  {
  inst.regA64 = regs.allocReg(KindA64::q, index);
- if (FFlag::LuauCodeGenOptVecA64 && FFlag::LuauCodegenVectorTag2 && inst.a.kind == IrOpKind::Constant)
+ if (inst.a.kind == IrOpKind::Constant)
  {
  float value = float(doubleOp(inst.a));
  uint32_t asU32;
@@ -45435,14 +46683,8 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  {
  RegisterA64 tempd = tempDouble(inst.a);
  RegisterA64 temps = castReg(KindA64::s, tempd);
- RegisterA64 tempw = regs.allocTemp(KindA64::w);
  build.fcvt(temps, tempd);
  build.dup_4s(inst.regA64, castReg(KindA64::q, temps), 0);
- if (!FFlag::LuauCodegenVectorTag2)
- {
- build.mov(tempw, LUA_TVECTOR);
- build.ins_4s(inst.regA64, tempw, 3);
- }
  }
  break;
  }
@@ -45648,7 +46890,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  {
  Label fresh;
  Label& fail = getTargetLabel(inst.c, fresh);
- if (FFlag::LuauCodegenRemoveDeadStores4)
+ if (FFlag::LuauCodegenRemoveDeadStores5)
  {
  if (tagOp(inst.b) == 0)
  {
@@ -45691,7 +46933,15 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.cmp(regOp(inst.a), LUA_TBOOLEAN);
  build.b(ConditionA64::NotEqual, skip);
  }
+ if (inst.b.kind != IrOpKind::Constant)
+ {
  build.cbz(regOp(inst.b), target);
+ }
+ else
+ {
+ if (intOp(inst.b) == 0)
+ build.b(target);
+ }
  if (inst.a.kind != IrOpKind::Constant)
  build.setLabel(skip);
  finalizeTargetLabel(inst.c, fresh);
@@ -46723,9 +47973,6 @@ Label& IrLoweringA64::labelOp(IrOp op) const
 }
 #line __LINE__ ""
 #line __LINE__ "IrLoweringX64.cpp"
-LUAU_FASTFLAG(LuauCodegenVectorTag2)
-LUAU_FASTFLAGVARIABLE(LuauCodegenVectorOptAnd, false)
-LUAU_FASTFLAGVARIABLE(LuauCodegenSmallerUnm, false)
 namespace Luau
 {
 namespace CodeGen
@@ -47188,23 +48435,7 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  case IrCmd::UNM_NUM:
  {
  inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a});
- if (FFlag::LuauCodegenSmallerUnm)
- {
  build.vxorpd(inst.regX64, regOp(inst.a), build.f64(-0.0));
- }
- else
- {
- RegisterX64 src = regOp(inst.a);
- if (inst.regX64 == src)
- {
- build.vxorpd(inst.regX64, inst.regX64, build.f64(-0.0));
- }
- else
- {
- build.vmovsd(inst.regX64, src, src);
- build.vxorpd(inst.regX64, inst.regX64, build.f64(-0.0));
- }
- }
  break;
  }
  case IrCmd::FLOOR_NUM:
@@ -47246,117 +48477,47 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  case IrCmd::ADD_VEC:
  {
  inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
- if (FFlag::LuauCodegenVectorOptAnd)
- {
  ScopedRegX64 tmp1{regs};
  ScopedRegX64 tmp2{regs};
  RegisterX64 tmpa = vecOp(inst.a, tmp1);
  RegisterX64 tmpb = (inst.a == inst.b) ? tmpa : vecOp(inst.b, tmp2);
  build.vaddps(inst.regX64, tmpa, tmpb);
- }
- else
- {
- ScopedRegX64 tmp1{regs, SizeX64::xmmword};
- ScopedRegX64 tmp2{regs, SizeX64::xmmword};
- build.vandps(tmp1.reg, regOp(inst.a), vectorAndMaskOp());
- build.vandps(tmp2.reg, regOp(inst.b), vectorAndMaskOp());
- build.vaddps(inst.regX64, tmp1.reg, tmp2.reg);
- }
- if (!FFlag::LuauCodegenVectorTag2)
- build.vorps(inst.regX64, inst.regX64, vectorOrMaskOp());
  break;
  }
  case IrCmd::SUB_VEC:
  {
  inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
- if (FFlag::LuauCodegenVectorOptAnd)
- {
  ScopedRegX64 tmp1{regs};
  ScopedRegX64 tmp2{regs};
  RegisterX64 tmpa = vecOp(inst.a, tmp1);
  RegisterX64 tmpb = (inst.a == inst.b) ? tmpa : vecOp(inst.b, tmp2);
  build.vsubps(inst.regX64, tmpa, tmpb);
- }
- else
- {
- ScopedRegX64 tmp1{regs, SizeX64::xmmword};
- ScopedRegX64 tmp2{regs, SizeX64::xmmword};
- build.vandps(tmp1.reg, regOp(inst.a), vectorAndMaskOp());
- build.vandps(tmp2.reg, regOp(inst.b), vectorAndMaskOp());
- build.vsubps(inst.regX64, tmp1.reg, tmp2.reg);
- }
- if (!FFlag::LuauCodegenVectorTag2)
- build.vorps(inst.regX64, inst.regX64, vectorOrMaskOp());
  break;
  }
  case IrCmd::MUL_VEC:
  {
  inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
- if (FFlag::LuauCodegenVectorOptAnd)
- {
  ScopedRegX64 tmp1{regs};
  ScopedRegX64 tmp2{regs};
  RegisterX64 tmpa = vecOp(inst.a, tmp1);
  RegisterX64 tmpb = (inst.a == inst.b) ? tmpa : vecOp(inst.b, tmp2);
  build.vmulps(inst.regX64, tmpa, tmpb);
- }
- else
- {
- ScopedRegX64 tmp1{regs, SizeX64::xmmword};
- ScopedRegX64 tmp2{regs, SizeX64::xmmword};
- build.vandps(tmp1.reg, regOp(inst.a), vectorAndMaskOp());
- build.vandps(tmp2.reg, regOp(inst.b), vectorAndMaskOp());
- build.vmulps(inst.regX64, tmp1.reg, tmp2.reg);
- }
- if (!FFlag::LuauCodegenVectorTag2)
- build.vorps(inst.regX64, inst.regX64, vectorOrMaskOp());
  break;
  }
  case IrCmd::DIV_VEC:
  {
  inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
- if (FFlag::LuauCodegenVectorOptAnd)
- {
  ScopedRegX64 tmp1{regs};
  ScopedRegX64 tmp2{regs};
  RegisterX64 tmpa = vecOp(inst.a, tmp1);
  RegisterX64 tmpb = (inst.a == inst.b) ? tmpa : vecOp(inst.b, tmp2);
  build.vdivps(inst.regX64, tmpa, tmpb);
- }
- else
- {
- ScopedRegX64 tmp1{regs, SizeX64::xmmword};
- ScopedRegX64 tmp2{regs, SizeX64::xmmword};
- build.vandps(tmp1.reg, regOp(inst.a), vectorAndMaskOp());
- build.vandps(tmp2.reg, regOp(inst.b), vectorAndMaskOp());
- build.vdivps(inst.regX64, tmp1.reg, tmp2.reg);
- }
- if (!FFlag::LuauCodegenVectorTag2)
- build.vpinsrd(inst.regX64, inst.regX64, build.i32(LUA_TVECTOR), 3);
  break;
  }
  case IrCmd::UNM_VEC:
  {
  inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a});
- if (FFlag::LuauCodegenSmallerUnm)
- {
  build.vxorpd(inst.regX64, regOp(inst.a), build.f32x4(-0.0, -0.0, -0.0, -0.0));
- }
- else
- {
- RegisterX64 src = regOp(inst.a);
- if (inst.regX64 == src)
- {
- build.vxorpd(inst.regX64, inst.regX64, build.f32x4(-0.0, -0.0, -0.0, -0.0));
- }
- else
- {
- build.vmovsd(inst.regX64, src, src);
- build.vxorpd(inst.regX64, inst.regX64, build.f32x4(-0.0, -0.0, -0.0, -0.0));
- }
- }
- if (!FFlag::LuauCodegenVectorTag2)
- build.vpinsrd(inst.regX64, inst.regX64, build.i32(LUA_TVECTOR), 3);
  break;
  }
  case IrCmd::NOT_ANY:
@@ -47610,17 +48771,12 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  uint32_t asU32;
  static_assert(sizeof(asU32) == sizeof(value), "Expecting float to be 32-bit");
  memcpy(&asU32, &value, sizeof(value));
- if (FFlag::LuauCodegenVectorTag2)
  build.vmovaps(inst.regX64, build.u32x4(asU32, asU32, asU32, 0));
- else
- build.vmovaps(inst.regX64, build.u32x4(asU32, asU32, asU32, LUA_TVECTOR));
  }
  else
  {
  build.vcvtsd2ss(inst.regX64, inst.regX64, memRegDoubleOp(inst.a));
  build.vpshufps(inst.regX64, inst.regX64, inst.regX64, 0b00'00'00'00);
- if (!FFlag::LuauCodegenVectorTag2)
- build.vpinsrd(inst.regX64, inst.regX64, build.i32(LUA_TVECTOR), 3);
  }
  break;
  case IrCmd::TAG_VECTOR:
@@ -47824,8 +48980,16 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.cmp(memRegTagOp(inst.a), LUA_TBOOLEAN);
  build.jcc(ConditionX64::NotEqual, skip);
  }
+ if (inst.b.kind != IrOpKind::Constant)
+ {
  build.cmp(memRegUintOp(inst.b), 0);
  jumpOrAbortOnUndef(ConditionX64::Equal, inst.c, next);
+ }
+ else
+ {
+ if (intOp(inst.b) == 0)
+ jumpOrAbortOnUndef(inst.c, next);
+ }
  if (inst.a.kind != IrOpKind::Constant)
  build.setLabel(skip);
  break;
@@ -48611,13 +49775,10 @@ OperandX64 IrLoweringX64::bufferAddrOp(IrOp bufferOp, IrOp indexOp)
 }
 RegisterX64 IrLoweringX64::vecOp(IrOp op, ScopedRegX64& tmp)
 {
- if (FFlag::LuauCodegenVectorOptAnd && FFlag::LuauCodegenVectorTag2)
- {
  IrInst source = function.instOp(op);
  CODEGEN_ASSERT(source.cmd != IrCmd::SUBSTITUTE);
  if (source.cmd != IrCmd::LOAD_TVALUE && source.cmd != IrCmd::TAG_VECTOR)
  return regOp(op);
- }
  tmp.alloc(SizeX64::xmmword);
  build.vandps(tmp.reg, regOp(op), vectorAndMaskOp());
  return tmp.reg;
@@ -48655,13 +49816,6 @@ OperandX64 IrLoweringX64::vectorAndMaskOp()
  if (vectorAndMask.base == noreg)
  vectorAndMask = build.u32x4(~0u, ~0u, ~0u, 0);
  return vectorAndMask;
-}
-OperandX64 IrLoweringX64::vectorOrMaskOp()
-{
- CODEGEN_ASSERT(!FFlag::LuauCodegenVectorTag2);
- if (vectorOrMask.base == noreg)
- vectorOrMask = build.u32x4(0, 0, 0, LUA_TVECTOR);
- return vectorOrMask;
 }
 }
 } // namespace CodeGen
@@ -49439,7 +50593,7 @@ BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, 
 }
 } // namespace Luau
 #line __LINE__ "IrTranslateBuiltins.cpp"
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores4)
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores5)
 static const int kMinMaxUnrolledParams = 5;
 static const int kBit32BinaryOpUnrolledParams = 5;
 namespace Luau
@@ -49466,7 +50620,7 @@ static BuiltinImplResult translateBuiltinNumberToNumber(
  return {BuiltinImplType::None, -1};
  builtinCheckDouble(build, build.vmReg(arg), pcpos);
  build.inst(IrCmd::FASTCALL, build.constUint(bfid), build.vmReg(ra), build.vmReg(arg), args, build.constInt(1), build.constInt(1));
- if (!FFlag::LuauCodegenRemoveDeadStores4)
+ if (!FFlag::LuauCodegenRemoveDeadStores5)
  {
  if (ra != arg)
  build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
@@ -49511,7 +50665,7 @@ static BuiltinImplResult translateBuiltinNumberTo2Number(
  builtinCheckDouble(build, build.vmReg(arg), pcpos);
  build.inst(
  IrCmd::FASTCALL, build.constUint(bfid), build.vmReg(ra), build.vmReg(arg), args, build.constInt(1), build.constInt(nresults == 1 ? 1 : 2));
- if (!FFlag::LuauCodegenRemoveDeadStores4)
+ if (!FFlag::LuauCodegenRemoveDeadStores5)
  {
  if (ra != arg)
  build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
@@ -50115,8 +51269,7 @@ BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, 
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "IrTranslation.cpp"
-LUAU_FASTFLAGVARIABLE(LuauCodegenVectorTag2, false)
-LUAU_FASTFLAGVARIABLE(LuauCodegenLoadTVTag, false)
+LUAU_FASTFLAGVARIABLE(LuauCodegenDirectUserdataFlow, false)
 namespace Luau
 {
 namespace CodeGen
@@ -50192,14 +51345,9 @@ static void translateInstLoadConstant(IrBuilder& build, int ra, int k)
  build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), build.constDouble(protok.value.n));
  build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
  }
- else if (FFlag::LuauCodegenLoadTVTag)
- {
- IrOp load = build.inst(IrCmd::LOAD_TVALUE, build.vmConst(k), build.constInt(0), build.constTag(protok.tt));
- build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), load);
- }
  else
  {
- IrOp load = build.inst(IrCmd::LOAD_TVALUE, build.vmConst(k));
+ IrOp load = build.inst(IrCmd::LOAD_TVALUE, build.vmConst(k), build.constInt(0), build.constTag(protok.tt));
  build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), load);
  }
 }
@@ -50393,7 +51541,6 @@ static void translateInstBinaryNumeric(IrBuilder& build, int ra, int rb, int rc,
  default:
  CODEGEN_ASSERT(!"Unknown TM op");
  }
- if (FFlag::LuauCodegenVectorTag2)
  result = build.inst(IrCmd::TAG_VECTOR, result);
  build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), result);
  return;
@@ -50417,7 +51564,6 @@ static void translateInstBinaryNumeric(IrBuilder& build, int ra, int rb, int rc,
  default:
  CODEGEN_ASSERT(!"Unknown TM op");
  }
- if (FFlag::LuauCodegenVectorTag2)
  result = build.inst(IrCmd::TAG_VECTOR, result);
  build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), result);
  return;
@@ -50441,7 +51587,6 @@ static void translateInstBinaryNumeric(IrBuilder& build, int ra, int rb, int rc,
  default:
  CODEGEN_ASSERT(!"Unknown TM op");
  }
- if (FFlag::LuauCodegenVectorTag2)
  result = build.inst(IrCmd::TAG_VECTOR, result);
  build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), result);
  return;
@@ -50557,7 +51702,6 @@ void translateInstMinus(IrBuilder& build, const Instruction* pc, int pcpos)
  build.inst(IrCmd::CHECK_TAG, build.inst(IrCmd::LOAD_TAG, build.vmReg(rb)), build.constTag(LUA_TVECTOR), build.vmExit(pcpos));
  IrOp vb = build.inst(IrCmd::LOAD_TVALUE, build.vmReg(rb));
  IrOp va = build.inst(IrCmd::UNM_VEC, vb);
- if (FFlag::LuauCodegenVectorTag2)
  va = build.inst(IrCmd::TAG_VECTOR, va);
  build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), va);
  return;
@@ -50999,6 +52143,12 @@ void translateInstGetTableKS(IrBuilder& build, const Instruction* pc, int pcpos)
  }
  return;
  }
+ if (FFlag::LuauCodegenDirectUserdataFlow && bcTypes.a == LBC_TYPE_USERDATA)
+ {
+ build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TUSERDATA), build.vmExit(pcpos));
+ build.inst(IrCmd::FALLBACK_GETTABLEKS, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
+ return;
+ }
  IrOp fallback = build.block(IrBlockKind::Fallback);
  build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TTABLE), bcTypes.a == LBC_TYPE_TABLE ? build.vmExit(pcpos) : fallback);
  IrOp vb = build.inst(IrCmd::LOAD_POINTER, build.vmReg(rb));
@@ -51016,9 +52166,15 @@ void translateInstSetTableKS(IrBuilder& build, const Instruction* pc, int pcpos)
  int ra = LUAU_INSN_A(*pc);
  int rb = LUAU_INSN_B(*pc);
  uint32_t aux = pc[1];
- IrOp fallback = build.block(IrBlockKind::Fallback);
  BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
  IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
+ if (FFlag::LuauCodegenDirectUserdataFlow && bcTypes.a == LBC_TYPE_USERDATA)
+ {
+ build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TUSERDATA), build.vmExit(pcpos));
+ build.inst(IrCmd::FALLBACK_SETTABLEKS, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
+ return;
+ }
+ IrOp fallback = build.block(IrBlockKind::Fallback);
  build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TTABLE), bcTypes.a == LBC_TYPE_TABLE ? build.vmExit(pcpos) : fallback);
  IrOp vb = build.inst(IrCmd::LOAD_POINTER, build.vmReg(rb));
  IrOp addrSlotEl = build.inst(IrCmd::GET_SLOT_NODE_ADDR, vb, build.constUint(pcpos), build.vmConst(aux));
@@ -51099,11 +52255,25 @@ void translateInstNamecall(IrBuilder& build, const Instruction* pc, int pcpos)
  int ra = LUAU_INSN_A(*pc);
  int rb = LUAU_INSN_B(*pc);
  uint32_t aux = pc[1];
+ BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
+ if (FFlag::LuauCodegenDirectUserdataFlow && bcTypes.a == LBC_TYPE_VECTOR)
+ {
+ build.loadAndCheckTag(build.vmReg(rb), LUA_TVECTOR, build.vmExit(pcpos));
+ build.inst(IrCmd::FALLBACK_NAMECALL, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
+ return;
+ }
+ if (FFlag::LuauCodegenDirectUserdataFlow && bcTypes.a == LBC_TYPE_USERDATA)
+ {
+ build.loadAndCheckTag(build.vmReg(rb), LUA_TUSERDATA, build.vmExit(pcpos));
+ build.inst(IrCmd::FALLBACK_NAMECALL, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
+ return;
+ }
  IrOp next = build.blockAtInst(pcpos + getOpLength(LOP_NAMECALL));
  IrOp fallback = build.block(IrBlockKind::Fallback);
  IrOp firstFastPathSuccess = build.block(IrBlockKind::Internal);
  IrOp secondFastPath = build.block(IrBlockKind::Internal);
- build.loadAndCheckTag(build.vmReg(rb), LUA_TTABLE, fallback);
+ build.loadAndCheckTag(
+ build.vmReg(rb), LUA_TTABLE, FFlag::LuauCodegenDirectUserdataFlow && bcTypes.a == LBC_TYPE_TABLE ? build.vmExit(pcpos) : fallback);
  IrOp table = build.inst(IrCmd::LOAD_POINTER, build.vmReg(rb));
  CODEGEN_ASSERT(build.function.proto);
  IrOp addrNodeEl = build.inst(IrCmd::GET_HASH_NODE_ADDR, table, build.constUint(tsvalue(&build.function.proto->k[aux])->hash));
@@ -52153,7 +53323,7 @@ void IrValueLocationTracking::beforeInstLowering(IrInst& inst)
  case IrCmd::NEWCLOSURE:
  case IrCmd::FINDUPVAL:
  break;
- case IrCmd::CHECK_TAG: // TODO: remove with FFlagLuauCodegenRemoveDeadStores4
+ case IrCmd::CHECK_TAG: // TODO: remove with FFlagLuauCodegenRemoveDeadStores5
  case IrCmd::CHECK_TRUTHY:
  case IrCmd::ADD_NUM:
  case IrCmd::SUB_NUM:
@@ -52263,29 +53433,20 @@ void IrValueLocationTracking::invalidateRestoreVmRegs(int start, int count)
 }
 } // namespace Luau
 #line __LINE__ ""
-#line __LINE__ "NativeProtoExecData.cpp"
-namespace Luau
+#line __LINE__ "lcodegen.cpp"
+int luau_codegen_supported()
 {
-namespace CodeGen
-{
-class NativeModule;
-struct NativeProtoExecDataHeader
-{
- NativeModule* nativeModule = nullptr;
- uint32_t bytecodeInstructionCount = 0;
- size_t nativeCodeSize = 0;
-};
-static_assert(sizeof(NativeProtoExecDataHeader) % sizeof(uint32_t) == 0);
-struct NativeProtoExecDataDeleter
-{
- void operator()(const uint32_t* instructionOffsets) const noexcept;
-};
-using NativeProtoExecDataPtr = std::unique_ptr<uint32_t[], NativeProtoExecDataDeleter>;
-[[nodiscard]] NativeProtoExecDataPtr createNativeProtoExecData(uint32_t bytecodeInstructionCount);
-[[nodiscard]] NativeProtoExecDataHeader& getNativeProtoExecDataHeader(uint32_t* instructionOffsets) noexcept;
-[[nodiscard]] const NativeProtoExecDataHeader& getNativeProtoExecDataHeader(const uint32_t* instructionOffsets) noexcept;
+ return Luau::CodeGen::isSupported();
 }
-} // namespace Luau
+void luau_codegen_create(lua_State* L)
+{
+ Luau::CodeGen::create(L);
+}
+void luau_codegen_compile(lua_State* L, int idx)
+{
+ Luau::CodeGen::compile(L, idx);
+}
+#line __LINE__ ""
 #line __LINE__ "NativeProtoExecData.cpp"
 namespace Luau
 {
@@ -52297,15 +53458,19 @@ namespace CodeGen
 }
 void NativeProtoExecDataDeleter::operator()(const uint32_t* instructionOffsets) const noexcept
 {
- const NativeProtoExecDataHeader* header = &getNativeProtoExecDataHeader(instructionOffsets);
- header->~NativeProtoExecDataHeader();
- delete[] reinterpret_cast<const uint8_t*>(header);
+ destroyNativeProtoExecData(instructionOffsets);
 }
 [[nodiscard]] NativeProtoExecDataPtr createNativeProtoExecData(uint32_t bytecodeInstructionCount)
 {
  std::unique_ptr<uint8_t[]> bytes = std::make_unique<uint8_t[]>(computeNativeExecDataSize(bytecodeInstructionCount));
  new (static_cast<void*>(bytes.get())) NativeProtoExecDataHeader{};
  return NativeProtoExecDataPtr{reinterpret_cast<uint32_t*>(bytes.release() + sizeof(NativeProtoExecDataHeader))};
+}
+void destroyNativeProtoExecData(const uint32_t* instructionOffsets) noexcept
+{
+ const NativeProtoExecDataHeader* header = &getNativeProtoExecDataHeader(instructionOffsets);
+ header->~NativeProtoExecDataHeader();
+ delete[] reinterpret_cast<const uint8_t*>(header);
 }
 [[nodiscard]] NativeProtoExecDataHeader& getNativeProtoExecDataHeader(uint32_t* instructionOffsets) noexcept
 {
@@ -52401,6 +53566,72 @@ void initFunctions(NativeState& data)
  data.context.executePREPVARARGS = executePREPVARARGS;
  data.context.executeSETLIST = executeSETLIST;
 }
+void initFunctions(NativeContext& context)
+{
+ static_assert(sizeof(context.luauF_table) == sizeof(luauF_table), "fastcall tables are not of the same length");
+ memcpy(context.luauF_table, luauF_table, sizeof(luauF_table));
+ context.luaV_lessthan = luaV_lessthan;
+ context.luaV_lessequal = luaV_lessequal;
+ context.luaV_equalval = luaV_equalval;
+ context.luaV_doarith = luaV_doarith;
+ context.luaV_dolen = luaV_dolen;
+ context.luaV_gettable = luaV_gettable;
+ context.luaV_settable = luaV_settable;
+ context.luaV_getimport = luaV_getimport;
+ context.luaV_concat = luaV_concat;
+ context.luaH_getn = luaH_getn;
+ context.luaH_new = luaH_new;
+ context.luaH_clone = luaH_clone;
+ context.luaH_resizearray = luaH_resizearray;
+ context.luaH_setnum = luaH_setnum;
+ context.luaC_barriertable = luaC_barriertable;
+ context.luaC_barrierf = luaC_barrierf;
+ context.luaC_barrierback = luaC_barrierback;
+ context.luaC_step = luaC_step;
+ context.luaF_close = luaF_close;
+ context.luaF_findupval = luaF_findupval;
+ context.luaF_newLclosure = luaF_newLclosure;
+ context.luaT_gettm = luaT_gettm;
+ context.luaT_objtypenamestr = luaT_objtypenamestr;
+ context.libm_exp = exp;
+ context.libm_pow = pow;
+ context.libm_fmod = fmod;
+ context.libm_log = log;
+ context.libm_log2 = log2;
+ context.libm_log10 = log10;
+ context.libm_ldexp = ldexp;
+ context.libm_round = round;
+ context.libm_frexp = frexp;
+ context.libm_modf = modf;
+ context.libm_asin = asin;
+ context.libm_sin = sin;
+ context.libm_sinh = sinh;
+ context.libm_acos = acos;
+ context.libm_cos = cos;
+ context.libm_cosh = cosh;
+ context.libm_atan = atan;
+ context.libm_atan2 = atan2;
+ context.libm_tan = tan;
+ context.libm_tanh = tanh;
+ context.forgLoopTableIter = forgLoopTableIter;
+ context.forgLoopNodeIter = forgLoopNodeIter;
+ context.forgLoopNonTableFallback = forgLoopNonTableFallback;
+ context.forgPrepXnextFallback = forgPrepXnextFallback;
+ context.callProlog = callProlog;
+ context.callEpilogC = callEpilogC;
+ context.callFallback = callFallback;
+ context.executeGETGLOBAL = executeGETGLOBAL;
+ context.executeSETGLOBAL = executeSETGLOBAL;
+ context.executeGETTABLEKS = executeGETTABLEKS;
+ context.executeSETTABLEKS = executeSETTABLEKS;
+ context.executeNAMECALL = executeNAMECALL;
+ context.executeFORGPREP = executeFORGPREP;
+ context.executeGETVARARGSMultRet = executeGETVARARGSMultRet;
+ context.executeGETVARARGSConst = executeGETVARARGSConst;
+ context.executeDUPCLOSURE = executeDUPCLOSURE;
+ context.executePREPVARARGS = executePREPVARARGS;
+ context.executeSETLIST = executeSETLIST;
+}
 }
 } // namespace Luau
 #line __LINE__ ""
@@ -52408,10 +53639,8 @@ void initFunctions(NativeState& data)
 LUAU_FASTINTVARIABLE(LuauCodeGenMinLinearBlockPath, 3)
 LUAU_FASTINTVARIABLE(LuauCodeGenReuseSlotLimit, 64)
 LUAU_FASTFLAGVARIABLE(DebugLuauAbortingChecks, false)
-LUAU_FASTFLAG(LuauCodegenVectorTag2)
-LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauCodeGenCoverForgprepEffect, false)
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores4)
-LUAU_FASTFLAG(LuauCodegenLoadTVTag)
+LUAU_FASTFLAG(LuauCodegenRemoveDeadStores5)
+LUAU_FASTFLAGVARIABLE(LuauCodegenLoadPropCheckRegLinkInTv, false)
 namespace Luau
 {
 namespace CodeGen
@@ -52868,7 +54097,7 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  std::tie(activeLoadCmd, activeLoadValue) = state.getPreviousVersionedLoadForTag(value, source);
  if (state.tryGetTag(source) == value)
  {
- if (FFlag::DebugLuauAbortingChecks && !FFlag::LuauCodegenRemoveDeadStores4)
+ if (FFlag::DebugLuauAbortingChecks && !FFlag::LuauCodegenRemoveDeadStores5)
  replace(function, block, index, {IrCmd::CHECK_TAG, inst.a, inst.b, build.undef()});
  else
  kill(function, inst);
@@ -52967,18 +54196,9 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  {
  if (IrInst* arg = function.asInstOp(inst.b))
  {
- if (FFlag::LuauCodegenVectorTag2)
- {
  if (arg->cmd == IrCmd::TAG_VECTOR)
  tag = LUA_TVECTOR;
- }
- else
- {
- if (arg->cmd == IrCmd::ADD_VEC || arg->cmd == IrCmd::SUB_VEC || arg->cmd == IrCmd::MUL_VEC || arg->cmd == IrCmd::DIV_VEC ||
- arg->cmd == IrCmd::UNM_VEC)
- tag = LUA_TVECTOR;
- }
- if (FFlag::LuauCodegenLoadTVTag && arg->cmd == IrCmd::LOAD_TVALUE && arg->c.kind != IrOpKind::None)
+ if (arg->cmd == IrCmd::LOAD_TVALUE && arg->c.kind != IrOpKind::None)
  tag = function.tagOp(arg->c);
  }
  }
@@ -52992,7 +54212,7 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  }
  IrCmd activeLoadCmd = IrCmd::NOP;
  uint32_t activeLoadValue = kInvalidInstIdx;
- if (tag != 0xff)
+ if (tag != 0xff && (!FFlag::LuauCodegenLoadPropCheckRegLinkInTv || state.tryGetRegLink(inst.b) != nullptr))
  {
  if (IrInst* arg = function.asInstOp(inst.b); arg && arg->cmd == IrCmd::LOAD_TVALUE && arg->a.kind == IrOpKind::VmReg)
  {
@@ -53135,7 +54355,16 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  case IrCmd::CHECK_TAG:
  {
  uint8_t b = function.tagOp(inst.b);
- if (uint8_t tag = state.tryGetTag(inst.a); tag != 0xff)
+ uint8_t tag = state.tryGetTag(inst.a);
+ if (tag == 0xff)
+ {
+ if (IrOp value = state.tryGetValue(inst.a); value.kind == IrOpKind::Constant)
+ {
+ if (function.constOp(value).kind == IrConstKind::Double)
+ tag = LUA_TNUMBER;
+ }
+ }
+ if (tag != 0xff)
  {
  if (tag == b)
  {
@@ -53286,7 +54515,7 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  break;
  case IrCmd::FASTCALL:
  {
- if (FFlag::LuauCodegenRemoveDeadStores4)
+ if (FFlag::LuauCodegenRemoveDeadStores5)
  {
  LuauBuiltinFunction bfid = LuauBuiltinFunction(function.uintOp(inst.a));
  int firstReturnReg = vmRegOp(inst.b);
@@ -53478,20 +54707,14 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  case IrCmd::SUB_VEC:
  case IrCmd::MUL_VEC:
  case IrCmd::DIV_VEC:
- if (FFlag::LuauCodegenVectorTag2)
- {
  if (IrInst* a = function.asInstOp(inst.a); a && a->cmd == IrCmd::TAG_VECTOR)
  replace(function, inst.a, a->a);
  if (IrInst* b = function.asInstOp(inst.b); b && b->cmd == IrCmd::TAG_VECTOR)
  replace(function, inst.b, b->a);
- }
  break;
  case IrCmd::UNM_VEC:
- if (FFlag::LuauCodegenVectorTag2)
- {
  if (IrInst* a = function.asInstOp(inst.a); a && a->cmd == IrCmd::TAG_VECTOR)
  replace(function, inst.a, a->a);
- }
  break;
  case IrCmd::CHECK_NODE_NO_NEXT:
  case IrCmd::CHECK_NODE_VALUE:
@@ -53608,7 +54831,6 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  state.invalidate(IrOp{inst.b.kind, vmRegOp(inst.b) + 0u});
  state.invalidate(IrOp{inst.b.kind, vmRegOp(inst.b) + 1u});
  state.invalidate(IrOp{inst.b.kind, vmRegOp(inst.b) + 2u});
- if (DFFlag::LuauCodeGenCoverForgprepEffect)
  state.invalidateUserCall();
  break;
  }
@@ -53777,19 +54999,19 @@ void createLinearBlocks(IrBuilder& build, bool useValueNumbering)
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "OptimizeDeadStore.cpp"
-LUAU_FASTFLAGVARIABLE(LuauCodegenRemoveDeadStores4, false)
-LUAU_FASTFLAG(LuauCodegenVectorTag2)
-LUAU_FASTFLAG(LuauCodegenLoadTVTag)
+LUAU_FASTFLAGVARIABLE(LuauCodegenRemoveDeadStores5, false)
 namespace Luau
 {
 namespace CodeGen
 {
+constexpr uint8_t kUnknownTag = 0xff;
 struct StoreRegInfo
 {
  uint32_t tagInstIdx = ~0u;
  uint32_t valueInstIdx = ~0u;
  uint32_t tvalueInstIdx = ~0u;
  bool maybeGco = false;
+ uint8_t knownTag = kUnknownTag;
 };
 struct RemoveDeadStoreState
 {
@@ -53816,6 +55038,25 @@ struct RemoveDeadStoreState
  regInfo.maybeGco = false;
  }
  }
+ void killTagAndValueStorePair(StoreRegInfo& regInfo)
+ {
+ bool tagEstablished = regInfo.tagInstIdx != ~0u || regInfo.knownTag != kUnknownTag;
+ bool valueEstablished = regInfo.valueInstIdx != ~0u || regInfo.knownTag == LUA_TNIL;
+ if (tagEstablished && valueEstablished)
+ {
+ if (regInfo.tagInstIdx != ~0u)
+ {
+ kill(function, function.instructions[regInfo.tagInstIdx]);
+ regInfo.tagInstIdx = ~0u;
+ }
+ if (regInfo.valueInstIdx != ~0u)
+ {
+ kill(function, function.instructions[regInfo.valueInstIdx]);
+ regInfo.valueInstIdx = ~0u;
+ }
+ regInfo.maybeGco = false;
+ }
+ }
  void killTValueStore(StoreRegInfo& regInfo)
  {
  if (regInfo.tvalueInstIdx != ~0u)
@@ -53830,19 +55071,23 @@ struct RemoveDeadStoreState
  StoreRegInfo& regInfo = info[reg];
  if (function.cfg.captured.regs.test(reg))
  return;
- killTagStore(regInfo);
- killValueStore(regInfo);
+ killTagAndValueStorePair(regInfo);
  killTValueStore(regInfo);
+ regInfo.knownTag = kUnknownTag;
  }
  void useReg(uint8_t reg)
  {
- info[reg] = StoreRegInfo{};
+ StoreRegInfo& regInfo = info[reg];
+ regInfo.tagInstIdx = ~0u;
+ regInfo.valueInstIdx = ~0u;
+ regInfo.tvalueInstIdx = ~0u;
+ regInfo.maybeGco = false;
  }
  void checkLiveIns(IrOp op)
  {
  if (op.kind == IrOpKind::VmExit)
  {
- clear();
+ readAllRegs();
  }
  else if (op.kind == IrOpKind::Block)
  {
@@ -53857,7 +55102,7 @@ struct RemoveDeadStoreState
  }
  else
  {
- clear();
+ readAllRegs();
  }
  }
  else if (op.kind == IrOpKind::Undef)
@@ -53878,7 +55123,14 @@ struct RemoveDeadStoreState
  {
  bool isOut = out.regs.test(i) || (out.varargSeq && i >= out.varargStart);
  if (!isOut)
- defReg(i);
+ {
+ StoreRegInfo& regInfo = info[i];
+ if (!function.cfg.captured.regs.test(i))
+ {
+ killTagAndValueStorePair(regInfo);
+ killTValueStore(regInfo);
+ }
+ }
  }
  }
  }
@@ -53935,18 +55187,25 @@ struct RemoveDeadStoreState
  }
  }
  void capture(int reg) {}
- void clear()
+ void readAllRegs()
  {
  for (int i = 0; i <= maxReg; i++)
- info[i] = StoreRegInfo();
+ useReg(i);
  hasGcoToClear = false;
  }
  void flushGcoRegs()
  {
  for (int i = 0; i <= maxReg; i++)
  {
- if (info[i].maybeGco)
- info[i] = StoreRegInfo();
+ StoreRegInfo& regInfo = info[i];
+ if (regInfo.maybeGco)
+ {
+ CODEGEN_ASSERT(regInfo.knownTag == kUnknownTag || isGCO(regInfo.knownTag));
+ regInfo.tagInstIdx = ~0u;
+ regInfo.valueInstIdx = ~0u;
+ regInfo.tvalueInstIdx = ~0u;
+ regInfo.maybeGco = false;
+ }
  }
  hasGcoToClear = false;
  }
@@ -53955,6 +55214,77 @@ struct RemoveDeadStoreState
  int maxReg = 255;
  bool hasGcoToClear = false;
 };
+static bool tryReplaceTagWithFullStore(RemoveDeadStoreState& state, IrBuilder& build, IrFunction& function, IrBlock& block, uint32_t instIndex,
+ IrOp targetOp, IrOp tagOp, StoreRegInfo& regInfo)
+{
+ uint8_t tag = function.tagOp(tagOp);
+ if (regInfo.tagInstIdx != ~0u && (regInfo.valueInstIdx != ~0u || regInfo.knownTag == LUA_TNIL))
+ {
+ if (tag != LUA_TNIL && regInfo.valueInstIdx != ~0u)
+ {
+ IrOp prevValueOp = function.instructions[regInfo.valueInstIdx].b;
+ replace(function, block, instIndex, IrInst{IrCmd::STORE_SPLIT_TVALUE, targetOp, tagOp, prevValueOp});
+ }
+ state.killTagStore(regInfo);
+ state.killValueStore(regInfo);
+ regInfo.tvalueInstIdx = instIndex;
+ regInfo.maybeGco = isGCO(tag);
+ regInfo.knownTag = tag;
+ state.hasGcoToClear |= regInfo.maybeGco;
+ return true;
+ }
+ if (regInfo.tvalueInstIdx != ~0u)
+ {
+ IrInst& prev = function.instructions[regInfo.tvalueInstIdx];
+ if (prev.cmd == IrCmd::STORE_SPLIT_TVALUE)
+ {
+ CODEGEN_ASSERT(prev.d.kind == IrOpKind::None);
+ if (tag != LUA_TNIL)
+ {
+ IrOp prevValueOp = prev.c;
+ replace(function, block, instIndex, IrInst{IrCmd::STORE_SPLIT_TVALUE, targetOp, tagOp, prevValueOp});
+ }
+ state.killTValueStore(regInfo);
+ regInfo.tvalueInstIdx = instIndex;
+ regInfo.maybeGco = isGCO(tag);
+ regInfo.knownTag = tag;
+ state.hasGcoToClear |= regInfo.maybeGco;
+ return true;
+ }
+ }
+ return false;
+}
+static bool tryReplaceValueWithFullStore(RemoveDeadStoreState& state, IrBuilder& build, IrFunction& function, IrBlock& block, uint32_t instIndex,
+ IrOp targetOp, IrOp valueOp, StoreRegInfo& regInfo)
+{
+ if (regInfo.tagInstIdx != ~0u && regInfo.valueInstIdx != ~0u)
+ {
+ IrOp prevTagOp = function.instructions[regInfo.tagInstIdx].b;
+ uint8_t prevTag = function.tagOp(prevTagOp);
+ CODEGEN_ASSERT(regInfo.knownTag == prevTag);
+ replace(function, block, instIndex, IrInst{IrCmd::STORE_SPLIT_TVALUE, targetOp, prevTagOp, valueOp});
+ state.killTagStore(regInfo);
+ state.killValueStore(regInfo);
+ regInfo.tvalueInstIdx = instIndex;
+ return true;
+ }
+ if (regInfo.tvalueInstIdx != ~0u)
+ {
+ IrInst& prev = function.instructions[regInfo.tvalueInstIdx];
+ if (prev.cmd == IrCmd::STORE_SPLIT_TVALUE)
+ {
+ IrOp prevTagOp = prev.b;
+ uint8_t prevTag = function.tagOp(prevTagOp);
+ CODEGEN_ASSERT(regInfo.knownTag == prevTag);
+ CODEGEN_ASSERT(prev.d.kind == IrOpKind::None);
+ replace(function, block, instIndex, IrInst{IrCmd::STORE_SPLIT_TVALUE, targetOp, prevTagOp, valueOp});
+ state.killTValueStore(regInfo);
+ regInfo.tvalueInstIdx = instIndex;
+ return true;
+ }
+ }
+ return false;
+}
 static void markDeadStoresInInst(RemoveDeadStoreState& state, IrBuilder& build, IrFunction& function, IrBlock& block, IrInst& inst, uint32_t index)
 {
  switch (inst.cmd)
@@ -53966,12 +55296,12 @@ static void markDeadStoresInInst(RemoveDeadStoreState& state, IrBuilder& build, 
  if (function.cfg.captured.regs.test(reg))
  return;
  StoreRegInfo& regInfo = state.info[reg];
- state.killTagStore(regInfo);
+ if (tryReplaceTagWithFullStore(state, build, function, block, index, inst.a, inst.b, regInfo))
+ break;
  uint8_t tag = function.tagOp(inst.b);
- if (tag == LUA_TNIL)
- state.killValueStore(regInfo);
  regInfo.tagInstIdx = index;
  regInfo.maybeGco = isGCO(tag);
+ regInfo.knownTag = tag;
  state.hasGcoToClear |= regInfo.maybeGco;
  }
  break;
@@ -53988,6 +55318,13 @@ static void markDeadStoresInInst(RemoveDeadStoreState& state, IrBuilder& build, 
  if (function.cfg.captured.regs.test(reg))
  return;
  StoreRegInfo& regInfo = state.info[reg];
+ if (tryReplaceValueWithFullStore(state, build, function, block, index, inst.a, inst.b, regInfo))
+ {
+ regInfo.maybeGco = true;
+ state.hasGcoToClear |= true;
+ break;
+ }
+ if (regInfo.knownTag != kUnknownTag)
  state.killValueStore(regInfo);
  regInfo.valueInstIdx = index;
  regInfo.maybeGco = true;
@@ -53996,15 +55333,24 @@ static void markDeadStoresInInst(RemoveDeadStoreState& state, IrBuilder& build, 
  break;
  case IrCmd::STORE_DOUBLE:
  case IrCmd::STORE_INT:
- case IrCmd::STORE_VECTOR:
  if (inst.a.kind == IrOpKind::VmReg)
  {
  int reg = vmRegOp(inst.a);
  if (function.cfg.captured.regs.test(reg))
  return;
  StoreRegInfo& regInfo = state.info[reg];
+ if (tryReplaceValueWithFullStore(state, build, function, block, index, inst.a, inst.b, regInfo))
+ break;
+ if (regInfo.knownTag != kUnknownTag)
  state.killValueStore(regInfo);
  regInfo.valueInstIdx = index;
+ regInfo.maybeGco = false;
+ }
+ break;
+ case IrCmd::STORE_VECTOR:
+ if (inst.a.kind == IrOpKind::VmReg)
+ {
+ state.useReg(vmRegOp(inst.a));
  }
  break;
  case IrCmd::STORE_TVALUE:
@@ -54014,25 +55360,16 @@ static void markDeadStoresInInst(RemoveDeadStoreState& state, IrBuilder& build, 
  if (function.cfg.captured.regs.test(reg))
  return;
  StoreRegInfo& regInfo = state.info[reg];
- state.killTagStore(regInfo);
- state.killValueStore(regInfo);
+ state.killTagAndValueStorePair(regInfo);
  state.killTValueStore(regInfo);
  regInfo.tvalueInstIdx = index;
  regInfo.maybeGco = true;
+ regInfo.knownTag = kUnknownTag;
  if (IrInst* arg = function.asInstOp(inst.b))
- {
- if (FFlag::LuauCodegenVectorTag2)
  {
  if (arg->cmd == IrCmd::TAG_VECTOR)
  regInfo.maybeGco = false;
- }
- else
- {
- if (arg->cmd == IrCmd::ADD_VEC || arg->cmd == IrCmd::SUB_VEC || arg->cmd == IrCmd::MUL_VEC || arg->cmd == IrCmd::DIV_VEC ||
- arg->cmd == IrCmd::UNM_VEC)
- regInfo.maybeGco = false;
- }
- if (FFlag::LuauCodegenLoadTVTag && arg->cmd == IrCmd::LOAD_TVALUE && arg->c.kind != IrOpKind::None)
+ if (arg->cmd == IrCmd::LOAD_TVALUE && arg->c.kind != IrOpKind::None)
  regInfo.maybeGco = isGCO(function.tagOp(arg->c));
  }
  state.hasGcoToClear |= regInfo.maybeGco;
@@ -54045,16 +55382,22 @@ static void markDeadStoresInInst(RemoveDeadStoreState& state, IrBuilder& build, 
  if (function.cfg.captured.regs.test(reg))
  return;
  StoreRegInfo& regInfo = state.info[reg];
- state.killTagStore(regInfo);
- state.killValueStore(regInfo);
+ state.killTagAndValueStorePair(regInfo);
  state.killTValueStore(regInfo);
  regInfo.tvalueInstIdx = index;
  regInfo.maybeGco = isGCO(function.tagOp(inst.b));
+ regInfo.knownTag = function.tagOp(inst.b);
  state.hasGcoToClear |= regInfo.maybeGco;
  }
  break;
  case IrCmd::CHECK_TAG:
  state.checkLiveIns(inst.c);
+ if (IrInst* load = function.asInstOp(inst.a); load && load->cmd == IrCmd::LOAD_TAG && load->a.kind == IrOpKind::VmReg)
+ {
+ int reg = vmRegOp(load->a);
+ StoreRegInfo& regInfo = state.info[reg];
+ regInfo.knownTag = function.tagOp(inst.b);
+ }
  break;
  case IrCmd::TRY_NUM_TO_INDEX:
  state.checkLiveIns(inst.b);
@@ -54297,220 +55640,97 @@ void optimizeMemoryOperandsX64(IrFunction& function)
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "SharedCodeAllocator.cpp"
-#include <atomic>
-#include <unordered_map>
-namespace Luau
-{
-namespace CodeGen
-{
-using ModuleId = std::array<uint8_t, 16>;
-class NativeProto;
-class NativeModule;
-class NativeModuleRef;
-class SharedCodeAllocator;
-class NativeProto
-{
-public:
- NativeProto(uint32_t bytecodeId, NativeProtoExecDataPtr nativeExecData);
- NativeProto(const NativeProto&) = delete;
- NativeProto(NativeProto&&) noexcept = default;
- NativeProto& operator=(const NativeProto&) = delete;
- NativeProto& operator=(NativeProto&&) noexcept = default;
- void setEntryOffset(uint32_t entryOffset) noexcept;
- void assignToModule(NativeModule* nativeModule) noexcept;
- [[nodiscard]] uint32_t getBytecodeId() const noexcept;
- [[nodiscard]] const uint8_t* getEntryAddress() const noexcept;
- [[nodiscard]] const NativeProtoExecDataHeader& getNativeExecDataHeader() const noexcept;
- [[nodiscard]] const uint32_t* getNonOwningPointerToInstructionOffsets() const noexcept;
- [[nodiscard]] const uint32_t* getOwningPointerToInstructionOffsets() const noexcept;
- static void releaseOwningPointerToInstructionOffsets(const uint32_t* ownedInstructionOffsets) noexcept;
-private:
- uint32_t bytecodeId = 0;
- const uint8_t* entryOffsetOrAddress = nullptr;
- NativeProtoExecDataPtr nativeExecData = {};
-};
-class NativeModule
-{
-public:
- NativeModule(
- SharedCodeAllocator* allocator, const ModuleId& moduleId, const uint8_t* moduleBaseAddress, std::vector<NativeProto> nativeProtos) noexcept;
- NativeModule(const NativeModule&) = delete;
- NativeModule(NativeModule&&) = delete;
- NativeModule& operator=(const NativeModule&) = delete;
- NativeModule& operator=(NativeModule&&) = delete;
- ~NativeModule() noexcept;
- size_t addRef() const noexcept;
- size_t release() const noexcept;
- [[nodiscard]] size_t getRefcount() const noexcept;
- [[nodiscard]] const uint8_t* getModuleBaseAddress() const noexcept;
- [[nodiscard]] const NativeProto* tryGetNativeProto(uint32_t bytecodeId) const noexcept;
-private:
- mutable std::atomic<size_t> refcount = 0;
- SharedCodeAllocator* allocator = nullptr;
- ModuleId moduleId = {};
- const uint8_t* moduleBaseAddress = nullptr;
- std::vector<NativeProto> nativeProtos = {};
-};
-class NativeModuleRef
-{
-public:
- NativeModuleRef() noexcept = default;
- NativeModuleRef(NativeModule* nativeModule) noexcept;
- NativeModuleRef(const NativeModuleRef& other) noexcept;
- NativeModuleRef(NativeModuleRef&& other) noexcept;
- NativeModuleRef& operator=(NativeModuleRef other) noexcept;
- ~NativeModuleRef() noexcept;
- void reset() noexcept;
- void swap(NativeModuleRef& other) noexcept;
- [[nodiscard]] bool empty() const noexcept;
- explicit operator bool() const noexcept;
- [[nodiscard]] const NativeModule* get() const noexcept;
- [[nodiscard]] const NativeModule* operator->() const noexcept;
- [[nodiscard]] const NativeModule& operator*() const noexcept;
-private:
- const NativeModule* nativeModule = nullptr;
-};
-class SharedCodeAllocator
-{
-public:
- SharedCodeAllocator() = default;
- SharedCodeAllocator(const SharedCodeAllocator&) = delete;
- SharedCodeAllocator(SharedCodeAllocator&&) = delete;
- SharedCodeAllocator& operator=(const SharedCodeAllocator&) = delete;
- SharedCodeAllocator& operator=(SharedCodeAllocator&&) = delete;
- ~SharedCodeAllocator() noexcept;
- [[nodiscard]] NativeModuleRef tryGetNativeModule(const ModuleId& moduleId) const noexcept;
- NativeModuleRef getOrInsertNativeModule(
- const ModuleId& moduleId, std::vector<NativeProto> nativeProtos, const std::vector<uint8_t>& data, const std::vector<uint8_t>& code);
- void eraseNativeModuleIfUnreferenced(const ModuleId& moduleId);
-private:
- struct ModuleIdHash
- {
- [[nodiscard]] size_t operator()(const ModuleId& moduleId) const noexcept;
- };
- [[nodiscard]] NativeModuleRef tryGetNativeModuleWithLockHeld(const ModuleId& moduleId) const noexcept;
- mutable std::mutex mutex;
- const uint8_t* baseAddress = reinterpret_cast<const uint8_t*>(0x0f00'0000);
- std::unordered_map<ModuleId, std::unique_ptr<NativeModule>, ModuleIdHash, std::equal_to<>> nativeModules;
-};
-}
-} // namespace Luau
-#line __LINE__ "SharedCodeAllocator.cpp"
 #include <string_view>
 namespace Luau
 {
 namespace CodeGen
 {
-NativeProto::NativeProto(uint32_t bytecodeId, NativeProtoExecDataPtr nativeExecData)
- : bytecodeId{bytecodeId}
- , nativeExecData{std::move(nativeExecData)}
-{
-}
-void NativeProto::setEntryOffset(uint32_t entryOffset) noexcept
-{
- entryOffsetOrAddress = reinterpret_cast<const uint8_t*>(static_cast<uintptr_t>(entryOffset));
-}
-void NativeProto::assignToModule(NativeModule* nativeModule) noexcept
-{
- getNativeProtoExecDataHeader(nativeExecData.get()).nativeModule = nativeModule;
- entryOffsetOrAddress = nativeModule->getModuleBaseAddress() + reinterpret_cast<uintptr_t>(entryOffsetOrAddress);
-}
-[[nodiscard]] uint32_t NativeProto::getBytecodeId() const noexcept
-{
- return bytecodeId;
-}
-[[nodiscard]] const uint8_t* NativeProto::getEntryAddress() const noexcept
-{
- return entryOffsetOrAddress;
-}
-[[nodiscard]] const NativeProtoExecDataHeader& NativeProto::getNativeExecDataHeader() const noexcept
-{
- return getNativeProtoExecDataHeader(nativeExecData.get());
-}
-[[nodiscard]] const uint32_t* NativeProto::getNonOwningPointerToInstructionOffsets() const noexcept
-{
- return nativeExecData.get();
-}
-[[nodiscard]] const uint32_t* NativeProto::getOwningPointerToInstructionOffsets() const noexcept
-{
- getNativeProtoExecDataHeader(nativeExecData.get()).nativeModule->addRef();
- return nativeExecData.get();
-}
-void NativeProto::releaseOwningPointerToInstructionOffsets(const uint32_t* ownedInstructionOffsets) noexcept
-{
- getNativeProtoExecDataHeader(ownedInstructionOffsets).nativeModule->release();
-}
 struct NativeProtoBytecodeIdEqual
 {
- [[nodiscard]] bool operator()(const NativeProto& left, const NativeProto& right) const noexcept
+ [[nodiscard]] bool operator()(const NativeProtoExecDataPtr& left, const NativeProtoExecDataPtr& right) const noexcept
  {
- return left.getBytecodeId() == right.getBytecodeId();
+ return getNativeProtoExecDataHeader(left.get()).bytecodeId == getNativeProtoExecDataHeader(right.get()).bytecodeId;
  }
 };
 struct NativeProtoBytecodeIdLess
 {
- [[nodiscard]] bool operator()(const NativeProto& left, const NativeProto& right) const noexcept
+ [[nodiscard]] bool operator()(const NativeProtoExecDataPtr& left, const NativeProtoExecDataPtr& right) const noexcept
  {
- return left.getBytecodeId() < right.getBytecodeId();
+ return getNativeProtoExecDataHeader(left.get()).bytecodeId < getNativeProtoExecDataHeader(right.get()).bytecodeId;
  }
- [[nodiscard]] bool operator()(const NativeProto& left, uint32_t right) const noexcept
+ [[nodiscard]] bool operator()(const NativeProtoExecDataPtr& left, uint32_t right) const noexcept
  {
- return left.getBytecodeId() < right;
+ return getNativeProtoExecDataHeader(left.get()).bytecodeId < right;
  }
- [[nodiscard]] bool operator()(uint32_t left, const NativeProto& right) const noexcept
+ [[nodiscard]] bool operator()(uint32_t left, const NativeProtoExecDataPtr& right) const noexcept
  {
- return left < right.getBytecodeId();
+ return left < getNativeProtoExecDataHeader(right.get()).bytecodeId;
  }
 };
-NativeModule::NativeModule(
- SharedCodeAllocator* allocator, const ModuleId& moduleId, const uint8_t* moduleBaseAddress, std::vector<NativeProto> nativeProtos) noexcept
+NativeModule::NativeModule(SharedCodeAllocator* allocator, const std::optional<ModuleId>& moduleId, const uint8_t* moduleBaseAddress,
+ std::vector<NativeProtoExecDataPtr> nativeProtos) noexcept
  : allocator{allocator}
  , moduleId{moduleId}
  , moduleBaseAddress{moduleBaseAddress}
  , nativeProtos{std::move(nativeProtos)}
 {
- LUAU_ASSERT(allocator != nullptr);
- LUAU_ASSERT(moduleBaseAddress != nullptr);
- for (NativeProto& nativeProto : this->nativeProtos)
+ CODEGEN_ASSERT(allocator != nullptr);
+ CODEGEN_ASSERT(moduleBaseAddress != nullptr);
+ for (const NativeProtoExecDataPtr& nativeProto : this->nativeProtos)
  {
- nativeProto.assignToModule(this);
+ NativeProtoExecDataHeader& header = getNativeProtoExecDataHeader(nativeProto.get());
+ header.nativeModule = this;
+ header.entryOffsetOrAddress = moduleBaseAddress + reinterpret_cast<uintptr_t>(header.entryOffsetOrAddress);
  }
  std::sort(this->nativeProtos.begin(), this->nativeProtos.end(), NativeProtoBytecodeIdLess{});
- LUAU_ASSERT(std::adjacent_find(this->nativeProtos.begin(), this->nativeProtos.end(), NativeProtoBytecodeIdEqual{}) == this->nativeProtos.end());
+ CODEGEN_ASSERT(
+ std::adjacent_find(this->nativeProtos.begin(), this->nativeProtos.end(), NativeProtoBytecodeIdEqual{}) == this->nativeProtos.end());
 }
 NativeModule::~NativeModule() noexcept
 {
- LUAU_ASSERT(refcount == 0);
+ CODEGEN_ASSERT(refcount == 0);
 }
 size_t NativeModule::addRef() const noexcept
 {
  return refcount.fetch_add(1) + 1;
+}
+size_t NativeModule::addRefs(size_t count) const noexcept
+{
+ return refcount.fetch_add(count) + count;
 }
 size_t NativeModule::release() const noexcept
 {
  size_t newRefcount = refcount.fetch_sub(1) - 1;
  if (newRefcount != 0)
  return newRefcount;
- allocator->eraseNativeModuleIfUnreferenced(moduleId);
+ allocator->eraseNativeModuleIfUnreferenced(*this);
  return 0;
 }
 [[nodiscard]] size_t NativeModule::getRefcount() const noexcept
 {
  return refcount;
 }
+[[nodiscard]] const std::optional<ModuleId>& NativeModule::getModuleId() const noexcept
+{
+ return moduleId;
+}
 [[nodiscard]] const uint8_t* NativeModule::getModuleBaseAddress() const noexcept
 {
  return moduleBaseAddress;
 }
-[[nodiscard]] const NativeProto* NativeModule::tryGetNativeProto(uint32_t bytecodeId) const noexcept
+[[nodiscard]] const uint32_t* NativeModule::tryGetNativeProto(uint32_t bytecodeId) const noexcept
 {
  const auto range = std::equal_range(nativeProtos.begin(), nativeProtos.end(), bytecodeId, NativeProtoBytecodeIdLess{});
  if (range.first == range.second)
  return nullptr;
- LUAU_ASSERT(std::next(range.first) == range.second);
- return &*range.first;
+ CODEGEN_ASSERT(std::next(range.first) == range.second);
+ return range.first->get();
 }
-NativeModuleRef::NativeModuleRef(NativeModule* nativeModule) noexcept
+[[nodiscard]] const std::vector<NativeProtoExecDataPtr>& NativeModule::getNativeProtos() const noexcept
+{
+ return nativeProtos;
+}
+NativeModuleRef::NativeModuleRef(const NativeModule* nativeModule) noexcept
  : nativeModule{nativeModule}
 {
  if (nativeModule != nullptr)
@@ -54566,40 +55786,73 @@ NativeModuleRef::operator bool() const noexcept
 {
  return *nativeModule;
 }
+SharedCodeAllocator::SharedCodeAllocator(CodeAllocator* codeAllocator) noexcept
+ : codeAllocator{codeAllocator}
+{
+}
 SharedCodeAllocator::~SharedCodeAllocator() noexcept
 {
- LUAU_ASSERT(nativeModules.empty());
+ CODEGEN_ASSERT(identifiedModules.empty());
+ CODEGEN_ASSERT(anonymousModuleCount == 0);
 }
 [[nodiscard]] NativeModuleRef SharedCodeAllocator::tryGetNativeModule(const ModuleId& moduleId) const noexcept
 {
  std::unique_lock lock{mutex};
  return tryGetNativeModuleWithLockHeld(moduleId);
 }
-NativeModuleRef SharedCodeAllocator::getOrInsertNativeModule(
- const ModuleId& moduleId, std::vector<NativeProto> nativeProtos, const std::vector<uint8_t>& data, const std::vector<uint8_t>& code)
+std::pair<NativeModuleRef, bool> SharedCodeAllocator::getOrInsertNativeModule(const ModuleId& moduleId,
+ std::vector<NativeProtoExecDataPtr> nativeProtos, const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize)
 {
  std::unique_lock lock{mutex};
  if (NativeModuleRef existingModule = tryGetNativeModuleWithLockHeld(moduleId))
- return existingModule;
- std::unique_ptr<NativeModule>& nativeModule = nativeModules[moduleId];
- nativeModule = std::make_unique<NativeModule>(this, moduleId, baseAddress, std::move(nativeProtos));
- baseAddress += data.size() + code.size();
- return NativeModuleRef{nativeModule.get()};
+ return {std::move(existingModule), false};
+ uint8_t* nativeData = nullptr;
+ size_t sizeNativeData = 0;
+ uint8_t* codeStart = nullptr;
+ if (!codeAllocator->allocate(data, int(dataSize), code, int(codeSize), nativeData, sizeNativeData, codeStart))
+ {
+ return {};
+ }
+ std::unique_ptr<NativeModule>& nativeModule = identifiedModules[moduleId];
+ nativeModule = std::make_unique<NativeModule>(this, moduleId, codeStart, std::move(nativeProtos));
+ return {NativeModuleRef{nativeModule.get()}, true};
 }
-void SharedCodeAllocator::eraseNativeModuleIfUnreferenced(const ModuleId& moduleId)
+NativeModuleRef SharedCodeAllocator::insertAnonymousNativeModule(
+ std::vector<NativeProtoExecDataPtr> nativeProtos, const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize)
 {
  std::unique_lock lock{mutex};
- const auto it = nativeModules.find(moduleId);
- if (it == nativeModules.end())
+ uint8_t* nativeData = nullptr;
+ size_t sizeNativeData = 0;
+ uint8_t* codeStart = nullptr;
+ if (!codeAllocator->allocate(data, int(dataSize), code, int(codeSize), nativeData, sizeNativeData, codeStart))
+ {
+ return {};
+ }
+ NativeModuleRef nativeModuleRef{new NativeModule{this, std::nullopt, codeStart, std::move(nativeProtos)}};
+ ++anonymousModuleCount;
+ return nativeModuleRef;
+}
+void SharedCodeAllocator::eraseNativeModuleIfUnreferenced(const NativeModule& nativeModule)
+{
+ std::unique_lock lock{mutex};
+ if (nativeModule.getRefcount() != 0)
  return;
- if (it->second->getRefcount() != 0)
- return;
- nativeModules.erase(it);
+ if (const std::optional<ModuleId>& moduleId = nativeModule.getModuleId())
+ {
+ const auto it = identifiedModules.find(*moduleId);
+ CODEGEN_ASSERT(it != identifiedModules.end());
+ identifiedModules.erase(it);
+ }
+ else
+ {
+ CODEGEN_ASSERT(anonymousModuleCount.fetch_sub(1) != 0);
+ delete &nativeModule;
+ }
 }
 [[nodiscard]] NativeModuleRef SharedCodeAllocator::tryGetNativeModuleWithLockHeld(const ModuleId& moduleId) const noexcept
 {
- const auto it = nativeModules.find(moduleId);
- if (it == nativeModules.end())
+ const auto it = identifiedModules.find(moduleId);
+ if (it == identifiedModules.end())
  return NativeModuleRef{};
  return NativeModuleRef{it->second.get()};
 }
@@ -54986,20 +56239,6 @@ void UnwindBuilderWin::finalize(char* target, size_t offset, void* funcAddress, 
 }
 }
 } // namespace Luau
-#line __LINE__ ""
-#line __LINE__ "lcodegen.cpp"
-int luau_codegen_supported()
-{
- return Luau::CodeGen::isSupported();
-}
-void luau_codegen_create(lua_State* L)
-{
- Luau::CodeGen::create(L);
-}
-void luau_codegen_compile(lua_State* L, int idx)
-{
- Luau::CodeGen::compile(L, idx);
-}
 #line __LINE__ ""
 #endif
 #endif

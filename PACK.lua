@@ -1,6 +1,6 @@
 print([[
 Luau source packer.
-Copyright (C) UtECat 2023.
+Copyright (C) UtECat 2023-2024.
 MIT License.
 NO ANY WARRIANTY!
 ]])
@@ -99,7 +99,7 @@ local function includefile(oname)
 		included[name] = 0
 		if stat then
 			-- parse included file for more inclusions
-
+      print('debug: ', name, curr)
 			local str = ('#line __LINE__ "%s"\n%s'):format(name, txt)
 			local old = curr
 			curr = name
@@ -243,11 +243,40 @@ buf[#buf+1] = "#define kPageSize kPageSize_2"
 
 module_dir = "CodeGen"
 
--- TODO FIXME hasTypedParameters function is duplicated, so here we do some shit
+-- ~~TODO FIXME~~ hasTypedParameters function is duplicated, so here we do some shit
 -- it would be better to write an issue at some point...
 buf[#buf+1] = includefile('CodeGen/src/IrBuilder.cpp')
 buf[#buf+1] = "#undef hasTypedParameters"
 buf[#buf+1] = "#define hasTypedParameters hasTypedParameters_2"
+
+-- OH NO, IT GETS WORSE...
+-- PRAY TO GODS THAT NEW LUAU RELEASE WILL NOT ADD MORE STATIC VARS IN SAME NAMESPACE WITH SAME NAME...
+codeden_defs = {
+  'kCodeEntryInsn',
+  'logPerfFunction',
+  'onCloseState',
+  'onDestroyFunction',
+  'onEnter',
+  'onEnterDisabled',
+  'getMemorySize',
+  'createNativeFunction'
+}
+
+print('=========================================')
+
+-- redefine
+for _, v in pairs(codeden_defs) do
+  buf[#buf+1] = string.format("#define %s %s_2", v, v)
+end
+
+buf[#buf+1] = includefile('CodeGen/src/CodeGenContext.cpp')
+
+-- undef
+for _, v in pairs(codeden_defs) do
+  buf[#buf+1] = string.format("#undef %s", v)
+end
+print('=========================================')
+
 
 includeFiles(lsdir('CodeGen/src'))
 
