@@ -22506,7 +22506,6 @@ LUAU_FASTINTVARIABLE(LuauRecursionLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauTypeLengthLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
 LUAU_FASTFLAG(LuauCheckedFunctionSyntax)
-LUAU_FASTFLAGVARIABLE(LuauReadWritePropertySyntax, false)
 LUAU_FASTFLAGVARIABLE(DebugLuauDeferredConstraintResolution, false)
 namespace Luau
 {
@@ -23401,8 +23400,6 @@ AstType* Parser::parseTableType(bool inDeclarationContext)
  {
  AstTableAccess access = AstTableAccess::ReadWrite;
  std::optional<Location> accessLocation;
- if (FFlag::LuauReadWritePropertySyntax || FFlag::DebugLuauDeferredConstraintResolution)
- {
  if (lexer.current().type == Lexeme::Name && lexer.lookahead().type != ':')
  {
  if (AstName(lexer.current().name) == "read")
@@ -23416,7 +23413,6 @@ AstType* Parser::parseTableType(bool inDeclarationContext)
  accessLocation = lexer.current().location;
  access = AstTableAccess::Write;
  lexer.next();
- }
  }
  }
  if (lexer.current().type == '[' && (lexer.lookahead().type == Lexeme::RawString || lexer.lookahead().type == Lexeme::QuotedString))
@@ -33931,10 +33927,10 @@ namespace Luau
 {
 namespace CodeGen
 {
-struct AssemblyOptions;
+struct HostIrHooks;
 struct IrBuilder
 {
- IrBuilder();
+ IrBuilder(const HostIrHooks& hostHooks);
  void buildFunctionIr(Proto* proto);
  void rebuildBytecodeBasicBlocks(Proto* proto);
  void translateInst(LuauOpcode op, const Instruction* pc, int i);
@@ -33963,11 +33959,12 @@ struct IrBuilder
  IrOp vmConst(uint32_t index);
  IrOp vmUpvalue(uint8_t index);
  IrOp vmExit(uint32_t pcpos);
+ const HostIrHooks& hostHooks;
  bool inTerminatedBlock = false;
  bool interruptRequested = false;
  bool activeFastcallFallback = false;
  IrOp fastcallFallbackReturn;
- int fastcallSkipTarget = -1;
+ int cmdSkipTarget = -1;
  IrFunction function;
  uint32_t activeBlockIdx = ~0u;
  std::vector<uint32_t> instIndexToBlock;
@@ -34015,9 +34012,10 @@ namespace Luau
 namespace CodeGen
 {
 struct IrFunction;
+struct HostIrHooks;
 void loadBytecodeTypeInfo(IrFunction& function);
 void buildBytecodeBlocks(IrFunction& function, const std::vector<uint8_t>& jumpTargets);
-void analyzeBytecodeTypes(IrFunction& function);
+void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks);
 }
 } // namespace Luau
 #line __LINE__ "IrBuilder.cpp"
@@ -34307,7 +34305,7 @@ void translateInstGetGlobal(IrBuilder& build, const Instruction* pc, int pcpos);
 void translateInstSetGlobal(IrBuilder& build, const Instruction* pc, int pcpos);
 void translateInstConcat(IrBuilder& build, const Instruction* pc, int pcpos);
 void translateInstCapture(IrBuilder& build, const Instruction* pc, int pcpos);
-void translateInstNamecall(IrBuilder& build, const Instruction* pc, int pcpos);
+bool translateInstNamecall(IrBuilder& build, const Instruction* pc, int pcpos);
 void translateInstAndX(IrBuilder& build, const Instruction* pc, int pcpos, IrOp c);
 void translateInstOrX(IrBuilder& build, const Instruction* pc, int pcpos, IrOp c);
 void translateInstNewClosure(IrBuilder& build, const Instruction* pc, int pcpos);
@@ -34318,13 +34316,15 @@ void afterInstForNLoop(IrBuilder& build, const Instruction* pc);
 #line __LINE__ "IrBuilder.cpp"
 LUAU_FASTFLAG(LuauLoadTypeInfo)
 LUAU_FASTFLAG(LuauTypeInfoLookupImprovement)
+LUAU_FASTFLAG(LuauCodegenAnalyzeHostVectorOps)
 namespace Luau
 {
 namespace CodeGen
 {
 constexpr unsigned kNoAssociatedBlockIndex = ~0u;
-IrBuilder::IrBuilder()
- : constantMap({IrConstKind::Tag, ~0ull})
+IrBuilder::IrBuilder(const HostIrHooks& hostHooks)
+ : hostHooks(hostHooks)
+ , constantMap({IrConstKind::Tag, ~0ull})
 {
 }
 static bool hasTypedParameters_DEPRECATED(Proto* proto)
@@ -34491,7 +34491,7 @@ void IrBuilder::buildFunctionIr(Proto* proto)
  bool generateTypeChecks = FFlag::LuauLoadTypeInfo ? hasTypedParameters(function.bcTypeInfo) : hasTypedParameters_DEPRECATED(proto);
  IrOp entry = generateTypeChecks ? block(IrBlockKind::Internal) : IrOp{};
  rebuildBytecodeBasicBlocks(proto);
- analyzeBytecodeTypes(function);
+ analyzeBytecodeTypes(function, hostHooks);
  function.bcMapping.resize(proto->sizecode, {~0u, ~0u});
  if (generateTypeChecks)
  {
@@ -34526,10 +34526,10 @@ void IrBuilder::buildFunctionIr(Proto* proto)
  inst(IrCmd::INTERRUPT, constUint(i));
  }
  translateInst(op, pc, i);
- if (fastcallSkipTarget != -1)
+ if (cmdSkipTarget != -1)
  {
- nexti = fastcallSkipTarget;
- fastcallSkipTarget = -1;
+ nexti = cmdSkipTarget;
+ cmdSkipTarget = -1;
  }
  }
  if (op == LOP_FORNLOOP)
@@ -34825,7 +34825,15 @@ void IrBuilder::translateInst(LuauOpcode op, const Instruction* pc, int i)
  translateInstCapture(*this, pc, i);
  break;
  case LOP_NAMECALL:
+ if (FFlag::LuauCodegenAnalyzeHostVectorOps)
+ {
+ if (translateInstNamecall(*this, pc, i))
+ cmdSkipTarget = i + 3;
+ }
+ else
+ {
  translateInstNamecall(*this, pc, i);
+ }
  break;
  case LOP_PREPVARARGS:
  inst(IrCmd::FALLBACK_PREPVARARGS, constUint(i), constInt(LUAU_INSN_A(*pc)));
@@ -34862,7 +34870,7 @@ void IrBuilder::handleFastcallFallback(IrOp fallbackOrUndef, const Instruction* 
  }
  else
  {
- fastcallSkipTarget = i + skip + 2;
+ cmdSkipTarget = i + skip + 2;
  }
 }
 bool IrBuilder::isInternalBlock(IrOp block)
@@ -35099,6 +35107,23 @@ struct CompilationResult
  return result != CodeGenCompilationResult::Success || !protoFailures.empty();
  }
 };
+struct IrBuilder;
+using HostVectorOperationBytecodeType = uint8_t (*)(const char* member, size_t memberLength);
+using HostVectorAccessHandler = bool (*)(IrBuilder& builder, const char* member, size_t memberLength, int resultReg, int sourceReg, int pcpos);
+using HostVectorNamecallHandler = bool (*)(
+ IrBuilder& builder, const char* member, size_t memberLength, int argResReg, int sourceReg, int params, int results, int pcpos);
+struct HostIrHooks
+{
+ HostVectorOperationBytecodeType vectorAccessBytecodeType = nullptr;
+ HostVectorOperationBytecodeType vectorNamecallBytecodeType = nullptr;
+ HostVectorAccessHandler vectorAccess = nullptr;
+ HostVectorNamecallHandler vectorNamecall = nullptr;
+};
+struct CompilationOptions
+{
+ unsigned int flags = 0;
+ HostIrHooks hooks;
+};
 struct CompilationStats
 {
  size_t bytecodeSizeBytes = 0;
@@ -35128,8 +35153,10 @@ void create(lua_State* L, SharedCodeGenContext* codeGenContext);
 [[nodiscard]] bool isNativeExecutionEnabled(lua_State* L);
 void setNativeExecutionEnabled(lua_State* L, bool enabled);
 using ModuleId = std::array<uint8_t, 16>;
-CompilationResult compile(lua_State* L, int idx, unsigned int flags = 0, CompilationStats* stats = nullptr);
-CompilationResult compile(const ModuleId& moduleId, lua_State* L, int idx, unsigned int flags = 0, CompilationStats* stats = nullptr);
+CompilationResult compile(lua_State* L, int idx, unsigned int flags, CompilationStats* stats = nullptr);
+CompilationResult compile(const ModuleId& moduleId, lua_State* L, int idx, unsigned int flags, CompilationStats* stats = nullptr);
+CompilationResult compile(lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats = nullptr);
+CompilationResult compile(const ModuleId& moduleId, lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats = nullptr);
 using AnnotatorFn = void (*)(void* context, std::string& result, int fid, int instpos);
 enum class IncludeIrPrefix
 {
@@ -35162,7 +35189,7 @@ struct AssemblyOptions
  X64_SystemV,
  };
  Target target = Host;
- unsigned int flags = 0;
+ CompilationOptions compilationOptions;
  bool outputBinary = false;
  bool includeAssembly = false;
  bool includeIr = false;
@@ -35541,8 +35568,8 @@ void create_NEW(lua_State* L);
 void create_NEW(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext);
 void create_NEW(lua_State* L, size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext);
 void create_NEW(lua_State* L, SharedCodeGenContext* codeGenContext);
-CompilationResult compile_NEW(lua_State* L, int idx, unsigned int flags, CompilationStats* stats);
-CompilationResult compile_NEW(const ModuleId& moduleId, lua_State* L, int idx, unsigned int flags, CompilationStats* stats);
+CompilationResult compile_NEW(lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats);
+CompilationResult compile_NEW(const ModuleId& moduleId, lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats);
 [[nodiscard]] bool isNativeExecutionEnabled_NEW(lua_State* L);
 void setNativeExecutionEnabled_NEW(lua_State* L, bool enabled);
 }
@@ -37312,11 +37339,11 @@ void create_NEW(lua_State* L, SharedCodeGenContext* codeGenContext)
  return nativeExecData;
 }
 template<typename AssemblyBuilder>
-[[nodiscard]] static NativeProtoExecDataPtr createNativeFunction(
- AssemblyBuilder& build, ModuleHelpers& helpers, Proto* proto, uint32_t& totalIrInstCount, CodeGenCompilationResult& result)
+[[nodiscard]] static NativeProtoExecDataPtr createNativeFunction(AssemblyBuilder& build, ModuleHelpers& helpers, Proto* proto,
+ uint32_t& totalIrInstCount, const HostIrHooks& hooks, CodeGenCompilationResult& result)
 {
  CODEGEN_ASSERT(FFlag::LuauCodegenContext);
- IrBuilder ir;
+ IrBuilder ir(hooks);
  ir.buildFunctionIr(proto);
  unsigned instCount = unsigned(ir.function.instructions.size());
  if (totalIrInstCount + instCount >= unsigned(FInt::CodegenHeuristicsInstructionLimit.value))
@@ -37332,19 +37359,19 @@ template<typename AssemblyBuilder>
  return createNativeProtoExecData(proto, ir);
 }
 [[nodiscard]] static CompilationResult compileInternal(
- const std::optional<ModuleId>& moduleId, lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
+ const std::optional<ModuleId>& moduleId, lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats)
 {
  CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  CODEGEN_ASSERT(lua_isLfunction(L, idx));
  const TValue* func = luaA_toobject(L, idx);
  Proto* root = clvalue(func)->l.p;
- if ((flags & CodeGen_OnlyNativeModules) != 0 && (root->flags & LPF_NATIVE_MODULE) == 0)
+ if ((options.flags & CodeGen_OnlyNativeModules) != 0 && (root->flags & LPF_NATIVE_MODULE) == 0)
  return CompilationResult{CodeGenCompilationResult::NotNativeModule};
  BaseCodeGenContext* codeGenContext = getCodeGenContext(L);
  if (codeGenContext == nullptr)
  return CompilationResult{CodeGenCompilationResult::CodeGenNotInitialized};
  std::vector<Proto*> protos;
- gatherFunctions(protos, root, flags);
+ gatherFunctions(protos, root, options.flags);
  protos.erase(std::remove_if(protos.begin(), protos.end(),
  [](Proto* p) {
  return p == nullptr || p->execdata != nullptr;
@@ -37382,7 +37409,7 @@ template<typename AssemblyBuilder>
  for (size_t i = 0; i != protos.size(); ++i)
  {
  CodeGenCompilationResult protoResult = CodeGenCompilationResult::Success;
- NativeProtoExecDataPtr nativeExecData = createNativeFunction(build, helpers, protos[i], totalIrInstCount, protoResult);
+ NativeProtoExecDataPtr nativeExecData = createNativeFunction(build, helpers, protos[i], totalIrInstCount, options.hooks, protoResult);
  if (nativeExecData != nullptr)
  {
  nativeProtos.push_back(std::move(nativeExecData));
@@ -37430,15 +37457,15 @@ template<typename AssemblyBuilder>
  compilationResult.result = bindResult.compilationResult;
  return compilationResult;
 }
-CompilationResult compile_NEW(const ModuleId& moduleId, lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
+CompilationResult compile_NEW(const ModuleId& moduleId, lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats)
 {
  CODEGEN_ASSERT(FFlag::LuauCodegenContext);
- return compileInternal(moduleId, L, idx, flags, stats);
+ return compileInternal(moduleId, L, idx, options, stats);
 }
-CompilationResult compile_NEW(lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
+CompilationResult compile_NEW(lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats)
 {
  CODEGEN_ASSERT(FFlag::LuauCodegenContext);
- return compileInternal({}, L, idx, flags, stats);
+ return compileInternal({}, L, idx, options, stats);
 }
 [[nodiscard]] bool isNativeExecutionEnabled_NEW(lua_State* L)
 {
@@ -40216,6 +40243,8 @@ LUAU_FASTFLAG(LuauLoadTypeInfo)
 LUAU_FASTFLAGVARIABLE(LuauCodegenTypeInfo, false) // New analysis is flagged separately
 LUAU_FASTFLAG(LuauTypeInfoLookupImprovement)
 LUAU_FASTFLAGVARIABLE(LuauCodegenVectorMispredictFix, false)
+LUAU_FASTFLAGVARIABLE(LuauCodegenAnalyzeHostVectorOps, false)
+LUAU_FASTFLAGVARIABLE(LuauCodegenLoadTypeUpvalCheck, false)
 namespace Luau
 {
 namespace CodeGen
@@ -40274,7 +40303,10 @@ void loadBytecodeTypeInfo(IrFunction& function)
  uint32_t typeSize = readVarInt(data, offset);
  uint32_t upvalCount = readVarInt(data, offset);
  uint32_t localCount = readVarInt(data, offset);
+ if (!FFlag::LuauCodegenLoadTypeUpvalCheck)
+ {
  CODEGEN_ASSERT(upvalCount == unsigned(proto->nups));
+ }
  if (typeSize != 0)
  {
  uint8_t* types = (uint8_t*)data + offset;
@@ -40287,6 +40319,10 @@ void loadBytecodeTypeInfo(IrFunction& function)
  }
  if (upvalCount != 0)
  {
+ if (FFlag::LuauCodegenLoadTypeUpvalCheck)
+ {
+ CODEGEN_ASSERT(upvalCount == unsigned(proto->nups));
+ }
  typeInfo.upvalueTypes.resize(upvalCount);
  uint8_t* types = (uint8_t*)data + offset;
  memcpy(typeInfo.upvalueTypes.data(), types, upvalCount);
@@ -40728,7 +40764,7 @@ void buildBytecodeBlocks(IrFunction& function, const std::vector<uint8_t>& jumpT
  CODEGEN_ASSERT(i <= proto->sizecode);
  }
 }
-void analyzeBytecodeTypes(IrFunction& function)
+void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
 {
  Proto* proto = function.proto;
  CODEGEN_ASSERT(proto);
@@ -40763,6 +40799,7 @@ void analyzeBytecodeTypes(IrFunction& function)
  }
  for (int i = proto->numparams; i < proto->maxstacksize; ++i)
  regTags[i] = LBC_TYPE_ANY;
+ LuauBytecodeType knownNextCallResult = LBC_TYPE_ANY;
  for (int i = block.startpc; i <= block.finishpc;)
  {
  const Instruction* pc = &proto->code[i];
@@ -40874,6 +40911,8 @@ void analyzeBytecodeTypes(IrFunction& function)
  if (ch == 'x' || ch == 'y' || ch == 'z')
  regTags[ra] = LBC_TYPE_NUMBER;
  }
+ if (FFlag::LuauCodegenAnalyzeHostVectorOps && regTags[ra] == LBC_TYPE_ANY && hostHooks.vectorAccessBytecodeType)
+ regTags[ra] = hostHooks.vectorAccessBytecodeType(field, str->len);
  }
  }
  else
@@ -41181,6 +41220,28 @@ void analyzeBytecodeTypes(IrFunction& function)
  regTags[ra] = LBC_TYPE_FUNCTION;
  regTags[ra + 1] = bcType.a;
  bcType.result = LBC_TYPE_FUNCTION;
+ if (FFlag::LuauCodegenAnalyzeHostVectorOps && bcType.a == LBC_TYPE_VECTOR && hostHooks.vectorNamecallBytecodeType)
+ {
+ TString* str = gco2ts(function.proto->k[kc].value.gc);
+ const char* field = getstr(str);
+ knownNextCallResult = LuauBytecodeType(hostHooks.vectorNamecallBytecodeType(field, str->len));
+ }
+ }
+ break;
+ }
+ case LOP_CALL:
+ {
+ if (FFlag::LuauCodegenAnalyzeHostVectorOps)
+ {
+ int ra = LUAU_INSN_A(*pc);
+ if (knownNextCallResult != LBC_TYPE_ANY)
+ {
+ bcType.result = knownNextCallResult;
+ knownNextCallResult = LBC_TYPE_ANY;
+ regTags[ra] = bcType.result;
+ }
+ if (FFlag::LuauCodegenTypeInfo)
+ refineRegType(bcTypeInfo, ra, i, bcType.result);
  }
  break;
  }
@@ -41213,7 +41274,6 @@ void analyzeBytecodeTypes(IrFunction& function)
  }
  case LOP_GETGLOBAL:
  case LOP_SETGLOBAL:
- case LOP_CALL:
  case LOP_RETURN:
  case LOP_JUMP:
  case LOP_JUMPBACK:
@@ -41812,11 +41872,11 @@ static void logPerfFunction(Proto* p, uintptr_t addr, unsigned size)
  gPerfLogFn(gPerfLogContext, addr, size, name);
 }
 template<typename AssemblyBuilder>
-static std::optional<OldNativeProto> createNativeFunction(
- AssemblyBuilder& build, ModuleHelpers& helpers, Proto* proto, uint32_t& totalIrInstCount, CodeGenCompilationResult& result)
+static std::optional<OldNativeProto> createNativeFunction(AssemblyBuilder& build, ModuleHelpers& helpers, Proto* proto, uint32_t& totalIrInstCount,
+ const HostIrHooks& hooks, CodeGenCompilationResult& result)
 {
  CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
- IrBuilder ir;
+ IrBuilder ir(hooks);
  ir.buildFunctionIr(proto);
  unsigned instCount = unsigned(ir.function.instructions.size());
  if (totalIrInstCount + instCount >= unsigned(FInt::CodegenHeuristicsInstructionLimit.value))
@@ -42018,13 +42078,13 @@ void setNativeExecutionEnabled(lua_State* L, bool enabled)
  L->global->ecb.enter = enabled ? onEnter : onEnterDisabled;
  }
 }
-static CompilationResult compile_OLD(lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
+static CompilationResult compile_OLD(lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats)
 {
  CompilationResult compilationResult;
  CODEGEN_ASSERT(lua_isLfunction(L, idx));
  const TValue* func = luaA_toobject(L, idx);
  Proto* root = clvalue(func)->l.p;
- if ((flags & CodeGen_OnlyNativeModules) != 0 && (root->flags & LPF_NATIVE_MODULE) == 0)
+ if ((options.flags & CodeGen_OnlyNativeModules) != 0 && (root->flags & LPF_NATIVE_MODULE) == 0)
  {
  compilationResult.result = CodeGenCompilationResult::NotNativeModule;
  return compilationResult;
@@ -42036,7 +42096,7 @@ static CompilationResult compile_OLD(lua_State* L, int idx, unsigned int flags, 
  return compilationResult;
  }
  std::vector<Proto*> protos;
- gatherFunctions(protos, root, flags);
+ gatherFunctions(protos, root, options.flags);
  protos.erase(std::remove_if(protos.begin(), protos.end(),
  [](Proto* p) {
  return p == nullptr || p->execdata != nullptr;
@@ -42067,7 +42127,7 @@ static CompilationResult compile_OLD(lua_State* L, int idx, unsigned int flags, 
  for (Proto* p : protos)
  {
  CodeGenCompilationResult protoResult = CodeGenCompilationResult::Success;
- if (std::optional<OldNativeProto> np = createNativeFunction(build, helpers, p, totalIrInstCount, protoResult))
+ if (std::optional<OldNativeProto> np = createNativeFunction(build, helpers, p, totalIrInstCount, options.hooks, protoResult))
  results.push_back(*np);
  else
  compilationResult.protoFailures.push_back({protoResult, p->debugname ? getstr(p->debugname) : "", p->linedefined});
@@ -42125,19 +42185,37 @@ static CompilationResult compile_OLD(lua_State* L, int idx, unsigned int flags, 
 }
 CompilationResult compile(lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
 {
+ Luau::CodeGen::CompilationOptions options{flags};
  if (FFlag::LuauCodegenContext)
  {
- return compile_NEW(L, idx, flags, stats);
+ return compile_NEW(L, idx, options, stats);
  }
  else
  {
- return compile_OLD(L, idx, flags, stats);
+ return compile_OLD(L, idx, options, stats);
  }
 }
 CompilationResult compile(const ModuleId& moduleId, lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
 {
  CODEGEN_ASSERT(FFlag::LuauCodegenContext);
- return compile_NEW(moduleId, L, idx, flags, stats);
+ Luau::CodeGen::CompilationOptions options{flags};
+ return compile_NEW(moduleId, L, idx, options, stats);
+}
+CompilationResult compile(lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats)
+{
+ if (FFlag::LuauCodegenContext)
+ {
+ return compile_NEW(L, idx, options, stats);
+ }
+ else
+ {
+ return compile_OLD(L, idx, options, stats);
+ }
+}
+CompilationResult compile(const ModuleId& moduleId, lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenContext);
+ return compile_NEW(moduleId, L, idx, options, stats);
 }
 void setPerfLog(void* context, PerfLogFn logFn)
 {
@@ -42570,10 +42648,10 @@ template<typename AssemblyBuilder>
 static std::string getAssemblyImpl(AssemblyBuilder& build, const TValue* func, AssemblyOptions options, LoweringStats* stats)
 {
  Proto* root = clvalue(func)->l.p;
- if ((options.flags & CodeGen_OnlyNativeModules) != 0 && (root->flags & LPF_NATIVE_MODULE) == 0)
+ if ((options.compilationOptions.flags & CodeGen_OnlyNativeModules) != 0 && (root->flags & LPF_NATIVE_MODULE) == 0)
  return std::string();
  std::vector<Proto*> protos;
- gatherFunctions(protos, root, options.flags);
+ gatherFunctions(protos, root, options.compilationOptions.flags);
  protos.erase(std::remove_if(protos.begin(), protos.end(),
  [](Proto* p) {
  return p == nullptr;
@@ -42595,7 +42673,7 @@ static std::string getAssemblyImpl(AssemblyBuilder& build, const TValue* func, A
  }
  for (Proto* p : protos)
  {
- IrBuilder ir;
+ IrBuilder ir(options.compilationOptions.hooks);
  ir.buildFunctionIr(p);
  unsigned asmSize = build.getCodeSize();
  unsigned asmCount = build.getInstructionCount();
@@ -51889,6 +51967,7 @@ BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, 
 #line __LINE__ "IrTranslation.cpp"
 LUAU_FASTFLAGVARIABLE(LuauCodegenDirectUserdataFlow, false)
 LUAU_FASTFLAGVARIABLE(LuauCodegenFixVectorFields, false)
+LUAU_FASTFLAG(LuauCodegenAnalyzeHostVectorOps)
 namespace Luau
 {
 namespace CodeGen
@@ -52758,6 +52837,9 @@ void translateInstGetTableKS(IrBuilder& build, const Instruction* pc, int pcpos)
  }
  else
  {
+ if (FFlag::LuauCodegenAnalyzeHostVectorOps && build.hostHooks.vectorAccess &&
+ build.hostHooks.vectorAccess(build, field, str->len, ra, rb, pcpos))
+ return;
  build.inst(IrCmd::FALLBACK_GETTABLEKS, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
  }
  return;
@@ -52869,7 +52951,7 @@ void translateInstCapture(IrBuilder& build, const Instruction* pc, int pcpos)
  CODEGEN_ASSERT(!"Unknown upvalue capture type");
  }
 }
-void translateInstNamecall(IrBuilder& build, const Instruction* pc, int pcpos)
+bool translateInstNamecall(IrBuilder& build, const Instruction* pc, int pcpos)
 {
  int ra = LUAU_INSN_A(*pc);
  int rb = LUAU_INSN_B(*pc);
@@ -52878,14 +52960,26 @@ void translateInstNamecall(IrBuilder& build, const Instruction* pc, int pcpos)
  if (FFlag::LuauCodegenDirectUserdataFlow && bcTypes.a == LBC_TYPE_VECTOR)
  {
  build.loadAndCheckTag(build.vmReg(rb), LUA_TVECTOR, build.vmExit(pcpos));
+ if (FFlag::LuauCodegenAnalyzeHostVectorOps && build.hostHooks.vectorNamecall)
+ {
+ Instruction call = pc[2];
+ CODEGEN_ASSERT(LUAU_INSN_OP(call) == LOP_CALL);
+ int callra = LUAU_INSN_A(call);
+ int nparams = LUAU_INSN_B(call) - 1;
+ int nresults = LUAU_INSN_C(call) - 1;
+ TString* str = gco2ts(build.function.proto->k[aux].value.gc);
+ const char* field = getstr(str);
+ if (build.hostHooks.vectorNamecall(build, field, str->len, callra, rb, nparams, nresults, pcpos))
+ return true;
+ }
  build.inst(IrCmd::FALLBACK_NAMECALL, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
- return;
+ return false;
  }
  if (FFlag::LuauCodegenDirectUserdataFlow && bcTypes.a == LBC_TYPE_USERDATA)
  {
  build.loadAndCheckTag(build.vmReg(rb), LUA_TUSERDATA, build.vmExit(pcpos));
  build.inst(IrCmd::FALLBACK_NAMECALL, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
- return;
+ return false;
  }
  IrOp next = build.blockAtInst(pcpos + getOpLength(LOP_NAMECALL));
  IrOp fallback = build.block(IrBlockKind::Fallback);
@@ -52920,6 +53014,7 @@ void translateInstNamecall(IrBuilder& build, const Instruction* pc, int pcpos)
  build.inst(IrCmd::FALLBACK_NAMECALL, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
  build.inst(IrCmd::JUMP, next);
  build.beginBlock(next);
+ return false;
 }
 void translateInstAndX(IrBuilder& build, const Instruction* pc, int pcpos, IrOp c)
 {
@@ -56856,7 +56951,8 @@ void luau_codegen_create(lua_State* L)
 }
 void luau_codegen_compile(lua_State* L, int idx)
 {
- Luau::CodeGen::compile(L, idx);
+ Luau::CodeGen::CompilationOptions options;
+ Luau::CodeGen::compile(L, idx, options);
 }
 #line __LINE__ ""
 #endif
