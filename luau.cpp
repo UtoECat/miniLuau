@@ -20941,7 +20941,6 @@ bool isIdentifier(std::string_view s);
 }
 #line __LINE__ "Lexer.cpp"
 LUAU_FASTFLAGVARIABLE(LuauLexerLookaheadRemembersBraceType, false)
-LUAU_FASTFLAGVARIABLE(LuauCheckedFunctionSyntax, false)
 namespace Luau
 {
 Allocator::Allocator()
@@ -21715,14 +21714,11 @@ Lexeme Lexer::readNext()
  }
  case '@':
  {
- if (FFlag::LuauCheckedFunctionSyntax)
- {
  LUAU_ASSERT(peekch() == '@');
  std::pair<AstName, Lexeme::Type> maybeChecked = readName();
  if (maybeChecked.second != Lexeme::ReservedChecked)
  return Lexeme(Location(start, position()), Lexeme::Error);
  return Lexeme(Location(start, position()), maybeChecked.second, maybeChecked.first.value);
- }
  }
  default:
  if (isDigit(peekch()))
@@ -22505,7 +22501,6 @@ LUAU_NOINLINE uint16_t createScopeData(const char* name, const char* category);
 LUAU_FASTINTVARIABLE(LuauRecursionLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauTypeLengthLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
-LUAU_FASTFLAG(LuauCheckedFunctionSyntax)
 LUAU_FASTFLAGVARIABLE(DebugLuauDeferredConstraintResolution, false)
 namespace Luau
 {
@@ -23054,7 +23049,7 @@ AstStat* Parser::parseDeclaration(const Location& start)
  {
  nextLexeme();
  bool checkedFunction = false;
- if (FFlag::LuauCheckedFunctionSyntax && lexer.current().type == Lexeme::ReservedChecked)
+ if (lexer.current().type == Lexeme::ReservedChecked)
  {
  checkedFunction = true;
  nextLexeme();
@@ -23691,9 +23686,8 @@ AstTypeOrPack Parser::parseSimpleType(bool allowPack, bool inDeclarationContext)
  {
  return {parseTableType( inDeclarationContext), {}};
  }
- else if (FFlag::LuauCheckedFunctionSyntax && inDeclarationContext && lexer.current().type == Lexeme::ReservedChecked)
+ else if (inDeclarationContext && lexer.current().type == Lexeme::ReservedChecked)
  {
- LUAU_ASSERT(FFlag::LuauCheckedFunctionSyntax);
  nextLexeme();
  return parseFunctionType(allowPack, true);
  }
@@ -35068,6 +35062,11 @@ IrOp IrBuilder::vmExit(uint32_t pcpos)
 #line __LINE__ "SharedCodeAllocator.h"
 #line __LINE__ "CodeGen.h"
 struct lua_State;
+#if defined(__x86_64__) || defined(_M_X64)
+#define CODEGEN_TARGET_X64
+#elif defined(__aarch64__) || defined(_M_ARM64)
+#define CODEGEN_TARGET_A64
+#endif
 namespace Luau
 {
 namespace CodeGen
@@ -37020,7 +37019,6 @@ private:
 }
 } // namespace Luau
 #line __LINE__ "CodeGenContext.cpp"
-LUAU_FASTFLAGVARIABLE(LuauCodegenContext, false)
 LUAU_FASTFLAGVARIABLE(LuauCodegenCheckNullContext, false)
 LUAU_FASTINT(LuauCodeGenBlockSize)
 LUAU_FASTINT(LuauCodeGenMaxTotalSize)
@@ -37034,7 +37032,6 @@ extern PerfLogFn gPerfLogFn;
 unsigned int getCpuFeaturesA64();
 static void logPerfFunction(Proto* p, uintptr_t addr, unsigned size)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  CODEGEN_ASSERT(p->source);
  const char* source = getstr(p->source);
  source = (source[0] == '=' || source[0] == '@') ? source + 1 : "[string]";
@@ -37046,7 +37043,6 @@ static void logPerfFunction(Proto* p, uintptr_t addr, unsigned size)
 static void logPerfFunctions(
  const std::vector<Proto*>& moduleProtos, const uint8_t* nativeModuleBaseAddress, const std::vector<NativeProtoExecDataPtr>& nativeProtos)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  if (gPerfLogFn == nullptr)
  return;
  if (nativeProtos.size() > 0)
@@ -37067,7 +37063,6 @@ static void logPerfFunctions(
 template<bool Release, typename NativeProtosVector>
 [[nodiscard]] static uint32_t bindNativeProtos(const std::vector<Proto*>& moduleProtos, NativeProtosVector& nativeProtos)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  uint32_t protosBound = 0;
  auto protoIt = moduleProtos.begin();
  for (auto& nativeProto : nativeProtos)
@@ -37096,7 +37091,6 @@ template<bool Release, typename NativeProtosVector>
 BaseCodeGenContext::BaseCodeGenContext(size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext)
  : codeAllocator{blockSize, maxTotalSize, allocationCallback, allocationCallbackContext}
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  CODEGEN_ASSERT(isSupported());
 #if defined(_WIN32)
  unwindBuilder = std::make_unique<UnwindBuilderWin>();
@@ -37110,11 +37104,10 @@ BaseCodeGenContext::BaseCodeGenContext(size_t blockSize, size_t maxTotalSize, Al
 }
 [[nodiscard]] bool BaseCodeGenContext::initHeaderFunctions()
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
-#if defined(__x86_64__) || defined(_M_X64)
+#if defined(CODEGEN_TARGET_X64)
  if (!X64::initHeaderFunctions(*this))
  return false;
-#elif defined(__aarch64__)
+#elif defined(CODEGEN_TARGET_A64)
  if (!A64::initHeaderFunctions(*this))
  return false;
 #endif
@@ -37126,17 +37119,14 @@ StandaloneCodeGenContext::StandaloneCodeGenContext(
  size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext)
  : BaseCodeGenContext{blockSize, maxTotalSize, allocationCallback, allocationCallbackContext}
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
 }
 [[nodiscard]] std::optional<ModuleBindResult> StandaloneCodeGenContext::tryBindExistingModule(const ModuleId&, const std::vector<Proto*>&)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  return {};
 }
 [[nodiscard]] ModuleBindResult StandaloneCodeGenContext::bindModule(const std::optional<ModuleId>&, const std::vector<Proto*>& moduleProtos,
  std::vector<NativeProtoExecDataPtr> nativeProtos, const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  uint8_t* nativeData = nullptr;
  size_t sizeNativeData = 0;
  uint8_t* codeStart = nullptr;
@@ -37155,12 +37145,10 @@ StandaloneCodeGenContext::StandaloneCodeGenContext(
 }
 void StandaloneCodeGenContext::onCloseState() noexcept
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  delete this;
 }
 void StandaloneCodeGenContext::onDestroyFunction(void* execdata) noexcept
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  destroyNativeProtoExecData(static_cast<uint32_t*>(execdata));
 }
 SharedCodeGenContext::SharedCodeGenContext(
@@ -37168,12 +37156,10 @@ SharedCodeGenContext::SharedCodeGenContext(
  : BaseCodeGenContext{blockSize, maxTotalSize, allocationCallback, allocationCallbackContext}
  , sharedAllocator{&codeAllocator}
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
 }
 [[nodiscard]] std::optional<ModuleBindResult> SharedCodeGenContext::tryBindExistingModule(
  const ModuleId& moduleId, const std::vector<Proto*>& moduleProtos)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  NativeModuleRef nativeModule = sharedAllocator.tryGetNativeModule(moduleId);
  if (nativeModule.empty())
  {
@@ -37186,7 +37172,6 @@ SharedCodeGenContext::SharedCodeGenContext(
 [[nodiscard]] ModuleBindResult SharedCodeGenContext::bindModule(const std::optional<ModuleId>& moduleId, const std::vector<Proto*>& moduleProtos,
  std::vector<NativeProtoExecDataPtr> nativeProtos, const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  const std::pair<NativeModuleRef, bool> insertionResult = [&]() -> std::pair<NativeModuleRef, bool> {
  if (moduleId.has_value())
  {
@@ -37207,28 +37192,23 @@ SharedCodeGenContext::SharedCodeGenContext(
 }
 void SharedCodeGenContext::onCloseState() noexcept
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
 }
 void SharedCodeGenContext::onDestroyFunction(void* execdata) noexcept
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  getNativeProtoExecDataHeader(static_cast<const uint32_t*>(execdata)).nativeModule->release();
 }
 [[nodiscard]] UniqueSharedCodeGenContext createSharedCodeGenContext()
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  return createSharedCodeGenContext(size_t(FInt::LuauCodeGenBlockSize), size_t(FInt::LuauCodeGenMaxTotalSize), nullptr, nullptr);
 }
 [[nodiscard]] UniqueSharedCodeGenContext createSharedCodeGenContext(AllocationCallback* allocationCallback, void* allocationCallbackContext)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  return createSharedCodeGenContext(
  size_t(FInt::LuauCodeGenBlockSize), size_t(FInt::LuauCodeGenMaxTotalSize), allocationCallback, allocationCallbackContext);
 }
 [[nodiscard]] UniqueSharedCodeGenContext createSharedCodeGenContext(
  size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  UniqueSharedCodeGenContext codeGenContext{new SharedCodeGenContext{blockSize, maxTotalSize, nullptr, nullptr}};
  if (!codeGenContext->initHeaderFunctions())
  return {};
@@ -37236,28 +37216,23 @@ void SharedCodeGenContext::onDestroyFunction(void* execdata) noexcept
 }
 void destroySharedCodeGenContext(const SharedCodeGenContext* codeGenContext) noexcept
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  delete codeGenContext;
 }
 void SharedCodeGenContextDeleter::operator()(const SharedCodeGenContext* codeGenContext) const noexcept
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  destroySharedCodeGenContext(codeGenContext);
 }
 [[nodiscard]] static BaseCodeGenContext* getCodeGenContext(lua_State* L) noexcept
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  return static_cast<BaseCodeGenContext*>(L->global->ecb.context);
 }
 static void onCloseState(lua_State* L) noexcept
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  getCodeGenContext(L)->onCloseState();
  L->global->ecb = lua_ExecutionCallbacks{};
 }
 static void onDestroyFunction(lua_State* L, Proto* proto) noexcept
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  getCodeGenContext(L)->onDestroyFunction(proto->execdata);
  proto->execdata = nullptr;
  proto->exectarget = 0;
@@ -37265,7 +37240,6 @@ static void onDestroyFunction(lua_State* L, Proto* proto) noexcept
 }
 static int onEnter(lua_State* L, Proto* proto)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  BaseCodeGenContext* codeGenContext = getCodeGenContext(L);
  CODEGEN_ASSERT(proto->execdata);
  CODEGEN_ASSERT(L->ci->savedpc >= proto->code && L->ci->savedpc < proto->code + proto->sizecode);
@@ -37274,20 +37248,17 @@ static int onEnter(lua_State* L, Proto* proto)
 }
 static int onEnterDisabled(lua_State* L, Proto* proto)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  return 1;
 }
 void onDisable(lua_State* L, Proto* proto);
 static size_t getMemorySize(lua_State* L, Proto* proto)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  const NativeProtoExecDataHeader& execDataHeader = getNativeProtoExecDataHeader(static_cast<const uint32_t*>(proto->execdata));
  const size_t execDataSize = sizeof(NativeProtoExecDataHeader) + execDataHeader.bytecodeInstructionCount * sizeof(Instruction);
  return execDataSize + execDataHeader.nativeCodeSize;
 }
 static void initializeExecutionCallbacks(lua_State* L, BaseCodeGenContext* codeGenContext) noexcept
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  CODEGEN_ASSERT(!FFlag::LuauCodegenCheckNullContext || codeGenContext != nullptr);
  lua_ExecutionCallbacks* ecb = &L->global->ecb;
  ecb->context = codeGenContext;
@@ -37299,17 +37270,14 @@ static void initializeExecutionCallbacks(lua_State* L, BaseCodeGenContext* codeG
 }
 void create_NEW(lua_State* L)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  return create_NEW(L, size_t(FInt::LuauCodeGenBlockSize), size_t(FInt::LuauCodeGenMaxTotalSize), nullptr, nullptr);
 }
 void create_NEW(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  return create_NEW(L, size_t(FInt::LuauCodeGenBlockSize), size_t(FInt::LuauCodeGenMaxTotalSize), allocationCallback, allocationCallbackContext);
 }
 void create_NEW(lua_State* L, size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  std::unique_ptr<StandaloneCodeGenContext> codeGenContext =
  std::make_unique<StandaloneCodeGenContext>(blockSize, maxTotalSize, allocationCallback, allocationCallbackContext);
  if (!codeGenContext->initHeaderFunctions())
@@ -37318,12 +37286,10 @@ void create_NEW(lua_State* L, size_t blockSize, size_t maxTotalSize, AllocationC
 }
 void create_NEW(lua_State* L, SharedCodeGenContext* codeGenContext)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  initializeExecutionCallbacks(L, codeGenContext);
 }
 [[nodiscard]] static NativeProtoExecDataPtr createNativeProtoExecData(Proto* proto, const IrBuilder& ir)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  NativeProtoExecDataPtr nativeExecData = createNativeProtoExecData(proto->sizecode);
  uint32_t instTarget = ir.function.entryLocation;
  for (int i = 0; i < proto->sizecode; ++i)
@@ -37342,7 +37308,6 @@ template<typename AssemblyBuilder>
 [[nodiscard]] static NativeProtoExecDataPtr createNativeFunction(AssemblyBuilder& build, ModuleHelpers& helpers, Proto* proto,
  uint32_t& totalIrInstCount, const HostIrHooks& hooks, CodeGenCompilationResult& result)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  IrBuilder ir(hooks);
  ir.buildFunctionIr(proto);
  unsigned instCount = unsigned(ir.function.instructions.size());
@@ -37361,7 +37326,6 @@ template<typename AssemblyBuilder>
 [[nodiscard]] static CompilationResult compileInternal(
  const std::optional<ModuleId>& moduleId, lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  CODEGEN_ASSERT(lua_isLfunction(L, idx));
  const TValue* func = luaA_toobject(L, idx);
  Proto* root = clvalue(func)->l.p;
@@ -37390,14 +37354,14 @@ template<typename AssemblyBuilder>
  return CompilationResult{existingModuleBindResult->compilationResult};
  }
  }
-#if defined(__aarch64__)
+#if defined(CODEGEN_TARGET_A64)
  static unsigned int cpuFeatures = getCpuFeaturesA64();
  A64::AssemblyBuilderA64 build( false, cpuFeatures);
 #else
  X64::AssemblyBuilderX64 build( false);
 #endif
  ModuleHelpers helpers;
-#if defined(__aarch64__)
+#if defined(CODEGEN_TARGET_A64)
  A64::assembleHelpers(build, helpers);
 #else
  X64::assembleHelpers(build, helpers);
@@ -37459,22 +37423,18 @@ template<typename AssemblyBuilder>
 }
 CompilationResult compile_NEW(const ModuleId& moduleId, lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  return compileInternal(moduleId, L, idx, options, stats);
 }
 CompilationResult compile_NEW(lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  return compileInternal({}, L, idx, options, stats);
 }
 [[nodiscard]] bool isNativeExecutionEnabled_NEW(lua_State* L)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  return getCodeGenContext(L) != nullptr && L->global->ecb.enter == onEnter;
 }
 void setNativeExecutionEnabled_NEW(lua_State* L, bool enabled)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  if (getCodeGenContext(L) != nullptr)
  L->global->ecb.enter = enabled ? onEnter : onEnterDisabled;
 }
@@ -41620,7 +41580,7 @@ void CodeAllocator::freePages(uint8_t* mem, size_t size) const
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "CodeBlockUnwind.cpp"
-#if defined(_WIN32) && defined(_M_X64)
+#if defined(_WIN32) && defined(CODEGEN_TARGET_X64)
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -41632,7 +41592,7 @@ extern "C" void __register_frame(const void*) __attribute__((weak));
 extern "C" void __deregister_frame(const void*) __attribute__((weak));
 extern "C" void __unw_add_dynamic_fde() __attribute__((weak));
 #endif
-#if defined(__APPLE__) && defined(__aarch64__)
+#if defined(__APPLE__) && defined(CODEGEN_TARGET_A64)
 #include <sys/sysctl.h>
 #include <mach-o/loader.h>
 #include <dlfcn.h>
@@ -41650,7 +41610,7 @@ namespace Luau
 {
 namespace CodeGen
 {
-#if defined(__APPLE__) && defined(__aarch64__)
+#if defined(__APPLE__) && defined(CODEGEN_TARGET_A64)
 static int findDynamicUnwindSections(uintptr_t addr, unw_dynamic_unwind_sections_t* info)
 {
  static const mach_header_64 kFakeMachHeader = {
@@ -41694,7 +41654,7 @@ void* createBlockUnwindInfo(void* context, uint8_t* block, size_t blockSize, siz
  CODEGEN_ASSERT(blockSize >= unwindSize);
  char* unwindData = (char*)block;
  unwind->finalize(unwindData, unwindSize, block, blockSize);
-#if defined(_WIN32) && defined(_M_X64)
+#if defined(_WIN32) && defined(CODEGEN_TARGET_X64)
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
  if (!RtlAddFunctionTable((RUNTIME_FUNCTION*)block, uint32_t(unwind->getFunctionCount()), uintptr_t(block)))
  {
@@ -41707,7 +41667,7 @@ void* createBlockUnwindInfo(void* context, uint8_t* block, size_t blockSize, siz
  return nullptr;
  visitFdeEntries(unwindData, __register_frame);
 #endif
-#if defined(__APPLE__) && defined(__aarch64__)
+#if defined(__APPLE__) && defined(CODEGEN_TARGET_A64)
  static unw_add_find_dynamic_unwind_sections_t unw_add_find_dynamic_unwind_sections =
  unw_add_find_dynamic_unwind_sections_t(dlsym(RTLD_DEFAULT, "__unw_add_find_dynamic_unwind_sections"));
  static int regonce = unw_add_find_dynamic_unwind_sections ? unw_add_find_dynamic_unwind_sections(findDynamicUnwindSections) : 0;
@@ -41718,7 +41678,7 @@ void* createBlockUnwindInfo(void* context, uint8_t* block, size_t blockSize, siz
 }
 void destroyBlockUnwindInfo(void* context, void* unwindData)
 {
-#if defined(_WIN32) && defined(_M_X64)
+#if defined(_WIN32) && defined(CODEGEN_TARGET_X64)
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
  if (!RtlDeleteFunctionTable((RUNTIME_FUNCTION*)unwindData))
  CODEGEN_ASSERT(!"Failed to deallocate function table");
@@ -41734,11 +41694,11 @@ void destroyBlockUnwindInfo(void* context, void* unwindData)
 }
 bool isUnwindSupported()
 {
-#if defined(_WIN32) && defined(_M_X64)
+#if defined(_WIN32) && defined(CODEGEN_TARGET_X64)
  return true;
 #elif defined(__ANDROID__)
  return false;
-#elif defined(__APPLE__) && defined(__aarch64__)
+#elif defined(__APPLE__) && defined(CODEGEN_TARGET_A64)
  char ver[256];
  size_t verLength = sizeof(ver);
  return sysctlbyname("kern.osrelease", ver, &verLength, NULL, 0) == 0 && atoi(ver) >= 22;
@@ -41752,12 +41712,12 @@ bool isUnwindSupported()
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "CodeGen.cpp"
-#if defined(__x86_64__) || defined(_M_X64)
+#if defined(CODEGEN_TARGET_X64)
 #ifdef _MSC_VER
 #else
 #endif
 #endif
-#if defined(__aarch64__)
+#if defined(CODEGEN_TARGET_A64)
 #ifdef __APPLE__
 #endif
 #endif
@@ -41767,7 +41727,6 @@ LUAU_FASTFLAGVARIABLE(DebugCodegenSkipNumbering, false)
 LUAU_FASTINTVARIABLE(CodegenHeuristicsInstructionLimit, 1'048'576) // 1 M
 LUAU_FASTINTVARIABLE(CodegenHeuristicsBlockLimit, 32'768)
 LUAU_FASTINTVARIABLE(CodegenHeuristicsBlockInstructionLimit, 65'536)
-LUAU_FASTFLAG(LuauCodegenContext)
 namespace Luau
 {
 namespace CodeGen
@@ -41802,126 +41761,8 @@ std::string toString(const CodeGenCompilationResult& result)
  CODEGEN_ASSERT(false);
  return "";
 }
-static const Instruction kCodeEntryInsn = LOP_NATIVECALL;
 void* gPerfLogContext = nullptr;
 PerfLogFn gPerfLogFn = nullptr;
-struct OldNativeProto
-{
- Proto* p;
- void* execdata;
- uintptr_t exectarget;
-};
-struct ExtraExecData
-{
- size_t execDataSize;
- size_t codeSize;
-};
-static int alignTo(int value, int align)
-{
- CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
- CODEGEN_ASSERT(align > 0 && (align & (align - 1)) == 0);
- return (value + (align - 1)) & ~(align - 1);
-}
-static int calculateExecDataSize(Proto* proto)
-{
- CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
- int size = proto->sizecode * sizeof(uint32_t);
- size = alignTo(size, 16);
- size += sizeof(ExtraExecData);
- return size;
-}
-ExtraExecData* getExtraExecData(Proto* proto, void* execdata)
-{
- CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
- int size = proto->sizecode * sizeof(uint32_t);
- size = alignTo(size, 16);
- return reinterpret_cast<ExtraExecData*>(reinterpret_cast<char*>(execdata) + size);
-}
-static OldNativeProto createOldNativeProto(Proto* proto, const IrBuilder& ir)
-{
- CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
- int execDataSize = calculateExecDataSize(proto);
- CODEGEN_ASSERT(execDataSize % 4 == 0);
- uint32_t* execData = new uint32_t[execDataSize / 4];
- uint32_t instTarget = ir.function.entryLocation;
- for (int i = 0; i < proto->sizecode; i++)
- {
- CODEGEN_ASSERT(ir.function.bcMapping[i].asmLocation >= instTarget);
- execData[i] = ir.function.bcMapping[i].asmLocation - instTarget;
- }
- execData[0] = 0;
- ExtraExecData* extra = getExtraExecData(proto, execData);
- memset(extra, 0, sizeof(ExtraExecData));
- extra->execDataSize = execDataSize;
- return {proto, execData, instTarget};
-}
-static void destroyExecData(void* execdata)
-{
- CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
- delete[] static_cast<uint32_t*>(execdata);
-}
-static void logPerfFunction(Proto* p, uintptr_t addr, unsigned size)
-{
- CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
- CODEGEN_ASSERT(p->source);
- const char* source = getstr(p->source);
- source = (source[0] == '=' || source[0] == '@') ? source + 1 : "[string]";
- char name[256];
- snprintf(name, sizeof(name), "<luau> %s:%d %s", source, p->linedefined, p->debugname ? getstr(p->debugname) : "");
- if (gPerfLogFn)
- gPerfLogFn(gPerfLogContext, addr, size, name);
-}
-template<typename AssemblyBuilder>
-static std::optional<OldNativeProto> createNativeFunction(AssemblyBuilder& build, ModuleHelpers& helpers, Proto* proto, uint32_t& totalIrInstCount,
- const HostIrHooks& hooks, CodeGenCompilationResult& result)
-{
- CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
- IrBuilder ir(hooks);
- ir.buildFunctionIr(proto);
- unsigned instCount = unsigned(ir.function.instructions.size());
- if (totalIrInstCount + instCount >= unsigned(FInt::CodegenHeuristicsInstructionLimit.value))
- {
- result = CodeGenCompilationResult::CodeGenOverflowInstructionLimit;
- return std::nullopt;
- }
- totalIrInstCount += instCount;
- if (!lowerFunction(ir, build, helpers, proto, {}, nullptr, result))
- return std::nullopt;
- return createOldNativeProto(proto, ir);
-}
-static NativeState* getNativeState(lua_State* L)
-{
- CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
- return static_cast<NativeState*>(L->global->ecb.context);
-}
-static void onCloseState(lua_State* L)
-{
- CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
- delete getNativeState(L);
- L->global->ecb = lua_ExecutionCallbacks();
-}
-static void onDestroyFunction(lua_State* L, Proto* proto)
-{
- CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
- destroyExecData(proto->execdata);
- proto->execdata = nullptr;
- proto->exectarget = 0;
- proto->codeentry = proto->code;
-}
-static int onEnter(lua_State* L, Proto* proto)
-{
- CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
- NativeState* data = getNativeState(L);
- CODEGEN_ASSERT(proto->execdata);
- CODEGEN_ASSERT(L->ci->savedpc >= proto->code && L->ci->savedpc < proto->code + proto->sizecode);
- uintptr_t target = proto->exectarget + static_cast<uint32_t*>(proto->execdata)[L->ci->savedpc - proto->code];
- return GateFn(data->context.gateEntry)(L, proto, target, &data->context);
-}
-static int onEnterDisabled(lua_State* L, Proto* proto)
-{
- CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
- return 1;
-}
 void onDisable(lua_State* L, Proto* proto)
 {
  if (proto->codeentry == proto->code)
@@ -41947,13 +41788,7 @@ void onDisable(lua_State* L, Proto* proto)
  return false;
  });
 }
-static size_t getMemorySize(lua_State* L, Proto* proto)
-{
- CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
- ExtraExecData* extra = getExtraExecData(proto, proto->execdata);
- return extra->execDataSize + extra->codeSize;
-}
-#if defined(__aarch64__)
+#if defined(CODEGEN_TARGET_A64)
 unsigned int getCpuFeaturesA64()
 {
  unsigned int result = 0;
@@ -41981,7 +41816,7 @@ bool isSupported()
  if (!LUA_USE_LONGJMP && !isUnwindSupported())
  return false;
 #endif
-#if defined(__x86_64__) || defined(_M_X64)
+#if defined(CODEGEN_TARGET_X64)
  int cpuinfo[4] = {};
 #ifdef _MSC_VER
  __cpuid(cpuinfo, 1);
@@ -41991,230 +41826,48 @@ bool isSupported()
  if ((cpuinfo[2] & (1 << 28)) == 0)
  return false;
  return true;
-#elif defined(__aarch64__)
+#elif defined(CODEGEN_TARGET_A64)
  return true;
 #else
  return false;
 #endif
 }
-static void create_OLD(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext)
-{
- CODEGEN_ASSERT(!FFlag::LuauCodegenContext);
- CODEGEN_ASSERT(isSupported());
- std::unique_ptr<NativeState> data = std::make_unique<NativeState>(allocationCallback, allocationCallbackContext);
-#if defined(_WIN32)
- data->unwindBuilder = std::make_unique<UnwindBuilderWin>();
-#else
- data->unwindBuilder = std::make_unique<UnwindBuilderDwarf2>();
-#endif
- data->codeAllocator.context = data->unwindBuilder.get();
- data->codeAllocator.createBlockUnwindInfo = createBlockUnwindInfo;
- data->codeAllocator.destroyBlockUnwindInfo = destroyBlockUnwindInfo;
- initFunctions(*data);
-#if defined(__x86_64__) || defined(_M_X64)
- if (!X64::initHeaderFunctions(*data))
- return;
-#elif defined(__aarch64__)
- if (!A64::initHeaderFunctions(*data))
- return;
-#endif
- if (gPerfLogFn)
- gPerfLogFn(gPerfLogContext, uintptr_t(data->context.gateEntry), 4096, "<luau gate>");
- lua_ExecutionCallbacks* ecb = &L->global->ecb;
- ecb->context = data.release();
- ecb->close = onCloseState;
- ecb->destroy = onDestroyFunction;
- ecb->enter = onEnter;
- ecb->disable = onDisable;
- ecb->getmemorysize = getMemorySize;
-}
 void create(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext)
 {
- if (FFlag::LuauCodegenContext)
- {
  create_NEW(L, allocationCallback, allocationCallbackContext);
- }
- else
- {
- create_OLD(L, allocationCallback, allocationCallbackContext);
- }
 }
 void create(lua_State* L)
 {
- if (FFlag::LuauCodegenContext)
- {
  create_NEW(L);
- }
- else
- {
- create(L, nullptr, nullptr);
- }
 }
 void create(lua_State* L, SharedCodeGenContext* codeGenContext)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  create_NEW(L, codeGenContext);
 }
 [[nodiscard]] bool isNativeExecutionEnabled(lua_State* L)
 {
- if (FFlag::LuauCodegenContext)
- {
  return isNativeExecutionEnabled_NEW(L);
- }
- else
- {
- return getNativeState(L) ? (L->global->ecb.enter == onEnter) : false;
- }
 }
 void setNativeExecutionEnabled(lua_State* L, bool enabled)
 {
- if (FFlag::LuauCodegenContext)
- {
  setNativeExecutionEnabled_NEW(L, enabled);
- }
- else
- {
- if (getNativeState(L))
- L->global->ecb.enter = enabled ? onEnter : onEnterDisabled;
- }
-}
-static CompilationResult compile_OLD(lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats)
-{
- CompilationResult compilationResult;
- CODEGEN_ASSERT(lua_isLfunction(L, idx));
- const TValue* func = luaA_toobject(L, idx);
- Proto* root = clvalue(func)->l.p;
- if ((options.flags & CodeGen_OnlyNativeModules) != 0 && (root->flags & LPF_NATIVE_MODULE) == 0)
- {
- compilationResult.result = CodeGenCompilationResult::NotNativeModule;
- return compilationResult;
- }
- NativeState* data = getNativeState(L);
- if (!data)
- {
- compilationResult.result = CodeGenCompilationResult::CodeGenNotInitialized;
- return compilationResult;
- }
- std::vector<Proto*> protos;
- gatherFunctions(protos, root, options.flags);
- protos.erase(std::remove_if(protos.begin(), protos.end(),
- [](Proto* p) {
- return p == nullptr || p->execdata != nullptr;
- }),
- protos.end());
- if (protos.empty())
- {
- compilationResult.result = CodeGenCompilationResult::NothingToCompile;
- return compilationResult;
- }
- if (stats != nullptr)
- stats->functionsTotal = uint32_t(protos.size());
-#if defined(__aarch64__)
- static unsigned int cpuFeatures = getCpuFeaturesA64();
- A64::AssemblyBuilderA64 build( false, cpuFeatures);
-#else
- X64::AssemblyBuilderX64 build( false);
-#endif
- ModuleHelpers helpers;
-#if defined(__aarch64__)
- A64::assembleHelpers(build, helpers);
-#else
- X64::assembleHelpers(build, helpers);
-#endif
- std::vector<OldNativeProto> results;
- results.reserve(protos.size());
- uint32_t totalIrInstCount = 0;
- for (Proto* p : protos)
- {
- CodeGenCompilationResult protoResult = CodeGenCompilationResult::Success;
- if (std::optional<OldNativeProto> np = createNativeFunction(build, helpers, p, totalIrInstCount, options.hooks, protoResult))
- results.push_back(*np);
- else
- compilationResult.protoFailures.push_back({protoResult, p->debugname ? getstr(p->debugname) : "", p->linedefined});
- }
- if (!build.finalize())
- {
- for (OldNativeProto result : results)
- destroyExecData(result.execdata);
- compilationResult.result = CodeGenCompilationResult::CodeGenAssemblerFinalizationFailure;
- return compilationResult;
- }
- if (results.empty())
- return compilationResult;
- uint8_t* nativeData = nullptr;
- size_t sizeNativeData = 0;
- uint8_t* codeStart = nullptr;
- if (!data->codeAllocator.allocate(build.data.data(), int(build.data.size()), reinterpret_cast<const uint8_t*>(build.code.data()),
- int(build.code.size() * sizeof(build.code[0])), nativeData, sizeNativeData, codeStart))
- {
- for (OldNativeProto result : results)
- destroyExecData(result.execdata);
- compilationResult.result = CodeGenCompilationResult::AllocationFailed;
- return compilationResult;
- }
- if (gPerfLogFn && results.size() > 0)
- gPerfLogFn(gPerfLogContext, uintptr_t(codeStart), uint32_t(results[0].exectarget), "<luau helpers>");
- for (size_t i = 0; i < results.size(); ++i)
- {
- uint32_t begin = uint32_t(results[i].exectarget);
- uint32_t end = i + 1 < results.size() ? uint32_t(results[i + 1].exectarget) : uint32_t(build.code.size() * sizeof(build.code[0]));
- CODEGEN_ASSERT(begin < end);
- if (gPerfLogFn)
- logPerfFunction(results[i].p, uintptr_t(codeStart) + begin, end - begin);
- ExtraExecData* extra = getExtraExecData(results[i].p, results[i].execdata);
- extra->codeSize = end - begin;
- }
- for (const OldNativeProto& result : results)
- {
- result.p->execdata = result.execdata;
- result.p->exectarget = uintptr_t(codeStart) + result.exectarget;
- result.p->codeentry = &kCodeEntryInsn;
- }
- if (stats != nullptr)
- {
- for (const OldNativeProto& result : results)
- {
- stats->bytecodeSizeBytes += result.p->sizecode * sizeof(Instruction);
- stats->nativeMetadataSizeBytes += result.p->sizecode * sizeof(uint32_t);
- }
- stats->functionsCompiled += uint32_t(results.size());
- stats->nativeCodeSizeBytes += build.code.size();
- stats->nativeDataSizeBytes += build.data.size();
- }
- return compilationResult;
 }
 CompilationResult compile(lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
 {
  Luau::CodeGen::CompilationOptions options{flags};
- if (FFlag::LuauCodegenContext)
- {
  return compile_NEW(L, idx, options, stats);
- }
- else
- {
- return compile_OLD(L, idx, options, stats);
- }
 }
 CompilationResult compile(const ModuleId& moduleId, lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  Luau::CodeGen::CompilationOptions options{flags};
  return compile_NEW(moduleId, L, idx, options, stats);
 }
 CompilationResult compile(lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats)
 {
- if (FFlag::LuauCodegenContext)
- {
  return compile_NEW(L, idx, options, stats);
- }
- else
- {
- return compile_OLD(L, idx, options, stats);
- }
 }
 CompilationResult compile(const ModuleId& moduleId, lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenContext);
  return compile_NEW(moduleId, L, idx, options, stats);
 }
 void setPerfLog(void* context, PerfLogFn logFn)
@@ -42723,7 +42376,7 @@ static std::string getAssemblyImpl(AssemblyBuilder& build, const TValue* func, A
  else
  return build.text;
 }
-#if defined(__aarch64__)
+#if defined(CODEGEN_TARGET_A64)
 unsigned int getCpuFeaturesA64();
 #endif
 std::string getAssembly(lua_State* L, int idx, AssemblyOptions options, LoweringStats* stats)
@@ -42734,7 +42387,7 @@ std::string getAssembly(lua_State* L, int idx, AssemblyOptions options, Lowering
  {
  case AssemblyOptions::Host:
  {
-#if defined(__aarch64__)
+#if defined(CODEGEN_TARGET_A64)
  static unsigned int cpuFeatures = getCpuFeaturesA64();
  A64::AssemblyBuilderA64 build( options.includeAssembly, cpuFeatures);
 #else
