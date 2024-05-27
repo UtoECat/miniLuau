@@ -1862,6 +1862,8 @@ LUAI_FUNC int luaV_lessthan(lua_State* L, const TValue* l, const TValue* r);
 LUAI_FUNC int luaV_lessequal(lua_State* L, const TValue* l, const TValue* r);
 LUAI_FUNC int luaV_equalval(lua_State* L, const TValue* t1, const TValue* t2);
 LUAI_FUNC void luaV_doarith(lua_State* L, StkId ra, const TValue* rb, const TValue* rc, TMS op);
+template<TMS op>
+void luaV_doarithimpl(lua_State* L, StkId ra, const TValue* rb, const TValue* rc);
 LUAI_FUNC void luaV_dolen(lua_State* L, StkId ra, const TValue* rb);
 LUAI_FUNC const TValue* luaV_tonumber(const TValue* obj, TValue* n);
 LUAI_FUNC const float* luaV_tovector(const TValue* obj);
@@ -13746,6 +13748,7 @@ int luaopen_utf8(lua_State* L)
 }
 #line __LINE__ ""
 #line __LINE__ "lvmexecute.cpp"
+LUAU_FASTFLAGVARIABLE(LuauVmSplitDoarith, false)
 #ifdef __clang__
 #if __has_warning("-Wc99-designator")
 #pragma clang diagnostic ignored "-Wc99-designator"
@@ -14806,7 +14809,14 @@ reentry:
  }
  else
  {
+ if (FFlag::LuauVmSplitDoarith)
+ {
+ VM_PROTECT(luaV_doarithimpl<TM_ADD>(L, ra, rb, rc));
+ }
+ else
+ {
  VM_PROTECT(luaV_doarith(L, ra, rb, rc, TM_ADD));
+ }
  VM_NEXT();
  }
  }
@@ -14845,7 +14855,14 @@ reentry:
  }
  else
  {
+ if (FFlag::LuauVmSplitDoarith)
+ {
+ VM_PROTECT(luaV_doarithimpl<TM_SUB>(L, ra, rb, rc));
+ }
+ else
+ {
  VM_PROTECT(luaV_doarith(L, ra, rb, rc, TM_SUB));
+ }
  VM_NEXT();
  }
  }
@@ -14899,7 +14916,14 @@ reentry:
  }
  else
  {
+ if (FFlag::LuauVmSplitDoarith)
+ {
+ VM_PROTECT(luaV_doarithimpl<TM_MUL>(L, ra, rb, rc));
+ }
+ else
+ {
  VM_PROTECT(luaV_doarith(L, ra, rb, rc, TM_MUL));
+ }
  VM_NEXT();
  }
  }
@@ -14953,7 +14977,14 @@ reentry:
  }
  else
  {
+ if (FFlag::LuauVmSplitDoarith)
+ {
+ VM_PROTECT(luaV_doarithimpl<TM_DIV>(L, ra, rb, rc));
+ }
+ else
+ {
  VM_PROTECT(luaV_doarith(L, ra, rb, rc, TM_DIV));
+ }
  VM_NEXT();
  }
  }
@@ -14994,7 +15025,14 @@ reentry:
  }
  else
  {
+ if (FFlag::LuauVmSplitDoarith)
+ {
+ VM_PROTECT(luaV_doarithimpl<TM_IDIV>(L, ra, rb, rc));
+ }
+ else
+ {
  VM_PROTECT(luaV_doarith(L, ra, rb, rc, TM_IDIV));
+ }
  VM_NEXT();
  }
  }
@@ -15014,7 +15052,14 @@ reentry:
  }
  else
  {
+ if (FFlag::LuauVmSplitDoarith)
+ {
+ VM_PROTECT(luaV_doarithimpl<TM_MOD>(L, ra, rb, rc));
+ }
+ else
+ {
  VM_PROTECT(luaV_doarith(L, ra, rb, rc, TM_MOD));
+ }
  VM_NEXT();
  }
  }
@@ -15031,7 +15076,14 @@ reentry:
  }
  else
  {
+ if (FFlag::LuauVmSplitDoarith)
+ {
+ VM_PROTECT(luaV_doarithimpl<TM_POW>(L, ra, rb, rc));
+ }
+ else
+ {
  VM_PROTECT(luaV_doarith(L, ra, rb, rc, TM_POW));
+ }
  VM_NEXT();
  }
  }
@@ -15048,7 +15100,14 @@ reentry:
  }
  else
  {
+ if (FFlag::LuauVmSplitDoarith)
+ {
+ VM_PROTECT(luaV_doarithimpl<TM_ADD>(L, ra, rb, kv));
+ }
+ else
+ {
  VM_PROTECT(luaV_doarith(L, ra, rb, kv, TM_ADD));
+ }
  VM_NEXT();
  }
  }
@@ -15065,7 +15124,14 @@ reentry:
  }
  else
  {
+ if (FFlag::LuauVmSplitDoarith)
+ {
+ VM_PROTECT(luaV_doarithimpl<TM_SUB>(L, ra, rb, kv));
+ }
+ else
+ {
  VM_PROTECT(luaV_doarith(L, ra, rb, kv, TM_SUB));
+ }
  VM_NEXT();
  }
  }
@@ -15103,7 +15169,14 @@ reentry:
  }
  else
  {
+ if (FFlag::LuauVmSplitDoarith)
+ {
+ VM_PROTECT(luaV_doarithimpl<TM_MUL>(L, ra, rb, kv));
+ }
+ else
+ {
  VM_PROTECT(luaV_doarith(L, ra, rb, kv, TM_MUL));
+ }
  VM_NEXT();
  }
  }
@@ -15142,7 +15215,14 @@ reentry:
  }
  else
  {
+ if (FFlag::LuauVmSplitDoarith)
+ {
+ VM_PROTECT(luaV_doarithimpl<TM_DIV>(L, ra, rb, kv));
+ }
+ else
+ {
  VM_PROTECT(luaV_doarith(L, ra, rb, kv, TM_DIV));
+ }
  VM_NEXT();
  }
  }
@@ -15182,7 +15262,14 @@ reentry:
  }
  else
  {
+ if (FFlag::LuauVmSplitDoarith)
+ {
+ VM_PROTECT(luaV_doarithimpl<TM_IDIV>(L, ra, rb, kv));
+ }
+ else
+ {
  VM_PROTECT(luaV_doarith(L, ra, rb, kv, TM_IDIV));
+ }
  VM_NEXT();
  }
  }
@@ -15202,7 +15289,14 @@ reentry:
  }
  else
  {
+ if (FFlag::LuauVmSplitDoarith)
+ {
+ VM_PROTECT(luaV_doarithimpl<TM_MOD>(L, ra, rb, kv));
+ }
+ else
+ {
  VM_PROTECT(luaV_doarith(L, ra, rb, kv, TM_MOD));
+ }
  VM_NEXT();
  }
  }
@@ -15222,7 +15316,14 @@ reentry:
  }
  else
  {
+ if (FFlag::LuauVmSplitDoarith)
+ {
+ VM_PROTECT(luaV_doarithimpl<TM_POW>(L, ra, rb, kv));
+ }
+ else
+ {
  VM_PROTECT(luaV_doarith(L, ra, rb, kv, TM_POW));
+ }
  VM_NEXT();
  }
  }
@@ -15313,7 +15414,14 @@ reentry:
  }
  else
  {
+ if (FFlag::LuauVmSplitDoarith)
+ {
+ VM_PROTECT(luaV_doarithimpl<TM_UNM>(L, ra, rb, rb));
+ }
+ else
+ {
  VM_PROTECT(luaV_doarith(L, ra, rb, rb, TM_UNM));
+ }
  VM_NEXT();
  }
  }
@@ -15765,7 +15873,14 @@ reentry:
  }
  else
  {
+ if (FFlag::LuauVmSplitDoarith)
+ {
+ VM_PROTECT(luaV_doarithimpl<TM_SUB>(L, ra, kv, rc));
+ }
+ else
+ {
  VM_PROTECT(luaV_doarith(L, ra, kv, rc, TM_SUB));
+ }
  VM_NEXT();
  }
  }
@@ -15789,7 +15904,14 @@ reentry:
  }
  else
  {
+ if (FFlag::LuauVmSplitDoarith)
+ {
+ VM_PROTECT(luaV_doarithimpl<TM_DIV>(L, ra, kv, rc));
+ }
+ else
+ {
  VM_PROTECT(luaV_doarith(L, ra, kv, rc, TM_DIV));
+ }
  VM_NEXT();
  }
  }
@@ -16740,6 +16862,136 @@ void luaV_concat(lua_State* L, int total, int last)
  last -= n - 1;
  } while (total > 1);
 }
+template<TMS op>
+void luaV_doarithimpl(lua_State* L, StkId ra, const TValue* rb, const TValue* rc)
+{
+ TValue tempb, tempc;
+ const TValue *b, *c;
+ const float* vb = ttisvector(rb) ? vvalue(rb) : nullptr;
+ const float* vc = ttisvector(rc) ? vvalue(rc) : nullptr;
+ if (vb && vc)
+ {
+ switch (op)
+ {
+ case TM_ADD:
+ setvvalue(ra, vb[0] + vc[0], vb[1] + vc[1], vb[2] + vc[2], vb[3] + vc[3]);
+ return;
+ case TM_SUB:
+ setvvalue(ra, vb[0] - vc[0], vb[1] - vc[1], vb[2] - vc[2], vb[3] - vc[3]);
+ return;
+ case TM_MUL:
+ setvvalue(ra, vb[0] * vc[0], vb[1] * vc[1], vb[2] * vc[2], vb[3] * vc[3]);
+ return;
+ case TM_DIV:
+ setvvalue(ra, vb[0] / vc[0], vb[1] / vc[1], vb[2] / vc[2], vb[3] / vc[3]);
+ return;
+ case TM_IDIV:
+ setvvalue(ra, float(luai_numidiv(vb[0], vc[0])), float(luai_numidiv(vb[1], vc[1])), float(luai_numidiv(vb[2], vc[2])),
+ float(luai_numidiv(vb[3], vc[3])));
+ return;
+ case TM_UNM:
+ setvvalue(ra, -vb[0], -vb[1], -vb[2], -vb[3]);
+ return;
+ default:
+ break;
+ }
+ }
+ else if (vb)
+ {
+ c = ttisnumber(rc) ? rc : luaV_tonumber(rc, &tempc);
+ if (c)
+ {
+ float nc = cast_to(float, nvalue(c));
+ switch (op)
+ {
+ case TM_MUL:
+ setvvalue(ra, vb[0] * nc, vb[1] * nc, vb[2] * nc, vb[3] * nc);
+ return;
+ case TM_DIV:
+ setvvalue(ra, vb[0] / nc, vb[1] / nc, vb[2] / nc, vb[3] / nc);
+ return;
+ case TM_IDIV:
+ setvvalue(ra, float(luai_numidiv(vb[0], nc)), float(luai_numidiv(vb[1], nc)), float(luai_numidiv(vb[2], nc)),
+ float(luai_numidiv(vb[3], nc)));
+ return;
+ default:
+ break;
+ }
+ }
+ }
+ else if (vc)
+ {
+ b = ttisnumber(rb) ? rb : luaV_tonumber(rb, &tempb);
+ if (b)
+ {
+ float nb = cast_to(float, nvalue(b));
+ switch (op)
+ {
+ case TM_MUL:
+ setvvalue(ra, nb * vc[0], nb * vc[1], nb * vc[2], nb * vc[3]);
+ return;
+ case TM_DIV:
+ setvvalue(ra, nb / vc[0], nb / vc[1], nb / vc[2], nb / vc[3]);
+ return;
+ case TM_IDIV:
+ setvvalue(ra, float(luai_numidiv(nb, vc[0])), float(luai_numidiv(nb, vc[1])), float(luai_numidiv(nb, vc[2])),
+ float(luai_numidiv(nb, vc[3])));
+ return;
+ default:
+ break;
+ }
+ }
+ }
+ if ((b = luaV_tonumber(rb, &tempb)) != NULL && (c = luaV_tonumber(rc, &tempc)) != NULL)
+ {
+ double nb = nvalue(b), nc = nvalue(c);
+ switch (op)
+ {
+ case TM_ADD:
+ setnvalue(ra, luai_numadd(nb, nc));
+ break;
+ case TM_SUB:
+ setnvalue(ra, luai_numsub(nb, nc));
+ break;
+ case TM_MUL:
+ setnvalue(ra, luai_nummul(nb, nc));
+ break;
+ case TM_DIV:
+ setnvalue(ra, luai_numdiv(nb, nc));
+ break;
+ case TM_IDIV:
+ setnvalue(ra, luai_numidiv(nb, nc));
+ break;
+ case TM_MOD:
+ setnvalue(ra, luai_nummod(nb, nc));
+ break;
+ case TM_POW:
+ setnvalue(ra, luai_numpow(nb, nc));
+ break;
+ case TM_UNM:
+ setnvalue(ra, luai_numunm(nb));
+ break;
+ default:
+ LUAU_ASSERT(0);
+ break;
+ }
+ }
+ else
+ {
+ if (!call_binTM(L, rb, rc, ra, op))
+ {
+ luaG_aritherror(L, rb, rc, op);
+ }
+ }
+}
+template void luaV_doarithimpl<TM_ADD>(lua_State* L, StkId ra, const TValue* rb, const TValue* rc);
+template void luaV_doarithimpl<TM_SUB>(lua_State* L, StkId ra, const TValue* rb, const TValue* rc);
+template void luaV_doarithimpl<TM_MUL>(lua_State* L, StkId ra, const TValue* rb, const TValue* rc);
+template void luaV_doarithimpl<TM_DIV>(lua_State* L, StkId ra, const TValue* rb, const TValue* rc);
+template void luaV_doarithimpl<TM_IDIV>(lua_State* L, StkId ra, const TValue* rb, const TValue* rc);
+template void luaV_doarithimpl<TM_MOD>(lua_State* L, StkId ra, const TValue* rb, const TValue* rc);
+template void luaV_doarithimpl<TM_POW>(lua_State* L, StkId ra, const TValue* rb, const TValue* rc);
+template void luaV_doarithimpl<TM_UNM>(lua_State* L, StkId ra, const TValue* rb, const TValue* rc);
 void luaV_doarith(lua_State* L, StkId ra, const TValue* rb, const TValue* rc, TMS op)
 {
  TValue tempb, tempc;
@@ -35146,8 +35398,9 @@ using UniqueSharedCodeGenContext = std::unique_ptr<SharedCodeGenContext, SharedC
 [[nodiscard]] UniqueSharedCodeGenContext createSharedCodeGenContext(
  size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext);
 void destroySharedCodeGenContext(const SharedCodeGenContext* codeGenContext) noexcept;
-void create(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext);
 void create(lua_State* L);
+void create(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext);
+void create(lua_State* L, size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext);
 void create(lua_State* L, SharedCodeGenContext* codeGenContext);
 [[nodiscard]] bool isNativeExecutionEnabled(lua_State* L);
 void setNativeExecutionEnabled(lua_State* L, bool enabled);
@@ -35436,6 +35689,14 @@ struct NativeContext
  int (*luaV_lessequal)(lua_State* L, const TValue* l, const TValue* r) = nullptr;
  int (*luaV_equalval)(lua_State* L, const TValue* t1, const TValue* t2) = nullptr;
  void (*luaV_doarith)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc, TMS op) = nullptr;
+ void (*luaV_doarithadd)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc) = nullptr;
+ void (*luaV_doarithsub)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc) = nullptr;
+ void (*luaV_doarithmul)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc) = nullptr;
+ void (*luaV_doarithdiv)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc) = nullptr;
+ void (*luaV_doarithidiv)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc) = nullptr;
+ void (*luaV_doarithmod)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc) = nullptr;
+ void (*luaV_doarithpow)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc) = nullptr;
+ void (*luaV_doarithunm)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc) = nullptr;
  void (*luaV_dolen)(lua_State* L, StkId ra, const TValue* rb) = nullptr;
  void (*luaV_gettable)(lua_State* L, const TValue* t, TValue* key, StkId val) = nullptr;
  void (*luaV_settable)(lua_State* L, const TValue* t, TValue* key, StkId val) = nullptr;
@@ -35563,14 +35824,6 @@ public:
 private:
  SharedCodeAllocator sharedAllocator;
 };
-void create_NEW(lua_State* L);
-void create_NEW(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext);
-void create_NEW(lua_State* L, size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext);
-void create_NEW(lua_State* L, SharedCodeGenContext* codeGenContext);
-CompilationResult compile_NEW(lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats);
-CompilationResult compile_NEW(const ModuleId& moduleId, lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats);
-[[nodiscard]] bool isNativeExecutionEnabled_NEW(lua_State* L);
-void setNativeExecutionEnabled_NEW(lua_State* L, bool enabled);
 }
 } // namespace Luau
 #line __LINE__ "CodeGenContext.cpp"
@@ -36901,7 +37154,7 @@ namespace Luau
 {
 namespace CodeGen
 {
-static uint32_t kFullBlockFuncton = ~0u;
+static uint32_t kFullBlockFunction = ~0u;
 class UnwindBuilder
 {
 public:
@@ -36920,9 +37173,8 @@ public:
  virtual void prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs) = 0;
  virtual void prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame, std::initializer_list<X64::RegisterX64> gpr,
  const std::vector<X64::RegisterX64>& simd) = 0;
- virtual size_t getSize() const = 0;
- virtual size_t getFunctionCount() const = 0;
- virtual void finalize(char* target, size_t offset, void* funcAddress, size_t funcSize) const = 0;
+ virtual size_t getUnwindInfoSize(size_t blockSize) const = 0;
+ virtual size_t finalize(char* target, size_t offset, void* funcAddress, size_t blockSize) const = 0;
 };
 }
 } // namespace Luau
@@ -36950,9 +37202,8 @@ public:
  void prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs) override;
  void prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame, std::initializer_list<X64::RegisterX64> gpr,
  const std::vector<X64::RegisterX64>& simd) override;
- size_t getSize() const override;
- size_t getFunctionCount() const override;
- void finalize(char* target, size_t offset, void* funcAddress, size_t funcSize) const override;
+ size_t getUnwindInfoSize(size_t blockSize = 0) const override;
+ size_t finalize(char* target, size_t offset, void* funcAddress, size_t blockSize) const override;
 private:
  size_t beginOffset = 0;
  std::vector<UnwindFunctionDwarf2> unwindFunctions;
@@ -37002,9 +37253,8 @@ public:
  void prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs) override;
  void prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame, std::initializer_list<X64::RegisterX64> gpr,
  const std::vector<X64::RegisterX64>& simd) override;
- size_t getSize() const override;
- size_t getFunctionCount() const override;
- void finalize(char* target, size_t offset, void* funcAddress, size_t funcSize) const override;
+ size_t getUnwindInfoSize(size_t blockSize = 0) const override;
+ size_t finalize(char* target, size_t offset, void* funcAddress, size_t blockSize) const override;
 private:
  size_t beginOffset = 0;
  static const unsigned kRawDataLimit = 1024;
@@ -37027,9 +37277,14 @@ namespace Luau
 namespace CodeGen
 {
 static const Instruction kCodeEntryInsn = LOP_NATIVECALL;
-extern void* gPerfLogContext;
-extern PerfLogFn gPerfLogFn;
+static void* gPerfLogContext = nullptr;
+static PerfLogFn gPerfLogFn = nullptr;
 unsigned int getCpuFeaturesA64();
+void setPerfLog(void* context, PerfLogFn logFn)
+{
+ gPerfLogContext = context;
+ gPerfLogFn = logFn;
+}
 static void logPerfFunction(Proto* p, uintptr_t addr, unsigned size)
 {
  CODEGEN_ASSERT(p->source);
@@ -37268,15 +37523,15 @@ static void initializeExecutionCallbacks(lua_State* L, BaseCodeGenContext* codeG
  ecb->disable = onDisable;
  ecb->getmemorysize = getMemorySize;
 }
-void create_NEW(lua_State* L)
+void create(lua_State* L)
 {
- return create_NEW(L, size_t(FInt::LuauCodeGenBlockSize), size_t(FInt::LuauCodeGenMaxTotalSize), nullptr, nullptr);
+ return create(L, size_t(FInt::LuauCodeGenBlockSize), size_t(FInt::LuauCodeGenMaxTotalSize), nullptr, nullptr);
 }
-void create_NEW(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext)
+void create(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext)
 {
- return create_NEW(L, size_t(FInt::LuauCodeGenBlockSize), size_t(FInt::LuauCodeGenMaxTotalSize), allocationCallback, allocationCallbackContext);
+ return create(L, size_t(FInt::LuauCodeGenBlockSize), size_t(FInt::LuauCodeGenMaxTotalSize), allocationCallback, allocationCallbackContext);
 }
-void create_NEW(lua_State* L, size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext)
+void create(lua_State* L, size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext)
 {
  std::unique_ptr<StandaloneCodeGenContext> codeGenContext =
  std::make_unique<StandaloneCodeGenContext>(blockSize, maxTotalSize, allocationCallback, allocationCallbackContext);
@@ -37284,7 +37539,7 @@ void create_NEW(lua_State* L, size_t blockSize, size_t maxTotalSize, AllocationC
  return;
  initializeExecutionCallbacks(L, codeGenContext.release());
 }
-void create_NEW(lua_State* L, SharedCodeGenContext* codeGenContext)
+void create(lua_State* L, SharedCodeGenContext* codeGenContext)
 {
  initializeExecutionCallbacks(L, codeGenContext);
 }
@@ -37421,19 +37676,27 @@ template<typename AssemblyBuilder>
  compilationResult.result = bindResult.compilationResult;
  return compilationResult;
 }
-CompilationResult compile_NEW(const ModuleId& moduleId, lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats)
+CompilationResult compile(const ModuleId& moduleId, lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats)
 {
  return compileInternal(moduleId, L, idx, options, stats);
 }
-CompilationResult compile_NEW(lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats)
+CompilationResult compile(lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats)
 {
  return compileInternal({}, L, idx, options, stats);
 }
-[[nodiscard]] bool isNativeExecutionEnabled_NEW(lua_State* L)
+CompilationResult compile(lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
+{
+ return compileInternal({}, L, idx, CompilationOptions{flags}, stats);
+}
+CompilationResult compile(const ModuleId& moduleId, lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
+{
+ return compileInternal(moduleId, L, idx, CompilationOptions{flags}, stats);
+}
+[[nodiscard]] bool isNativeExecutionEnabled(lua_State* L)
 {
  return getCodeGenContext(L) != nullptr && L->global->ecb.enter == onEnter;
 }
-void setNativeExecutionEnabled_NEW(lua_State* L, bool enabled)
+void setNativeExecutionEnabled(lua_State* L, bool enabled)
 {
  if (getCodeGenContext(L) != nullptr)
  L->global->ecb.enter = enabled ? onEnter : onEnterDisabled;
@@ -41649,14 +41912,14 @@ static void visitFdeEntries(char* pos, void (*cb)(const void*))
 void* createBlockUnwindInfo(void* context, uint8_t* block, size_t blockSize, size_t& beginOffset)
 {
  UnwindBuilder* unwind = (UnwindBuilder*)context;
- size_t unwindSize = unwind->getSize();
+ size_t unwindSize = unwind->getUnwindInfoSize(blockSize);
  unwindSize = (unwindSize + (kCodeAlignment - 1)) & ~(kCodeAlignment - 1);
  CODEGEN_ASSERT(blockSize >= unwindSize);
  char* unwindData = (char*)block;
- unwind->finalize(unwindData, unwindSize, block, blockSize);
+ [[maybe_unused]] size_t functionCount = unwind->finalize(unwindData, unwindSize, block, blockSize);
 #if defined(_WIN32) && defined(CODEGEN_TARGET_X64)
 #if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP | WINAPI_PARTITION_SYSTEM)
- if (!RtlAddFunctionTable((RUNTIME_FUNCTION*)block, uint32_t(unwind->getFunctionCount()), uintptr_t(block)))
+ if (!RtlAddFunctionTable((RUNTIME_FUNCTION*)block, uint32_t(functionCount), uintptr_t(block)))
  {
  CODEGEN_ASSERT(!"Failed to allocate function table");
  return nullptr;
@@ -41761,8 +42024,6 @@ std::string toString(const CodeGenCompilationResult& result)
  CODEGEN_ASSERT(false);
  return "";
 }
-void* gPerfLogContext = nullptr;
-PerfLogFn gPerfLogFn = nullptr;
 void onDisable(lua_State* L, Proto* proto)
 {
  if (proto->codeentry == proto->code)
@@ -41831,49 +42092,6 @@ bool isSupported()
 #else
  return false;
 #endif
-}
-void create(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext)
-{
- create_NEW(L, allocationCallback, allocationCallbackContext);
-}
-void create(lua_State* L)
-{
- create_NEW(L);
-}
-void create(lua_State* L, SharedCodeGenContext* codeGenContext)
-{
- create_NEW(L, codeGenContext);
-}
-[[nodiscard]] bool isNativeExecutionEnabled(lua_State* L)
-{
- return isNativeExecutionEnabled_NEW(L);
-}
-void setNativeExecutionEnabled(lua_State* L, bool enabled)
-{
- setNativeExecutionEnabled_NEW(L, enabled);
-}
-CompilationResult compile(lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
-{
- Luau::CodeGen::CompilationOptions options{flags};
- return compile_NEW(L, idx, options, stats);
-}
-CompilationResult compile(const ModuleId& moduleId, lua_State* L, int idx, unsigned int flags, CompilationStats* stats)
-{
- Luau::CodeGen::CompilationOptions options{flags};
- return compile_NEW(moduleId, L, idx, options, stats);
-}
-CompilationResult compile(lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats)
-{
- return compile_NEW(L, idx, options, stats);
-}
-CompilationResult compile(const ModuleId& moduleId, lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats)
-{
- return compile_NEW(moduleId, L, idx, options, stats);
-}
-void setPerfLog(void* context, PerfLogFn logFn)
-{
- gPerfLogContext = context;
- gPerfLogFn = logFn;
 }
 }
 } // namespace Luau
@@ -42078,7 +42296,7 @@ static EntryLocations buildEntryFunction(AssemblyBuilderA64& build, UnwindBuilde
  build.ret();
  unwind.startFunction();
  unwind.prologueA64(prologueSize, kStackSize, {x29, x30, x19, x20, x21, x22, x23, x24, x25});
- unwind.finishFunction(build.getLabelOffset(locations.start), kFullBlockFuncton);
+ unwind.finishFunction(build.getLabelOffset(locations.start), kFullBlockFunction);
  return locations;
 }
 bool initHeaderFunctions(NativeState& data)
@@ -43230,7 +43448,7 @@ static EntryLocations buildEntryFunction(AssemblyBuilderX64& build, UnwindBuilde
  if (build.abi == ABIX64::SystemV)
  build.pop(rbp);
  build.ret();
- unwind.finishFunction(build.getLabelOffset(locations.start), kFullBlockFuncton);
+ unwind.finishFunction(build.getLabelOffset(locations.start), kFullBlockFunction);
  return locations;
 }
 bool initHeaderFunctions(NativeState& data)
@@ -43460,6 +43678,7 @@ void emitBuiltin(IrRegAllocX64& regs, AssemblyBuilderX64& build, int bfid, int r
 }
 #line __LINE__ ""
 #line __LINE__ "EmitCommonX64.cpp"
+LUAU_FASTFLAGVARIABLE(LuauCodegenSplitDoarith, false)
 namespace Luau
 {
 namespace CodeGen
@@ -43568,8 +43787,44 @@ void callArithHelper(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, Ope
  callWrap.addArgument(SizeX64::qword, luauRegAddress(ra));
  callWrap.addArgument(SizeX64::qword, b);
  callWrap.addArgument(SizeX64::qword, c);
+ if (FFlag::LuauCodegenSplitDoarith)
+ {
+ switch (tm)
+ {
+ case TM_ADD:
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_doarithadd)]);
+ break;
+ case TM_SUB:
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_doarithsub)]);
+ break;
+ case TM_MUL:
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_doarithmul)]);
+ break;
+ case TM_DIV:
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_doarithdiv)]);
+ break;
+ case TM_IDIV:
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_doarithidiv)]);
+ break;
+ case TM_MOD:
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_doarithmod)]);
+ break;
+ case TM_POW:
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_doarithpow)]);
+ break;
+ case TM_UNM:
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_doarithunm)]);
+ break;
+ default:
+ CODEGEN_ASSERT(!"Invalid doarith helper operation tag");
+ break;
+ }
+ }
+ else
+ {
  callWrap.addArgument(SizeX64::dword, tm);
  callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_doarith)]);
+ }
  emitUpdateBase(build);
 }
 void callLengthHelper(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, int rb)
@@ -46038,6 +46293,7 @@ std::string dumpDot(const IrFunction& function, bool includeInst)
 #line __LINE__ ""
 #line __LINE__ "IrLoweringA64.cpp"
 LUAU_FASTFLAG(LuauCodegenRemoveDeadStores5)
+LUAU_FASTFLAG(LuauCodegenSplitDoarith)
 namespace Luau
 {
 namespace CodeGen
@@ -47121,9 +47377,46 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  emitAddOffset(build, x3, rConstants, vmConstOp(inst.c) * sizeof(TValue));
  else
  build.add(x3, rBase, uint16_t(vmRegOp(inst.c) * sizeof(TValue)));
+ if (FFlag::LuauCodegenSplitDoarith)
+ {
+ switch (TMS(intOp(inst.d)))
+ {
+ case TM_ADD:
+ build.ldr(x4, mem(rNativeContext, offsetof(NativeContext, luaV_doarithadd)));
+ break;
+ case TM_SUB:
+ build.ldr(x4, mem(rNativeContext, offsetof(NativeContext, luaV_doarithsub)));
+ break;
+ case TM_MUL:
+ build.ldr(x4, mem(rNativeContext, offsetof(NativeContext, luaV_doarithmul)));
+ break;
+ case TM_DIV:
+ build.ldr(x4, mem(rNativeContext, offsetof(NativeContext, luaV_doarithdiv)));
+ break;
+ case TM_IDIV:
+ build.ldr(x4, mem(rNativeContext, offsetof(NativeContext, luaV_doarithidiv)));
+ break;
+ case TM_MOD:
+ build.ldr(x4, mem(rNativeContext, offsetof(NativeContext, luaV_doarithmod)));
+ break;
+ case TM_POW:
+ build.ldr(x4, mem(rNativeContext, offsetof(NativeContext, luaV_doarithpow)));
+ break;
+ case TM_UNM:
+ build.ldr(x4, mem(rNativeContext, offsetof(NativeContext, luaV_doarithunm)));
+ break;
+ default:
+ CODEGEN_ASSERT(!"Invalid doarith helper operation tag");
+ break;
+ }
+ build.blr(x4);
+ }
+ else
+ {
  build.mov(w4, TMS(intOp(inst.d)));
  build.ldr(x5, mem(rNativeContext, offsetof(NativeContext, luaV_doarith)));
  build.blr(x5);
+ }
  emitUpdateBase(build);
  break;
  case IrCmd::DO_LEN:
@@ -53861,6 +54154,14 @@ void initFunctions(NativeState& data)
  data.context.luaV_lessequal = luaV_lessequal;
  data.context.luaV_equalval = luaV_equalval;
  data.context.luaV_doarith = luaV_doarith;
+ data.context.luaV_doarithadd = luaV_doarithimpl<TM_ADD>;
+ data.context.luaV_doarithsub = luaV_doarithimpl<TM_SUB>;
+ data.context.luaV_doarithmul = luaV_doarithimpl<TM_MUL>;
+ data.context.luaV_doarithdiv = luaV_doarithimpl<TM_DIV>;
+ data.context.luaV_doarithidiv = luaV_doarithimpl<TM_IDIV>;
+ data.context.luaV_doarithmod = luaV_doarithimpl<TM_MOD>;
+ data.context.luaV_doarithpow = luaV_doarithimpl<TM_POW>;
+ data.context.luaV_doarithunm = luaV_doarithimpl<TM_UNM>;
  data.context.luaV_dolen = luaV_dolen;
  data.context.luaV_gettable = luaV_gettable;
  data.context.luaV_settable = luaV_settable;
@@ -53927,6 +54228,14 @@ void initFunctions(NativeContext& context)
  context.luaV_lessequal = luaV_lessequal;
  context.luaV_equalval = luaV_equalval;
  context.luaV_doarith = luaV_doarith;
+ context.luaV_doarithadd = luaV_doarithimpl<TM_ADD>;
+ context.luaV_doarithsub = luaV_doarithimpl<TM_SUB>;
+ context.luaV_doarithmul = luaV_doarithimpl<TM_MUL>;
+ context.luaV_doarithdiv = luaV_doarithimpl<TM_DIV>;
+ context.luaV_doarithidiv = luaV_doarithimpl<TM_IDIV>;
+ context.luaV_doarithmod = luaV_doarithimpl<TM_MOD>;
+ context.luaV_doarithpow = luaV_doarithimpl<TM_POW>;
+ context.luaV_doarithunm = luaV_doarithimpl<TM_UNM>;
  context.luaV_dolen = luaV_dolen;
  context.luaV_gettable = luaV_gettable;
  context.luaV_settable = luaV_settable;
@@ -56360,7 +56669,7 @@ void UnwindBuilderDwarf2::finishFunction(uint32_t beginOffset, uint32_t endOffse
 void UnwindBuilderDwarf2::finishInfo()
 {
  pos = writeu32(pos, 0);
- CODEGEN_ASSERT(getSize() <= kRawDataLimit);
+ CODEGEN_ASSERT(getUnwindInfoSize() <= kRawDataLimit);
 }
 void UnwindBuilderDwarf2::prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs)
 {
@@ -56409,26 +56718,23 @@ void UnwindBuilderDwarf2::prologueX64(uint32_t prologueSize, uint32_t stackSize,
  CODEGEN_ASSERT(stackOffset % 16 == 0);
  CODEGEN_ASSERT(prologueOffset == prologueSize);
 }
-size_t UnwindBuilderDwarf2::getSize() const
+size_t UnwindBuilderDwarf2::getUnwindInfoSize(size_t blockSize) const
 {
  return size_t(pos - rawData);
 }
-size_t UnwindBuilderDwarf2::getFunctionCount() const
+size_t UnwindBuilderDwarf2::finalize(char* target, size_t offset, void* funcAddress, size_t blockSize) const
 {
- return unwindFunctions.size();
-}
-void UnwindBuilderDwarf2::finalize(char* target, size_t offset, void* funcAddress, size_t funcSize) const
-{
- memcpy(target, rawData, getSize());
+ memcpy(target, rawData, getUnwindInfoSize());
  for (const UnwindFunctionDwarf2& func : unwindFunctions)
  {
  uint8_t* fdeEntry = (uint8_t*)target + func.fdeEntryStartPos;
  writeu64(fdeEntry + kFdeInitialLocationOffset, uintptr_t(funcAddress) + offset + func.beginOffset);
- if (func.endOffset == kFullBlockFuncton)
- writeu64(fdeEntry + kFdeAddressRangeOffset, funcSize - offset);
+ if (func.endOffset == kFullBlockFunction)
+ writeu64(fdeEntry + kFdeAddressRangeOffset, blockSize - offset);
  else
  writeu64(fdeEntry + kFdeAddressRangeOffset, func.endOffset - func.beginOffset);
  }
+ return unwindFunctions.size();
 }
 }
 } // namespace Luau
@@ -56567,21 +56873,17 @@ void UnwindBuilderWin::prologueX64(uint32_t prologueSize, uint32_t stackSize, bo
  CODEGEN_ASSERT(prologueOffset == prologueSize);
  this->prologSize = prologueSize;
 }
-size_t UnwindBuilderWin::getSize() const
+size_t UnwindBuilderWin::getUnwindInfoSize(size_t blockSize) const
 {
  return sizeof(UnwindFunctionWin) * unwindFunctions.size() + size_t(rawDataPos - rawData);
 }
-size_t UnwindBuilderWin::getFunctionCount() const
-{
- return unwindFunctions.size();
-}
-void UnwindBuilderWin::finalize(char* target, size_t offset, void* funcAddress, size_t funcSize) const
+size_t UnwindBuilderWin::finalize(char* target, size_t offset, void* funcAddress, size_t blockSize) const
 {
  for (UnwindFunctionWin func : unwindFunctions)
  {
  func.beginOffset += uint32_t(offset);
- if (func.endOffset == kFullBlockFuncton)
- func.endOffset = uint32_t(funcSize);
+ if (func.endOffset == kFullBlockFunction)
+ func.endOffset = uint32_t(blockSize);
  else
  func.endOffset += uint32_t(offset);
  func.unwindInfoOffset += uint32_t(sizeof(UnwindFunctionWin) * unwindFunctions.size());
@@ -56589,6 +56891,7 @@ void UnwindBuilderWin::finalize(char* target, size_t offset, void* funcAddress, 
  target += sizeof(func);
  }
  memcpy(target, rawData, size_t(rawDataPos - rawData));
+ return unwindFunctions.size();
 }
 }
 } // namespace Luau
