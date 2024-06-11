@@ -1637,6 +1637,7 @@ typedef struct global_State
  lua_Callbacks cb;
  lua_ExecutionCallbacks ecb;
  void (*udatagc[LUA_UTAG_LIMIT])(lua_State*, void*);
+ Table* udatamt[LUA_LUTAG_LIMIT]; // metatables for tagged userdata
  TString* lightuserdataname[LUA_LUTAG_LIMIT];
  GCStats gcstats;
 #ifdef LUAI_GCMETRICS
@@ -3123,6 +3124,29 @@ lua_Destructor lua_getuserdatadtor(lua_State* L, int tag)
 {
  api_check(L, unsigned(tag) < LUA_UTAG_LIMIT);
  return L->global->udatagc[tag];
+}
+void lua_setuserdatametatable(lua_State* L, int tag, int idx)
+{
+ api_check(L, unsigned(tag) < LUA_UTAG_LIMIT);
+ api_check(L, !L->global->udatamt[tag]);
+ StkId o = index2addr(L, idx);
+ api_check(L, ttistable(o));
+ L->global->udatamt[tag] = hvalue(o);
+ L->top--;
+}
+void lua_getuserdatametatable(lua_State* L, int tag)
+{
+ api_check(L, unsigned(tag) < LUA_UTAG_LIMIT);
+ luaC_threadbarrier(L);
+ if (Table* h = L->global->udatamt[tag])
+ {
+ sethvalue(L, L->top, h);
+ }
+ else
+ {
+ setnilvalue(L->top);
+ }
+ api_incr_top(L);
 }
 void lua_setlightuserdataname(lua_State* L, int tag, const char* name)
 {
@@ -10511,7 +10535,10 @@ lua_State* lua_newstate(lua_Alloc f, void* ud)
  for (i = 0; i < LUA_T_COUNT; i++)
  g->mt[i] = NULL;
  for (i = 0; i < LUA_UTAG_LIMIT; i++)
+ {
  g->udatagc[i] = NULL;
+ g->udatamt[i] = NULL;
+ }
  for (i = 0; i < LUA_LUTAG_LIMIT; i++)
  g->lightuserdataname[i] = NULL;
  for (i = 0; i < LUA_MEMORY_CATEGORIES; i++)
@@ -17336,6 +17363,8 @@ class AstStat;
 class AstStatBlock;
 class AstExpr;
 class AstTypePack;
+class AstAttr;
+class AstExprTable;
 struct AstLocal
 {
  AstName name;
@@ -17424,6 +17453,10 @@ public:
  {
  return nullptr;
  }
+ virtual AstAttr* asAttr()
+ {
+ return nullptr;
+ }
  template<typename T>
  bool is() const
  {
@@ -17441,6 +17474,22 @@ public:
  }
  const int classIndex;
  Location location;
+};
+class AstAttr : public AstNode
+{
+public:
+ LUAU_RTTI(AstAttr)
+ enum Type
+ {
+ Checked,
+ };
+ AstAttr(const Location& location, Type type);
+ AstAttr* asAttr() override
+ {
+ return this;
+ }
+ void visit(AstVisitor* visitor) override;
+ Type type;
 };
 class AstExpr : public AstNode
 {
@@ -17583,11 +17632,13 @@ class AstExprFunction : public AstExpr
 {
 public:
  LUAU_RTTI(AstExprFunction)
- AstExprFunction(const Location& location, const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks,
- AstLocal* self, const AstArray<AstLocal*>& args, bool vararg, const Location& varargLocation, AstStatBlock* body, size_t functionDepth,
- const AstName& debugname, const std::optional<AstTypeList>& returnAnnotation = {}, AstTypePack* varargAnnotation = nullptr,
+ AstExprFunction(const Location& location, const AstArray<AstAttr*>& attributes, const AstArray<AstGenericType>& generics,
+ const AstArray<AstGenericTypePack>& genericPacks, AstLocal* self, const AstArray<AstLocal*>& args, bool vararg,
+ const Location& varargLocation, AstStatBlock* body, size_t functionDepth, const AstName& debugname,
+ const std::optional<AstTypeList>& returnAnnotation = {}, AstTypePack* varargAnnotation = nullptr,
  const std::optional<Location>& argLocation = std::nullopt);
  void visit(AstVisitor* visitor) override;
+ AstArray<AstAttr*> attributes;
  AstArray<AstGenericType> generics;
  AstArray<AstGenericTypePack> genericPacks;
  AstLocal* self;
@@ -17879,17 +17930,18 @@ public:
  AstStatDeclareFunction(const Location& location, const AstName& name, const AstArray<AstGenericType>& generics,
  const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& params, const AstArray<AstArgumentName>& paramNames,
  const AstTypeList& retTypes);
- AstStatDeclareFunction(const Location& location, const AstName& name, const AstArray<AstGenericType>& generics,
- const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& params, const AstArray<AstArgumentName>& paramNames,
- const AstTypeList& retTypes, bool checkedFunction);
+ AstStatDeclareFunction(const Location& location, const AstArray<AstAttr*>& attributes, const AstName& name,
+ const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& params,
+ const AstArray<AstArgumentName>& paramNames, const AstTypeList& retTypes);
  void visit(AstVisitor* visitor) override;
+ bool isCheckedFunction() const;
+ AstArray<AstAttr*> attributes;
  AstName name;
  AstArray<AstGenericType> generics;
  AstArray<AstGenericTypePack> genericPacks;
  AstTypeList params;
  AstArray<AstArgumentName> paramNames;
  AstTypeList retTypes;
- bool checkedFunction;
 };
 struct AstDeclaredClassProp
 {
@@ -17977,15 +18029,17 @@ public:
  LUAU_RTTI(AstTypeFunction)
  AstTypeFunction(const Location& location, const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks,
  const AstTypeList& argTypes, const AstArray<std::optional<AstArgumentName>>& argNames, const AstTypeList& returnTypes);
- AstTypeFunction(const Location& location, const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks,
- const AstTypeList& argTypes, const AstArray<std::optional<AstArgumentName>>& argNames, const AstTypeList& returnTypes, bool checkedFunction);
+ AstTypeFunction(const Location& location, const AstArray<AstAttr*>& attributes, const AstArray<AstGenericType>& generics,
+ const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& argTypes, const AstArray<std::optional<AstArgumentName>>& argNames,
+ const AstTypeList& returnTypes);
  void visit(AstVisitor* visitor) override;
+ bool isCheckedFunction() const;
+ AstArray<AstAttr*> attributes;
  AstArray<AstGenericType> generics;
  AstArray<AstGenericTypePack> genericPacks;
  AstTypeList argTypes;
  AstArray<std::optional<AstArgumentName>> argNames;
  AstTypeList returnTypes;
- bool checkedFunction;
 };
 class AstTypeTypeof : public AstType
 {
@@ -18095,6 +18149,10 @@ public:
  virtual bool visit(class AstNode*)
  {
  return true;
+ }
+ virtual bool visit(class AstAttr* node)
+ {
+ return visit(static_cast<AstNode*>(node));
  }
  virtual bool visit(class AstExpr* node)
  {
@@ -18340,6 +18398,7 @@ struct hash<Luau::AstName>
 };
 }
 #line __LINE__ "Ast.cpp"
+LUAU_FASTFLAG(LuauAttributeSyntax);
 namespace Luau
 {
 static void visitTypeList(AstVisitor* visitor, const AstTypeList& list)
@@ -18348,6 +18407,15 @@ static void visitTypeList(AstVisitor* visitor, const AstTypeList& list)
  ty->visit(visitor);
  if (list.tailType)
  list.tailType->visit(visitor);
+}
+AstAttr::AstAttr(const Location& location, Type type)
+ : AstNode(ClassIndex(), location)
+ , type(type)
+{
+}
+void AstAttr::visit(AstVisitor* visitor)
+{
+ visitor->visit(this);
 }
 int gAstRttiIndex = 0;
 AstExprGroup::AstExprGroup(const Location& location, AstExpr* expr)
@@ -18470,11 +18538,12 @@ void AstExprIndexExpr::visit(AstVisitor* visitor)
  index->visit(visitor);
  }
 }
-AstExprFunction::AstExprFunction(const Location& location, const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks,
- AstLocal* self, const AstArray<AstLocal*>& args, bool vararg, const Location& varargLocation, AstStatBlock* body, size_t functionDepth,
- const AstName& debugname, const std::optional<AstTypeList>& returnAnnotation, AstTypePack* varargAnnotation,
- const std::optional<Location>& argLocation)
+AstExprFunction::AstExprFunction(const Location& location, const AstArray<AstAttr*>& attributes, const AstArray<AstGenericType>& generics,
+ const AstArray<AstGenericTypePack>& genericPacks, AstLocal* self, const AstArray<AstLocal*>& args, bool vararg, const Location& varargLocation,
+ AstStatBlock* body, size_t functionDepth, const AstName& debugname, const std::optional<AstTypeList>& returnAnnotation,
+ AstTypePack* varargAnnotation, const std::optional<Location>& argLocation)
  : AstExpr(ClassIndex(), location)
+ , attributes(attributes)
  , generics(generics)
  , genericPacks(genericPacks)
  , self(self)
@@ -18939,26 +19008,26 @@ AstStatDeclareFunction::AstStatDeclareFunction(const Location& location, const A
  const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& params, const AstArray<AstArgumentName>& paramNames,
  const AstTypeList& retTypes)
  : AstStat(ClassIndex(), location)
+ , attributes()
  , name(name)
  , generics(generics)
  , genericPacks(genericPacks)
  , params(params)
  , paramNames(paramNames)
  , retTypes(retTypes)
- , checkedFunction(false)
 {
 }
-AstStatDeclareFunction::AstStatDeclareFunction(const Location& location, const AstName& name, const AstArray<AstGenericType>& generics,
- const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& params, const AstArray<AstArgumentName>& paramNames,
- const AstTypeList& retTypes, bool checkedFunction)
+AstStatDeclareFunction::AstStatDeclareFunction(const Location& location, const AstArray<AstAttr*>& attributes, const AstName& name,
+ const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& params,
+ const AstArray<AstArgumentName>& paramNames, const AstTypeList& retTypes)
  : AstStat(ClassIndex(), location)
+ , attributes(attributes)
  , name(name)
  , generics(generics)
  , genericPacks(genericPacks)
  , params(params)
  , paramNames(paramNames)
  , retTypes(retTypes)
- , checkedFunction(checkedFunction)
 {
 }
 void AstStatDeclareFunction::visit(AstVisitor* visitor)
@@ -18968,6 +19037,16 @@ void AstStatDeclareFunction::visit(AstVisitor* visitor)
  visitTypeList(visitor, params);
  visitTypeList(visitor, retTypes);
  }
+}
+bool AstStatDeclareFunction::isCheckedFunction() const
+{
+ LUAU_ASSERT(FFlag::LuauAttributeSyntax);
+ for (const AstAttr* attr : attributes)
+ {
+ if (attr->type == AstAttr::Type::Checked)
+ return true;
+ }
+ return false;
 }
 AstStatDeclareClass::AstStatDeclareClass(const Location& location, const AstName& name, std::optional<AstName> superName,
  const AstArray<AstDeclaredClassProp>& props, AstTableIndexer* indexer)
@@ -19050,24 +19129,25 @@ void AstTypeTable::visit(AstVisitor* visitor)
 AstTypeFunction::AstTypeFunction(const Location& location, const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks,
  const AstTypeList& argTypes, const AstArray<std::optional<AstArgumentName>>& argNames, const AstTypeList& returnTypes)
  : AstType(ClassIndex(), location)
+ , attributes()
  , generics(generics)
  , genericPacks(genericPacks)
  , argTypes(argTypes)
  , argNames(argNames)
  , returnTypes(returnTypes)
- , checkedFunction(false)
 {
  LUAU_ASSERT(argNames.size == 0 || argNames.size == argTypes.types.size);
 }
-AstTypeFunction::AstTypeFunction(const Location& location, const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks,
- const AstTypeList& argTypes, const AstArray<std::optional<AstArgumentName>>& argNames, const AstTypeList& returnTypes, bool checkedFunction)
+AstTypeFunction::AstTypeFunction(const Location& location, const AstArray<AstAttr*>& attributes, const AstArray<AstGenericType>& generics,
+ const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& argTypes, const AstArray<std::optional<AstArgumentName>>& argNames,
+ const AstTypeList& returnTypes)
  : AstType(ClassIndex(), location)
+ , attributes(attributes)
  , generics(generics)
  , genericPacks(genericPacks)
  , argTypes(argTypes)
  , argNames(argNames)
  , returnTypes(returnTypes)
- , checkedFunction(checkedFunction)
 {
  LUAU_ASSERT(argNames.size == 0 || argNames.size == argTypes.types.size);
 }
@@ -19078,6 +19158,16 @@ void AstTypeFunction::visit(AstVisitor* visitor)
  visitTypeList(visitor, argTypes);
  visitTypeList(visitor, returnTypes);
  }
+}
+bool AstTypeFunction::isCheckedFunction() const
+{
+ LUAU_ASSERT(FFlag::LuauAttributeSyntax);
+ for (const AstAttr* attr : attributes)
+ {
+ if (attr->type == AstAttr::Type::Checked)
+ return true;
+ }
+ return false;
 }
 AstTypeTypeof::AstTypeTypeof(const Location& location, AstExpr* expr)
  : AstType(ClassIndex(), location)
@@ -21077,6 +21167,7 @@ struct Lexeme
  Name,
  Comment,
  BlockComment,
+ Attribute,
  BrokenString,
  BrokenComment,
  BrokenUnicode,
@@ -21104,12 +21195,13 @@ struct Lexeme
  ReservedTrue,
  ReservedUntil,
  ReservedWhile,
- ReservedChecked,
  Reserved_END
  };
  Type type;
  Location location;
+private:
  unsigned int length;
+public:
  union
  {
  const char* data;
@@ -21120,8 +21212,10 @@ struct Lexeme
  Lexeme(const Location& location, char character);
  Lexeme(const Location& location, Type type, const char* data, size_t size);
  Lexeme(const Location& location, Type type, const char* name);
+ unsigned int getLength() const;
  std::string toString() const;
 };
+static_assert(sizeof(Lexeme) <= 32, "Size of `Lexeme` struct should be up to 32 bytes.");
 class AstNameTable
 {
 public:
@@ -21227,6 +21321,7 @@ bool isIdentifier(std::string_view s);
 }
 #line __LINE__ "Lexer.cpp"
 LUAU_FASTFLAGVARIABLE(LuauLexerLookaheadRemembersBraceType, false)
+LUAU_FASTFLAGVARIABLE(LuauAttributeSyntax, false)
 namespace Luau
 {
 Allocator::Allocator()
@@ -21302,10 +21397,16 @@ Lexeme::Lexeme(const Location& location, Type type, const char* name)
  , length(0)
  , name(name)
 {
- LUAU_ASSERT(type == Name || (type >= Reserved_BEGIN && type < Lexeme::Reserved_END));
+ LUAU_ASSERT(type == Name || type == Attribute || (type >= Reserved_BEGIN && type < Lexeme::Reserved_END));
+}
+unsigned int Lexeme::getLength() const
+{
+ LUAU_ASSERT(type == RawString || type == QuotedString || type == InterpStringBegin || type == InterpStringMid || type == InterpStringEnd ||
+ type == InterpStringSimple || type == BrokenInterpDoubleBrace || type == Number || type == Comment || type == BlockComment);
+ return length;
 }
 static const char* kReserved[] = {"and", "break", "do", "else", "elseif", "end", "false", "for", "function", "if", "in", "local", "nil", "not", "or",
- "repeat", "return", "then", "true", "until", "while", "@checked"};
+ "repeat", "return", "then", "true", "until", "while"};
 std::string Lexeme::toString() const
 {
  switch (type)
@@ -21363,6 +21464,9 @@ std::string Lexeme::toString() const
  return name ? format("'%s'", name) : "identifier";
  case Comment:
  return "comment";
+ case Attribute:
+ LUAU_ASSERT(FFlag::LuauAttributeSyntax);
+ return name ? format("'%s'", name) : "attribute";
  case BrokenString:
  return "malformed string";
  case BrokenComment:
@@ -21428,7 +21532,7 @@ std::pair<AstName, Lexeme::Type> AstNameTable::getOrAddWithType(const char* name
  memcpy(nameData, name, length);
  nameData[length] = 0;
  const_cast<Entry&>(entry).value = AstName(nameData);
- const_cast<Entry&>(entry).type = Lexeme::Name;
+ const_cast<Entry&>(entry).type = (name[0] == '@' ? Lexeme::Attribute : Lexeme::Name);
  return std::make_pair(entry.value, entry.type);
 }
 std::pair<AstName, Lexeme::Type> AstNameTable::getWithType(const char* name, size_t length) const
@@ -22000,11 +22104,11 @@ Lexeme Lexer::readNext()
  }
  case '@':
  {
- LUAU_ASSERT(peekch() == '@');
- std::pair<AstName, Lexeme::Type> maybeChecked = readName();
- if (maybeChecked.second != Lexeme::ReservedChecked)
- return Lexeme(Location(start, position()), Lexeme::Error);
- return Lexeme(Location(start, position()), maybeChecked.second, maybeChecked.first.value);
+ if (FFlag::LuauAttributeSyntax)
+ {
+ std::pair<AstName, Lexeme::Type> attribute = readName();
+ return Lexeme(Location(start, position()), Lexeme::Attribute, attribute.first.value);
+ }
  }
  default:
  if (isDigit(peekch()))
@@ -22446,17 +22550,21 @@ private:
  AstStat* parseContinue(const Location& start);
  AstStat* parseFor();
  AstExpr* parseFunctionName(Location start, bool& hasself, AstName& debugname);
- AstStat* parseFunctionStat();
- AstStat* parseLocal();
+ LUAU_FORCEINLINE AstStat* parseFunctionStat(const AstArray<AstAttr*>& attributes = {nullptr, 0});
+ std::pair<bool, AstAttr::Type> validateAttribute(const char* attributeName, const TempVector<AstAttr*>& attributes);
+ void parseAttribute(TempVector<AstAttr*>& attribute);
+ AstArray<AstAttr*> parseAttributes();
+ AstStat* parseAttributeStat();
+ AstStat* parseLocal(const AstArray<AstAttr*>& attributes);
  AstStat* parseReturn();
  AstStat* parseTypeAlias(const Location& start, bool exported);
  AstDeclaredClassProp parseDeclaredClassMethod();
- AstStat* parseDeclaration(const Location& start);
+ AstStat* parseDeclaration(const Location& start, const AstArray<AstAttr*>& attributes);
  AstStat* parseAssignment(AstExpr* initial);
  AstStat* parseCompoundAssignment(AstExpr* initial, AstExprBinary::Op op);
  std::pair<AstLocal*, AstArray<AstLocal*>> prepareFunctionArguments(const Location& start, bool hasself, const TempVector<Binding>& args);
  std::pair<AstExprFunction*, AstLocal*> parseFunctionBody(
- bool hasself, const Lexeme& matchFunction, const AstName& debugname, const Name* localName);
+ bool hasself, const Lexeme& matchFunction, const AstName& debugname, const Name* localName, const AstArray<AstAttr*>& attributes);
  void parseExprList(TempVector<AstExpr*>& result);
  Binding parseBinding();
  std::tuple<bool, Location, AstTypePack*> parseBindingList(TempVector<Binding>& result, bool allowDot3 = false);
@@ -22465,10 +22573,10 @@ private:
  std::optional<AstTypeList> parseOptionalReturnType();
  std::pair<Location, AstTypeList> parseReturnType();
  AstTableIndexer* parseTableIndexer(AstTableAccess access, std::optional<Location> accessLocation);
- AstTypeOrPack parseFunctionType(bool allowPack, bool isCheckedFunction = false);
- AstType* parseFunctionTypeTail(const Lexeme& begin, AstArray<AstGenericType> generics, AstArray<AstGenericTypePack> genericPacks,
- AstArray<AstType*> params, AstArray<std::optional<AstArgumentName>> paramNames, AstTypePack* varargAnnotation,
- bool isCheckedFunction = false);
+ AstTypeOrPack parseFunctionType(bool allowPack, const AstArray<AstAttr*>& attributes);
+ AstType* parseFunctionTypeTail(const Lexeme& begin, const AstArray<AstAttr*>& attributes, AstArray<AstGenericType> generics,
+ AstArray<AstGenericTypePack> genericPacks, AstArray<AstType*> params, AstArray<std::optional<AstArgumentName>> paramNames,
+ AstTypePack* varargAnnotation);
  AstType* parseTableType(bool inDeclarationContext = false);
  AstTypeOrPack parseSimpleType(bool allowPack, bool inDeclarationContext = false);
  AstTypeOrPack parseTypeOrPack();
@@ -22601,6 +22709,7 @@ private:
  std::vector<AstLocal*> localStack;
  std::vector<ParseError> parseErrors;
  std::vector<unsigned int> matchRecoveryStopOnToken;
+ std::vector<AstAttr*> scratchAttr;
  std::vector<AstStat*> scratchStat;
  std::vector<AstArray<char>> scratchString;
  std::vector<AstExpr*> scratchExpr;
@@ -22788,8 +22897,16 @@ LUAU_FASTINTVARIABLE(LuauRecursionLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauTypeLengthLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
 LUAU_FASTFLAGVARIABLE(DebugLuauDeferredConstraintResolution, false)
+LUAU_FASTFLAG(LuauAttributeSyntax)
+LUAU_FASTFLAGVARIABLE(LuauLeadingBarAndAmpersand, false)
 namespace Luau
 {
+struct AttributeEntry
+{
+ const char* name;
+ AstAttr::Type type;
+};
+AttributeEntry kAttributeEntries[] = {{"@checked", AstAttr::Type::Checked}, {nullptr, AstAttr::Type::Checked}};
 ParseError::ParseError(const Location& location, const std::string& message)
  : location(location)
  , message(message)
@@ -22992,13 +23109,16 @@ AstStat* Parser::parseStat()
  case Lexeme::ReservedRepeat:
  return parseRepeat();
  case Lexeme::ReservedFunction:
- return parseFunctionStat();
+ return parseFunctionStat(AstArray<AstAttr*>({nullptr, 0}));
  case Lexeme::ReservedLocal:
- return parseLocal();
+ return parseLocal(AstArray<AstAttr*>({nullptr, 0}));
  case Lexeme::ReservedReturn:
  return parseReturn();
  case Lexeme::ReservedBreak:
  return parseBreak();
+ case Lexeme::Attribute:
+ if (FFlag::LuauAttributeSyntax)
+ return parseAttributeStat();
  default:;
  }
  Location start = lexer.current().location;
@@ -23022,7 +23142,7 @@ AstStat* Parser::parseStat()
  if (options.allowDeclarationSyntax)
  {
  if (ident == "declare")
- return parseDeclaration(expr->location);
+ return parseDeclaration(expr->location, AstArray<AstAttr*>({nullptr, 0}));
  }
  if (start == lexer.current().location)
  nextLexeme();
@@ -23215,7 +23335,7 @@ AstExpr* Parser::parseFunctionName(Location start, bool& hasself, AstName& debug
  }
  return expr;
 }
-AstStat* Parser::parseFunctionStat()
+AstStat* Parser::parseFunctionStat(const AstArray<AstAttr*>& attributes)
 {
  Location start = lexer.current().location;
  Lexeme matchFunction = lexer.current();
@@ -23224,11 +23344,88 @@ AstStat* Parser::parseFunctionStat()
  AstName debugname;
  AstExpr* expr = parseFunctionName(start, hasself, debugname);
  matchRecoveryStopOnToken[Lexeme::ReservedEnd]++;
- AstExprFunction* body = parseFunctionBody(hasself, matchFunction, debugname, nullptr).first;
+ AstExprFunction* body = parseFunctionBody(hasself, matchFunction, debugname, nullptr, attributes).first;
  matchRecoveryStopOnToken[Lexeme::ReservedEnd]--;
  return allocator.alloc<AstStatFunction>(Location(start, body->location), expr, body);
 }
-AstStat* Parser::parseLocal()
+std::pair<bool, AstAttr::Type> Parser::validateAttribute(const char* attributeName, const TempVector<AstAttr*>& attributes)
+{
+ LUAU_ASSERT(FFlag::LuauAttributeSyntax);
+ AstAttr::Type type;
+ bool found = false;
+ for (int i = 0; kAttributeEntries[i].name; ++i)
+ {
+ found = !strcmp(attributeName, kAttributeEntries[i].name);
+ if (found)
+ {
+ type = kAttributeEntries[i].type;
+ break;
+ }
+ }
+ if (!found)
+ {
+ if (strlen(attributeName) == 1)
+ report(lexer.current().location, "Attribute name is missing");
+ else
+ report(lexer.current().location, "Invalid attribute '%s'", attributeName);
+ }
+ else
+ {
+ for (const AstAttr* attr : attributes)
+ {
+ if (attr->type == type)
+ {
+ report(lexer.current().location, "Cannot duplicate attribute '%s'", attributeName);
+ }
+ }
+ }
+ return {found, type};
+}
+void Parser::parseAttribute(TempVector<AstAttr*>& attributes)
+{
+ LUAU_ASSERT(FFlag::LuauAttributeSyntax);
+ LUAU_ASSERT(lexer.current().type == Lexeme::Type::Attribute);
+ Location loc = lexer.current().location;
+ const char* name = lexer.current().name;
+ const auto [found, type] = validateAttribute(name, attributes);
+ nextLexeme();
+ if (found)
+ attributes.push_back(allocator.alloc<AstAttr>(loc, type));
+}
+AstArray<AstAttr*> Parser::parseAttributes()
+{
+ LUAU_ASSERT(FFlag::LuauAttributeSyntax);
+ Lexeme::Type type = lexer.current().type;
+ LUAU_ASSERT(type == Lexeme::Attribute);
+ TempVector<AstAttr*> attributes(scratchAttr);
+ while (lexer.current().type == Lexeme::Attribute)
+ parseAttribute(attributes);
+ return copy(attributes);
+}
+AstStat* Parser::parseAttributeStat()
+{
+ LUAU_ASSERT(FFlag::LuauAttributeSyntax);
+ AstArray<AstAttr*> attributes = Parser::parseAttributes();
+ Lexeme::Type type = lexer.current().type;
+ switch (type)
+ {
+ case Lexeme::Type::ReservedFunction:
+ return parseFunctionStat(attributes);
+ case Lexeme::Type::ReservedLocal:
+ return parseLocal(attributes);
+ case Lexeme::Type::Name:
+ if (options.allowDeclarationSyntax && !strcmp("declare", lexer.current().data))
+ {
+ AstExpr* expr = parsePrimaryExpr( true);
+ return parseDeclaration(expr->location, attributes);
+ }
+ default:
+ return reportStatError(lexer.current().location, {}, {},
+ "Expected 'function', 'local function', 'declare function' or a function type declaration after attribute, but got %s intead",
+ lexer.current().toString().c_str());
+ }
+}
+AstStat* Parser::parseLocal(const AstArray<AstAttr*>& attributes)
 {
  Location start = lexer.current().location;
  nextLexeme();
@@ -23240,13 +23437,18 @@ AstStat* Parser::parseLocal()
  matchFunction.location.begin.column = start.begin.column;
  Name name = parseName("variable name");
  matchRecoveryStopOnToken[Lexeme::ReservedEnd]++;
- auto [body, var] = parseFunctionBody(false, matchFunction, name.name, &name);
+ auto [body, var] = parseFunctionBody(false, matchFunction, name.name, &name, attributes);
  matchRecoveryStopOnToken[Lexeme::ReservedEnd]--;
  Location location{start.begin, body->location.end};
  return allocator.alloc<AstStatLocalFunction>(location, var, body);
  }
  else
  {
+ if (FFlag::LuauAttributeSyntax && attributes.size != 0)
+ {
+ return reportStatError(lexer.current().location, {}, {}, "Expected 'function' after local declaration with attribute, but got %s intead",
+ lexer.current().toString().c_str());
+ }
  matchRecoveryStopOnToken['=']++;
  TempVector<Binding> names(scratchBinding);
  parseBindingList(names);
@@ -23329,17 +23531,14 @@ AstDeclaredClassProp Parser::parseDeclaredClassMethod()
  Location(start, end), generics, genericPacks, AstTypeList{copy(vars), varargAnnotation}, copy(varNames), retTypes);
  return AstDeclaredClassProp{fnName.name, fnType, true};
 }
-AstStat* Parser::parseDeclaration(const Location& start)
+AstStat* Parser::parseDeclaration(const Location& start, const AstArray<AstAttr*>& attributes)
 {
+ if (FFlag::LuauAttributeSyntax && (attributes.size != 0) && (lexer.current().type != Lexeme::ReservedFunction))
+ return reportStatError(lexer.current().location, {}, {}, "Expected a function type declaration after attribute, but got %s intead",
+ lexer.current().toString().c_str());
  if (lexer.current().type == Lexeme::ReservedFunction)
  {
  nextLexeme();
- bool checkedFunction = false;
- if (lexer.current().type == Lexeme::ReservedChecked)
- {
- checkedFunction = true;
- nextLexeme();
- }
  Name globalName = parseName("global function name");
  auto [generics, genericPacks] = parseGenericTypeList( false);
  MatchLexeme matchParen = lexer.current();
@@ -23364,8 +23563,8 @@ AstStat* Parser::parseDeclaration(const Location& start)
  }
  if (vararg && !varargAnnotation)
  return reportStatError(Location(start, end), {}, {}, "All declaration parameters must be annotated");
- return allocator.alloc<AstStatDeclareFunction>(Location(start, end), globalName.name, generics, genericPacks,
- AstTypeList{copy(vars), varargAnnotation}, copy(varNames), retTypes, checkedFunction);
+ return allocator.alloc<AstStatDeclareFunction>(Location(start, end), attributes, globalName.name, generics, genericPacks,
+ AstTypeList{copy(vars), varargAnnotation}, copy(varNames), retTypes);
  }
  else if (AstName(lexer.current().name) == "class")
  {
@@ -23479,7 +23678,7 @@ std::pair<AstLocal*, AstArray<AstLocal*>> Parser::prepareFunctionArguments(const
  return {self, copy(vars)};
 }
 std::pair<AstExprFunction*, AstLocal*> Parser::parseFunctionBody(
- bool hasself, const Lexeme& matchFunction, const AstName& debugname, const Name* localName)
+ bool hasself, const Lexeme& matchFunction, const AstName& debugname, const Name* localName, const AstArray<AstAttr*>& attributes)
 {
  Location start = matchFunction.location;
  auto [generics, genericPacks] = parseGenericTypeList( false);
@@ -23510,7 +23709,7 @@ std::pair<AstExprFunction*, AstLocal*> Parser::parseFunctionBody(
  Location end = lexer.current().location;
  bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchFunction);
  body->hasEnd = hasEnd;
- return {allocator.alloc<AstExprFunction>(Location(start, end), generics, genericPacks, self, vars, vararg, varargLocation, body,
+ return {allocator.alloc<AstExprFunction>(Location(start, end), attributes, generics, genericPacks, self, vars, vararg, varargLocation, body,
  functionStack.size(), debugname, typelist, varargAnnotation, argLocation),
  funLocal};
 }
@@ -23656,7 +23855,7 @@ std::pair<Location, AstTypeList> Parser::parseReturnType()
  }
  return {location, AstTypeList{copy(result), varargAnnotation}};
  }
- AstType* tail = parseFunctionTypeTail(begin, {}, {}, copy(result), copy(resultNames), varargAnnotation);
+ AstType* tail = parseFunctionTypeTail(begin, {nullptr, 0}, {}, {}, copy(result), copy(resultNames), varargAnnotation);
  return {Location{location, tail->location}, AstTypeList{copy(&tail, 1), varargAnnotation}};
 }
 AstTableIndexer* Parser::parseTableIndexer(AstTableAccess access, std::optional<Location> accessLocation)
@@ -23753,7 +23952,7 @@ AstType* Parser::parseTableType(bool inDeclarationContext)
  end = lexer.previousLocation();
  return allocator.alloc<AstTypeTable>(Location(start, end), copy(props), indexer);
 }
-AstTypeOrPack Parser::parseFunctionType(bool allowPack, bool isCheckedFunction)
+AstTypeOrPack Parser::parseFunctionType(bool allowPack, const AstArray<AstAttr*>& attributes)
 {
  incrementRecursionCounter("type annotation");
  bool forceFunctionType = lexer.current().type == '<';
@@ -23783,10 +23982,11 @@ AstTypeOrPack Parser::parseFunctionType(bool allowPack, bool isCheckedFunction)
  if (!forceFunctionType && !returnTypeIntroducer && allowPack)
  return {{}, allocator.alloc<AstTypePackExplicit>(begin.location, AstTypeList{paramTypes, varargAnnotation})};
  AstArray<std::optional<AstArgumentName>> paramNames = copy(names);
- return {parseFunctionTypeTail(begin, generics, genericPacks, paramTypes, paramNames, varargAnnotation, isCheckedFunction), {}};
+ return {parseFunctionTypeTail(begin, attributes, generics, genericPacks, paramTypes, paramNames, varargAnnotation), {}};
 }
-AstType* Parser::parseFunctionTypeTail(const Lexeme& begin, AstArray<AstGenericType> generics, AstArray<AstGenericTypePack> genericPacks,
- AstArray<AstType*> params, AstArray<std::optional<AstArgumentName>> paramNames, AstTypePack* varargAnnotation, bool isCheckedFunction)
+AstType* Parser::parseFunctionTypeTail(const Lexeme& begin, const AstArray<AstAttr*>& attributes, AstArray<AstGenericType> generics,
+ AstArray<AstGenericTypePack> genericPacks, AstArray<AstType*> params, AstArray<std::optional<AstArgumentName>> paramNames,
+ AstTypePack* varargAnnotation)
 {
  incrementRecursionCounter("type annotation");
  if (lexer.current().type == ':')
@@ -23806,12 +24006,15 @@ AstType* Parser::parseFunctionTypeTail(const Lexeme& begin, AstArray<AstGenericT
  auto [endLocation, returnTypeList] = parseReturnType();
  AstTypeList paramTypes = AstTypeList{params, varargAnnotation};
  return allocator.alloc<AstTypeFunction>(
- Location(begin.location, endLocation), generics, genericPacks, paramTypes, paramNames, returnTypeList, isCheckedFunction);
+ Location(begin.location, endLocation), attributes, generics, genericPacks, paramTypes, paramNames, returnTypeList);
 }
 AstType* Parser::parseTypeSuffix(AstType* type, const Location& begin)
 {
  TempVector<AstType*> parts(scratchType);
+ if (!FFlag::LuauLeadingBarAndAmpersand || type != nullptr)
+ {
  parts.push_back(type);
+ }
  incrementRecursionCounter("type annotation");
  bool isUnion = false;
  bool isIntersection = false;
@@ -23887,15 +24090,44 @@ AstType* Parser::parseType(bool inDeclarationContext)
 {
  unsigned int oldRecursionCount = recursionCounter;
  Location begin = lexer.current().location;
+ if (FFlag::LuauLeadingBarAndAmpersand)
+ {
+ AstType* type = nullptr;
+ Lexeme::Type c = lexer.current().type;
+ if (c != '|' && c != '&')
+ {
+ type = parseSimpleType( false, inDeclarationContext).type;
+ recursionCounter = oldRecursionCount;
+ }
+ AstType* typeWithSuffix = parseTypeSuffix(type, begin);
+ recursionCounter = oldRecursionCount;
+ return typeWithSuffix;
+ }
+ else
+ {
  AstType* type = parseSimpleType( false, inDeclarationContext).type;
  recursionCounter = oldRecursionCount;
  return parseTypeSuffix(type, begin);
+ }
 }
 AstTypeOrPack Parser::parseSimpleType(bool allowPack, bool inDeclarationContext)
 {
  incrementRecursionCounter("type annotation");
  Location start = lexer.current().location;
- if (lexer.current().type == Lexeme::ReservedNil)
+ AstArray<AstAttr*> attributes{nullptr, 0};
+ if (lexer.current().type == Lexeme::Attribute)
+ {
+ if (!inDeclarationContext || !FFlag::LuauAttributeSyntax)
+ {
+ return {reportTypeError(start, {}, "attributes are not allowed in declaration context")};
+ }
+ else
+ {
+ attributes = Parser::parseAttributes();
+ return parseFunctionType(allowPack, attributes);
+ }
+ }
+ else if (lexer.current().type == Lexeme::ReservedNil)
  {
  nextLexeme();
  return {allocator.alloc<AstTypeReference>(start, std::nullopt, nameNil, std::nullopt, start), {}};
@@ -23972,14 +24204,9 @@ AstTypeOrPack Parser::parseSimpleType(bool allowPack, bool inDeclarationContext)
  {
  return {parseTableType( inDeclarationContext), {}};
  }
- else if (inDeclarationContext && lexer.current().type == Lexeme::ReservedChecked)
- {
- nextLexeme();
- return parseFunctionType(allowPack, true);
- }
  else if (lexer.current().type == '(' || lexer.current().type == '<')
  {
- return parseFunctionType(allowPack);
+ return parseFunctionType(allowPack, AstArray<AstAttr*>({nullptr, 0}));
  }
  else if (lexer.current().type == Lexeme::ReservedFunction)
  {
@@ -24350,7 +24577,7 @@ AstExpr* Parser::parseSimpleExpr()
  {
  Lexeme matchFunction = lexer.current();
  nextLexeme();
- return parseFunctionBody(false, matchFunction, AstName(), nullptr).first;
+ return parseFunctionBody(false, matchFunction, AstName(), nullptr, AstArray<AstAttr*>({nullptr, 0})).first;
  }
  else if (lexer.current().type == Lexeme::Number)
  {
@@ -24690,7 +24917,7 @@ std::optional<AstArray<char>> Parser::parseCharArray()
 {
  LUAU_ASSERT(lexer.current().type == Lexeme::QuotedString || lexer.current().type == Lexeme::RawString ||
  lexer.current().type == Lexeme::InterpStringSimple);
- scratchData.assign(lexer.current().data, lexer.current().length);
+ scratchData.assign(lexer.current().data, lexer.current().getLength());
  if (lexer.current().type == Lexeme::QuotedString || lexer.current().type == Lexeme::InterpStringSimple)
  {
  if (!Lexer::fixupQuotedString(scratchData))
@@ -24727,7 +24954,7 @@ AstExpr* Parser::parseInterpString()
  LUAU_ASSERT(currentLexeme.type == Lexeme::InterpStringBegin || currentLexeme.type == Lexeme::InterpStringMid ||
  currentLexeme.type == Lexeme::InterpStringEnd || currentLexeme.type == Lexeme::InterpStringSimple);
  endLocation = currentLexeme.location;
- scratchData.assign(currentLexeme.data, currentLexeme.length);
+ scratchData.assign(currentLexeme.data, currentLexeme.getLength());
  if (!Lexer::fixupQuotedString(scratchData))
  {
  nextLexeme();
@@ -24788,7 +25015,7 @@ AstExpr* Parser::parseInterpString()
 AstExpr* Parser::parseNumber()
 {
  Location start = lexer.current().location;
- scratchData.assign(lexer.current().data, lexer.current().length);
+ scratchData.assign(lexer.current().data, lexer.current().getLength());
  if (scratchData.find('_') != std::string::npos)
  {
  scratchData.erase(std::remove(scratchData.begin(), scratchData.end(), '_'), scratchData.end());
@@ -25046,10 +25273,10 @@ void Parser::nextLexeme()
  commentLocations.push_back(Comment{lexeme.type, lexeme.location});
  if (lexeme.type == Lexeme::BrokenComment)
  return;
- if (lexeme.type == Lexeme::Comment && lexeme.length && lexeme.data[0] == '!')
+ if (lexeme.type == Lexeme::Comment && lexeme.getLength() && lexeme.data[0] == '!')
  {
  const char* text = lexeme.data;
- unsigned int end = lexeme.length;
+ unsigned int end = lexeme.getLength();
  while (end > 0 && isSpace(text[end - 1]))
  --end;
  hotcomments.push_back({hotcommentHeader, lexeme.location, std::string(text + 1, text + end)});
@@ -31743,7 +31970,8 @@ void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, c
  }
  for (AstExprFunction* expr : functions)
  compiler.compileFunction(expr, 0);
- AstExprFunction main(root->location, AstArray<AstGenericType>(), AstArray<AstGenericTypePack>(),
+ AstExprFunction main(root->location, AstArray<AstAttr*>({nullptr, 0}), AstArray<AstGenericType>(),
+ AstArray<AstGenericTypePack>(),
  nullptr, AstArray<AstLocal*>(), true, Luau::Location(), root, 0,
  AstName());
  uint32_t mainid = compiler.compileFunction(&main, mainFlags);
@@ -33860,6 +34088,7 @@ enum class IrCmd : uint8_t
  TABLE_SETNUM,
  TRY_NUM_TO_INDEX,
  TRY_CALL_FASTGETTM,
+ NEW_USERDATA,
  INT_TO_NUM,
  UINT_TO_NUM,
  NUM_TO_INT,
@@ -33889,6 +34118,7 @@ enum class IrCmd : uint8_t
  CHECK_NODE_NO_NEXT,
  CHECK_NODE_VALUE,
  CHECK_BUFFER_LEN,
+ CHECK_USERDATA_TAG,
  INTERRUPT,
  CHECK_GC,
  BARRIER_OBJ,
@@ -34412,6 +34642,7 @@ namespace Luau
 namespace CodeGen
 {
 struct IrBuilder;
+enum class HostMetamethod;
 inline bool isJumpD(LuauOpcode op)
 {
  switch (op)
@@ -34519,6 +34750,7 @@ inline bool isNonTerminatingJump(IrCmd cmd)
  case IrCmd::CHECK_NODE_NO_NEXT:
  case IrCmd::CHECK_NODE_VALUE:
  case IrCmd::CHECK_BUFFER_LEN:
+ case IrCmd::CHECK_USERDATA_TAG:
  return true;
  default:
  break;
@@ -34570,6 +34802,7 @@ inline bool hasResult(IrCmd cmd)
  case IrCmd::DUP_TABLE:
  case IrCmd::TRY_NUM_TO_INDEX:
  case IrCmd::TRY_CALL_FASTGETTM:
+ case IrCmd::NEW_USERDATA:
  case IrCmd::INT_TO_NUM:
  case IrCmd::UINT_TO_NUM:
  case IrCmd::NUM_TO_INT:
@@ -34621,6 +34854,7 @@ IrValueKind getCmdValueKind(IrCmd cmd);
 bool isGCO(uint8_t tag);
 bool isUserdataBytecodeType(uint8_t ty);
 bool isCustomUserdataBytecodeType(uint8_t ty);
+HostMetamethod tmToHostMetamethod(int tm);
 void addUse(IrFunction& function, IrOp op);
 void removeUse(IrFunction& function, IrOp op);
 void kill(IrFunction& function, IrInst& inst);
@@ -35508,16 +35742,47 @@ struct CompilationResult
  }
 };
 struct IrBuilder;
+struct IrOp;
 using HostVectorOperationBytecodeType = uint8_t (*)(const char* member, size_t memberLength);
 using HostVectorAccessHandler = bool (*)(IrBuilder& builder, const char* member, size_t memberLength, int resultReg, int sourceReg, int pcpos);
 using HostVectorNamecallHandler = bool (*)(
  IrBuilder& builder, const char* member, size_t memberLength, int argResReg, int sourceReg, int params, int results, int pcpos);
+enum class HostMetamethod
+{
+ Add,
+ Sub,
+ Mul,
+ Div,
+ Idiv,
+ Mod,
+ Pow,
+ Minus,
+ Equal,
+ LessThan,
+ LessEqual,
+ Length,
+ Concat,
+};
+using HostUserdataOperationBytecodeType = uint8_t (*)(uint8_t type, const char* member, size_t memberLength);
+using HostUserdataMetamethodBytecodeType = uint8_t (*)(uint8_t lhsTy, uint8_t rhsTy, HostMetamethod method);
+using HostUserdataAccessHandler = bool (*)(
+ IrBuilder& builder, uint8_t type, const char* member, size_t memberLength, int resultReg, int sourceReg, int pcpos);
+using HostUserdataMetamethodHandler = bool (*)(
+ IrBuilder& builder, uint8_t lhsTy, uint8_t rhsTy, int resultReg, IrOp lhs, IrOp rhs, HostMetamethod method, int pcpos);
+using HostUserdataNamecallHandler = bool (*)(
+ IrBuilder& builder, uint8_t type, const char* member, size_t memberLength, int argResReg, int sourceReg, int params, int results, int pcpos);
 struct HostIrHooks
 {
  HostVectorOperationBytecodeType vectorAccessBytecodeType = nullptr;
  HostVectorOperationBytecodeType vectorNamecallBytecodeType = nullptr;
  HostVectorAccessHandler vectorAccess = nullptr;
  HostVectorNamecallHandler vectorNamecall = nullptr;
+ HostUserdataOperationBytecodeType userdataAccessBytecodeType = nullptr;
+ HostUserdataMetamethodBytecodeType userdataMetamethodBytecodeType = nullptr;
+ HostUserdataOperationBytecodeType userdataNamecallBytecodeType = nullptr;
+ HostUserdataAccessHandler userdataAccess = nullptr;
+ HostUserdataMetamethodHandler userdataMetamethod = nullptr;
+ HostUserdataNamecallHandler userdataNamecall = nullptr;
 };
 struct CompilationOptions
 {
@@ -35894,6 +36159,7 @@ struct NativeContext
  void (*forgPrepXnextFallback)(lua_State* L, TValue* ra, int pc) = nullptr;
  Closure* (*callProlog)(lua_State* L, TValue* ra, StkId argtop, int nresults) = nullptr;
  void (*callEpilogC)(lua_State* L, int nresults, int n) = nullptr;
+ Udata* (*newUserdata)(lua_State* L, size_t s, int tag) = nullptr;
  Closure* (*callFallback)(lua_State* L, StkId ra, StkId argtop, int nresults) = nullptr;
  const Instruction* (*executeGETGLOBAL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
  const Instruction* (*executeSETGLOBAL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
@@ -35909,18 +36175,6 @@ struct NativeContext
  luau_FastFunction luauF_table[256] = {};
 };
 using GateFn = int (*)(lua_State*, Proto*, uintptr_t, NativeContext*);
-struct NativeState
-{
- NativeState();
- NativeState(AllocationCallback* allocationCallback, void* allocationCallbackContext);
- ~NativeState();
- CodeAllocator codeAllocator;
- std::unique_ptr<UnwindBuilder> unwindBuilder;
- uint8_t* gateData = nullptr;
- size_t gateDataSize = 0;
- NativeContext context;
-};
-void initFunctions(NativeState& data);
 void initFunctions(NativeContext& context);
 }
 } // namespace Luau
@@ -35987,12 +36241,10 @@ namespace Luau
 namespace CodeGen
 {
 class BaseCodeGenContext;
-struct NativeState;
 struct ModuleHelpers;
 namespace A64
 {
 class AssemblyBuilderA64;
-bool initHeaderFunctions(NativeState& data);
 bool initHeaderFunctions(BaseCodeGenContext& codeGenContext);
 void assembleHelpers(AssemblyBuilderA64& build, ModuleHelpers& helpers);
 }
@@ -36869,7 +37121,7 @@ struct IrLoweringA64
  RegisterA64 tempInt(IrOp op);
  RegisterA64 tempUint(IrOp op);
  AddressA64 tempAddr(IrOp op, int offset);
- AddressA64 tempAddrBuffer(IrOp bufferOp, IrOp indexOp);
+ AddressA64 tempAddrBuffer(IrOp bufferOp, IrOp indexOp, uint8_t tag);
  RegisterA64 regOp(IrOp op);
  IrConst constOp(IrOp op) const;
  uint8_t tagOp(IrOp op) const;
@@ -37015,7 +37267,7 @@ struct IrLoweringX64
  OperandX64 memRegUintOp(IrOp op);
  OperandX64 memRegTagOp(IrOp op);
  RegisterX64 regOp(IrOp op);
- OperandX64 bufferAddrOp(IrOp bufferOp, IrOp indexOp);
+ OperandX64 bufferAddrOp(IrOp bufferOp, IrOp indexOp, uint8_t tag);
  RegisterX64 vecOp(IrOp op, ScopedRegX64& tmp);
  IrConst constOp(IrOp op) const;
  uint8_t tagOp(IrOp op) const;
@@ -37286,12 +37538,10 @@ namespace Luau
 namespace CodeGen
 {
 class BaseCodeGenContext;
-struct NativeState;
 struct ModuleHelpers;
 namespace X64
 {
 class AssemblyBuilderX64;
-bool initHeaderFunctions(NativeState& data);
 bool initHeaderFunctions(BaseCodeGenContext& codeGenContext);
 void assembleHelpers(AssemblyBuilderX64& build, ModuleHelpers& helpers);
 }
@@ -37430,8 +37680,8 @@ private:
 } // namespace Luau
 #line __LINE__ "CodeGenContext.cpp"
 LUAU_FASTFLAGVARIABLE(LuauCodegenCheckNullContext, false)
-LUAU_FASTINT(LuauCodeGenBlockSize)
-LUAU_FASTINT(LuauCodeGenMaxTotalSize)
+LUAU_FASTINTVARIABLE(LuauCodeGenBlockSize, 4 * 1024 * 1024)
+LUAU_FASTINTVARIABLE(LuauCodeGenMaxTotalSize, 256 * 1024 * 1024)
 namespace Luau
 {
 namespace CodeGen
@@ -40645,6 +40895,7 @@ LUAU_FASTFLAG(LuauLoadTypeInfo)
 LUAU_FASTFLAGVARIABLE(LuauCodegenTypeInfo, false) // New analysis is flagged separately
 LUAU_FASTFLAGVARIABLE(LuauCodegenAnalyzeHostVectorOps, false)
 LUAU_FASTFLAGVARIABLE(LuauCodegenLoadTypeUpvalCheck, false)
+LUAU_FASTFLAGVARIABLE(LuauCodegenUserdataOps, false)
 namespace Luau
 {
 namespace CodeGen
@@ -41110,6 +41361,47 @@ static void applyBuiltinCall(int bfid, BytecodeTypes& types)
  break;
  }
 }
+static HostMetamethod opcodeToHostMetamethod(LuauOpcode op)
+{
+ switch (op)
+ {
+ case LOP_ADD:
+ return HostMetamethod::Add;
+ case LOP_SUB:
+ return HostMetamethod::Sub;
+ case LOP_MUL:
+ return HostMetamethod::Mul;
+ case LOP_DIV:
+ return HostMetamethod::Div;
+ case LOP_IDIV:
+ return HostMetamethod::Idiv;
+ case LOP_MOD:
+ return HostMetamethod::Mod;
+ case LOP_POW:
+ return HostMetamethod::Pow;
+ case LOP_ADDK:
+ return HostMetamethod::Add;
+ case LOP_SUBK:
+ return HostMetamethod::Sub;
+ case LOP_MULK:
+ return HostMetamethod::Mul;
+ case LOP_DIVK:
+ return HostMetamethod::Div;
+ case LOP_IDIVK:
+ return HostMetamethod::Idiv;
+ case LOP_MODK:
+ return HostMetamethod::Mod;
+ case LOP_POWK:
+ return HostMetamethod::Pow;
+ case LOP_SUBRK:
+ return HostMetamethod::Sub;
+ case LOP_DIVRK:
+ return HostMetamethod::Div;
+ default:
+ CODEGEN_ASSERT(!"opcode is not assigned to a host metamethod");
+ }
+ return HostMetamethod::Add;
+}
 void buildBytecodeBlocks(IrFunction& function, const std::vector<uint8_t>& jumpTargets)
 {
  Proto* proto = function.proto;
@@ -41277,6 +41569,29 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  bcType.a = regTags[rb];
  bcType.b = getBytecodeConstantTag(proto, kc);
  regTags[ra] = LBC_TYPE_ANY;
+ if (FFlag::LuauCodegenUserdataOps)
+ {
+ TString* str = gco2ts(function.proto->k[kc].value.gc);
+ const char* field = getstr(str);
+ if (bcType.a == LBC_TYPE_VECTOR)
+ {
+ if (str->len == 1)
+ {
+ char ch = field[0] | ' ';
+ if (ch == 'x' || ch == 'y' || ch == 'z')
+ regTags[ra] = LBC_TYPE_NUMBER;
+ }
+ if (FFlag::LuauCodegenAnalyzeHostVectorOps && regTags[ra] == LBC_TYPE_ANY && hostHooks.vectorAccessBytecodeType)
+ regTags[ra] = hostHooks.vectorAccessBytecodeType(field, str->len);
+ }
+ else if (isCustomUserdataBytecodeType(bcType.a))
+ {
+ if (regTags[ra] == LBC_TYPE_ANY && hostHooks.userdataAccessBytecodeType)
+ regTags[ra] = hostHooks.userdataAccessBytecodeType(bcType.a, field, str->len);
+ }
+ }
+ else
+ {
  if (bcType.a == LBC_TYPE_VECTOR)
  {
  TString* str = gco2ts(function.proto->k[kc].value.gc);
@@ -41289,6 +41604,7 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  }
  if (FFlag::LuauCodegenAnalyzeHostVectorOps && regTags[ra] == LBC_TYPE_ANY && hostHooks.vectorAccessBytecodeType)
  regTags[ra] = hostHooks.vectorAccessBytecodeType(field, str->len);
+ }
  }
  bcType.result = regTags[ra];
  break;
@@ -41321,6 +41637,9 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  regTags[ra] = LBC_TYPE_NUMBER;
  else if (bcType.a == LBC_TYPE_VECTOR && bcType.b == LBC_TYPE_VECTOR)
  regTags[ra] = LBC_TYPE_VECTOR;
+ else if (FFlag::LuauCodegenUserdataOps && hostHooks.userdataMetamethodBytecodeType &&
+ (isCustomUserdataBytecodeType(bcType.a) || isCustomUserdataBytecodeType(bcType.b)))
+ regTags[ra] = hostHooks.userdataMetamethodBytecodeType(bcType.a, bcType.b, opcodeToHostMetamethod(op));
  bcType.result = regTags[ra];
  break;
  }
@@ -41346,6 +41665,11 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  if (bcType.b == LBC_TYPE_NUMBER || bcType.b == LBC_TYPE_VECTOR)
  regTags[ra] = LBC_TYPE_VECTOR;
  }
+ else if (FFlag::LuauCodegenUserdataOps && hostHooks.userdataMetamethodBytecodeType &&
+ (isCustomUserdataBytecodeType(bcType.a) || isCustomUserdataBytecodeType(bcType.b)))
+ {
+ regTags[ra] = hostHooks.userdataMetamethodBytecodeType(bcType.a, bcType.b, opcodeToHostMetamethod(op));
+ }
  bcType.result = regTags[ra];
  break;
  }
@@ -41360,6 +41684,9 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  regTags[ra] = LBC_TYPE_ANY;
  if (bcType.a == LBC_TYPE_NUMBER && bcType.b == LBC_TYPE_NUMBER)
  regTags[ra] = LBC_TYPE_NUMBER;
+ else if (FFlag::LuauCodegenUserdataOps && hostHooks.userdataMetamethodBytecodeType &&
+ (isCustomUserdataBytecodeType(bcType.a) || isCustomUserdataBytecodeType(bcType.b)))
+ regTags[ra] = hostHooks.userdataMetamethodBytecodeType(bcType.a, bcType.b, opcodeToHostMetamethod(op));
  bcType.result = regTags[ra];
  break;
  }
@@ -41376,6 +41703,9 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  regTags[ra] = LBC_TYPE_NUMBER;
  else if (bcType.a == LBC_TYPE_VECTOR && bcType.b == LBC_TYPE_VECTOR)
  regTags[ra] = LBC_TYPE_VECTOR;
+ else if (FFlag::LuauCodegenUserdataOps && hostHooks.userdataMetamethodBytecodeType &&
+ (isCustomUserdataBytecodeType(bcType.a) || isCustomUserdataBytecodeType(bcType.b)))
+ regTags[ra] = hostHooks.userdataMetamethodBytecodeType(bcType.a, bcType.b, opcodeToHostMetamethod(op));
  bcType.result = regTags[ra];
  break;
  }
@@ -41401,6 +41731,11 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  if (bcType.b == LBC_TYPE_NUMBER || bcType.b == LBC_TYPE_VECTOR)
  regTags[ra] = LBC_TYPE_VECTOR;
  }
+ else if (FFlag::LuauCodegenUserdataOps && hostHooks.userdataMetamethodBytecodeType &&
+ (isCustomUserdataBytecodeType(bcType.a) || isCustomUserdataBytecodeType(bcType.b)))
+ {
+ regTags[ra] = hostHooks.userdataMetamethodBytecodeType(bcType.a, bcType.b, opcodeToHostMetamethod(op));
+ }
  bcType.result = regTags[ra];
  break;
  }
@@ -41415,6 +41750,9 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  regTags[ra] = LBC_TYPE_ANY;
  if (bcType.a == LBC_TYPE_NUMBER && bcType.b == LBC_TYPE_NUMBER)
  regTags[ra] = LBC_TYPE_NUMBER;
+ else if (FFlag::LuauCodegenUserdataOps && hostHooks.userdataMetamethodBytecodeType &&
+ (isCustomUserdataBytecodeType(bcType.a) || isCustomUserdataBytecodeType(bcType.b)))
+ regTags[ra] = hostHooks.userdataMetamethodBytecodeType(bcType.a, bcType.b, opcodeToHostMetamethod(op));
  bcType.result = regTags[ra];
  break;
  }
@@ -41430,6 +41768,9 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  regTags[ra] = LBC_TYPE_NUMBER;
  else if (bcType.a == LBC_TYPE_VECTOR && bcType.b == LBC_TYPE_VECTOR)
  regTags[ra] = LBC_TYPE_VECTOR;
+ else if (FFlag::LuauCodegenUserdataOps && hostHooks.userdataMetamethodBytecodeType &&
+ (isCustomUserdataBytecodeType(bcType.a) || isCustomUserdataBytecodeType(bcType.b)))
+ regTags[ra] = hostHooks.userdataMetamethodBytecodeType(bcType.a, bcType.b, opcodeToHostMetamethod(op));
  bcType.result = regTags[ra];
  break;
  }
@@ -41453,6 +41794,11 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  if (bcType.b == LBC_TYPE_NUMBER || bcType.b == LBC_TYPE_VECTOR)
  regTags[ra] = LBC_TYPE_VECTOR;
  }
+ else if (FFlag::LuauCodegenUserdataOps && hostHooks.userdataMetamethodBytecodeType &&
+ (isCustomUserdataBytecodeType(bcType.a) || isCustomUserdataBytecodeType(bcType.b)))
+ {
+ regTags[ra] = hostHooks.userdataMetamethodBytecodeType(bcType.a, bcType.b, opcodeToHostMetamethod(op));
+ }
  bcType.result = regTags[ra];
  break;
  }
@@ -41475,6 +41821,8 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  regTags[ra] = LBC_TYPE_NUMBER;
  else if (bcType.a == LBC_TYPE_VECTOR)
  regTags[ra] = LBC_TYPE_VECTOR;
+ else if (FFlag::LuauCodegenUserdataOps && hostHooks.userdataMetamethodBytecodeType && isCustomUserdataBytecodeType(bcType.a))
+ regTags[ra] = hostHooks.userdataMetamethodBytecodeType(bcType.a, LBC_TYPE_ANY, HostMetamethod::Minus);
  bcType.result = regTags[ra];
  break;
  }
@@ -41590,11 +41938,23 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  regTags[ra] = LBC_TYPE_FUNCTION;
  regTags[ra + 1] = bcType.a;
  bcType.result = LBC_TYPE_FUNCTION;
+ if (FFlag::LuauCodegenUserdataOps)
+ {
+ TString* str = gco2ts(function.proto->k[kc].value.gc);
+ const char* field = getstr(str);
+ if (FFlag::LuauCodegenAnalyzeHostVectorOps && bcType.a == LBC_TYPE_VECTOR && hostHooks.vectorNamecallBytecodeType)
+ knownNextCallResult = LuauBytecodeType(hostHooks.vectorNamecallBytecodeType(field, str->len));
+ else if (isCustomUserdataBytecodeType(bcType.a) && hostHooks.userdataNamecallBytecodeType)
+ knownNextCallResult = LuauBytecodeType(hostHooks.userdataNamecallBytecodeType(bcType.a, field, str->len));
+ }
+ else
+ {
  if (FFlag::LuauCodegenAnalyzeHostVectorOps && bcType.a == LBC_TYPE_VECTOR && hostHooks.vectorNamecallBytecodeType)
  {
  TString* str = gco2ts(function.proto->k[kc].value.gc);
  const char* field = getstr(str);
  knownNextCallResult = LuauBytecodeType(hostHooks.vectorNamecallBytecodeType(field, str->len));
+ }
  }
  }
  break;
@@ -42255,6 +42615,7 @@ bool forgLoopNonTableFallback(lua_State* L, int insnA, int aux);
 void forgPrepXnextFallback(lua_State* L, TValue* ra, int pc);
 Closure* callProlog(lua_State* L, TValue* ra, StkId argtop, int nresults);
 void callEpilogC(lua_State* L, int nresults, int n);
+Udata* newUserdata(lua_State* L, size_t s, int tag);
 #define CALL_FALLBACK_YIELD 1
 Closure* callFallback(lua_State* L, StkId ra, StkId argtop, int nresults);
 const Instruction* executeGETGLOBAL(lua_State* L, const Instruction* pc, StkId base, TValue* k);
@@ -42276,7 +42637,6 @@ namespace Luau
 {
 namespace CodeGen
 {
-struct NativeState;
 namespace A64
 {
 constexpr RegisterA64 rState = x19;
@@ -42445,27 +42805,6 @@ static EntryLocations buildEntryFunction(AssemblyBuilderA64& build, UnwindBuilde
  unwind.prologueA64(prologueSize, kStackSize, {x29, x30, x19, x20, x21, x22, x23, x24, x25});
  unwind.finishFunction(build.getLabelOffset(locations.start), kFullBlockFunction);
  return locations;
-}
-bool initHeaderFunctions(NativeState& data)
-{
- AssemblyBuilderA64 build( false);
- UnwindBuilder& unwind = *data.unwindBuilder.get();
- unwind.startInfo(UnwindBuilder::A64);
- EntryLocations entryLocations = buildEntryFunction(build, unwind);
- build.finalize();
- unwind.finishInfo();
- CODEGEN_ASSERT(build.data.empty());
- uint8_t* codeStart = nullptr;
- if (!data.codeAllocator.allocate(build.data.data(), int(build.data.size()), reinterpret_cast<const uint8_t*>(build.code.data()),
- int(build.code.size() * sizeof(build.code[0])), data.gateData, data.gateDataSize, codeStart))
- {
- CODEGEN_ASSERT(!"Failed to create entry function");
- return false;
- }
- unwind.setBeginOffset(build.getLabelOffset(entryLocations.prologueEnd));
- data.context.gateEntry = codeStart + build.getLabelOffset(entryLocations.start);
- data.context.gateExit = codeStart + build.getLabelOffset(entryLocations.epilogueStart);
- return true;
 }
 bool initHeaderFunctions(BaseCodeGenContext& codeGenContext)
 {
@@ -42921,6 +43260,16 @@ void callEpilogC(lua_State* L, int nresults, int n)
  L->base = cip->base;
  L->top = (nresults == LUA_MULTRET) ? res : cip->top;
 }
+Udata* newUserdata(lua_State* L, size_t s, int tag)
+{
+ Udata* u = luaU_newudata(L, s, tag);
+ if (Table* h = L->global->udatamt[tag])
+ {
+ u->metatable = h;
+ luaC_objbarrier(L, u, h);
+ }
+ return u;
+}
 Closure* callFallback(lua_State* L, StkId ra, StkId argtop, int nresults)
 {
  if (LUAU_UNLIKELY(!ttisfunction(ra)))
@@ -43364,7 +43713,6 @@ namespace Luau
 namespace CodeGen
 {
 enum class IrCondition : uint8_t;
-struct NativeState;
 struct IrOp;
 namespace X64
 {
@@ -43608,27 +43956,6 @@ static EntryLocations buildEntryFunction(AssemblyBuilderX64& build, UnwindBuilde
  build.ret();
  unwind.finishFunction(build.getLabelOffset(locations.start), kFullBlockFunction);
  return locations;
-}
-bool initHeaderFunctions(NativeState& data)
-{
- AssemblyBuilderX64 build( false);
- UnwindBuilder& unwind = *data.unwindBuilder.get();
- unwind.startInfo(UnwindBuilder::X64);
- EntryLocations entryLocations = buildEntryFunction(build, unwind);
- build.finalize();
- unwind.finishInfo();
- CODEGEN_ASSERT(build.data.empty());
- uint8_t* codeStart = nullptr;
- if (!data.codeAllocator.allocate(
- build.data.data(), int(build.data.size()), build.code.data(), int(build.code.size()), data.gateData, data.gateDataSize, codeStart))
- {
- CODEGEN_ASSERT(!"Failed to create entry function");
- return false;
- }
- unwind.setBeginOffset(build.getLabelOffset(entryLocations.prologueEnd));
- data.context.gateEntry = codeStart + build.getLabelOffset(entryLocations.start);
- data.context.gateExit = codeStart + build.getLabelOffset(entryLocations.epilogueStart);
- return true;
 }
 bool initHeaderFunctions(BaseCodeGenContext& codeGenContext)
 {
@@ -45787,6 +46114,8 @@ const char* getCmdName(IrCmd cmd)
  return "TRY_NUM_TO_INDEX";
  case IrCmd::TRY_CALL_FASTGETTM:
  return "TRY_CALL_FASTGETTM";
+ case IrCmd::NEW_USERDATA:
+ return "NEW_USERDATA";
  case IrCmd::INT_TO_NUM:
  return "INT_TO_NUM";
  case IrCmd::UINT_TO_NUM:
@@ -45845,6 +46174,8 @@ const char* getCmdName(IrCmd cmd)
  return "CHECK_NODE_VALUE";
  case IrCmd::CHECK_BUFFER_LEN:
  return "CHECK_BUFFER_LEN";
+ case IrCmd::CHECK_USERDATA_TAG:
+ return "CHECK_USERDATA_TAG";
  case IrCmd::INTERRUPT:
  return "INTERRUPT";
  case IrCmd::CHECK_GC:
@@ -46508,6 +46839,9 @@ std::string dumpDot(const IrFunction& function, bool includeInst)
 #line __LINE__ "IrLoweringA64.cpp"
 LUAU_FASTFLAG(LuauCodegenRemoveDeadStores5)
 LUAU_FASTFLAG(LuauCodegenSplitDoarith)
+LUAU_FASTFLAG(LuauCodegenUserdataOps)
+LUAU_FASTFLAGVARIABLE(LuauCodegenUserdataAlloc, false)
+LUAU_FASTFLAGVARIABLE(LuauCodegenUserdataOpsFixA64, false)
 namespace Luau
 {
 namespace CodeGen
@@ -47449,6 +47783,18 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  inst.regA64 = regs.takeReg(x0, index);
  break;
  }
+ case IrCmd::NEW_USERDATA:
+ {
+ CODEGEN_ASSERT(FFlag::LuauCodegenUserdataAlloc);
+ regs.spill(build, index);
+ build.mov(x0, rState);
+ build.mov(x1, intOp(inst.a));
+ build.mov(x2, intOp(inst.b));
+ build.ldr(x3, mem(rNativeContext, offsetof(NativeContext, newUserdata)));
+ build.blr(x3);
+ inst.regA64 = regs.takeReg(x0, index);
+ break;
+ }
  case IrCmd::INT_TO_NUM:
  {
  inst.regA64 = regs.allocReg(KindA64::d, index);
@@ -47962,6 +48308,21 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  CODEGEN_ASSERT(!"Unsupported instruction form");
  }
  finalizeTargetLabel(inst.d, fresh);
+ break;
+ }
+ case IrCmd::CHECK_USERDATA_TAG:
+ {
+ CODEGEN_ASSERT(FFlag::LuauCodegenUserdataOps);
+ Label fresh;
+ Label& fail = getTargetLabel(inst.c, fresh);
+ RegisterA64 temp = regs.allocTemp(KindA64::w);
+ build.ldrb(temp, mem(regOp(inst.a), offsetof(Udata, tag)));
+ if (FFlag::LuauCodegenUserdataOpsFixA64)
+ build.cmp(temp, intOp(inst.b));
+ else
+ build.cmp(temp, tagOp(inst.b));
+ build.b(ConditionA64::NotEqual, fail);
+ finalizeTargetLabel(inst.c, fresh);
  break;
  }
  case IrCmd::INTERRUPT:
@@ -48500,56 +48861,56 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  case IrCmd::BUFFER_READI8:
  {
  inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.b});
- AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b, inst.c.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.c));
  build.ldrsb(inst.regA64, addr);
  break;
  }
  case IrCmd::BUFFER_READU8:
  {
  inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.b});
- AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b, inst.c.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.c));
  build.ldrb(inst.regA64, addr);
  break;
  }
  case IrCmd::BUFFER_WRITEI8:
  {
  RegisterA64 temp = tempInt(inst.c);
- AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b, inst.d.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.d));
  build.strb(temp, addr);
  break;
  }
  case IrCmd::BUFFER_READI16:
  {
  inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.b});
- AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b, inst.c.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.c));
  build.ldrsh(inst.regA64, addr);
  break;
  }
  case IrCmd::BUFFER_READU16:
  {
  inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.b});
- AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b, inst.c.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.c));
  build.ldrh(inst.regA64, addr);
  break;
  }
  case IrCmd::BUFFER_WRITEI16:
  {
  RegisterA64 temp = tempInt(inst.c);
- AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b, inst.d.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.d));
  build.strh(temp, addr);
  break;
  }
  case IrCmd::BUFFER_READI32:
  {
  inst.regA64 = regs.allocReuse(KindA64::w, index, {inst.b});
- AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b, inst.c.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.c));
  build.ldr(inst.regA64, addr);
  break;
  }
  case IrCmd::BUFFER_WRITEI32:
  {
  RegisterA64 temp = tempInt(inst.c);
- AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b, inst.d.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.d));
  build.str(temp, addr);
  break;
  }
@@ -48557,7 +48918,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  {
  inst.regA64 = regs.allocReg(KindA64::d, index);
  RegisterA64 temp = castReg(KindA64::s, inst.regA64);
- AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b, inst.c.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.c));
  build.ldr(temp, addr);
  build.fcvt(inst.regA64, temp);
  break;
@@ -48566,7 +48927,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  {
  RegisterA64 temp1 = tempDouble(inst.c);
  RegisterA64 temp2 = regs.allocTemp(KindA64::s);
- AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b, inst.d.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.d));
  build.fcvt(temp2, temp1);
  build.str(temp2, addr);
  break;
@@ -48574,14 +48935,14 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  case IrCmd::BUFFER_READF64:
  {
  inst.regA64 = regs.allocReg(KindA64::d, index);
- AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b, inst.c.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.c));
  build.ldr(inst.regA64, addr);
  break;
  }
  case IrCmd::BUFFER_WRITEF64:
  {
  RegisterA64 temp = tempDouble(inst.c);
- AddressA64 addr = tempAddrBuffer(inst.a, inst.b);
+ AddressA64 addr = tempAddrBuffer(inst.a, inst.b, inst.d.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.d));
  build.str(temp, addr);
  break;
  }
@@ -48764,8 +49125,36 @@ AddressA64 IrLoweringA64::tempAddr(IrOp op, int offset)
  return noreg;
  }
 }
-AddressA64 IrLoweringA64::tempAddrBuffer(IrOp bufferOp, IrOp indexOp)
+AddressA64 IrLoweringA64::tempAddrBuffer(IrOp bufferOp, IrOp indexOp, uint8_t tag)
 {
+ if (FFlag::LuauCodegenUserdataOps)
+ {
+ CODEGEN_ASSERT(tag == LUA_TUSERDATA || tag == LUA_TBUFFER);
+ int dataOffset = tag == LUA_TBUFFER ? offsetof(Buffer, data) : offsetof(Udata, data);
+ if (indexOp.kind == IrOpKind::Inst)
+ {
+ RegisterA64 temp = regs.allocTemp(KindA64::x);
+ build.add(temp, regOp(bufferOp), regOp(indexOp));
+ return mem(temp, dataOffset);
+ }
+ else if (indexOp.kind == IrOpKind::Constant)
+ {
+ if (unsigned(intOp(indexOp)) + dataOffset <= 255)
+ return mem(regOp(bufferOp), int(intOp(indexOp) + dataOffset));
+ if (intOp(indexOp) < 0)
+ return mem(regOp(bufferOp), dataOffset);
+ RegisterA64 temp = regs.allocTemp(KindA64::x);
+ emitAddOffset(build, temp, regOp(bufferOp), size_t(intOp(indexOp)));
+ return mem(temp, dataOffset);
+ }
+ else
+ {
+ CODEGEN_ASSERT(!"Unsupported instruction form");
+ return noreg;
+ }
+ }
+ else
+ {
  if (indexOp.kind == IrOpKind::Inst)
  {
  RegisterA64 temp = regs.allocTemp(KindA64::x);
@@ -48786,6 +49175,7 @@ AddressA64 IrLoweringA64::tempAddrBuffer(IrOp bufferOp, IrOp indexOp)
  {
  CODEGEN_ASSERT(!"Unsupported instruction form");
  return noreg;
+ }
  }
 }
 RegisterA64 IrLoweringA64::regOp(IrOp op)
@@ -48829,6 +49219,8 @@ Label& IrLoweringA64::labelOp(IrOp op) const
 }
 #line __LINE__ ""
 #line __LINE__ "IrLoweringX64.cpp"
+LUAU_FASTFLAG(LuauCodegenUserdataOps)
+LUAU_FASTFLAG(LuauCodegenUserdataAlloc)
 namespace Luau
 {
 namespace CodeGen
@@ -49593,6 +49985,17 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  inst.regX64 = regs.takeReg(rax, index);
  break;
  }
+ case IrCmd::NEW_USERDATA:
+ {
+ CODEGEN_ASSERT(FFlag::LuauCodegenUserdataAlloc);
+ IrCallWrapperX64 callWrap(regs, build, index);
+ callWrap.addArgument(SizeX64::qword, rState);
+ callWrap.addArgument(SizeX64::qword, intOp(inst.a));
+ callWrap.addArgument(SizeX64::dword, intOp(inst.b));
+ callWrap.call(qword[rNativeContext + offsetof(NativeContext, newUserdata)]);
+ inst.regX64 = regs.takeReg(rax, index);
+ break;
+ }
  case IrCmd::INT_TO_NUM:
  inst.regX64 = regs.allocReg(SizeX64::xmmword, index);
  build.vcvtsi2sd(inst.regX64, inst.regX64, regOp(inst.a));
@@ -49962,6 +50365,13 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  {
  CODEGEN_ASSERT(!"Unsupported instruction form");
  }
+ break;
+ }
+ case IrCmd::CHECK_USERDATA_TAG:
+ {
+ CODEGEN_ASSERT(FFlag::LuauCodegenUserdataOps);
+ build.cmp(byte[regOp(inst.a) + offsetof(Udata, tag)], intOp(inst.b));
+ jumpOrAbortOnUndef(ConditionX64::NotEqual, inst.c, next);
  break;
  }
  case IrCmd::INTERRUPT:
@@ -50388,63 +50798,63 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  case IrCmd::BUFFER_READI8:
  inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a, inst.b});
- build.movsx(inst.regX64, byte[bufferAddrOp(inst.a, inst.b)]);
+ build.movsx(inst.regX64, byte[bufferAddrOp(inst.a, inst.b, inst.c.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.c))]);
  break;
  case IrCmd::BUFFER_READU8:
  inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a, inst.b});
- build.movzx(inst.regX64, byte[bufferAddrOp(inst.a, inst.b)]);
+ build.movzx(inst.regX64, byte[bufferAddrOp(inst.a, inst.b, inst.c.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.c))]);
  break;
  case IrCmd::BUFFER_WRITEI8:
  {
  OperandX64 value = inst.c.kind == IrOpKind::Inst ? byteReg(regOp(inst.c)) : OperandX64(int8_t(intOp(inst.c)));
- build.mov(byte[bufferAddrOp(inst.a, inst.b)], value);
+ build.mov(byte[bufferAddrOp(inst.a, inst.b, inst.d.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.d))], value);
  break;
  }
  case IrCmd::BUFFER_READI16:
  inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a, inst.b});
- build.movsx(inst.regX64, word[bufferAddrOp(inst.a, inst.b)]);
+ build.movsx(inst.regX64, word[bufferAddrOp(inst.a, inst.b, inst.c.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.c))]);
  break;
  case IrCmd::BUFFER_READU16:
  inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a, inst.b});
- build.movzx(inst.regX64, word[bufferAddrOp(inst.a, inst.b)]);
+ build.movzx(inst.regX64, word[bufferAddrOp(inst.a, inst.b, inst.c.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.c))]);
  break;
  case IrCmd::BUFFER_WRITEI16:
  {
  OperandX64 value = inst.c.kind == IrOpKind::Inst ? wordReg(regOp(inst.c)) : OperandX64(int16_t(intOp(inst.c)));
- build.mov(word[bufferAddrOp(inst.a, inst.b)], value);
+ build.mov(word[bufferAddrOp(inst.a, inst.b, inst.d.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.d))], value);
  break;
  }
  case IrCmd::BUFFER_READI32:
  inst.regX64 = regs.allocRegOrReuse(SizeX64::dword, index, {inst.a, inst.b});
- build.mov(inst.regX64, dword[bufferAddrOp(inst.a, inst.b)]);
+ build.mov(inst.regX64, dword[bufferAddrOp(inst.a, inst.b, inst.c.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.c))]);
  break;
  case IrCmd::BUFFER_WRITEI32:
  {
  OperandX64 value = inst.c.kind == IrOpKind::Inst ? regOp(inst.c) : OperandX64(intOp(inst.c));
- build.mov(dword[bufferAddrOp(inst.a, inst.b)], value);
+ build.mov(dword[bufferAddrOp(inst.a, inst.b, inst.d.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.d))], value);
  break;
  }
  case IrCmd::BUFFER_READF32:
  inst.regX64 = regs.allocReg(SizeX64::xmmword, index);
- build.vcvtss2sd(inst.regX64, inst.regX64, dword[bufferAddrOp(inst.a, inst.b)]);
+ build.vcvtss2sd(inst.regX64, inst.regX64, dword[bufferAddrOp(inst.a, inst.b, inst.c.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.c))]);
  break;
  case IrCmd::BUFFER_WRITEF32:
- storeDoubleAsFloat(dword[bufferAddrOp(inst.a, inst.b)], inst.c);
+ storeDoubleAsFloat(dword[bufferAddrOp(inst.a, inst.b, inst.d.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.d))], inst.c);
  break;
  case IrCmd::BUFFER_READF64:
  inst.regX64 = regs.allocReg(SizeX64::xmmword, index);
- build.vmovsd(inst.regX64, qword[bufferAddrOp(inst.a, inst.b)]);
+ build.vmovsd(inst.regX64, qword[bufferAddrOp(inst.a, inst.b, inst.c.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.c))]);
  break;
  case IrCmd::BUFFER_WRITEF64:
  if (inst.c.kind == IrOpKind::Constant)
  {
  ScopedRegX64 tmp{regs, SizeX64::xmmword};
  build.vmovsd(tmp.reg, build.f64(doubleOp(inst.c)));
- build.vmovsd(qword[bufferAddrOp(inst.a, inst.b)], tmp.reg);
+ build.vmovsd(qword[bufferAddrOp(inst.a, inst.b, inst.d.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.d))], tmp.reg);
  }
  else if (inst.c.kind == IrOpKind::Inst)
  {
- build.vmovsd(qword[bufferAddrOp(inst.a, inst.b)], regOp(inst.c));
+ build.vmovsd(qword[bufferAddrOp(inst.a, inst.b, inst.d.kind == IrOpKind::None ? LUA_TBUFFER : tagOp(inst.d))], regOp(inst.c));
  }
  else
  {
@@ -50620,12 +51030,24 @@ RegisterX64 IrLoweringX64::regOp(IrOp op)
  CODEGEN_ASSERT(inst.regX64 != noreg);
  return inst.regX64;
 }
-OperandX64 IrLoweringX64::bufferAddrOp(IrOp bufferOp, IrOp indexOp)
+OperandX64 IrLoweringX64::bufferAddrOp(IrOp bufferOp, IrOp indexOp, uint8_t tag)
 {
+ if (FFlag::LuauCodegenUserdataOps)
+ {
+ CODEGEN_ASSERT(tag == LUA_TUSERDATA || tag == LUA_TBUFFER);
+ int dataOffset = tag == LUA_TBUFFER ? offsetof(Buffer, data) : offsetof(Udata, data);
+ if (indexOp.kind == IrOpKind::Inst)
+ return regOp(bufferOp) + qwordReg(regOp(indexOp)) + dataOffset;
+ else if (indexOp.kind == IrOpKind::Constant)
+ return regOp(bufferOp) + intOp(indexOp) + dataOffset;
+ }
+ else
+ {
  if (indexOp.kind == IrOpKind::Inst)
  return regOp(bufferOp) + qwordReg(regOp(indexOp)) + offsetof(Buffer, data);
  else if (indexOp.kind == IrOpKind::Constant)
  return regOp(bufferOp) + intOp(indexOp) + offsetof(Buffer, data);
+ }
  CODEGEN_ASSERT(!"Unsupported instruction form");
  return noreg;
 }
@@ -52127,6 +52549,7 @@ BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, 
 #line __LINE__ "IrTranslation.cpp"
 LUAU_FASTFLAGVARIABLE(LuauCodegenDirectUserdataFlow, false)
 LUAU_FASTFLAG(LuauCodegenAnalyzeHostVectorOps)
+LUAU_FASTFLAG(LuauCodegenUserdataOps)
 namespace Luau
 {
 namespace CodeGen
@@ -52448,6 +52871,15 @@ static void translateInstBinaryNumeric(IrBuilder& build, int ra, int rb, int rc,
  build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), result);
  return;
  }
+ if (FFlag::LuauCodegenUserdataOps && (isUserdataBytecodeType(bcTypes.a) || isUserdataBytecodeType(bcTypes.b)))
+ {
+ if (build.hostHooks.userdataMetamethod &&
+ build.hostHooks.userdataMetamethod(build, bcTypes.a, bcTypes.b, ra, opb, opc, tmToHostMetamethod(tm), pcpos))
+ return;
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ build.inst(IrCmd::DO_ARITH, build.vmReg(ra), opb, opc, build.constInt(tm));
+ return;
+ }
  IrOp fallback;
  if (rb != -1)
  {
@@ -52563,6 +52995,15 @@ void translateInstMinus(IrBuilder& build, const Instruction* pc, int pcpos)
  build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), va);
  return;
  }
+ if (FFlag::LuauCodegenUserdataOps && isUserdataBytecodeType(bcTypes.a))
+ {
+ if (build.hostHooks.userdataMetamethod &&
+ build.hostHooks.userdataMetamethod(build, bcTypes.a, bcTypes.b, ra, build.vmReg(rb), {}, tmToHostMetamethod(TM_UNM), pcpos))
+ return;
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ build.inst(IrCmd::DO_ARITH, build.vmReg(ra), build.vmReg(rb), build.vmReg(rb), build.constInt(TM_UNM));
+ return;
+ }
  IrOp fallback;
  IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
  build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TNUMBER),
@@ -52577,8 +53018,15 @@ void translateInstMinus(IrBuilder& build, const Instruction* pc, int pcpos)
  IrOp next = build.blockAtInst(pcpos + 1);
  FallbackStreamScope scope(build, fallback, next);
  build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ if (FFlag::LuauCodegenUserdataOps)
+ {
+ build.inst(IrCmd::DO_ARITH, build.vmReg(ra), build.vmReg(rb), build.vmReg(rb), build.constInt(TM_UNM));
+ }
+ else
+ {
  build.inst(
  IrCmd::DO_ARITH, build.vmReg(LUAU_INSN_A(*pc)), build.vmReg(LUAU_INSN_B(*pc)), build.vmReg(LUAU_INSN_B(*pc)), build.constInt(TM_UNM));
+ }
  build.inst(IrCmd::JUMP, next);
  }
 }
@@ -52587,6 +53035,15 @@ void translateInstLength(IrBuilder& build, const Instruction* pc, int pcpos)
  BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
  int ra = LUAU_INSN_A(*pc);
  int rb = LUAU_INSN_B(*pc);
+ if (FFlag::LuauCodegenUserdataOps && isUserdataBytecodeType(bcTypes.a))
+ {
+ if (build.hostHooks.userdataMetamethod &&
+ build.hostHooks.userdataMetamethod(build, bcTypes.a, bcTypes.b, ra, build.vmReg(rb), {}, tmToHostMetamethod(TM_LEN), pcpos))
+ return;
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ build.inst(IrCmd::DO_LEN, build.vmReg(ra), build.vmReg(rb));
+ return;
+ }
  IrOp fallback = build.block(IrBlockKind::Fallback);
  IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
  build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TTABLE), bcTypes.a == LBC_TYPE_TABLE ? build.vmExit(pcpos) : fallback);
@@ -52599,6 +53056,9 @@ void translateInstLength(IrBuilder& build, const Instruction* pc, int pcpos)
  IrOp next = build.blockAtInst(pcpos + 1);
  FallbackStreamScope scope(build, fallback, next);
  build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
+ if (FFlag::LuauCodegenUserdataOps)
+ build.inst(IrCmd::DO_LEN, build.vmReg(ra), build.vmReg(rb));
+ else
  build.inst(IrCmd::DO_LEN, build.vmReg(LUAU_INSN_A(*pc)), build.vmReg(LUAU_INSN_B(*pc)));
  build.inst(IrCmd::JUMP, next);
 }
@@ -53003,9 +53463,16 @@ void translateInstGetTableKS(IrBuilder& build, const Instruction* pc, int pcpos)
  }
  return;
  }
- if (FFlag::LuauCodegenDirectUserdataFlow && bcTypes.a == LBC_TYPE_USERDATA)
+ if (FFlag::LuauCodegenDirectUserdataFlow && (FFlag::LuauCodegenUserdataOps ? isUserdataBytecodeType(bcTypes.a) : bcTypes.a == LBC_TYPE_USERDATA))
  {
  build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TUSERDATA), build.vmExit(pcpos));
+ if (FFlag::LuauCodegenUserdataOps && build.hostHooks.userdataAccess)
+ {
+ TString* str = gco2ts(build.function.proto->k[aux].value.gc);
+ const char* field = getstr(str);
+ if (build.hostHooks.userdataAccess(build, bcTypes.a, field, str->len, ra, rb, pcpos))
+ return;
+ }
  build.inst(IrCmd::FALLBACK_GETTABLEKS, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
  return;
  }
@@ -53028,7 +53495,7 @@ void translateInstSetTableKS(IrBuilder& build, const Instruction* pc, int pcpos)
  uint32_t aux = pc[1];
  BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
  IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
- if (FFlag::LuauCodegenDirectUserdataFlow && bcTypes.a == LBC_TYPE_USERDATA)
+ if (FFlag::LuauCodegenDirectUserdataFlow && (FFlag::LuauCodegenUserdataOps ? isUserdataBytecodeType(bcTypes.a) : bcTypes.a == LBC_TYPE_USERDATA))
  {
  build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TUSERDATA), build.vmExit(pcpos));
  build.inst(IrCmd::FALLBACK_SETTABLEKS, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
@@ -53134,9 +53601,21 @@ bool translateInstNamecall(IrBuilder& build, const Instruction* pc, int pcpos)
  build.inst(IrCmd::FALLBACK_NAMECALL, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
  return false;
  }
- if (FFlag::LuauCodegenDirectUserdataFlow && bcTypes.a == LBC_TYPE_USERDATA)
+ if (FFlag::LuauCodegenDirectUserdataFlow && (FFlag::LuauCodegenUserdataOps ? isUserdataBytecodeType(bcTypes.a) : bcTypes.a == LBC_TYPE_USERDATA))
  {
  build.loadAndCheckTag(build.vmReg(rb), LUA_TUSERDATA, build.vmExit(pcpos));
+ if (FFlag::LuauCodegenUserdataOps && build.hostHooks.userdataNamecall)
+ {
+ Instruction call = pc[2];
+ CODEGEN_ASSERT(LUAU_INSN_OP(call) == LOP_CALL);
+ int callra = LUAU_INSN_A(call);
+ int nparams = LUAU_INSN_B(call) - 1;
+ int nresults = LUAU_INSN_C(call) - 1;
+ TString* str = gco2ts(build.function.proto->k[aux].value.gc);
+ const char* field = getstr(str);
+ if (build.hostHooks.userdataNamecall(build, bcTypes.a, field, str->len, callra, rb, nparams, nresults, pcpos))
+ return true;
+ }
  build.inst(IrCmd::FALLBACK_NAMECALL, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
  return false;
  }
@@ -53361,6 +53840,7 @@ IrValueKind getCmdValueKind(IrCmd cmd)
  case IrCmd::TRY_NUM_TO_INDEX:
  return IrValueKind::Int;
  case IrCmd::TRY_CALL_FASTGETTM:
+ case IrCmd::NEW_USERDATA:
  return IrValueKind::Pointer;
  case IrCmd::INT_TO_NUM:
  case IrCmd::UINT_TO_NUM:
@@ -53397,6 +53877,7 @@ IrValueKind getCmdValueKind(IrCmd cmd)
  case IrCmd::CHECK_NODE_NO_NEXT:
  case IrCmd::CHECK_NODE_VALUE:
  case IrCmd::CHECK_BUFFER_LEN:
+ case IrCmd::CHECK_USERDATA_TAG:
  case IrCmd::INTERRUPT:
  case IrCmd::CHECK_GC:
  case IrCmd::BARRIER_OBJ:
@@ -53507,6 +53988,42 @@ bool isUserdataBytecodeType(uint8_t ty)
 bool isCustomUserdataBytecodeType(uint8_t ty)
 {
  return ty >= LBC_TYPE_TAGGED_USERDATA_BASE && ty < LBC_TYPE_TAGGED_USERDATA_END;
+}
+HostMetamethod tmToHostMetamethod(int tm)
+{
+ switch (TMS(tm))
+ {
+ case TM_ADD:
+ return HostMetamethod::Add;
+ case TM_SUB:
+ return HostMetamethod::Sub;
+ case TM_MUL:
+ return HostMetamethod::Mul;
+ case TM_DIV:
+ return HostMetamethod::Div;
+ case TM_IDIV:
+ return HostMetamethod::Idiv;
+ case TM_MOD:
+ return HostMetamethod::Mod;
+ case TM_POW:
+ return HostMetamethod::Pow;
+ case TM_UNM:
+ return HostMetamethod::Minus;
+ case TM_EQ:
+ return HostMetamethod::Equal;
+ case TM_LT:
+ return HostMetamethod::LessThan;
+ case TM_LE:
+ return HostMetamethod::LessEqual;
+ case TM_LEN:
+ return HostMetamethod::Length;
+ case TM_CONCAT:
+ return HostMetamethod::Concat;
+ default:
+ CODEGEN_ASSERT(!"invalid tag method for host");
+ break;
+ }
+ return HostMetamethod::Add;
 }
 void kill(IrFunction& function, IrInst& inst)
 {
@@ -54352,95 +54869,11 @@ void destroyNativeProtoExecData(const uint32_t* instructionOffsets) noexcept
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "NativeState.cpp"
-LUAU_FASTINTVARIABLE(LuauCodeGenBlockSize, 4 * 1024 * 1024)
-LUAU_FASTINTVARIABLE(LuauCodeGenMaxTotalSize, 256 * 1024 * 1024)
+LUAU_FASTFLAG(LuauCodegenUserdataAlloc)
 namespace Luau
 {
 namespace CodeGen
 {
-NativeState::NativeState()
- : NativeState(nullptr, nullptr)
-{
-}
-NativeState::NativeState(AllocationCallback* allocationCallback, void* allocationCallbackContext)
- : codeAllocator{size_t(FInt::LuauCodeGenBlockSize), size_t(FInt::LuauCodeGenMaxTotalSize), allocationCallback, allocationCallbackContext}
-{
-}
-NativeState::~NativeState() = default;
-void initFunctions(NativeState& data)
-{
- static_assert(sizeof(data.context.luauF_table) == sizeof(luauF_table), "fastcall tables are not of the same length");
- memcpy(data.context.luauF_table, luauF_table, sizeof(luauF_table));
- data.context.luaV_lessthan = luaV_lessthan;
- data.context.luaV_lessequal = luaV_lessequal;
- data.context.luaV_equalval = luaV_equalval;
- data.context.luaV_doarith = luaV_doarith;
- data.context.luaV_doarithadd = luaV_doarithimpl<TM_ADD>;
- data.context.luaV_doarithsub = luaV_doarithimpl<TM_SUB>;
- data.context.luaV_doarithmul = luaV_doarithimpl<TM_MUL>;
- data.context.luaV_doarithdiv = luaV_doarithimpl<TM_DIV>;
- data.context.luaV_doarithidiv = luaV_doarithimpl<TM_IDIV>;
- data.context.luaV_doarithmod = luaV_doarithimpl<TM_MOD>;
- data.context.luaV_doarithpow = luaV_doarithimpl<TM_POW>;
- data.context.luaV_doarithunm = luaV_doarithimpl<TM_UNM>;
- data.context.luaV_dolen = luaV_dolen;
- data.context.luaV_gettable = luaV_gettable;
- data.context.luaV_settable = luaV_settable;
- data.context.luaV_getimport = luaV_getimport;
- data.context.luaV_concat = luaV_concat;
- data.context.luaH_getn = luaH_getn;
- data.context.luaH_new = luaH_new;
- data.context.luaH_clone = luaH_clone;
- data.context.luaH_resizearray = luaH_resizearray;
- data.context.luaH_setnum = luaH_setnum;
- data.context.luaC_barriertable = luaC_barriertable;
- data.context.luaC_barrierf = luaC_barrierf;
- data.context.luaC_barrierback = luaC_barrierback;
- data.context.luaC_step = luaC_step;
- data.context.luaF_close = luaF_close;
- data.context.luaF_findupval = luaF_findupval;
- data.context.luaF_newLclosure = luaF_newLclosure;
- data.context.luaT_gettm = luaT_gettm;
- data.context.luaT_objtypenamestr = luaT_objtypenamestr;
- data.context.libm_exp = exp;
- data.context.libm_pow = pow;
- data.context.libm_fmod = fmod;
- data.context.libm_log = log;
- data.context.libm_log2 = log2;
- data.context.libm_log10 = log10;
- data.context.libm_ldexp = ldexp;
- data.context.libm_round = round;
- data.context.libm_frexp = frexp;
- data.context.libm_modf = modf;
- data.context.libm_asin = asin;
- data.context.libm_sin = sin;
- data.context.libm_sinh = sinh;
- data.context.libm_acos = acos;
- data.context.libm_cos = cos;
- data.context.libm_cosh = cosh;
- data.context.libm_atan = atan;
- data.context.libm_atan2 = atan2;
- data.context.libm_tan = tan;
- data.context.libm_tanh = tanh;
- data.context.forgLoopTableIter = forgLoopTableIter;
- data.context.forgLoopNodeIter = forgLoopNodeIter;
- data.context.forgLoopNonTableFallback = forgLoopNonTableFallback;
- data.context.forgPrepXnextFallback = forgPrepXnextFallback;
- data.context.callProlog = callProlog;
- data.context.callEpilogC = callEpilogC;
- data.context.callFallback = callFallback;
- data.context.executeGETGLOBAL = executeGETGLOBAL;
- data.context.executeSETGLOBAL = executeSETGLOBAL;
- data.context.executeGETTABLEKS = executeGETTABLEKS;
- data.context.executeSETTABLEKS = executeSETTABLEKS;
- data.context.executeNAMECALL = executeNAMECALL;
- data.context.executeFORGPREP = executeFORGPREP;
- data.context.executeGETVARARGSMultRet = executeGETVARARGSMultRet;
- data.context.executeGETVARARGSConst = executeGETVARARGSConst;
- data.context.executeDUPCLOSURE = executeDUPCLOSURE;
- data.context.executePREPVARARGS = executePREPVARARGS;
- data.context.executeSETLIST = executeSETLIST;
-}
 void initFunctions(NativeContext& context)
 {
  static_assert(sizeof(context.luauF_table) == sizeof(luauF_table), "fastcall tables are not of the same length");
@@ -54502,6 +54935,8 @@ void initFunctions(NativeContext& context)
  context.forgPrepXnextFallback = forgPrepXnextFallback;
  context.callProlog = callProlog;
  context.callEpilogC = callEpilogC;
+ if (FFlag::LuauCodegenUserdataAlloc)
+ context.newUserdata = newUserdata;
  context.callFallback = callFallback;
  context.executeGETGLOBAL = executeGETGLOBAL;
  context.executeSETGLOBAL = executeSETGLOBAL;
@@ -54521,9 +54956,12 @@ void initFunctions(NativeContext& context)
 #line __LINE__ "OptimizeConstProp.cpp"
 LUAU_FASTINTVARIABLE(LuauCodeGenMinLinearBlockPath, 3)
 LUAU_FASTINTVARIABLE(LuauCodeGenReuseSlotLimit, 64)
+LUAU_FASTINTVARIABLE(LuauCodeGenReuseUdataTagLimit, 64)
 LUAU_FASTFLAGVARIABLE(DebugLuauAbortingChecks, false)
 LUAU_FASTFLAG(LuauCodegenRemoveDeadStores5)
 LUAU_FASTFLAGVARIABLE(LuauCodegenFixSplitStoreConstMismatch, false)
+LUAU_FASTFLAG(LuauCodegenUserdataOps)
+LUAU_FASTFLAG(LuauCodegenUserdataAlloc)
 namespace Luau
 {
 namespace CodeGen
@@ -54662,6 +55100,10 @@ struct ConstPropState
  void invalidateHeapBufferData()
  {
  checkBufferLenCache.clear();
+ }
+ void invalidateUserdataData()
+ {
+ useradataTagCache.clear();
  }
  void invalidateHeap()
  {
@@ -54818,6 +55260,8 @@ struct ConstPropState
  invalidateValuePropagation();
  invalidateHeapTableData();
  invalidateHeapBufferData();
+ if (FFlag::LuauCodegenUserdataOps)
+ invalidateUserdataData();
  }
  IrFunction& function;
  bool useValueNumbering = false;
@@ -54833,6 +55277,7 @@ struct ConstPropState
  std::vector<uint32_t> getArrAddrCache;
  std::vector<uint32_t> checkArraySizeCache;
  std::vector<uint32_t> checkBufferLenCache;
+ std::vector<uint32_t> useradataTagCache; // Additionally, fallback block argument might be different
 };
 static void handleBuiltinEffects(ConstPropState& state, LuauBuiltinFunction bfid, uint32_t firstReturnReg, int nresults)
 {
@@ -55384,6 +55829,32 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  state.checkBufferLenCache.push_back(index);
  break;
  }
+ case IrCmd::CHECK_USERDATA_TAG:
+ {
+ CODEGEN_ASSERT(FFlag::LuauCodegenUserdataOps);
+ for (uint32_t prevIdx : state.useradataTagCache)
+ {
+ IrInst& prev = function.instructions[prevIdx];
+ if (prev.cmd == IrCmd::CHECK_USERDATA_TAG)
+ {
+ if (prev.a != inst.a || prev.b != inst.b)
+ continue;
+ }
+ else if (FFlag::LuauCodegenUserdataAlloc && prev.cmd == IrCmd::NEW_USERDATA)
+ {
+ if (inst.a.kind != IrOpKind::Inst || prevIdx != inst.a.index || prev.b != inst.b)
+ continue;
+ }
+ if (FFlag::DebugLuauAbortingChecks)
+ replace(function, inst.c, build.undef());
+ else
+ kill(function, inst);
+ return;
+ }
+ if (int(state.useradataTagCache.size()) < FInt::LuauCodeGenReuseUdataTagLimit)
+ state.useradataTagCache.push_back(index);
+ break;
+ }
  case IrCmd::BUFFER_READI8:
  case IrCmd::BUFFER_READU8:
  case IrCmd::BUFFER_WRITEI8:
@@ -55533,6 +56004,11 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  state.tryNumToIndexCache.push_back(index);
  break;
  case IrCmd::TRY_CALL_FASTGETTM:
+ break;
+ case IrCmd::NEW_USERDATA:
+ CODEGEN_ASSERT(FFlag::LuauCodegenUserdataAlloc);
+ if (int(state.useradataTagCache.size()) < FInt::LuauCodeGenReuseUdataTagLimit)
+ state.useradataTagCache.push_back(index);
  break;
  case IrCmd::INT_TO_NUM:
  case IrCmd::UINT_TO_NUM:
@@ -55770,6 +56246,8 @@ static void constPropInBlockChain(IrBuilder& build, std::vector<uint8_t>& visite
  state.invalidateValuePropagation();
  state.invalidateHeapTableData();
  state.invalidateHeapBufferData();
+ if (FFlag::LuauCodegenUserdataOps)
+ state.invalidateUserdataData();
  block->sortkey = startSortkey;
  block->chainkey = chainPos++;
  IrInst& termInst = function.instructions[block->finish];
@@ -55908,6 +56386,7 @@ void createLinearBlocks(IrBuilder& build, bool useValueNumbering)
 #line __LINE__ ""
 #line __LINE__ "OptimizeDeadStore.cpp"
 LUAU_FASTFLAGVARIABLE(LuauCodegenRemoveDeadStores5, false)
+LUAU_FASTFLAG(LuauCodegenUserdataOps)
 namespace Luau
 {
 namespace CodeGen
@@ -56342,6 +56821,10 @@ static void markDeadStoresInInst(RemoveDeadStoreState& state, IrBuilder& build, 
  break;
  case IrCmd::CHECK_BUFFER_LEN:
  state.checkLiveIns(inst.d);
+ break;
+ case IrCmd::CHECK_USERDATA_TAG:
+ CODEGEN_ASSERT(FFlag::LuauCodegenUserdataOps);
+ state.checkLiveIns(inst.c);
  break;
  case IrCmd::JUMP:
  break;

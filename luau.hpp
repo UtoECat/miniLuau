@@ -285,6 +285,8 @@ LUA_API void lua_setuserdatatag(lua_State* L, int idx, int tag);
 typedef void (*lua_Destructor)(lua_State* L, void* userdata);
 LUA_API void lua_setuserdatadtor(lua_State* L, int tag, lua_Destructor dtor);
 LUA_API lua_Destructor lua_getuserdatadtor(lua_State* L, int tag);
+LUA_API void lua_setuserdatametatable(lua_State* L, int tag, int idx);
+LUA_API void lua_getuserdatametatable(lua_State* L, int tag);
 LUA_API void lua_setlightuserdataname(lua_State* L, int tag, const char* name);
 LUA_API const char* lua_getlightuserdataname(lua_State* L, int tag);
 LUA_API void lua_clonefunction(lua_State* L, int idx);
