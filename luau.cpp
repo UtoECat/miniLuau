@@ -247,6 +247,7 @@ enum LuauProtoFlag
 {
  LPF_NATIVE_MODULE = 1 << 0,
  LPF_NATIVE_COLD = 1 << 1,
+ LPF_NATIVE_FUNCTION = 1 << 2,
 };
 #line __LINE__ ""
 #line __LINE__ "BytecodeUtils.h"
@@ -17482,6 +17483,7 @@ public:
  enum Type
  {
  Checked,
+ Native,
  };
  AstAttr(const Location& location, Type type);
  AstAttr* asAttr() override
@@ -17638,6 +17640,7 @@ public:
  const std::optional<AstTypeList>& returnAnnotation = {}, AstTypePack* varargAnnotation = nullptr,
  const std::optional<Location>& argLocation = std::nullopt);
  void visit(AstVisitor* visitor) override;
+ bool hasNativeAttribute() const;
  AstArray<AstAttr*> attributes;
  AstArray<AstGenericType> generics;
  AstArray<AstGenericTypePack> genericPacks;
@@ -18399,6 +18402,7 @@ struct hash<Luau::AstName>
 }
 #line __LINE__ "Ast.cpp"
 LUAU_FASTFLAG(LuauAttributeSyntax);
+LUAU_FASTFLAG(LuauNativeAttribute);
 namespace Luau
 {
 static void visitTypeList(AstVisitor* visitor, const AstTypeList& list)
@@ -18573,6 +18577,16 @@ void AstExprFunction::visit(AstVisitor* visitor)
  visitTypeList(visitor, *returnAnnotation);
  body->visit(visitor);
  }
+}
+bool AstExprFunction::hasNativeAttribute() const
+{
+ LUAU_ASSERT(FFlag::LuauNativeAttribute);
+ for (const auto attribute : attributes)
+ {
+ if (attribute->type == AstAttr::Type::Native)
+ return true;
+ }
+ return false;
 }
 AstExprTable::AstExprTable(const Location& location, const AstArray<Item>& items)
  : AstExpr(ClassIndex(), location)
@@ -22898,7 +22912,9 @@ LUAU_FASTINTVARIABLE(LuauTypeLengthLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
 LUAU_FASTFLAGVARIABLE(DebugLuauDeferredConstraintResolution, false)
 LUAU_FASTFLAG(LuauAttributeSyntax)
-LUAU_FASTFLAGVARIABLE(LuauLeadingBarAndAmpersand, false)
+LUAU_FASTFLAGVARIABLE(LuauLeadingBarAndAmpersand2, false)
+LUAU_FASTFLAGVARIABLE(LuauNativeAttribute, false)
+LUAU_FASTFLAGVARIABLE(LuauAttributeSyntaxFunExpr, false)
 namespace Luau
 {
 struct AttributeEntry
@@ -22906,7 +22922,7 @@ struct AttributeEntry
  const char* name;
  AstAttr::Type type;
 };
-AttributeEntry kAttributeEntries[] = {{"@checked", AstAttr::Type::Checked}, {nullptr, AstAttr::Type::Checked}};
+AttributeEntry kAttributeEntries[] = {{"@checked", AstAttr::Type::Checked}, {"@native", AstAttr::Type::Native}, {nullptr, AstAttr::Type::Checked}};
 ParseError::ParseError(const Location& location, const std::string& message)
  : location(location)
  , message(message)
@@ -23359,6 +23375,8 @@ std::pair<bool, AstAttr::Type> Parser::validateAttribute(const char* attributeNa
  if (found)
  {
  type = kAttributeEntries[i].type;
+ if (!FFlag::LuauNativeAttribute && type == AstAttr::Type::Native)
+ found = false;
  break;
  }
  }
@@ -23405,7 +23423,7 @@ AstArray<AstAttr*> Parser::parseAttributes()
 AstStat* Parser::parseAttributeStat()
 {
  LUAU_ASSERT(FFlag::LuauAttributeSyntax);
- AstArray<AstAttr*> attributes = Parser::parseAttributes();
+ AstArray<AstAttr*> attributes = parseAttributes();
  Lexeme::Type type = lexer.current().type;
  switch (type)
  {
@@ -24011,7 +24029,7 @@ AstType* Parser::parseFunctionTypeTail(const Lexeme& begin, const AstArray<AstAt
 AstType* Parser::parseTypeSuffix(AstType* type, const Location& begin)
 {
  TempVector<AstType*> parts(scratchType);
- if (!FFlag::LuauLeadingBarAndAmpersand || type != nullptr)
+ if (!FFlag::LuauLeadingBarAndAmpersand2 || type != nullptr)
  {
  parts.push_back(type);
  }
@@ -24033,6 +24051,7 @@ AstType* Parser::parseTypeSuffix(AstType* type, const Location& begin)
  }
  else if (c == '?')
  {
+ LUAU_ASSERT(parts.size() >= 1);
  Location loc = lexer.current().location;
  nextLexeme();
  if (!hasOptional)
@@ -24059,7 +24078,7 @@ AstType* Parser::parseTypeSuffix(AstType* type, const Location& begin)
  ParseError::raise(parts.back()->location, "Exceeded allowed type length; simplify your type annotation to make the code compile");
  }
  if (parts.size() == 1)
- return type;
+ return FFlag::LuauLeadingBarAndAmpersand2 ? parts[0] : type;
  if (isUnion && isIntersection)
  {
  return reportTypeError(Location(begin, parts.back()->location), copy(parts),
@@ -24090,7 +24109,7 @@ AstType* Parser::parseType(bool inDeclarationContext)
 {
  unsigned int oldRecursionCount = recursionCounter;
  Location begin = lexer.current().location;
- if (FFlag::LuauLeadingBarAndAmpersand)
+ if (FFlag::LuauLeadingBarAndAmpersand2)
  {
  AstType* type = nullptr;
  Lexeme::Type c = lexer.current().type;
@@ -24558,6 +24577,16 @@ static ConstantNumberParseResult parseDouble(double& result, const char* data)
 AstExpr* Parser::parseSimpleExpr()
 {
  Location start = lexer.current().location;
+ AstArray<AstAttr*> attributes{nullptr, 0};
+ if (FFlag::LuauAttributeSyntax && FFlag::LuauAttributeSyntaxFunExpr && lexer.current().type == Lexeme::Attribute)
+ {
+ attributes = parseAttributes();
+ if (lexer.current().type != Lexeme::ReservedFunction)
+ {
+ return reportExprError(
+ start, {}, "Expected 'function' declaration after attribute, but got %s intead", lexer.current().toString().c_str());
+ }
+ }
  if (lexer.current().type == Lexeme::ReservedNil)
  {
  nextLexeme();
@@ -24577,7 +24606,7 @@ AstExpr* Parser::parseSimpleExpr()
  {
  Lexeme matchFunction = lexer.current();
  nextLexeme();
- return parseFunctionBody(false, matchFunction, AstName(), nullptr, AstArray<AstAttr*>({nullptr, 0})).first;
+ return parseFunctionBody(false, matchFunction, AstName(), nullptr, attributes).first;
  }
  else if (lexer.current().type == Lexeme::Number)
  {
@@ -28948,6 +28977,7 @@ LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
 LUAU_FASTFLAG(LuauCompileTypeInfo)
 LUAU_FASTFLAGVARIABLE(LuauCompileTempTypeInfo, false)
 LUAU_FASTFLAGVARIABLE(LuauCompileUserdataInfo, false)
+LUAU_FASTFLAG(LuauNativeAttribute)
 namespace Luau
 {
 using namespace Luau::Compile;
@@ -29078,7 +29108,7 @@ struct Compiler
  else
  return node->as<AstExprFunction>();
  }
- uint32_t compileFunction(AstExprFunction* func, uint8_t protoflags)
+ uint32_t compileFunction(AstExprFunction* func, uint8_t& protoflags)
  {
  LUAU_TIMETRACE_SCOPE("Compiler::compileFunction", "Compiler");
  if (func->debugname.value)
@@ -29145,6 +29175,8 @@ struct Compiler
  }
  if (func->functionDepth == 0 && !hasLoops)
  protoflags |= LPF_NATIVE_COLD;
+ if (FFlag::LuauNativeAttribute && func->hasNativeAttribute())
+ protoflags |= LPF_NATIVE_FUNCTION;
  bytecode.endFunction(uint8_t(stackSize), uint8_t(upvals.size()), protoflags);
  Function& f = functions[func];
  f.id = fid;
@@ -31703,12 +31735,11 @@ struct Compiler
  };
  struct FunctionVisitor : AstVisitor
  {
- Compiler* self;
  std::vector<AstExprFunction*>& functions;
  bool hasTypes = false;
- FunctionVisitor(Compiler* self, std::vector<AstExprFunction*>& functions)
- : self(self)
- , functions(functions)
+ bool hasNativeFunction = false;
+ FunctionVisitor(std::vector<AstExprFunction*>& functions)
+ : functions(functions)
  {
  functions.reserve(16);
  }
@@ -31718,6 +31749,8 @@ struct Compiler
  for (AstLocal* arg : node->args)
  hasTypes |= arg->annotation != nullptr;
  functions.push_back(node);
+ if (FFlag::LuauNativeAttribute && !hasNativeFunction && node->hasNativeAttribute())
+ hasNativeFunction = true;
  return false;
  }
  };
@@ -31900,6 +31933,12 @@ struct Compiler
  std::vector<Capture> captures;
  std::vector<std::unique_ptr<char[]>> interpStrings;
 };
+static void setCompileOptionsForNativeCompilation(CompileOptions& options)
+{
+ options.optimizationLevel = 2;
+ if (FFlag::LuauCompileTypeInfo)
+ options.typeInfoLevel = 1;
+}
 void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, const AstNameTable& names, const CompileOptions& inputOptions)
 {
  LUAU_TIMETRACE_SCOPE("compileOrThrow", "Compiler");
@@ -31914,12 +31953,15 @@ void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, c
  if (hc.header && hc.content == "native")
  {
  mainFlags |= LPF_NATIVE_MODULE;
- options.optimizationLevel = 2;
- if (FFlag::LuauCompileTypeInfo)
- options.typeInfoLevel = 1;
+ setCompileOptionsForNativeCompilation(options);
  }
  }
  AstStatBlock* root = parseResult.root;
+ std::vector<AstExprFunction*> functions;
+ Compiler::FunctionVisitor functionVisitor(functions);
+ root->visit(&functionVisitor);
+ if (functionVisitor.hasNativeFunction)
+ setCompileOptionsForNativeCompilation(options);
  Compiler compiler(bytecode, options);
  assignMutable(compiler.globals, names, options.mutableGlobals);
  trackValues(compiler.globals, compiler.variables, root);
@@ -31940,9 +31982,6 @@ void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, c
  foldConstants(compiler.constants, compiler.variables, compiler.locstants, compiler.builtinsFold, compiler.builtinsFoldMathK, root);
  predictTableShapes(compiler.tableShapes, root);
  }
- std::vector<AstExprFunction*> functions;
- Compiler::FunctionVisitor functionVisitor(&compiler, functions);
- root->visit(&functionVisitor);
  if (FFlag::LuauCompileUserdataInfo)
  {
  if (const char* const* ptr = options.userdataTypes)
@@ -31969,7 +32008,12 @@ void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, c
  compiler.builtinTypes, compiler.builtins, compiler.globals, bytecode);
  }
  for (AstExprFunction* expr : functions)
- compiler.compileFunction(expr, 0);
+ {
+ uint8_t protoflags = 0;
+ compiler.compileFunction(expr, protoflags);
+ if (FFlag::LuauNativeAttribute && (protoflags & LPF_NATIVE_FUNCTION) && !(mainFlags & LPF_NATIVE_MODULE))
+ mainFlags |= LPF_NATIVE_FUNCTION;
+ }
  AstExprFunction main(root->location, AstArray<AstAttr*>({nullptr, 0}), AstArray<AstGenericType>(),
  AstArray<AstGenericTypePack>(),
  nullptr, AstArray<AstLocal*>(), true, Luau::Location(), root, 0,
@@ -34267,6 +34311,7 @@ struct IrInst
  IrOp d;
  IrOp e;
  IrOp f;
+ IrOp g;
  uint32_t lastUse = 0;
  uint16_t useCount = 0;
  X64::RegisterX64 regX64 = X64::noreg;
@@ -34306,6 +34351,7 @@ struct IrInstHash
  h = mix(h, key.d);
  h = mix(h, key.e);
  h = mix(h, key.f);
+ h = mix(h, key.g);
  h ^= h >> 13;
  h *= m;
  h ^= h >> 15;
@@ -34316,7 +34362,7 @@ struct IrInstEq
 {
  bool operator()(const IrInst& a, const IrInst& b) const
  {
- return a.cmd == b.cmd && a.a == b.a && a.b == b.b && a.c == b.c && a.d == b.d && a.e == b.e && a.f == b.f;
+ return a.cmd == b.cmd && a.a == b.a && a.b == b.b && a.c == b.c && a.d == b.d && a.e == b.e && a.f == b.f && a.g == b.g;
  }
 };
 enum class IrBlockKind : uint8_t
@@ -34570,6 +34616,7 @@ struct IrBuilder
  IrOp inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d);
  IrOp inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e);
  IrOp inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e, IrOp f);
+ IrOp inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e, IrOp f, IrOp g);
  IrOp block(IrBlockKind kind);
  IrOp blockAtInst(uint32_t index);
  IrOp vmReg(uint8_t index);
@@ -34940,6 +34987,7 @@ void afterInstForNLoop(IrBuilder& build, const Instruction* pc);
 LUAU_FASTFLAG(LuauLoadTypeInfo)
 LUAU_FASTFLAG(LuauCodegenAnalyzeHostVectorOps)
 LUAU_FASTFLAG(LuauLoadUserdataInfo)
+LUAU_FASTFLAG(LuauCodegenInstG)
 namespace Luau
 {
 namespace CodeGen
@@ -35554,13 +35602,20 @@ void IrBuilder::clone(const IrBlock& source, bool removeCurrentTerminator)
  redirect(clone.d);
  redirect(clone.e);
  redirect(clone.f);
+ if (FFlag::LuauCodegenInstG)
+ redirect(clone.g);
  addUse(function, clone.a);
  addUse(function, clone.b);
  addUse(function, clone.c);
  addUse(function, clone.d);
  addUse(function, clone.e);
  addUse(function, clone.f);
+ if (FFlag::LuauCodegenInstG)
+ addUse(function, clone.g);
  instRedir[index] = uint32_t(function.instructions.size());
+ if (FFlag::LuauCodegenInstG)
+ inst(clone.cmd, clone.a, clone.b, clone.c, clone.d, clone.e, clone.f, clone.g);
+ else
  inst(clone.cmd, clone.a, clone.b, clone.c, clone.d, clone.e, clone.f);
  }
 }
@@ -35639,8 +35694,28 @@ IrOp IrBuilder::inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e)
 }
 IrOp IrBuilder::inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e, IrOp f)
 {
+ if (FFlag::LuauCodegenInstG)
+ {
+ return inst(cmd, a, b, c, d, e, f, {});
+ }
+ else
+ {
  uint32_t index = uint32_t(function.instructions.size());
  function.instructions.push_back({cmd, a, b, c, d, e, f});
+ CODEGEN_ASSERT(!inTerminatedBlock);
+ if (isBlockTerminator(cmd))
+ {
+ function.blocks[activeBlockIdx].finish = index;
+ inTerminatedBlock = true;
+ }
+ return {IrOpKind::Inst, index};
+ }
+}
+IrOp IrBuilder::inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e, IrOp f, IrOp g)
+{
+ CODEGEN_ASSERT(FFlag::LuauCodegenInstG);
+ uint32_t index = uint32_t(function.instructions.size());
+ function.instructions.push_back({cmd, a, b, c, d, e, f, g});
  CODEGEN_ASSERT(!inTerminatedBlock);
  if (isBlockTerminator(cmd))
  {
@@ -37312,11 +37387,12 @@ LUAU_FASTINT(CodegenHeuristicsBlockLimit)
 LUAU_FASTINT(CodegenHeuristicsBlockInstructionLimit)
 LUAU_FASTFLAG(LuauCodegenRemoveDeadStores5)
 LUAU_FASTFLAG(LuauLoadUserdataInfo)
+LUAU_FASTFLAG(LuauNativeAttribute)
 namespace Luau
 {
 namespace CodeGen
 {
-inline void gatherFunctions(std::vector<Proto*>& results, Proto* proto, unsigned int flags)
+inline void gatherFunctions_DEPRECATED(std::vector<Proto*>& results, Proto* proto, unsigned int flags)
 {
  if (results.size() <= size_t(proto->bytecodeid))
  results.resize(proto->bytecodeid + 1);
@@ -37325,7 +37401,26 @@ inline void gatherFunctions(std::vector<Proto*>& results, Proto* proto, unsigned
  if ((proto->flags & LPF_NATIVE_COLD) == 0 || (flags & CodeGen_ColdFunctions) != 0)
  results[proto->bytecodeid] = proto;
  for (int i = 0; i < proto->sizep; i++)
- gatherFunctions(results, proto->p[i], flags);
+ gatherFunctions_DEPRECATED(results, proto->p[i], flags);
+}
+inline void gatherFunctionsHelper(
+ std::vector<Proto*>& results, Proto* proto, const unsigned int flags, const bool hasNativeFunctions, const bool root)
+{
+ if (results.size() <= size_t(proto->bytecodeid))
+ results.resize(proto->bytecodeid + 1);
+ if (results[proto->bytecodeid])
+ return;
+ bool shouldGather = hasNativeFunctions ? (!root && (proto->flags & LPF_NATIVE_FUNCTION) != 0)
+ : ((proto->flags & LPF_NATIVE_COLD) == 0 || (flags & CodeGen_ColdFunctions) != 0);
+ if (shouldGather)
+ results[proto->bytecodeid] = proto;
+ for (int i = 0; i < proto->sizep; i++)
+ gatherFunctionsHelper(results, proto->p[i], flags, hasNativeFunctions, false);
+}
+inline void gatherFunctions(std::vector<Proto*>& results, Proto* root, const unsigned int flags, const bool hasNativeFunctions = false)
+{
+ LUAU_ASSERT(FFlag::LuauNativeAttribute);
+ gatherFunctionsHelper(results, root, flags, hasNativeFunctions, true);
 }
 inline unsigned getInstructionCount(const std::vector<IrInst>& instructions, IrCmd cmd)
 {
@@ -37682,6 +37777,7 @@ private:
 LUAU_FASTFLAGVARIABLE(LuauCodegenCheckNullContext, false)
 LUAU_FASTINTVARIABLE(LuauCodeGenBlockSize, 4 * 1024 * 1024)
 LUAU_FASTINTVARIABLE(LuauCodeGenMaxTotalSize, 256 * 1024 * 1024)
+LUAU_FASTFLAG(LuauNativeAttribute)
 namespace Luau
 {
 namespace CodeGen
@@ -37994,13 +38090,16 @@ template<typename AssemblyBuilder>
  CODEGEN_ASSERT(lua_isLfunction(L, idx));
  const TValue* func = luaA_toobject(L, idx);
  Proto* root = clvalue(func)->l.p;
- if ((options.flags & CodeGen_OnlyNativeModules) != 0 && (root->flags & LPF_NATIVE_MODULE) == 0)
+ if ((options.flags & CodeGen_OnlyNativeModules) != 0 && (root->flags & LPF_NATIVE_MODULE) == 0 && (root->flags & LPF_NATIVE_FUNCTION) == 0)
  return CompilationResult{CodeGenCompilationResult::NotNativeModule};
  BaseCodeGenContext* codeGenContext = getCodeGenContext(L);
  if (codeGenContext == nullptr)
  return CompilationResult{CodeGenCompilationResult::CodeGenNotInitialized};
  std::vector<Proto*> protos;
- gatherFunctions(protos, root, options.flags);
+ if (FFlag::LuauNativeAttribute)
+ gatherFunctions(protos, root, options.flags, root->flags & LPF_NATIVE_FUNCTION);
+ else
+ gatherFunctions_DEPRECATED(protos, root, options.flags);
  protos.erase(std::remove_if(protos.begin(), protos.end(),
  [](Proto* p) {
  return p == nullptr || p->execdata != nullptr;
@@ -42106,6 +42205,7 @@ std::vector<FunctionBytecodeSummary> summarizeBytecode(lua_State* L, int idx, un
 }
 } // namespace Luau
 #line __LINE__ "BytecodeSummary.cpp"
+LUAU_FASTFLAG(LuauNativeAttribute)
 namespace Luau
 {
 namespace CodeGen
@@ -42144,7 +42244,10 @@ std::vector<FunctionBytecodeSummary> summarizeBytecode(lua_State* L, int idx, un
  const TValue* func = luaA_toobject(L, idx);
  Proto* root = clvalue(func)->l.p;
  std::vector<Proto*> protos;
- gatherFunctions(protos, root, CodeGen_ColdFunctions);
+ if (FFlag::LuauNativeAttribute)
+ gatherFunctions(protos, root, CodeGen_ColdFunctions, root->flags & LPF_NATIVE_FUNCTION);
+ else
+ gatherFunctions_DEPRECATED(protos, root, CodeGen_ColdFunctions);
  std::vector<FunctionBytecodeSummary> summaries;
  summaries.reserve(protos.size());
  for (Proto* proto : protos)
@@ -42865,6 +42968,7 @@ void assembleHelpers(AssemblyBuilderA64& build, ModuleHelpers& helpers)
 #line __LINE__ "CodeGenAssembly.cpp"
 LUAU_FASTFLAG(LuauCodegenTypeInfo)
 LUAU_FASTFLAG(LuauLoadUserdataInfo)
+LUAU_FASTFLAG(LuauNativeAttribute)
 namespace Luau
 {
 namespace CodeGen
@@ -43014,7 +43118,10 @@ static std::string getAssemblyImpl(AssemblyBuilder& build, const TValue* func, A
  if ((options.compilationOptions.flags & CodeGen_OnlyNativeModules) != 0 && (root->flags & LPF_NATIVE_MODULE) == 0)
  return std::string();
  std::vector<Proto*> protos;
- gatherFunctions(protos, root, options.compilationOptions.flags);
+ if (FFlag::LuauNativeAttribute)
+ gatherFunctions(protos, root, options.compilationOptions.flags, root->flags & LPF_NATIVE_FUNCTION);
+ else
+ gatherFunctions_DEPRECATED(protos, root, options.compilationOptions.flags);
  protos.erase(std::remove_if(protos.begin(), protos.end(),
  [](Proto* p) {
  return p == nullptr;
@@ -45013,6 +45120,7 @@ static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrInst& i
  CODEGEN_ASSERT(inst.d.kind != IrOpKind::VmReg);
  CODEGEN_ASSERT(inst.e.kind != IrOpKind::VmReg);
  CODEGEN_ASSERT(inst.f.kind != IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.g.kind != IrOpKind::VmReg);
  break;
  }
 }
@@ -45028,6 +45136,7 @@ static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrBlock& 
 }
 } // namespace Luau
 #line __LINE__ "IrAnalysis.cpp"
+LUAU_FASTFLAGVARIABLE(LuauCodegenInstG, false)
 namespace Luau
 {
 namespace CodeGen
@@ -45062,6 +45171,8 @@ void updateUseCounts(IrFunction& function)
  checkOp(inst.d);
  checkOp(inst.e);
  checkOp(inst.f);
+ if (FFlag::LuauCodegenInstG)
+ checkOp(inst.g);
  }
 }
 void updateLastUseLocations(IrFunction& function, const std::vector<uint32_t>& sortedBlocks)
@@ -45095,6 +45206,8 @@ void updateLastUseLocations(IrFunction& function, const std::vector<uint32_t>& s
  checkOp(inst.d);
  checkOp(inst.e);
  checkOp(inst.f);
+ if (FFlag::LuauCodegenInstG)
+ checkOp(inst.g);
  }
  }
 }
@@ -45119,6 +45232,11 @@ uint32_t getNextInstUse(IrFunction& function, uint32_t targetInstIdx, uint32_t s
  return i;
  if (inst.f.kind == IrOpKind::Inst && inst.f.index == targetInstIdx)
  return i;
+ if (FFlag::LuauCodegenInstG)
+ {
+ if (inst.g.kind == IrOpKind::Inst && inst.g.index == targetInstIdx)
+ return i;
+ }
  }
  CODEGEN_ASSERT(!"Failed to find next use");
  return targetInst.lastUse;
@@ -45148,6 +45266,8 @@ std::pair<uint32_t, uint32_t> getLiveInOutValueCount(IrFunction& function, IrBlo
  checkOp(inst.d);
  checkOp(inst.e);
  checkOp(inst.f);
+ if (FFlag::LuauCodegenInstG)
+ checkOp(inst.g);
  }
  return std::make_pair(liveIns, liveOuts);
 }
@@ -45376,6 +45496,8 @@ static void computeCfgBlockEdges(IrFunction& function)
  checkOp(inst.d);
  checkOp(inst.e);
  checkOp(inst.f);
+ if (FFlag::LuauCodegenInstG)
+ checkOp(inst.g);
  }
  }
  for (size_t blockIdx = 0; blockIdx < function.blocks.size(); blockIdx++)
@@ -45931,6 +46053,7 @@ void IrCallWrapperX64::removeRegisterUse(RegisterX64 reg)
 #line __LINE__ ""
 #line __LINE__ "IrDump.cpp"
 LUAU_FASTFLAG(LuauLoadUserdataInfo)
+LUAU_FASTFLAG(LuauCodegenInstG)
 namespace Luau
 {
 namespace CodeGen
@@ -46323,6 +46446,8 @@ void toString(IrToStringContext& ctx, const IrInst& inst, uint32_t index)
  checkOp(inst.d, ", ");
  checkOp(inst.e, ", ");
  checkOp(inst.f, ", ");
+ if (FFlag::LuauCodegenInstG)
+ checkOp(inst.g, ", ");
 }
 void toString(IrToStringContext& ctx, const IrBlock& block, uint32_t index)
 {
@@ -46530,6 +46655,8 @@ static RegisterSet getJumpTargetExtraLiveIn(IrToStringContext& ctx, const IrBloc
  op = inst.e;
  else if (inst.f.kind == IrOpKind::Block)
  op = inst.f;
+ else if (FFlag::LuauCodegenInstG && inst.g.kind == IrOpKind::Block)
+ op = inst.g;
  if (op.kind == IrOpKind::Block && op.index < ctx.cfg.in.size())
  {
  const RegisterSet& inRs = ctx.cfg.in[op.index];
@@ -46748,6 +46875,8 @@ std::string toDot(const IrFunction& function, bool includeInst)
  checkOp(inst.d);
  checkOp(inst.e);
  checkOp(inst.f);
+ if (FFlag::LuauCodegenInstG)
+ checkOp(inst.g);
  }
  }
  append(ctx.result, "}\n");
@@ -51101,6 +51230,7 @@ OperandX64 IrLoweringX64::vectorAndMaskOp()
 #line __LINE__ ""
 #line __LINE__ "IrRegAllocA64.cpp"
 LUAU_FASTFLAGVARIABLE(DebugCodegenChaosA64, false)
+LUAU_FASTFLAG(LuauCodegenInstG)
 namespace Luau
 {
 namespace CodeGen
@@ -51287,6 +51417,8 @@ void IrRegAllocA64::freeLastUseRegs(const IrInst& inst, uint32_t index)
  checkOp(inst.d);
  checkOp(inst.e);
  checkOp(inst.f);
+ if (FFlag::LuauCodegenInstG)
+ checkOp(inst.g);
 }
 void IrRegAllocA64::freeTempRegs()
 {
@@ -51433,6 +51565,7 @@ IrRegAllocA64::Set& IrRegAllocA64::getSet(KindA64 kind)
 }
 #line __LINE__ ""
 #line __LINE__ "IrRegAllocX64.cpp"
+LUAU_FASTFLAG(LuauCodegenInstG)
 namespace Luau
 {
 namespace CodeGen
@@ -51579,6 +51712,8 @@ void IrRegAllocX64::freeLastUseRegs(const IrInst& inst, uint32_t instIdx)
  checkOp(inst.d);
  checkOp(inst.e);
  checkOp(inst.f);
+ if (FFlag::LuauCodegenInstG)
+ checkOp(inst.g);
 }
 bool IrRegAllocX64::isLastUseReg(const IrInst& target, uint32_t instIdx) const
 {
@@ -53754,6 +53889,7 @@ void translateInstNewClosure(IrBuilder& build, const Instruction* pc, int pcpos)
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "IrUtils.cpp"
+LUAU_FASTFLAG(LuauCodegenInstG)
 namespace Luau
 {
 namespace CodeGen
@@ -54035,12 +54171,16 @@ void kill(IrFunction& function, IrInst& inst)
  removeUse(function, inst.d);
  removeUse(function, inst.e);
  removeUse(function, inst.f);
+ if (FFlag::LuauCodegenInstG)
+ removeUse(function, inst.g);
  inst.a = {};
  inst.b = {};
  inst.c = {};
  inst.d = {};
  inst.e = {};
  inst.f = {};
+ if (FFlag::LuauCodegenInstG)
+ inst.g = {};
 }
 void kill(IrFunction& function, uint32_t start, uint32_t end)
 {
@@ -54076,6 +54216,8 @@ void replace(IrFunction& function, IrBlock& block, uint32_t instIdx, IrInst repl
  addUse(function, replacement.d);
  addUse(function, replacement.e);
  addUse(function, replacement.f);
+ if (FFlag::LuauCodegenInstG)
+ addUse(function, replacement.g);
  block.useCount++;
  if (!isBlockTerminator(inst.cmd) && isBlockTerminator(replacement.cmd))
  {
@@ -54090,6 +54232,8 @@ void replace(IrFunction& function, IrBlock& block, uint32_t instIdx, IrInst repl
  removeUse(function, inst.d);
  removeUse(function, inst.e);
  removeUse(function, inst.f);
+ if (FFlag::LuauCodegenInstG)
+ removeUse(function, inst.g);
  replacement.useCount = inst.useCount;
  inst = replacement;
  block.useCount--;
@@ -54105,12 +54249,16 @@ void substitute(IrFunction& function, IrInst& inst, IrOp replacement)
  removeUse(function, inst.d);
  removeUse(function, inst.e);
  removeUse(function, inst.f);
+ if (FFlag::LuauCodegenInstG)
+ removeUse(function, inst.g);
  inst.a = replacement;
  inst.b = {};
  inst.c = {};
  inst.d = {};
  inst.e = {};
  inst.f = {};
+ if (FFlag::LuauCodegenInstG)
+ inst.g = {};
 }
 void applySubstitutions(IrFunction& function, IrOp& op)
 {
@@ -54146,6 +54294,8 @@ void applySubstitutions(IrFunction& function, IrInst& inst)
  applySubstitutions(function, inst.d);
  applySubstitutions(function, inst.e);
  applySubstitutions(function, inst.f);
+ if (FFlag::LuauCodegenInstG)
+ applySubstitutions(function, inst.g);
 }
 bool compare(double a, double b, IrCondition cond)
 {
@@ -54746,6 +54896,7 @@ void IrValueLocationTracking::beforeInstLowering(IrInst& inst)
  CODEGEN_ASSERT(inst.d.kind != IrOpKind::VmReg);
  CODEGEN_ASSERT(inst.e.kind != IrOpKind::VmReg);
  CODEGEN_ASSERT(inst.f.kind != IrOpKind::VmReg);
+ CODEGEN_ASSERT(inst.g.kind != IrOpKind::VmReg);
  break;
  }
 }
