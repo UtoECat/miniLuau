@@ -89,7 +89,7 @@ enum LuauOpcode
  LOP_FORNLOOP,
  LOP_FORGLOOP,
  LOP_FORGPREP_INEXT,
- LOP_DEP_FORGLOOP_INEXT,
+ LOP_FASTCALL3,
  LOP_FORGPREP_NEXT,
  LOP_NATIVECALL,
  LOP_GETVARARGS,
@@ -123,7 +123,7 @@ enum LuauOpcode
 enum LuauBytecodeTag
 {
  LBC_VERSION_MIN = 3,
- LBC_VERSION_MAX = 5,
+ LBC_VERSION_MAX = 6,
  LBC_VERSION_TARGET = 5,
  LBC_TYPE_VERSION_DEPRECATED = 1,
  LBC_TYPE_VERSION_MIN = 1,
@@ -275,6 +275,7 @@ inline int getOpLength(LuauOpcode op)
  case LOP_LOADKX:
  case LOP_FASTCALL2:
  case LOP_FASTCALL2K:
+ case LOP_FASTCALL3:
  case LOP_JUMPXEQKNIL:
  case LOP_JUMPXEQKB:
  case LOP_JUMPXEQKN:
@@ -464,11 +465,11 @@ public:
  }
  return *this;
  }
- void clear()
+ void clear(size_t thresholdToDestroy = 32)
  {
  if (count == 0)
  return;
- if (capacity > 32)
+ if (capacity > thresholdToDestroy)
  {
  destroy();
  }
@@ -825,9 +826,9 @@ public:
  : impl(empty_key, buckets)
  {
  }
- void clear()
+ void clear(size_t thresholdToDestroy = 32)
  {
- impl.clear();
+ impl.clear(thresholdToDestroy);
  }
  Value& operator[](const Key& key)
  {
@@ -6185,7 +6186,6 @@ int luaopen_debug(lua_State* L)
 }
 #line __LINE__ ""
 #line __LINE__ "ldebug.cpp"
-LUAU_FASTFLAGVARIABLE(LuauPushErrorStackCheck, false)
 static const char* getfuncname(Closure* f);
 static int currentpc(lua_State* L, CallInfo* ci)
 {
@@ -6457,14 +6457,12 @@ l_noret luaG_runerrorL(lua_State* L, const char* fmt, ...)
  char result[LUA_BUFFERSIZE];
  vsnprintf(result, sizeof(result), fmt, argp);
  va_end(argp);
- if (FFlag::LuauPushErrorStackCheck)
  lua_rawcheckstack(L, 1);
  pusherror(L, result);
  luaD_throw(L, LUA_ERRRUN);
 }
 void luaG_pusherror(lua_State* L, const char* error)
 {
- if (FFlag::LuauPushErrorStackCheck)
  lua_rawcheckstack(L, 1);
  pusherror(L, error);
 }
@@ -7096,7 +7094,6 @@ int luaD_pcall(lua_State* L, Pfunc func, void* u, ptrdiff_t old_top, ptrdiff_t e
 }
 #line __LINE__ ""
 #line __LINE__ "lfunc.cpp"
-LUAU_FASTFLAGVARIABLE(LuauLoadTypeInfo, false)
 Proto* luaF_newproto(lua_State* L)
 {
  Proto* f = luaM_newgco(L, Proto, sizeof(Proto), L->activememcat);
@@ -7131,7 +7128,6 @@ Proto* luaF_newproto(lua_State* L)
  f->linegaplog2 = 0;
  f->linedefined = 0;
  f->bytecodeid = 0;
- if (FFlag::LuauLoadTypeInfo)
  f->sizetypeinfo = 0;
  return f;
 }
@@ -7232,16 +7228,8 @@ void luaF_freeproto(lua_State* L, Proto* f, lua_Page* page)
  luaM_freearray(L, f->debuginsn, f->sizecode, uint8_t, f->memcat);
  if (f->execdata)
  L->global->ecb.destroy(L, f);
- if (FFlag::LuauLoadTypeInfo)
- {
  if (f->typeinfo)
  luaM_freearray(L, f->typeinfo, f->sizetypeinfo, uint8_t, f->memcat);
- }
- else
- {
- if (f->typeinfo)
- luaM_freearray(L, f->typeinfo, f->numparams + 2, uint8_t, f->memcat);
- }
  luaM_freegco(L, f, sizeof(Proto), f->memcat, page);
 }
 void luaF_freeclosure(lua_State* L, Closure* c, lua_Page* page)
@@ -7271,7 +7259,6 @@ const LocVar* luaF_findlocal(const Proto* f, int local_reg, int pc)
 }
 #line __LINE__ ""
 #line __LINE__ "lgc.cpp"
-LUAU_FASTFLAG(LuauLoadTypeInfo)
 #define GC_SWEEPPAGESTEPCOST 16
 #define GC_INTERRUPT(state) { void (*interrupt)(lua_State*, int) = g->cb.interrupt; if (LUAU_UNLIKELY(!!interrupt)) interrupt(L, state); }
 #define maskmarks cast_byte(~(bitmask(BLACKBIT) | WHITEBITS))
@@ -7590,16 +7577,8 @@ static size_t propagatemark(global_State* g)
  Proto* p = gco2p(o);
  g->gray = p->gclist;
  traverseproto(g, p);
- if (FFlag::LuauLoadTypeInfo)
- {
  return sizeof(Proto) + sizeof(Instruction) * p->sizecode + sizeof(Proto*) * p->sizep + sizeof(TValue) * p->sizek + p->sizelineinfo +
  sizeof(LocVar) * p->sizelocvars + sizeof(TString*) * p->sizeupvalues + p->sizetypeinfo;
- }
- else
- {
- return sizeof(Proto) + sizeof(Instruction) * p->sizecode + sizeof(Proto*) * p->sizep + sizeof(TValue) * p->sizek + p->sizelineinfo +
- sizeof(LocVar) * p->sizelocvars + sizeof(TString*) * p->sizeupvalues;
- }
  }
  default:
  LUAU_ASSERT(0);
@@ -9339,10 +9318,9 @@ static_assert(offsetof(TString, data) == ABISWITCH(24, 20, 20), "size mismatch f
 static_assert(offsetof(Udata, data) == ABISWITCH(16, 16, 12), "size mismatch for userdata header");
 static_assert(sizeof(Table) == ABISWITCH(48, 32, 32), "size mismatch for table header");
 static_assert(offsetof(Buffer, data) == ABISWITCH(8, 8, 8), "size mismatch for buffer header");
-LUAU_FASTFLAGVARIABLE(LuauExtendedSizeClasses, false)
 const size_t kSizeClasses = LUA_SIZECLASSES;
-const size_t kMaxSmallSize_DEPRECATED = 512;
 const size_t kMaxSmallSize = 1024;
+const size_t kMaxSmallSizeUsed = 1024;
 const size_t kLargePageThreshold = 512;
 const size_t kExternalAllocatorMetaDataReduction = 24;
 const size_t kSmallPageSize = 16 * 1024 - kExternalAllocatorMetaDataReduction;
@@ -9375,7 +9353,7 @@ struct SizeClassConfig
  }
 };
 const SizeClassConfig kSizeClassConfig;
-#define sizeclass(sz) (size_t((sz)-1) < (FFlag::LuauExtendedSizeClasses ? kMaxSmallSize : kMaxSmallSize_DEPRECATED) ? kSizeClassConfig.classForSize[sz] : -1)
+#define sizeclass(sz) (size_t((sz)-1) < kMaxSmallSizeUsed ? kSizeClassConfig.classForSize[sz] : -1)
 #define metadata(block) (*(void**)(block))
 #define freegcolink(block) (*(void**)((char*)block + kGCOLinkOffset))
 #if defined(LUAU_ASSERTENABLED)
@@ -9433,8 +9411,6 @@ static lua_Page* newpage(lua_State* L, lua_Page** pageset, int pageSize, int blo
 }
 LUAU_NOINLINE static lua_Page* newclasspage(lua_State* L, lua_Page** freepageset, lua_Page** pageset, uint8_t sizeClass, bool storeMetadata)
 {
- if (FFlag::LuauExtendedSizeClasses)
- {
  int sizeOfClass = kSizeClassConfig.sizeOfClass[sizeClass];
  int pageSize = sizeOfClass > int(kLargePageThreshold) ? kLargePageSize : kSmallPageSize;
  int blockSize = sizeOfClass + (storeMetadata ? kBlockHeader : 0);
@@ -9443,16 +9419,6 @@ LUAU_NOINLINE static lua_Page* newclasspage(lua_State* L, lua_Page** freepageset
  LUAU_ASSERT(!freepageset[sizeClass]);
  freepageset[sizeClass] = page;
  return page;
- }
- else
- {
- int blockSize = kSizeClassConfig.sizeOfClass[sizeClass] + (storeMetadata ? kBlockHeader : 0);
- int blockCount = (kSmallPageSize - offsetof(lua_Page, data)) / blockSize;
- lua_Page* page = newpage(L, pageset, kSmallPageSize, blockSize, blockCount);
- LUAU_ASSERT(!freepageset[sizeClass]);
- freepageset[sizeClass] = page;
- return page;
- }
 }
 static void freepage(lua_State* L, lua_Page** pageset, lua_Page* page)
 {
@@ -12829,8 +12795,6 @@ void luaH_clear(Table* tt)
 }
 #line __LINE__ ""
 #line __LINE__ "ltablib.cpp"
-LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauFastTableMaxn, false)
-LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauFasterConcat, false)
 static int foreachi(lua_State* L)
 {
  luaL_checktype(L, 1, LUA_TTABLE);
@@ -12870,8 +12834,6 @@ static int maxn(lua_State* L)
 {
  double max = 0;
  luaL_checktype(L, 1, LUA_TTABLE);
- if (DFFlag::LuauFastTableMaxn)
- {
  Table* t = hvalue(L->base);
  for (int i = 0; i < t->sizearray; i++)
  {
@@ -12886,21 +12848,6 @@ static int maxn(lua_State* L)
  double v = nvalue(gkey(n));
  if (v > max)
  max = v;
- }
- }
- }
- else
- {
- lua_pushnil(L);
- while (lua_next(L, 1))
- {
- lua_pop(L, 1);
- if (lua_type(L, -1) == LUA_TNUMBER)
- {
- double v = lua_tonumber(L, -1);
- if (v > max)
- max = v;
- }
  }
  }
  lua_pushnumber(L, max);
@@ -13033,7 +12980,7 @@ static int tmove(lua_State* L)
 }
 static void addfield(lua_State* L, luaL_Strbuf* b, int i, Table* t)
 {
- if (DFFlag::LuauFasterConcat && t && unsigned(i - 1) < unsigned(t->sizearray) && ttisstring(&t->array[i - 1]))
+ if (t && unsigned(i - 1) < unsigned(t->sizearray) && ttisstring(&t->array[i - 1]))
  {
  TString* ts = tsvalue(&t->array[i - 1]);
  luaL_addlstring(b, getstr(ts), ts->len);
@@ -13053,13 +13000,13 @@ static int tconcat(lua_State* L)
  luaL_checktype(L, 1, LUA_TTABLE);
  int i = luaL_optinteger(L, 3, 1);
  int last = luaL_opt(L, luaL_checkinteger, 4, lua_objlen(L, 1));
- Table* t = DFFlag::LuauFasterConcat ? hvalue(L->base) : NULL;
+ Table* t = hvalue(L->base);
  luaL_Strbuf b;
  luaL_buffinit(L, &b);
  for (; i < last; i++)
  {
  addfield(L, &b, i, t);
- if (!DFFlag::LuauFasterConcat || lsep != 0)
+ if (lsep != 0)
  luaL_addlstring(&b, sep, lsep);
  }
  if (i == last)
@@ -13749,7 +13696,7 @@ LUAU_FASTFLAGVARIABLE(LuauVmSplitDoarith, false)
 #define VM_PATCH_E(pc, slot) *const_cast<Instruction*>(pc) = ((uint32_t(slot) << 8) | (0x000000ffu & *(pc)))
 #define VM_INTERRUPT() { void (*interrupt)(lua_State*, int) = L->global->cb.interrupt; if (LUAU_UNLIKELY(!!interrupt)) { VM_PROTECT(L->ci->savedpc++; interrupt(L, -1)); if (L->status != 0) { L->ci->savedpc--; goto exit; } } }
 #define VM_DISPATCH_OP(op) &&CASE_##op
-#define VM_DISPATCH_TABLE() VM_DISPATCH_OP(LOP_NOP), VM_DISPATCH_OP(LOP_BREAK), VM_DISPATCH_OP(LOP_LOADNIL), VM_DISPATCH_OP(LOP_LOADB), VM_DISPATCH_OP(LOP_LOADN), VM_DISPATCH_OP(LOP_LOADK), VM_DISPATCH_OP(LOP_MOVE), VM_DISPATCH_OP(LOP_GETGLOBAL), VM_DISPATCH_OP(LOP_SETGLOBAL), VM_DISPATCH_OP(LOP_GETUPVAL), VM_DISPATCH_OP(LOP_SETUPVAL), VM_DISPATCH_OP(LOP_CLOSEUPVALS), VM_DISPATCH_OP(LOP_GETIMPORT), VM_DISPATCH_OP(LOP_GETTABLE), VM_DISPATCH_OP(LOP_SETTABLE), VM_DISPATCH_OP(LOP_GETTABLEKS), VM_DISPATCH_OP(LOP_SETTABLEKS), VM_DISPATCH_OP(LOP_GETTABLEN), VM_DISPATCH_OP(LOP_SETTABLEN), VM_DISPATCH_OP(LOP_NEWCLOSURE), VM_DISPATCH_OP(LOP_NAMECALL), VM_DISPATCH_OP(LOP_CALL), VM_DISPATCH_OP(LOP_RETURN), VM_DISPATCH_OP(LOP_JUMP), VM_DISPATCH_OP(LOP_JUMPBACK), VM_DISPATCH_OP(LOP_JUMPIF), VM_DISPATCH_OP(LOP_JUMPIFNOT), VM_DISPATCH_OP(LOP_JUMPIFEQ), VM_DISPATCH_OP(LOP_JUMPIFLE), VM_DISPATCH_OP(LOP_JUMPIFLT), VM_DISPATCH_OP(LOP_JUMPIFNOTEQ), VM_DISPATCH_OP(LOP_JUMPIFNOTLE), VM_DISPATCH_OP(LOP_JUMPIFNOTLT), VM_DISPATCH_OP(LOP_ADD), VM_DISPATCH_OP(LOP_SUB), VM_DISPATCH_OP(LOP_MUL), VM_DISPATCH_OP(LOP_DIV), VM_DISPATCH_OP(LOP_MOD), VM_DISPATCH_OP(LOP_POW), VM_DISPATCH_OP(LOP_ADDK), VM_DISPATCH_OP(LOP_SUBK), VM_DISPATCH_OP(LOP_MULK), VM_DISPATCH_OP(LOP_DIVK), VM_DISPATCH_OP(LOP_MODK), VM_DISPATCH_OP(LOP_POWK), VM_DISPATCH_OP(LOP_AND), VM_DISPATCH_OP(LOP_OR), VM_DISPATCH_OP(LOP_ANDK), VM_DISPATCH_OP(LOP_ORK), VM_DISPATCH_OP(LOP_CONCAT), VM_DISPATCH_OP(LOP_NOT), VM_DISPATCH_OP(LOP_MINUS), VM_DISPATCH_OP(LOP_LENGTH), VM_DISPATCH_OP(LOP_NEWTABLE), VM_DISPATCH_OP(LOP_DUPTABLE), VM_DISPATCH_OP(LOP_SETLIST), VM_DISPATCH_OP(LOP_FORNPREP), VM_DISPATCH_OP(LOP_FORNLOOP), VM_DISPATCH_OP(LOP_FORGLOOP), VM_DISPATCH_OP(LOP_FORGPREP_INEXT), VM_DISPATCH_OP(LOP_DEP_FORGLOOP_INEXT), VM_DISPATCH_OP(LOP_FORGPREP_NEXT), VM_DISPATCH_OP(LOP_NATIVECALL), VM_DISPATCH_OP(LOP_GETVARARGS), VM_DISPATCH_OP(LOP_DUPCLOSURE), VM_DISPATCH_OP(LOP_PREPVARARGS), VM_DISPATCH_OP(LOP_LOADKX), VM_DISPATCH_OP(LOP_JUMPX), VM_DISPATCH_OP(LOP_FASTCALL), VM_DISPATCH_OP(LOP_COVERAGE), VM_DISPATCH_OP(LOP_CAPTURE), VM_DISPATCH_OP(LOP_SUBRK), VM_DISPATCH_OP(LOP_DIVRK), VM_DISPATCH_OP(LOP_FASTCALL1), VM_DISPATCH_OP(LOP_FASTCALL2), VM_DISPATCH_OP(LOP_FASTCALL2K), VM_DISPATCH_OP(LOP_FORGPREP), VM_DISPATCH_OP(LOP_JUMPXEQKNIL), VM_DISPATCH_OP(LOP_JUMPXEQKB), VM_DISPATCH_OP(LOP_JUMPXEQKN), VM_DISPATCH_OP(LOP_JUMPXEQKS), VM_DISPATCH_OP(LOP_IDIV), VM_DISPATCH_OP(LOP_IDIVK),
+#define VM_DISPATCH_TABLE() VM_DISPATCH_OP(LOP_NOP), VM_DISPATCH_OP(LOP_BREAK), VM_DISPATCH_OP(LOP_LOADNIL), VM_DISPATCH_OP(LOP_LOADB), VM_DISPATCH_OP(LOP_LOADN), VM_DISPATCH_OP(LOP_LOADK), VM_DISPATCH_OP(LOP_MOVE), VM_DISPATCH_OP(LOP_GETGLOBAL), VM_DISPATCH_OP(LOP_SETGLOBAL), VM_DISPATCH_OP(LOP_GETUPVAL), VM_DISPATCH_OP(LOP_SETUPVAL), VM_DISPATCH_OP(LOP_CLOSEUPVALS), VM_DISPATCH_OP(LOP_GETIMPORT), VM_DISPATCH_OP(LOP_GETTABLE), VM_DISPATCH_OP(LOP_SETTABLE), VM_DISPATCH_OP(LOP_GETTABLEKS), VM_DISPATCH_OP(LOP_SETTABLEKS), VM_DISPATCH_OP(LOP_GETTABLEN), VM_DISPATCH_OP(LOP_SETTABLEN), VM_DISPATCH_OP(LOP_NEWCLOSURE), VM_DISPATCH_OP(LOP_NAMECALL), VM_DISPATCH_OP(LOP_CALL), VM_DISPATCH_OP(LOP_RETURN), VM_DISPATCH_OP(LOP_JUMP), VM_DISPATCH_OP(LOP_JUMPBACK), VM_DISPATCH_OP(LOP_JUMPIF), VM_DISPATCH_OP(LOP_JUMPIFNOT), VM_DISPATCH_OP(LOP_JUMPIFEQ), VM_DISPATCH_OP(LOP_JUMPIFLE), VM_DISPATCH_OP(LOP_JUMPIFLT), VM_DISPATCH_OP(LOP_JUMPIFNOTEQ), VM_DISPATCH_OP(LOP_JUMPIFNOTLE), VM_DISPATCH_OP(LOP_JUMPIFNOTLT), VM_DISPATCH_OP(LOP_ADD), VM_DISPATCH_OP(LOP_SUB), VM_DISPATCH_OP(LOP_MUL), VM_DISPATCH_OP(LOP_DIV), VM_DISPATCH_OP(LOP_MOD), VM_DISPATCH_OP(LOP_POW), VM_DISPATCH_OP(LOP_ADDK), VM_DISPATCH_OP(LOP_SUBK), VM_DISPATCH_OP(LOP_MULK), VM_DISPATCH_OP(LOP_DIVK), VM_DISPATCH_OP(LOP_MODK), VM_DISPATCH_OP(LOP_POWK), VM_DISPATCH_OP(LOP_AND), VM_DISPATCH_OP(LOP_OR), VM_DISPATCH_OP(LOP_ANDK), VM_DISPATCH_OP(LOP_ORK), VM_DISPATCH_OP(LOP_CONCAT), VM_DISPATCH_OP(LOP_NOT), VM_DISPATCH_OP(LOP_MINUS), VM_DISPATCH_OP(LOP_LENGTH), VM_DISPATCH_OP(LOP_NEWTABLE), VM_DISPATCH_OP(LOP_DUPTABLE), VM_DISPATCH_OP(LOP_SETLIST), VM_DISPATCH_OP(LOP_FORNPREP), VM_DISPATCH_OP(LOP_FORNLOOP), VM_DISPATCH_OP(LOP_FORGLOOP), VM_DISPATCH_OP(LOP_FORGPREP_INEXT), VM_DISPATCH_OP(LOP_FASTCALL3), VM_DISPATCH_OP(LOP_FORGPREP_NEXT), VM_DISPATCH_OP(LOP_NATIVECALL), VM_DISPATCH_OP(LOP_GETVARARGS), VM_DISPATCH_OP(LOP_DUPCLOSURE), VM_DISPATCH_OP(LOP_PREPVARARGS), VM_DISPATCH_OP(LOP_LOADKX), VM_DISPATCH_OP(LOP_JUMPX), VM_DISPATCH_OP(LOP_FASTCALL), VM_DISPATCH_OP(LOP_COVERAGE), VM_DISPATCH_OP(LOP_CAPTURE), VM_DISPATCH_OP(LOP_SUBRK), VM_DISPATCH_OP(LOP_DIVRK), VM_DISPATCH_OP(LOP_FASTCALL1), VM_DISPATCH_OP(LOP_FASTCALL2), VM_DISPATCH_OP(LOP_FASTCALL2K), VM_DISPATCH_OP(LOP_FORGPREP), VM_DISPATCH_OP(LOP_JUMPXEQKNIL), VM_DISPATCH_OP(LOP_JUMPXEQKB), VM_DISPATCH_OP(LOP_JUMPXEQKN), VM_DISPATCH_OP(LOP_JUMPXEQKS), VM_DISPATCH_OP(LOP_IDIV), VM_DISPATCH_OP(LOP_IDIVK),
 #if defined(__GNUC__) || defined(__clang__)
 #define VM_USE_CGOTO 1
 #else
@@ -15657,11 +15604,6 @@ reentry:
  LUAU_ASSERT(unsigned(pc - cl->l.p->code) < unsigned(cl->l.p->sizecode));
  VM_NEXT();
  }
- VM_CASE(LOP_DEP_FORGLOOP_INEXT)
- {
- LUAU_ASSERT(!"Unsupported deprecated opcode");
- LUAU_UNREACHABLE();
- }
  VM_CASE(LOP_FORGPREP_NEXT)
  {
  Instruction insn = *pc++;
@@ -16013,6 +15955,47 @@ reentry:
  VM_NEXT();
  }
  }
+ VM_CASE(LOP_FASTCALL3)
+ {
+ Instruction insn = *pc++;
+ int bfid = LUAU_INSN_A(insn);
+ int skip = LUAU_INSN_C(insn) - 1;
+ uint32_t aux = *pc++;
+ TValue* arg1 = VM_REG(LUAU_INSN_B(insn));
+ TValue* arg2 = VM_REG(aux & 0xff);
+ TValue* arg3 = VM_REG((aux >> 8) & 0xff);
+ LUAU_ASSERT(unsigned(pc - cl->l.p->code + skip) < unsigned(cl->l.p->sizecode));
+ Instruction call = pc[skip];
+ LUAU_ASSERT(LUAU_INSN_OP(call) == LOP_CALL);
+ StkId ra = VM_REG(LUAU_INSN_A(call));
+ int nparams = 3;
+ int nresults = LUAU_INSN_C(call) - 1;
+ luau_FastFunction f = luauF_table[bfid];
+ LUAU_ASSERT(f);
+ if (cl->env->safeenv)
+ {
+ VM_PROTECT_PC();
+ setobj2s(L, L->top, arg2);
+ setobj2s(L, L->top + 1, arg3);
+ int n = f(L, ra, arg1, nresults, L->top, nparams);
+ if (n >= 0)
+ {
+ if (nresults == LUA_MULTRET)
+ L->top = ra + n;
+ pc += skip + 1;
+ LUAU_ASSERT(unsigned(pc - cl->l.p->code) < unsigned(cl->l.p->sizecode));
+ VM_NEXT();
+ }
+ else
+ {
+ VM_NEXT();
+ }
+ }
+ else
+ {
+ VM_NEXT();
+ }
+ }
  VM_CASE(LOP_BREAK)
  {
  LUAU_ASSERT(cl->l.p->debuginsn);
@@ -16162,7 +16145,6 @@ void luau_poscall(lua_State* L, StkId first)
 }
 #line __LINE__ ""
 #line __LINE__ "lvmload.cpp"
-LUAU_FASTFLAG(LuauLoadTypeInfo)
 LUAU_FASTFLAGVARIABLE(LuauLoadUserdataInfo, false)
 template<typename T>
 struct TempBuffer
@@ -16411,8 +16393,6 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  if (version >= 4)
  {
  p->flags = read<uint8_t>(data, size, offset);
- if (FFlag::LuauLoadTypeInfo)
- {
  if (typesversion == 1)
  {
  uint32_t typesize = readVarInt(data, size, offset);
@@ -16457,21 +16437,6 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  remapUserdataTypes((char*)(uint8_t*)p->typeinfo, p->sizetypeinfo, userdataRemapping, userdataTypeLimit);
  }
  }
- }
- }
- else
- {
- uint32_t typesize = readVarInt(data, size, offset);
- if (typesize && typesversion == LBC_TYPE_VERSION_DEPRECATED)
- {
- uint8_t* types = (uint8_t*)data + offset;
- LUAU_ASSERT(typesize == unsigned(2 + p->numparams));
- LUAU_ASSERT(types[0] == LBC_TYPE_FUNCTION);
- LUAU_ASSERT(types[1] == p->numparams);
- p->typeinfo = luaM_newarray(L, typesize, uint8_t, p->memcat);
- memcpy(p->typeinfo, types, typesize);
- }
- offset += typesize;
  }
  }
  const int sizecode = readVarInt(data, size, offset);
@@ -26937,6 +26902,7 @@ private:
 #line __LINE__ "BytecodeBuilder.cpp"
 LUAU_FASTFLAGVARIABLE(LuauCompileTypeInfo, false)
 LUAU_FASTFLAG(LuauCompileUserdataInfo)
+LUAU_FASTFLAG(LuauCompileFastcall3)
 namespace Luau
 {
 static_assert(LBC_VERSION_TARGET >= LBC_VERSION_MIN && LBC_VERSION_TARGET <= LBC_VERSION_MAX, "Invalid bytecode version setup");
@@ -27023,6 +26989,7 @@ inline bool isFastCall(LuauOpcode op)
  case LOP_FASTCALL1:
  case LOP_FASTCALL2:
  case LOP_FASTCALL2K:
+ case LOP_FASTCALL3:
  return true;
  default:
  return false;
@@ -27822,6 +27789,8 @@ std::string BytecodeBuilder::getError(const std::string& message)
 }
 uint8_t BytecodeBuilder::getVersion()
 {
+ if (FFlag::LuauCompileFastcall3)
+ return 6;
  return LBC_VERSION_TARGET;
 }
 uint8_t BytecodeBuilder::getTypeEncodingVersion()
@@ -28134,6 +28103,14 @@ void BytecodeBuilder::validateInstructions() const
  VJUMP(LUAU_INSN_C(insn));
  LUAU_ASSERT(LUAU_INSN_OP(insns[i + 1 + LUAU_INSN_C(insn)]) == LOP_CALL);
  VCONSTANY(insns[i + 1]);
+ break;
+ case LOP_FASTCALL3:
+ LUAU_ASSERT(FFlag::LuauCompileFastcall3);
+ VREG(LUAU_INSN_B(insn));
+ VJUMP(LUAU_INSN_C(insn));
+ LUAU_ASSERT(LUAU_INSN_OP(insns[i + 1 + LUAU_INSN_C(insn)]) == LOP_CALL);
+ VREG(insns[i + 1] & 0xff);
+ VREG((insns[i + 1] >> 8) & 0xff);
  break;
  case LOP_COVERAGE:
  break;
@@ -28608,6 +28585,11 @@ void BytecodeBuilder::dumpInstruction(const uint32_t* code, std::string& result,
  result.append("]\n");
  code++;
  break;
+ case LOP_FASTCALL3:
+ LUAU_ASSERT(FFlag::LuauCompileFastcall3);
+ formatAppend(result, "FASTCALL3 %d R%d R%d R%d L%d\n", LUAU_INSN_A(insn), LUAU_INSN_B(insn), *code & 0xff, (*code >> 8) & 0xff, targetLabel);
+ code++;
+ break;
  case LOP_COVERAGE:
  formatAppend(result, "COVERAGE\n");
  break;
@@ -28977,6 +28959,7 @@ LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
 LUAU_FASTFLAG(LuauCompileTypeInfo)
 LUAU_FASTFLAGVARIABLE(LuauCompileTempTypeInfo, false)
 LUAU_FASTFLAGVARIABLE(LuauCompileUserdataInfo, false)
+LUAU_FASTFLAGVARIABLE(LuauCompileFastcall3, false)
 LUAU_FASTFLAG(LuauNativeAttribute)
 namespace Luau
 {
@@ -29289,9 +29272,28 @@ struct Compiler
  {
  LUAU_ASSERT(!expr->self);
  LUAU_ASSERT(expr->args.size >= 1);
+ if (FFlag::LuauCompileFastcall3)
+ LUAU_ASSERT(expr->args.size <= 3);
+ else
  LUAU_ASSERT(expr->args.size <= 2 || (bfid == LBF_BIT32_EXTRACTK && expr->args.size == 3));
  LUAU_ASSERT(bfid == LBF_BIT32_EXTRACTK ? bfK >= 0 : bfK < 0);
- LuauOpcode opc = expr->args.size == 1 ? LOP_FASTCALL1 : (bfK >= 0 || isConstant(expr->args.data[1])) ? LOP_FASTCALL2K : LOP_FASTCALL2;
+ LuauOpcode opc = LOP_NOP;
+ if (FFlag::LuauCompileFastcall3)
+ {
+ if (expr->args.size == 1)
+ opc = LOP_FASTCALL1;
+ else if (bfK >= 0 || (expr->args.size == 2 && isConstant(expr->args.data[1])))
+ opc = LOP_FASTCALL2K;
+ else if (expr->args.size == 2)
+ opc = LOP_FASTCALL2;
+ else
+ opc = LOP_FASTCALL3;
+ }
+ else
+ {
+ opc = expr->args.size == 1 ? LOP_FASTCALL1
+ : (bfK >= 0 || (expr->args.size == 2 && isConstant(expr->args.data[1]))) ? LOP_FASTCALL2K : LOP_FASTCALL2;
+ }
  uint32_t args[3] = {};
  for (size_t i = 0; i < expr->args.size; ++i)
  {
@@ -29314,8 +29316,15 @@ struct Compiler
  }
  size_t fastcallLabel = bytecode.emitLabel();
  bytecode.emitABC(opc, uint8_t(bfid), uint8_t(args[0]), 0);
- if (opc != LOP_FASTCALL1)
+ if (FFlag::LuauCompileFastcall3 && opc == LOP_FASTCALL3)
+ {
+ LUAU_ASSERT(bfK < 0);
+ bytecode.emitAux(args[1] | (args[2] << 8));
+ }
+ else if (opc != LOP_FASTCALL1)
+ {
  bytecode.emitAux(bfK >= 0 ? bfK : args[1]);
+ }
  for (size_t i = 0; i < expr->args.size; ++i)
  {
  if (i > 0 && opc == LOP_FASTCALL2K)
@@ -29561,10 +29570,24 @@ struct Compiler
  return compileExprFastcallN(expr, target, targetCount, targetTop, multRet, regs, LBF_BIT32_EXTRACTK, cid);
  }
  }
- if (bfid >= 0 && expr->args.size >= 1 && expr->args.size <= 2)
+ unsigned maxFastcallArgs = 2;
+ if (FFlag::LuauCompileFastcall3 && bfid >= 0 && expr->args.size == 3)
+ {
+ for (size_t i = 0; i < expr->args.size; ++i)
+ {
+ if (int reg = getExprLocalReg(expr->args.data[i]); reg >= 0)
+ {
+ maxFastcallArgs = 3;
+ break;
+ }
+ }
+ }
+ if (bfid >= 0 && expr->args.size >= 1 && expr->args.size <= (FFlag::LuauCompileFastcall3 ? maxFastcallArgs : 2u))
  {
  if (!isExprMultRet(expr->args.data[expr->args.size - 1]))
+ {
  return compileExprFastcallN(expr, target, targetCount, targetTop, multRet, regs, bfid);
+ }
  else if (options.optimizationLevel >= 2)
  {
  BuiltinInfo info = getBuiltinInfo(bfid);
@@ -34737,6 +34760,7 @@ inline bool isFastCall(LuauOpcode op)
  case LOP_FASTCALL1:
  case LOP_FASTCALL2:
  case LOP_FASTCALL2K:
+ case LOP_FASTCALL3:
  return true;
  default:
  return false;
@@ -34958,7 +34982,8 @@ void translateInstDupTable(IrBuilder& build, const Instruction* pc, int pcpos);
 void translateInstGetUpval(IrBuilder& build, const Instruction* pc, int pcpos);
 void translateInstSetUpval(IrBuilder& build, const Instruction* pc, int pcpos);
 void translateInstCloseUpvals(IrBuilder& build, const Instruction* pc);
-IrOp translateFastCallN(IrBuilder& build, const Instruction* pc, int pcpos, bool customParams, int customParamCount, IrOp customArgs);
+IrOp translateFastCallN(
+ IrBuilder& build, const Instruction* pc, int pcpos, bool customParams, int customParamCount, IrOp customArgs, IrOp customArg3);
 void translateInstForNPrep(IrBuilder& build, const Instruction* pc, int pcpos);
 void translateInstForNLoop(IrBuilder& build, const Instruction* pc, int pcpos);
 void translateInstForGPrepNext(IrBuilder& build, const Instruction* pc, int pcpos);
@@ -34984,10 +35009,10 @@ void afterInstForNLoop(IrBuilder& build, const Instruction* pc);
 }
 } // namespace Luau
 #line __LINE__ "IrBuilder.cpp"
-LUAU_FASTFLAG(LuauLoadTypeInfo)
 LUAU_FASTFLAG(LuauCodegenAnalyzeHostVectorOps)
 LUAU_FASTFLAG(LuauLoadUserdataInfo)
 LUAU_FASTFLAG(LuauCodegenInstG)
+LUAU_FASTFLAG(LuauCodegenFastcall3)
 namespace Luau
 {
 namespace CodeGen
@@ -34998,80 +35023,8 @@ IrBuilder::IrBuilder(const HostIrHooks& hostHooks)
  , constantMap({IrConstKind::Tag, ~0ull})
 {
 }
-static bool hasTypedParameters_DEPRECATED(Proto* proto)
-{
- CODEGEN_ASSERT(!FFlag::LuauLoadTypeInfo);
- return proto->typeinfo && proto->numparams != 0;
-}
-static void buildArgumentTypeChecks_DEPRECATED(IrBuilder& build, Proto* proto)
-{
- CODEGEN_ASSERT(!FFlag::LuauLoadTypeInfo);
- CODEGEN_ASSERT(hasTypedParameters_DEPRECATED(proto));
- for (int i = 0; i < proto->numparams; ++i)
- {
- uint8_t et = proto->typeinfo[2 + i];
- uint8_t tag = et & ~LBC_TYPE_OPTIONAL_BIT;
- uint8_t optional = et & LBC_TYPE_OPTIONAL_BIT;
- if (tag == LBC_TYPE_ANY)
- continue;
- IrOp load = build.inst(IrCmd::LOAD_TAG, build.vmReg(i));
- IrOp nextCheck;
- if (optional)
- {
- nextCheck = build.block(IrBlockKind::Internal);
- IrOp fallbackCheck = build.block(IrBlockKind::Internal);
- build.inst(IrCmd::JUMP_EQ_TAG, load, build.constTag(LUA_TNIL), nextCheck, fallbackCheck);
- build.beginBlock(fallbackCheck);
- }
- switch (tag)
- {
- case LBC_TYPE_NIL:
- build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TNIL), build.vmExit(kVmExitEntryGuardPc));
- break;
- case LBC_TYPE_BOOLEAN:
- build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TBOOLEAN), build.vmExit(kVmExitEntryGuardPc));
- break;
- case LBC_TYPE_NUMBER:
- build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TNUMBER), build.vmExit(kVmExitEntryGuardPc));
- break;
- case LBC_TYPE_STRING:
- build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TSTRING), build.vmExit(kVmExitEntryGuardPc));
- break;
- case LBC_TYPE_TABLE:
- build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TTABLE), build.vmExit(kVmExitEntryGuardPc));
- break;
- case LBC_TYPE_FUNCTION:
- build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TFUNCTION), build.vmExit(kVmExitEntryGuardPc));
- break;
- case LBC_TYPE_THREAD:
- build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TTHREAD), build.vmExit(kVmExitEntryGuardPc));
- break;
- case LBC_TYPE_USERDATA:
- build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TUSERDATA), build.vmExit(kVmExitEntryGuardPc));
- break;
- case LBC_TYPE_VECTOR:
- build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TVECTOR), build.vmExit(kVmExitEntryGuardPc));
- break;
- case LBC_TYPE_BUFFER:
- build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TBUFFER), build.vmExit(kVmExitEntryGuardPc));
- break;
- }
- if (optional)
- {
- build.inst(IrCmd::JUMP, nextCheck);
- build.beginBlock(nextCheck);
- }
- }
- if (!(proto->typeinfo[2 + proto->numparams - 1] & LBC_TYPE_OPTIONAL_BIT))
- {
- IrOp next = build.block(IrBlockKind::Internal);
- build.inst(IrCmd::JUMP, next);
- build.beginBlock(next);
- }
-}
 static bool hasTypedParameters(const BytecodeTypeInfo& typeInfo)
 {
- CODEGEN_ASSERT(FFlag::LuauLoadTypeInfo);
  for (auto el : typeInfo.argumentTypes)
  {
  if (el != LBC_TYPE_ANY)
@@ -35081,7 +35034,6 @@ static bool hasTypedParameters(const BytecodeTypeInfo& typeInfo)
 }
 static void buildArgumentTypeChecks(IrBuilder& build)
 {
- CODEGEN_ASSERT(FFlag::LuauLoadTypeInfo);
  const BytecodeTypeInfo& typeInfo = build.function.bcTypeInfo;
  CODEGEN_ASSERT(hasTypedParameters(typeInfo));
  for (size_t i = 0; i < typeInfo.argumentTypes.size(); i++)
@@ -35163,9 +35115,8 @@ void IrBuilder::buildFunctionIr(Proto* proto)
 {
  function.proto = proto;
  function.variadic = proto->is_vararg != 0;
- if (FFlag::LuauLoadTypeInfo)
  loadBytecodeTypeInfo(function);
- bool generateTypeChecks = FFlag::LuauLoadTypeInfo ? hasTypedParameters(function.bcTypeInfo) : hasTypedParameters_DEPRECATED(proto);
+ bool generateTypeChecks = hasTypedParameters(function.bcTypeInfo);
  IrOp entry = generateTypeChecks ? block(IrBlockKind::Internal) : IrOp{};
  rebuildBytecodeBasicBlocks(proto);
  analyzeBytecodeTypes(function, hostHooks);
@@ -35173,10 +35124,7 @@ void IrBuilder::buildFunctionIr(Proto* proto)
  if (generateTypeChecks)
  {
  beginBlock(entry);
- if (FFlag::LuauLoadTypeInfo)
  buildArgumentTypeChecks(*this);
- else
- buildArgumentTypeChecks_DEPRECATED(*this, proto);
  inst(IrCmd::JUMP, blockAtInst(0));
  }
  else
@@ -35431,16 +35379,20 @@ void IrBuilder::translateInst(LuauOpcode op, const Instruction* pc, int i)
  translateInstCloseUpvals(*this, pc);
  break;
  case LOP_FASTCALL:
- handleFastcallFallback(translateFastCallN(*this, pc, i, false, 0, {}), pc, i);
+ handleFastcallFallback(translateFastCallN(*this, pc, i, false, 0, {}, {}), pc, i);
  break;
  case LOP_FASTCALL1:
- handleFastcallFallback(translateFastCallN(*this, pc, i, true, 1, undef()), pc, i);
+ handleFastcallFallback(translateFastCallN(*this, pc, i, true, 1, undef(), undef()), pc, i);
  break;
  case LOP_FASTCALL2:
- handleFastcallFallback(translateFastCallN(*this, pc, i, true, 2, vmReg(pc[1])), pc, i);
+ handleFastcallFallback(translateFastCallN(*this, pc, i, true, 2, vmReg(pc[1]), undef()), pc, i);
  break;
  case LOP_FASTCALL2K:
- handleFastcallFallback(translateFastCallN(*this, pc, i, true, 2, vmConst(pc[1])), pc, i);
+ handleFastcallFallback(translateFastCallN(*this, pc, i, true, 2, vmConst(pc[1]), undef()), pc, i);
+ break;
+ case LOP_FASTCALL3:
+ CODEGEN_ASSERT(FFlag::LuauCodegenFastcall3);
+ handleFastcallFallback(translateFastCallN(*this, pc, i, true, 3, vmReg(pc[1] & 0xff), vmReg((pc[1] >> 8) & 0xff)), pc, i);
  break;
  case LOP_FORNPREP:
  translateInstForNPrep(*this, pc, i);
@@ -37385,7 +37337,6 @@ LUAU_FASTFLAG(DebugCodegenSkipNumbering)
 LUAU_FASTINT(CodegenHeuristicsInstructionLimit)
 LUAU_FASTINT(CodegenHeuristicsBlockLimit)
 LUAU_FASTINT(CodegenHeuristicsBlockInstructionLimit)
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores5)
 LUAU_FASTFLAG(LuauLoadUserdataInfo)
 LUAU_FASTFLAG(LuauNativeAttribute)
 namespace Luau
@@ -37606,7 +37557,6 @@ inline bool lowerFunction(IrBuilder& ir, AssemblyBuilder& build, ModuleHelpers& 
  stats->blockLinearizationStats.constPropInstructionCount += constPropInstructionCount;
  }
  }
- if (FFlag::LuauCodegenRemoveDeadStores5)
  markDeadStoresInBlockChains(ir);
  }
  std::vector<uint32_t> sortedBlocks = getSortedBlockOrder(ir.function);
@@ -40989,25 +40939,17 @@ const char* AssemblyBuilderX64::getRegisterName(RegisterX64 reg) const
 }
 #line __LINE__ ""
 #line __LINE__ "BytecodeAnalysis.cpp"
-LUAU_FASTFLAG(LuauCodegenDirectUserdataFlow)
-LUAU_FASTFLAG(LuauLoadTypeInfo)
-LUAU_FASTFLAGVARIABLE(LuauCodegenTypeInfo, false) // New analysis is flagged separately
 LUAU_FASTFLAGVARIABLE(LuauCodegenAnalyzeHostVectorOps, false)
 LUAU_FASTFLAGVARIABLE(LuauCodegenLoadTypeUpvalCheck, false)
 LUAU_FASTFLAGVARIABLE(LuauCodegenUserdataOps, false)
+LUAU_FASTFLAGVARIABLE(LuauCodegenFastcall3, false)
 namespace Luau
 {
 namespace CodeGen
 {
-static bool hasTypedParameters(Proto* proto)
-{
- CODEGEN_ASSERT(!FFlag::LuauLoadTypeInfo);
- return proto->typeinfo && proto->numparams != 0;
-}
 template<typename T>
 static T read(uint8_t* data, size_t& offset)
 {
- CODEGEN_ASSERT(FFlag::LuauLoadTypeInfo);
  T result;
  memcpy(&result, data + offset, sizeof(T));
  offset += sizeof(T);
@@ -41015,7 +40957,6 @@ static T read(uint8_t* data, size_t& offset)
 }
 static uint32_t readVarInt(uint8_t* data, size_t& offset)
 {
- CODEGEN_ASSERT(FFlag::LuauLoadTypeInfo);
  uint32_t result = 0;
  uint32_t shift = 0;
  uint8_t byte;
@@ -41029,7 +40970,6 @@ static uint32_t readVarInt(uint8_t* data, size_t& offset)
 }
 void loadBytecodeTypeInfo(IrFunction& function)
 {
- CODEGEN_ASSERT(FFlag::LuauLoadTypeInfo);
  Proto* proto = function.proto;
  if (!proto)
  return;
@@ -41106,7 +41046,6 @@ static void prepareRegTypeInfoLookups(BytecodeTypeInfo& typeInfo)
 }
 static BytecodeRegTypeInfo* findRegType(BytecodeTypeInfo& info, uint8_t reg, int pc)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenTypeInfo);
  auto b = info.regTypes.begin() + info.regTypeOffsets[reg];
  auto e = info.regTypes.begin() + info.regTypeOffsets[reg + 1];
  if (b == e)
@@ -41123,7 +41062,6 @@ static BytecodeRegTypeInfo* findRegType(BytecodeTypeInfo& info, uint8_t reg, int
 }
 static void refineRegType(BytecodeTypeInfo& info, uint8_t reg, int pc, uint8_t ty)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenTypeInfo);
  if (ty != LBC_TYPE_ANY)
  {
  if (BytecodeRegTypeInfo* regType = findRegType(info, reg, pc))
@@ -41140,7 +41078,6 @@ static void refineRegType(BytecodeTypeInfo& info, uint8_t reg, int pc, uint8_t t
 }
 static void refineUpvalueType(BytecodeTypeInfo& info, int up, uint8_t ty)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenTypeInfo);
  if (ty != LBC_TYPE_ANY)
  {
  if (size_t(up) < info.upvalueTypes.size())
@@ -41547,24 +41484,10 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  {
  CODEGEN_ASSERT(block.startpc != -1);
  CODEGEN_ASSERT(block.finishpc != -1);
- if (FFlag::LuauLoadTypeInfo)
- {
  for (size_t i = 0; i < bcTypeInfo.argumentTypes.size(); i++)
  {
  uint8_t et = bcTypeInfo.argumentTypes[i];
  regTags[i] = et & ~LBC_TYPE_OPTIONAL_BIT;
- }
- }
- else
- {
- if (hasTypedParameters(proto))
- {
- for (int i = 0; i < proto->numparams; ++i)
- {
- uint8_t et = proto->typeinfo[2 + i];
- regTags[i] = et & ~LBC_TYPE_OPTIONAL_BIT;
- }
- }
  }
  for (int i = proto->numparams; i < proto->maxstacksize; ++i)
  regTags[i] = LBC_TYPE_ANY;
@@ -41573,13 +41496,10 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  {
  const Instruction* pc = &proto->code[i];
  LuauOpcode op = LuauOpcode(LUAU_INSN_OP(*pc));
- if (FFlag::LuauCodegenTypeInfo)
- {
  for (BytecodeRegTypeInfo& el : bcTypeInfo.regTypes)
  {
  if (el.type != LBC_TYPE_ANY && i >= el.startpc && i < el.endpc)
  regTags[el.reg] = el.type;
- }
  }
  BytecodeTypes& bcType = function.bcTypes[i];
  switch (op)
@@ -41598,7 +41518,6 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  int ra = LUAU_INSN_A(*pc);
  regTags[ra] = LBC_TYPE_BOOLEAN;
  bcType.result = regTags[ra];
- if (FFlag::LuauCodegenTypeInfo)
  refineRegType(bcTypeInfo, ra, i, bcType.result);
  break;
  }
@@ -41607,7 +41526,6 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  int ra = LUAU_INSN_A(*pc);
  regTags[ra] = LBC_TYPE_NUMBER;
  bcType.result = regTags[ra];
- if (FFlag::LuauCodegenTypeInfo)
  refineRegType(bcTypeInfo, ra, i, bcType.result);
  break;
  }
@@ -41618,7 +41536,6 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  bcType.a = getBytecodeConstantTag(proto, kb);
  regTags[ra] = bcType.a;
  bcType.result = regTags[ra];
- if (FFlag::LuauCodegenTypeInfo)
  refineRegType(bcTypeInfo, ra, i, bcType.result);
  break;
  }
@@ -41629,7 +41546,6 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  bcType.a = getBytecodeConstantTag(proto, kb);
  regTags[ra] = bcType.a;
  bcType.result = regTags[ra];
- if (FFlag::LuauCodegenTypeInfo)
  refineRegType(bcTypeInfo, ra, i, bcType.result);
  break;
  }
@@ -41640,7 +41556,6 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  bcType.a = regTags[rb];
  regTags[ra] = regTags[rb];
  bcType.result = regTags[ra];
- if (FFlag::LuauCodegenTypeInfo)
  refineRegType(bcTypeInfo, ra, i, bcType.result);
  break;
  }
@@ -41954,7 +41869,6 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  regTags[ra + 2] = bcType.b;
  regTags[ra + 3] = bcType.c;
  regTags[ra] = bcType.result;
- if (FFlag::LuauCodegenTypeInfo)
  refineRegType(bcTypeInfo, ra, i, bcType.result);
  break;
  }
@@ -41969,7 +41883,6 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  applyBuiltinCall(bfid, bcType);
  regTags[LUAU_INSN_B(*pc)] = bcType.a;
  regTags[ra] = bcType.result;
- if (FFlag::LuauCodegenTypeInfo)
  refineRegType(bcTypeInfo, ra, i, bcType.result);
  break;
  }
@@ -41984,7 +41897,23 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  regTags[LUAU_INSN_B(*pc)] = bcType.a;
  regTags[int(pc[1])] = bcType.b;
  regTags[ra] = bcType.result;
- if (FFlag::LuauCodegenTypeInfo)
+ refineRegType(bcTypeInfo, ra, i, bcType.result);
+ break;
+ }
+ case LOP_FASTCALL3:
+ {
+ CODEGEN_ASSERT(FFlag::LuauCodegenFastcall3);
+ int bfid = LUAU_INSN_A(*pc);
+ int skip = LUAU_INSN_C(*pc);
+ int aux = pc[1];
+ Instruction call = pc[skip + 1];
+ CODEGEN_ASSERT(LUAU_INSN_OP(call) == LOP_CALL);
+ int ra = LUAU_INSN_A(call);
+ applyBuiltinCall(bfid, bcType);
+ regTags[LUAU_INSN_B(*pc)] = bcType.a;
+ regTags[aux & 0xff] = bcType.b;
+ regTags[(aux >> 8) & 0xff] = bcType.c;
+ regTags[ra] = bcType.result;
  refineRegType(bcTypeInfo, ra, i, bcType.result);
  break;
  }
@@ -41994,12 +41923,9 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  regTags[ra] = LBC_TYPE_NUMBER;
  regTags[ra + 1] = LBC_TYPE_NUMBER;
  regTags[ra + 2] = LBC_TYPE_NUMBER;
- if (FFlag::LuauCodegenTypeInfo)
- {
  refineRegType(bcTypeInfo, ra, i, regTags[ra]);
  refineRegType(bcTypeInfo, ra + 1, i, regTags[ra + 1]);
  refineRegType(bcTypeInfo, ra + 2, i, regTags[ra + 2]);
- }
  break;
  }
  case LOP_FORNLOOP:
@@ -42027,8 +41953,6 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  }
  case LOP_NAMECALL:
  {
- if (FFlag::LuauCodegenDirectUserdataFlow)
- {
  int ra = LUAU_INSN_A(*pc);
  int rb = LUAU_INSN_B(*pc);
  uint32_t kc = pc[1];
@@ -42055,7 +41979,6 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  knownNextCallResult = LuauBytecodeType(hostHooks.vectorNamecallBytecodeType(field, str->len));
  }
  }
- }
  break;
  }
  case LOP_CALL:
@@ -42069,14 +41992,11 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  knownNextCallResult = LBC_TYPE_ANY;
  regTags[ra] = bcType.result;
  }
- if (FFlag::LuauCodegenTypeInfo)
  refineRegType(bcTypeInfo, ra, i, bcType.result);
  }
  break;
  }
  case LOP_GETUPVAL:
- {
- if (FFlag::LuauCodegenTypeInfo)
  {
  int ra = LUAU_INSN_A(*pc);
  int up = LUAU_INSN_B(*pc);
@@ -42088,17 +42008,13 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  }
  regTags[ra] = bcType.a;
  bcType.result = regTags[ra];
- }
  break;
  }
  case LOP_SETUPVAL:
  {
- if (FFlag::LuauCodegenTypeInfo)
- {
  int ra = LUAU_INSN_A(*pc);
  int up = LUAU_INSN_B(*pc);
  refineUpvalueType(bcTypeInfo, up, regTags[ra]);
- }
  break;
  }
  case LOP_GETGLOBAL:
@@ -42966,7 +42882,6 @@ void assembleHelpers(AssemblyBuilderA64& build, ModuleHelpers& helpers)
 }
 #line __LINE__ ""
 #line __LINE__ "CodeGenAssembly.cpp"
-LUAU_FASTFLAG(LuauCodegenTypeInfo)
 LUAU_FASTFLAG(LuauLoadUserdataInfo)
 LUAU_FASTFLAG(LuauNativeAttribute)
 namespace Luau
@@ -43026,7 +42941,6 @@ static void logFunctionHeader(AssemblyBuilder& build, Proto* proto)
 template<typename AssemblyBuilder>
 static void logFunctionTypes_DEPRECATED(AssemblyBuilder& build, const IrFunction& function)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenTypeInfo);
  CODEGEN_ASSERT(!FFlag::LuauLoadUserdataInfo);
  const BytecodeTypeInfo& typeInfo = function.bcTypeInfo;
  for (size_t i = 0; i < typeInfo.argumentTypes.size(); i++)
@@ -43062,7 +42976,6 @@ static void logFunctionTypes_DEPRECATED(AssemblyBuilder& build, const IrFunction
 template<typename AssemblyBuilder>
 static void logFunctionTypes(AssemblyBuilder& build, const IrFunction& function, const char* const* userdataTypes)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenTypeInfo);
  CODEGEN_ASSERT(FFlag::LuauLoadUserdataInfo);
  const BytecodeTypeInfo& typeInfo = function.bcTypeInfo;
  for (size_t i = 0; i < typeInfo.argumentTypes.size(); i++)
@@ -43149,7 +43062,7 @@ static std::string getAssemblyImpl(AssemblyBuilder& build, const TValue* func, A
  unsigned asmCount = build.getInstructionCount();
  if (options.includeAssembly || options.includeIr)
  logFunctionHeader(build, p);
- if (FFlag::LuauCodegenTypeInfo && options.includeIrTypes)
+ if (options.includeIrTypes)
  {
  if (FFlag::LuauLoadUserdataInfo)
  logFunctionTypes(build, ir.function, options.compilationOptions.userdataTypes);
@@ -44128,7 +44041,7 @@ namespace X64
 class AssemblyBuilderX64;
 struct OperandX64;
 struct IrRegAllocX64;
-void emitBuiltin(IrRegAllocX64& regs, AssemblyBuilderX64& build, int bfid, int ra, int arg, OperandX64 arg2, int nparams, int nresults);
+void emitBuiltin(IrRegAllocX64& regs, AssemblyBuilderX64& build, int bfid, int ra, int arg, int nresults);
 }
 } // namespace CodeGen
 }
@@ -44190,7 +44103,6 @@ private:
 } // namespace CodeGen
 }
 #line __LINE__ "EmitBuiltinsX64.cpp"
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores5)
 namespace Luau
 {
 namespace CodeGen
@@ -44204,13 +44116,11 @@ static void emitBuiltinMathFrexp(IrRegAllocX64& regs, AssemblyBuilderX64& build,
  callWrap.addArgument(SizeX64::qword, sTemporarySlot);
  callWrap.call(qword[rNativeContext + offsetof(NativeContext, libm_frexp)]);
  build.vmovsd(luauRegValue(ra), xmm0);
- if (FFlag::LuauCodegenRemoveDeadStores5)
  build.mov(luauRegTag(ra), LUA_TNUMBER);
  if (nresults > 1)
  {
  build.vcvtsi2sd(xmm0, xmm0, dword[sTemporarySlot + 0]);
  build.vmovsd(luauRegValue(ra + 1), xmm0);
- if (FFlag::LuauCodegenRemoveDeadStores5)
  build.mov(luauRegTag(ra + 1), LUA_TNUMBER);
  }
 }
@@ -44222,12 +44132,10 @@ static void emitBuiltinMathModf(IrRegAllocX64& regs, AssemblyBuilderX64& build, 
  callWrap.call(qword[rNativeContext + offsetof(NativeContext, libm_modf)]);
  build.vmovsd(xmm1, qword[sTemporarySlot + 0]);
  build.vmovsd(luauRegValue(ra), xmm1);
- if (FFlag::LuauCodegenRemoveDeadStores5)
  build.mov(luauRegTag(ra), LUA_TNUMBER);
  if (nresults > 1)
  {
  build.vmovsd(luauRegValue(ra + 1), xmm0);
- if (FFlag::LuauCodegenRemoveDeadStores5)
  build.mov(luauRegTag(ra + 1), LUA_TNUMBER);
  }
 }
@@ -44245,21 +44153,20 @@ static void emitBuiltinMathSign(IrRegAllocX64& regs, AssemblyBuilderX64& build, 
  build.vcmpltsd(tmp0.reg, tmp1.reg, tmp0.reg);
  build.vblendvpd(tmp0.reg, tmp2.reg, build.f64x2(1, 1), tmp0.reg);
  build.vmovsd(luauRegValue(ra), tmp0.reg);
- if (FFlag::LuauCodegenRemoveDeadStores5)
  build.mov(luauRegTag(ra), LUA_TNUMBER);
 }
-void emitBuiltin(IrRegAllocX64& regs, AssemblyBuilderX64& build, int bfid, int ra, int arg, OperandX64 arg2, int nparams, int nresults)
+void emitBuiltin(IrRegAllocX64& regs, AssemblyBuilderX64& build, int bfid, int ra, int arg, int nresults)
 {
  switch (bfid)
  {
  case LBF_MATH_FREXP:
- CODEGEN_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
+ CODEGEN_ASSERT(nresults == 1 || nresults == 2);
  return emitBuiltinMathFrexp(regs, build, ra, arg, nresults);
  case LBF_MATH_MODF:
- CODEGEN_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
+ CODEGEN_ASSERT(nresults == 1 || nresults == 2);
  return emitBuiltinMathModf(regs, build, ra, arg, nresults);
  case LBF_MATH_SIGN:
- CODEGEN_ASSERT(nparams == 1 && nresults == 1);
+ CODEGEN_ASSERT(nresults == 1);
  return emitBuiltinMathSign(regs, build, ra, arg);
  default:
  CODEGEN_ASSERT(!"Missing x64 lowering");
@@ -44930,7 +44837,7 @@ void emitInstForGLoop(AssemblyBuilderX64& build, int ra, int aux, Label& loopRep
 #line __LINE__ ""
 #line __LINE__ "IrAnalysis.cpp"
 #line __LINE__ "IrVisitUseDef.h"
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores5)
+LUAU_FASTFLAG(LuauCodegenFastcall3)
 namespace Luau
 {
 namespace CodeGen
@@ -45024,7 +44931,14 @@ static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrInst& i
  visitor.useRange(vmRegOp(inst.a), function.intOp(inst.b));
  break;
  case IrCmd::FASTCALL:
- case IrCmd::INVOKE_FASTCALL:
+ if (FFlag::LuauCodegenFastcall3)
+ {
+ visitor.use(inst.c);
+ if (int nresults = function.intOp(inst.d); nresults != -1)
+ visitor.defRange(vmRegOp(inst.b), nresults);
+ }
+ else
+ {
  if (int count = function.intOp(inst.e); count != -1)
  {
  if (count >= 3)
@@ -45045,6 +44959,32 @@ static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrInst& i
  visitor.useVarargs(vmRegOp(inst.c));
  }
  if (int count = function.intOp(inst.f); count != -1)
+ visitor.defRange(vmRegOp(inst.b), count);
+ }
+ break;
+ case IrCmd::INVOKE_FASTCALL:
+ if (int count = function.intOp(FFlag::LuauCodegenFastcall3 ? inst.f : inst.e); count != -1)
+ {
+ if (count >= 3 && (!FFlag::LuauCodegenFastcall3 || inst.e.kind == IrOpKind::Undef))
+ {
+ CODEGEN_ASSERT(inst.d.kind == IrOpKind::VmReg && vmRegOp(inst.d) == vmRegOp(inst.c) + 1);
+ visitor.useRange(vmRegOp(inst.c), count);
+ }
+ else
+ {
+ if (count >= 1)
+ visitor.use(inst.c);
+ if (count >= 2)
+ visitor.maybeUse(inst.d);
+ if (FFlag::LuauCodegenFastcall3 && count >= 3)
+ visitor.maybeUse(inst.e);
+ }
+ }
+ else
+ {
+ visitor.useVarargs(vmRegOp(inst.c));
+ }
+ if (int count = function.intOp(FFlag::LuauCodegenFastcall3 ? inst.g : inst.f); count != -1)
  visitor.defRange(vmRegOp(inst.b), count);
  break;
  case IrCmd::FORGLOOP:
@@ -45088,14 +45028,7 @@ static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrInst& i
  visitor.def(inst.b);
  break;
  case IrCmd::FALLBACK_FORGPREP:
- if (FFlag::LuauCodegenRemoveDeadStores5)
- {
  visitor.useRange(vmRegOp(inst.b), 3);
- }
- else
- {
- visitor.use(inst.b);
- }
  visitor.defRange(vmRegOp(inst.b), 3);
  break;
  case IrCmd::ADJUST_STACK_TO_REG:
@@ -45108,10 +45041,6 @@ static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrInst& i
  break;
  case IrCmd::FINDUPVAL:
  visitor.use(inst.a);
- break;
- case IrCmd::CHECK_TAG:
- if (!FFlag::LuauCodegenRemoveDeadStores5)
- visitor.maybeUse(inst.a);
  break;
  default:
  CODEGEN_ASSERT(inst.a.kind != IrOpKind::VmReg);
@@ -46966,11 +46895,11 @@ std::string dumpDot(const IrFunction& function, bool includeInst)
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "IrLoweringA64.cpp"
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores5)
 LUAU_FASTFLAG(LuauCodegenSplitDoarith)
 LUAU_FASTFLAG(LuauCodegenUserdataOps)
 LUAU_FASTFLAGVARIABLE(LuauCodegenUserdataAlloc, false)
 LUAU_FASTFLAGVARIABLE(LuauCodegenUserdataOpsFixA64, false)
+LUAU_FASTFLAG(LuauCodegenFastcall3)
 namespace Luau
 {
 namespace CodeGen
@@ -47108,16 +47037,13 @@ static void emitInvokeLibm1P(AssemblyBuilderA64& build, size_t func, int arg)
  build.ldr(x1, mem(rNativeContext, uint32_t(func)));
  build.blr(x1);
 }
-static bool emitBuiltin(
- AssemblyBuilderA64& build, IrFunction& function, IrRegAllocA64& regs, int bfid, int res, int arg, IrOp args, int nparams, int nresults)
+static bool emitBuiltin(AssemblyBuilderA64& build, IrFunction& function, IrRegAllocA64& regs, int bfid, int res, int arg, int nresults)
 {
  switch (bfid)
  {
  case LBF_MATH_FREXP:
  {
- if (FFlag::LuauCodegenRemoveDeadStores5)
- {
- CODEGEN_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
+ CODEGEN_ASSERT(nresults == 1 || nresults == 2);
  emitInvokeLibm1P(build, offsetof(NativeContext, libm_frexp), arg);
  build.str(d0, mem(rBase, res * sizeof(TValue) + offsetof(TValue, value.n)));
  RegisterA64 temp = regs.allocTemp(KindA64::w);
@@ -47129,27 +47055,12 @@ static bool emitBuiltin(
  build.scvtf(d1, w0);
  build.str(d1, mem(rBase, (res + 1) * sizeof(TValue) + offsetof(TValue, value.n)));
  build.str(temp, mem(rBase, (res + 1) * sizeof(TValue) + offsetof(TValue, tt)));
- }
- }
- else
- {
- CODEGEN_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
- emitInvokeLibm1P(build, offsetof(NativeContext, libm_frexp), arg);
- build.str(d0, mem(rBase, res * sizeof(TValue) + offsetof(TValue, value.n)));
- if (nresults == 2)
- {
- build.ldr(w0, sTemporary);
- build.scvtf(d1, w0);
- build.str(d1, mem(rBase, (res + 1) * sizeof(TValue) + offsetof(TValue, value.n)));
- }
  }
  return true;
  }
  case LBF_MATH_MODF:
  {
- if (FFlag::LuauCodegenRemoveDeadStores5)
- {
- CODEGEN_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
+ CODEGEN_ASSERT(nresults == 1 || nresults == 2);
  emitInvokeLibm1P(build, offsetof(NativeContext, libm_modf), arg);
  build.ldr(d1, sTemporary);
  build.str(d1, mem(rBase, res * sizeof(TValue) + offsetof(TValue, value.n)));
@@ -47161,21 +47072,11 @@ static bool emitBuiltin(
  build.str(d0, mem(rBase, (res + 1) * sizeof(TValue) + offsetof(TValue, value.n)));
  build.str(temp, mem(rBase, (res + 1) * sizeof(TValue) + offsetof(TValue, tt)));
  }
- }
- else
- {
- CODEGEN_ASSERT(nparams == 1 && (nresults == 1 || nresults == 2));
- emitInvokeLibm1P(build, offsetof(NativeContext, libm_modf), arg);
- build.ldr(d1, sTemporary);
- build.str(d1, mem(rBase, res * sizeof(TValue) + offsetof(TValue, value.n)));
- if (nresults == 2)
- build.str(d0, mem(rBase, (res + 1) * sizeof(TValue) + offsetof(TValue, value.n)));
- }
  return true;
  }
  case LBF_MATH_SIGN:
  {
- CODEGEN_ASSERT(nparams == 1 && nresults == 1);
+ CODEGEN_ASSERT(nresults == 1);
  build.ldr(d0, mem(rBase, arg * sizeof(TValue) + offsetof(TValue, value.n)));
  build.fcmpz(d0);
  build.fmov(d0, 0.0);
@@ -47184,12 +47085,9 @@ static bool emitBuiltin(
  build.fmov(d1, -1.0);
  build.fcsel(d0, d1, d0, getConditionFP(IrCondition::Less));
  build.str(d0, mem(rBase, res * sizeof(TValue) + offsetof(TValue, value.n)));
- if (FFlag::LuauCodegenRemoveDeadStores5)
- {
  RegisterA64 temp = regs.allocTemp(KindA64::w);
  build.mov(temp, LUA_TNUMBER);
  build.str(temp, mem(rBase, res * sizeof(TValue) + offsetof(TValue, tt)));
- }
  return true;
  }
  default:
@@ -48021,9 +47919,50 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  case IrCmd::FASTCALL:
  regs.spill(build, index);
- error |= !emitBuiltin(build, function, regs, uintOp(inst.a), vmRegOp(inst.b), vmRegOp(inst.c), inst.d, intOp(inst.e), intOp(inst.f));
+ if (FFlag::LuauCodegenFastcall3)
+ error |= !emitBuiltin(build, function, regs, uintOp(inst.a), vmRegOp(inst.b), vmRegOp(inst.c), intOp(inst.d));
+ else
+ error |= !emitBuiltin(build, function, regs, uintOp(inst.a), vmRegOp(inst.b), vmRegOp(inst.c), intOp(inst.f));
  break;
  case IrCmd::INVOKE_FASTCALL:
+ {
+ if (FFlag::LuauCodegenFastcall3)
+ {
+ RegisterA64 temp = regs.allocTemp(KindA64::q);
+ regs.spill(build, index, {temp});
+ build.mov(x0, rState);
+ build.add(x1, rBase, uint16_t(vmRegOp(inst.b) * sizeof(TValue)));
+ build.add(x2, rBase, uint16_t(vmRegOp(inst.c) * sizeof(TValue)));
+ build.mov(w3, intOp(inst.g));
+ if (inst.e.kind != IrOpKind::Undef)
+ {
+ CODEGEN_ASSERT(intOp(inst.f) == 3);
+ build.ldr(x4, mem(rState, offsetof(lua_State, top)));
+ build.ldr(temp, mem(rBase, vmRegOp(inst.d) * sizeof(TValue)));
+ build.str(temp, mem(x4, 0));
+ build.ldr(temp, mem(rBase, vmRegOp(inst.e) * sizeof(TValue)));
+ build.str(temp, mem(x4, sizeof(TValue)));
+ }
+ else
+ {
+ if (inst.d.kind == IrOpKind::VmReg)
+ build.add(x4, rBase, uint16_t(vmRegOp(inst.d) * sizeof(TValue)));
+ else if (inst.d.kind == IrOpKind::VmConst)
+ emitAddOffset(build, x4, rConstants, vmConstOp(inst.d) * sizeof(TValue));
+ else
+ CODEGEN_ASSERT(inst.d.kind == IrOpKind::Undef);
+ }
+ if (intOp(inst.f) == LUA_MULTRET)
+ {
+ build.ldr(x5, mem(rState, offsetof(lua_State, top)));
+ build.sub(x5, x5, rBase);
+ build.sub(x5, x5, uint16_t((vmRegOp(inst.b) + 1) * sizeof(TValue)));
+ build.lsr(x5, x5, kTValueSizeLog2);
+ }
+ else
+ build.mov(w5, intOp(inst.f));
+ }
+ else
  {
  regs.spill(build, index);
  build.mov(x0, rState);
@@ -48045,6 +47984,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  else
  build.mov(w5, intOp(inst.e));
+ }
  build.ldr(x6, mem(rNativeContext, offsetof(NativeContext, luauF_table) + uintOp(inst.a) * sizeof(luau_FastFunction)));
  build.blr(x6);
  inst.regA64 = regs.takeReg(w0, index);
@@ -48221,8 +48161,6 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  {
  Label fresh;
  Label& fail = getTargetLabel(inst.c, fresh);
- if (FFlag::LuauCodegenRemoveDeadStores5)
- {
  if (tagOp(inst.b) == 0)
  {
  build.cbnz(regOp(inst.a), fail);
@@ -48231,22 +48169,6 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  {
  build.cmp(regOp(inst.a), tagOp(inst.b));
  build.b(ConditionA64::NotEqual, fail);
- }
- }
- else
- {
- RegisterA64 tag = inst.a.kind == IrOpKind::VmReg ? regs.allocTemp(KindA64::w) : regOp(inst.a);
- if (inst.a.kind == IrOpKind::VmReg)
- build.ldr(tag, mem(rBase, vmRegOp(inst.a) * sizeof(TValue) + offsetof(TValue, tt)));
- if (tagOp(inst.b) == 0)
- {
- build.cbnz(tag, fail);
- }
- else
- {
- build.cmp(tag, tagOp(inst.b));
- build.b(ConditionA64::NotEqual, fail);
- }
  }
  finalizeTargetLabel(inst.c, fresh);
  break;
@@ -49350,6 +49272,7 @@ Label& IrLoweringA64::labelOp(IrOp op) const
 #line __LINE__ "IrLoweringX64.cpp"
 LUAU_FASTFLAG(LuauCodegenUserdataOps)
 LUAU_FASTFLAG(LuauCodegenUserdataAlloc)
+LUAU_FASTFLAG(LuauCodegenFastcall3)
 namespace Luau
 {
 namespace CodeGen
@@ -50202,29 +50125,49 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  case IrCmd::FASTCALL:
  {
- OperandX64 arg2 = inst.d.kind != IrOpKind::Undef ? memRegDoubleOp(inst.d) : OperandX64{0};
- emitBuiltin(regs, build, uintOp(inst.a), vmRegOp(inst.b), vmRegOp(inst.c), arg2, intOp(inst.e), intOp(inst.f));
+ if (FFlag::LuauCodegenFastcall3)
+ emitBuiltin(regs, build, uintOp(inst.a), vmRegOp(inst.b), vmRegOp(inst.c), intOp(inst.d));
+ else
+ emitBuiltin(regs, build, uintOp(inst.a), vmRegOp(inst.b), vmRegOp(inst.c), intOp(inst.f));
  break;
  }
  case IrCmd::INVOKE_FASTCALL:
  {
  unsigned bfid = uintOp(inst.a);
  OperandX64 args = 0;
+ ScopedRegX64 argsAlt{regs};
+ if (FFlag::LuauCodegenFastcall3 && inst.e.kind != IrOpKind::Undef)
+ {
+ CODEGEN_ASSERT(intOp(inst.f) == 3);
+ ScopedRegX64 tmp{regs, SizeX64::xmmword};
+ argsAlt.alloc(SizeX64::qword);
+ build.mov(argsAlt.reg, qword[rState + offsetof(lua_State, top)]);
+ build.vmovups(tmp.reg, luauReg(vmRegOp(inst.d)));
+ build.vmovups(xmmword[argsAlt.reg], tmp.reg);
+ build.vmovups(tmp.reg, luauReg(vmRegOp(inst.e)));
+ build.vmovups(xmmword[argsAlt.reg + sizeof(TValue)], tmp.reg);
+ }
+ else
+ {
  if (inst.d.kind == IrOpKind::VmReg)
  args = luauRegAddress(vmRegOp(inst.d));
  else if (inst.d.kind == IrOpKind::VmConst)
  args = luauConstantAddress(vmConstOp(inst.d));
  else
  CODEGEN_ASSERT(inst.d.kind == IrOpKind::Undef);
+ }
  int ra = vmRegOp(inst.b);
  int arg = vmRegOp(inst.c);
- int nparams = intOp(inst.e);
- int nresults = intOp(inst.f);
+ int nparams = intOp(FFlag::LuauCodegenFastcall3 ? inst.f : inst.e);
+ int nresults = intOp(FFlag::LuauCodegenFastcall3 ? inst.g : inst.f);
  IrCallWrapperX64 callWrap(regs, build, index);
  callWrap.addArgument(SizeX64::qword, rState);
  callWrap.addArgument(SizeX64::qword, luauRegAddress(ra));
  callWrap.addArgument(SizeX64::qword, luauRegAddress(arg));
  callWrap.addArgument(SizeX64::dword, nresults);
+ if (FFlag::LuauCodegenFastcall3 && inst.e.kind != IrOpKind::Undef)
+ callWrap.addArgument(SizeX64::qword, argsAlt);
+ else
  callWrap.addArgument(SizeX64::qword, args);
  if (nparams == LUA_MULTRET)
  {
@@ -52002,11 +51945,12 @@ struct BuiltinImplResult
  BuiltinImplType type;
  int actualResultCount;
 };
-BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, IrOp args, int nparams, int nresults, IrOp fallback, int pcpos);
+BuiltinImplResult translateBuiltin(
+ IrBuilder& build, int bfid, int ra, int arg, IrOp args, IrOp arg3, int nparams, int nresults, IrOp fallback, int pcpos);
 }
 } // namespace Luau
 #line __LINE__ "IrTranslateBuiltins.cpp"
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores5)
+LUAU_FASTFLAG(LuauCodegenFastcall3)
 static const int kMinMaxUnrolledParams = 5;
 static const int kBit32BinaryOpUnrolledParams = 5;
 namespace Luau
@@ -52032,16 +51976,14 @@ static BuiltinImplResult translateBuiltinNumberToNumber(
  if (nparams < 1 || nresults > 1)
  return {BuiltinImplType::None, -1};
  builtinCheckDouble(build, build.vmReg(arg), pcpos);
+ if (FFlag::LuauCodegenFastcall3)
+ build.inst(IrCmd::FASTCALL, build.constUint(bfid), build.vmReg(ra), build.vmReg(arg), build.constInt(1));
+ else
  build.inst(IrCmd::FASTCALL, build.constUint(bfid), build.vmReg(ra), build.vmReg(arg), args, build.constInt(1), build.constInt(1));
- if (!FFlag::LuauCodegenRemoveDeadStores5)
- {
- if (ra != arg)
- build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
- }
  return {BuiltinImplType::Full, 1};
 }
 static BuiltinImplResult translateBuiltinNumberToNumberLibm(
- IrBuilder& build, LuauBuiltinFunction bfid, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+ IrBuilder& build, LuauBuiltinFunction bfid, int nparams, int ra, int arg, int nresults, int pcpos)
 {
  if (nparams < 1 || nresults > 1)
  return {BuiltinImplType::None, -1};
@@ -52076,15 +52018,11 @@ static BuiltinImplResult translateBuiltinNumberTo2Number(
  if (nparams < 1 || nresults > 2)
  return {BuiltinImplType::None, -1};
  builtinCheckDouble(build, build.vmReg(arg), pcpos);
- build.inst(
- IrCmd::FASTCALL, build.constUint(bfid), build.vmReg(ra), build.vmReg(arg), args, build.constInt(1), build.constInt(nresults == 1 ? 1 : 2));
- if (!FFlag::LuauCodegenRemoveDeadStores5)
- {
- if (ra != arg)
- build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
- if (nresults != 1)
- build.inst(IrCmd::STORE_TAG, build.vmReg(ra + 1), build.constTag(LUA_TNUMBER));
- }
+ if (FFlag::LuauCodegenFastcall3)
+ build.inst(IrCmd::FASTCALL, build.constUint(bfid), build.vmReg(ra), build.vmReg(arg), build.constInt(nresults == 1 ? 1 : 2));
+ else
+ build.inst(IrCmd::FASTCALL, build.constUint(bfid), build.vmReg(ra), build.vmReg(arg), build.undef(), build.constInt(1),
+ build.constInt(nresults == 1 ? 1 : 2));
  return {BuiltinImplType::Full, 2};
 }
 static BuiltinImplResult translateBuiltinAssert(IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
@@ -52137,18 +52075,26 @@ static BuiltinImplResult translateBuiltinMathLog(IrBuilder& build, int nparams, 
  build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
  return {BuiltinImplType::Full, 1};
 }
-static BuiltinImplResult translateBuiltinMathMinMax(IrBuilder& build, IrCmd cmd, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+static BuiltinImplResult translateBuiltinMathMinMax(
+ IrBuilder& build, IrCmd cmd, int nparams, int ra, int arg, IrOp args, IrOp arg3, int nresults, int pcpos)
 {
  if (nparams < 2 || nparams > kMinMaxUnrolledParams || nresults > 1)
  return {BuiltinImplType::None, -1};
  builtinCheckDouble(build, build.vmReg(arg), pcpos);
  builtinCheckDouble(build, args, pcpos);
- for (int i = 3; i <= nparams; ++i)
+ if (FFlag::LuauCodegenFastcall3 && nparams >= 3)
+ builtinCheckDouble(build, arg3, pcpos);
+ for (int i = (FFlag::LuauCodegenFastcall3 ? 4 : 3); i <= nparams; ++i)
  builtinCheckDouble(build, build.vmReg(vmRegOp(args) + (i - 2)), pcpos);
  IrOp varg1 = builtinLoadDouble(build, build.vmReg(arg));
  IrOp varg2 = builtinLoadDouble(build, args);
  IrOp res = build.inst(cmd, varg2, varg1);
- for (int i = 3; i <= nparams; ++i)
+ if (FFlag::LuauCodegenFastcall3 && nparams >= 3)
+ {
+ IrOp arg = builtinLoadDouble(build, arg3);
+ res = build.inst(cmd, arg, res);
+ }
+ for (int i = (FFlag::LuauCodegenFastcall3 ? 4 : 3); i <= nparams; ++i)
  {
  IrOp arg = builtinLoadDouble(build, build.vmReg(vmRegOp(args) + (i - 2)));
  res = build.inst(cmd, arg, res);
@@ -52158,7 +52104,8 @@ static BuiltinImplResult translateBuiltinMathMinMax(IrBuilder& build, IrCmd cmd,
  build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
  return {BuiltinImplType::Full, 1};
 }
-static BuiltinImplResult translateBuiltinMathClamp(IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, IrOp fallback, int pcpos)
+static BuiltinImplResult translateBuiltinMathClamp(
+ IrBuilder& build, int nparams, int ra, int arg, IrOp args, IrOp arg3, int nresults, IrOp fallback, int pcpos)
 {
  if (nparams < 3 || nresults > 1)
  return {BuiltinImplType::None, -1};
@@ -52166,9 +52113,9 @@ static BuiltinImplResult translateBuiltinMathClamp(IrBuilder& build, int nparams
  CODEGEN_ASSERT(args.kind == IrOpKind::VmReg);
  builtinCheckDouble(build, build.vmReg(arg), pcpos);
  builtinCheckDouble(build, args, pcpos);
- builtinCheckDouble(build, build.vmReg(vmRegOp(args) + 1), pcpos);
+ builtinCheckDouble(build, FFlag::LuauCodegenFastcall3 ? arg3 : build.vmReg(vmRegOp(args) + 1), pcpos);
  IrOp min = builtinLoadDouble(build, args);
- IrOp max = builtinLoadDouble(build, build.vmReg(vmRegOp(args) + 1));
+ IrOp max = builtinLoadDouble(build, FFlag::LuauCodegenFastcall3 ? arg3 : build.vmReg(vmRegOp(args) + 1));
  build.inst(IrCmd::JUMP_CMP_NUM, min, max, build.cond(IrCondition::NotLessEqual), fallback, block);
  build.beginBlock(block);
  IrOp v = builtinLoadDouble(build, build.vmReg(arg));
@@ -52211,20 +52158,28 @@ static BuiltinImplResult translateBuiltinTypeof(IrBuilder& build, int nparams, i
  return {BuiltinImplType::Full, 1};
 }
 static BuiltinImplResult translateBuiltinBit32BinaryOp(
- IrBuilder& build, IrCmd cmd, bool btest, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+ IrBuilder& build, IrCmd cmd, bool btest, int nparams, int ra, int arg, IrOp args, IrOp arg3, int nresults, int pcpos)
 {
  if (nparams < 2 || nparams > kBit32BinaryOpUnrolledParams || nresults > 1)
  return {BuiltinImplType::None, -1};
  builtinCheckDouble(build, build.vmReg(arg), pcpos);
  builtinCheckDouble(build, args, pcpos);
- for (int i = 3; i <= nparams; ++i)
+ if (FFlag::LuauCodegenFastcall3 && nparams >= 3)
+ builtinCheckDouble(build, arg3, pcpos);
+ for (int i = (FFlag::LuauCodegenFastcall3 ? 4 : 3); i <= nparams; ++i)
  builtinCheckDouble(build, build.vmReg(vmRegOp(args) + (i - 2)), pcpos);
  IrOp va = builtinLoadDouble(build, build.vmReg(arg));
  IrOp vb = builtinLoadDouble(build, args);
  IrOp vaui = build.inst(IrCmd::NUM_TO_UINT, va);
  IrOp vbui = build.inst(IrCmd::NUM_TO_UINT, vb);
  IrOp res = build.inst(cmd, vaui, vbui);
- for (int i = 3; i <= nparams; ++i)
+ if (FFlag::LuauCodegenFastcall3 && nparams >= 3)
+ {
+ IrOp vc = builtinLoadDouble(build, arg3);
+ IrOp arg = build.inst(IrCmd::NUM_TO_UINT, vc);
+ res = build.inst(cmd, res, arg);
+ }
+ for (int i = (FFlag::LuauCodegenFastcall3 ? 4 : 3); i <= nparams; ++i)
  {
  IrOp vc = builtinLoadDouble(build, build.vmReg(vmRegOp(args) + (i - 2)));
  IrOp arg = build.inst(IrCmd::NUM_TO_UINT, vc);
@@ -52315,7 +52270,7 @@ static BuiltinImplResult translateBuiltinBit32Rotate(IrBuilder& build, IrCmd cmd
  return {BuiltinImplType::Full, 1};
 }
 static BuiltinImplResult translateBuiltinBit32Extract(
- IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, IrOp fallback, int pcpos)
+ IrBuilder& build, int nparams, int ra, int arg, IrOp args, IrOp arg3, int nresults, IrOp fallback, int pcpos)
 {
  if (nparams < 2 || nresults > 1)
  return {BuiltinImplType::None, -1};
@@ -52352,8 +52307,8 @@ static BuiltinImplResult translateBuiltinBit32Extract(
  else
  {
  IrOp f = build.inst(IrCmd::NUM_TO_INT, vb);
- builtinCheckDouble(build, build.vmReg(args.index + 1), pcpos);
- IrOp vc = builtinLoadDouble(build, build.vmReg(args.index + 1));
+ builtinCheckDouble(build, FFlag::LuauCodegenFastcall3 ? arg3 : build.vmReg(args.index + 1), pcpos);
+ IrOp vc = builtinLoadDouble(build, FFlag::LuauCodegenFastcall3 ? arg3 : build.vmReg(args.index + 1));
  IrOp w = build.inst(IrCmd::NUM_TO_INT, vc);
  IrOp block1 = build.block(IrBlockKind::Internal);
  build.inst(IrCmd::JUMP_CMP_INT, f, build.constInt(0), build.cond(IrCondition::Less), fallback, block1);
@@ -52413,16 +52368,16 @@ static BuiltinImplResult translateBuiltinBit32Unary(IrBuilder& build, IrCmd cmd,
  return {BuiltinImplType::Full, 1};
 }
 static BuiltinImplResult translateBuiltinBit32Replace(
- IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, IrOp fallback, int pcpos)
+ IrBuilder& build, int nparams, int ra, int arg, IrOp args, IrOp arg3, int nresults, IrOp fallback, int pcpos)
 {
  if (nparams < 3 || nresults > 1)
  return {BuiltinImplType::None, -1};
  builtinCheckDouble(build, build.vmReg(arg), pcpos);
  builtinCheckDouble(build, args, pcpos);
- builtinCheckDouble(build, build.vmReg(args.index + 1), pcpos);
+ builtinCheckDouble(build, FFlag::LuauCodegenFastcall3 ? arg3 : build.vmReg(args.index + 1), pcpos);
  IrOp va = builtinLoadDouble(build, build.vmReg(arg));
  IrOp vb = builtinLoadDouble(build, args);
- IrOp vc = builtinLoadDouble(build, build.vmReg(args.index + 1));
+ IrOp vc = builtinLoadDouble(build, FFlag::LuauCodegenFastcall3 ? arg3 : build.vmReg(args.index + 1));
  IrOp n = build.inst(IrCmd::NUM_TO_UINT, va);
  IrOp v = build.inst(IrCmd::NUM_TO_UINT, vb);
  IrOp f = build.inst(IrCmd::NUM_TO_INT, vc);
@@ -52442,8 +52397,8 @@ static BuiltinImplResult translateBuiltinBit32Replace(
  }
  else
  {
- builtinCheckDouble(build, build.vmReg(args.index + 2), pcpos);
- IrOp vd = builtinLoadDouble(build, build.vmReg(args.index + 2));
+ builtinCheckDouble(build, FFlag::LuauCodegenFastcall3 ? build.vmReg(vmRegOp(args) + 2) : build.vmReg(args.index + 2), pcpos);
+ IrOp vd = builtinLoadDouble(build, FFlag::LuauCodegenFastcall3 ? build.vmReg(vmRegOp(args) + 2) : build.vmReg(args.index + 2));
  IrOp w = build.inst(IrCmd::NUM_TO_INT, vd);
  IrOp block1 = build.block(IrBlockKind::Internal);
  build.inst(IrCmd::JUMP_CMP_INT, f, build.constInt(0), build.cond(IrCondition::Less), fallback, block1);
@@ -52469,17 +52424,17 @@ static BuiltinImplResult translateBuiltinBit32Replace(
  build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
  return {BuiltinImplType::UsesFallback, 1};
 }
-static BuiltinImplResult translateBuiltinVector(IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
+static BuiltinImplResult translateBuiltinVector(IrBuilder& build, int nparams, int ra, int arg, IrOp args, IrOp arg3, int nresults, int pcpos)
 {
  if (nparams < 3 || nresults > 1)
  return {BuiltinImplType::None, -1};
  CODEGEN_ASSERT(LUA_VECTOR_SIZE == 3);
  builtinCheckDouble(build, build.vmReg(arg), pcpos);
  builtinCheckDouble(build, args, pcpos);
- builtinCheckDouble(build, build.vmReg(vmRegOp(args) + 1), pcpos);
+ builtinCheckDouble(build, FFlag::LuauCodegenFastcall3 ? arg3 : build.vmReg(vmRegOp(args) + 1), pcpos);
  IrOp x = builtinLoadDouble(build, build.vmReg(arg));
  IrOp y = builtinLoadDouble(build, args);
- IrOp z = builtinLoadDouble(build, build.vmReg(vmRegOp(args) + 1));
+ IrOp z = builtinLoadDouble(build, FFlag::LuauCodegenFastcall3 ? arg3 : build.vmReg(vmRegOp(args) + 1));
  build.inst(IrCmd::STORE_VECTOR, build.vmReg(ra), x, y, z);
  build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TVECTOR));
  return {BuiltinImplType::Full, 1};
@@ -52520,41 +52475,43 @@ static BuiltinImplResult translateBuiltinStringLen(IrBuilder& build, int nparams
  build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
  return {BuiltinImplType::Full, 1};
 }
-static void translateBufferArgsAndCheckBounds(IrBuilder& build, int nparams, int arg, IrOp args, int size, int pcpos, IrOp& buf, IrOp& intIndex)
+static void translateBufferArgsAndCheckBounds(
+ IrBuilder& build, int nparams, int arg, IrOp args, IrOp arg3, int size, int pcpos, IrOp& buf, IrOp& intIndex)
 {
  build.loadAndCheckTag(build.vmReg(arg), LUA_TBUFFER, build.vmExit(pcpos));
  builtinCheckDouble(build, args, pcpos);
  if (nparams == 3)
- builtinCheckDouble(build, build.vmReg(vmRegOp(args) + 1), pcpos);
+ builtinCheckDouble(build, FFlag::LuauCodegenFastcall3 ? arg3 : build.vmReg(vmRegOp(args) + 1), pcpos);
  buf = build.inst(IrCmd::LOAD_POINTER, build.vmReg(arg));
  IrOp numIndex = builtinLoadDouble(build, args);
  intIndex = build.inst(IrCmd::NUM_TO_INT, numIndex);
  build.inst(IrCmd::CHECK_BUFFER_LEN, buf, intIndex, build.constInt(size), build.vmExit(pcpos));
 }
 static BuiltinImplResult translateBuiltinBufferRead(
- IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos, IrCmd readCmd, int size, IrCmd convCmd)
+ IrBuilder& build, int nparams, int ra, int arg, IrOp args, IrOp arg3, int nresults, int pcpos, IrCmd readCmd, int size, IrCmd convCmd)
 {
  if (nparams < 2 || nresults > 1)
  return {BuiltinImplType::None, -1};
  IrOp buf, intIndex;
- translateBufferArgsAndCheckBounds(build, nparams, arg, args, size, pcpos, buf, intIndex);
+ translateBufferArgsAndCheckBounds(build, nparams, arg, args, arg3, size, pcpos, buf, intIndex);
  IrOp result = build.inst(readCmd, buf, intIndex);
  build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), convCmd == IrCmd::NOP ? result : build.inst(convCmd, result));
  build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
  return {BuiltinImplType::Full, 1};
 }
 static BuiltinImplResult translateBuiltinBufferWrite(
- IrBuilder& build, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos, IrCmd writeCmd, int size, IrCmd convCmd)
+ IrBuilder& build, int nparams, int ra, int arg, IrOp args, IrOp arg3, int nresults, int pcpos, IrCmd writeCmd, int size, IrCmd convCmd)
 {
  if (nparams < 3 || nresults > 0)
  return {BuiltinImplType::None, -1};
  IrOp buf, intIndex;
- translateBufferArgsAndCheckBounds(build, nparams, arg, args, size, pcpos, buf, intIndex);
- IrOp numValue = builtinLoadDouble(build, build.vmReg(vmRegOp(args) + 1));
+ translateBufferArgsAndCheckBounds(build, nparams, arg, args, arg3, size, pcpos, buf, intIndex);
+ IrOp numValue = builtinLoadDouble(build, FFlag::LuauCodegenFastcall3 ? arg3 : build.vmReg(vmRegOp(args) + 1));
  build.inst(writeCmd, buf, intIndex, convCmd == IrCmd::NOP ? numValue : build.inst(convCmd, numValue));
  return {BuiltinImplType::Full, 0};
 }
-BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, IrOp args, int nparams, int nresults, IrOp fallback, int pcpos)
+BuiltinImplResult translateBuiltin(
+ IrBuilder& build, int bfid, int ra, int arg, IrOp args, IrOp arg3, int nparams, int nresults, IrOp fallback, int pcpos)
 {
  if (nparams == LUA_MULTRET)
  return {BuiltinImplType::None, -1};
@@ -52569,11 +52526,11 @@ BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, 
  case LBF_MATH_LOG:
  return translateBuiltinMathLog(build, nparams, ra, arg, args, nresults, pcpos);
  case LBF_MATH_MIN:
- return translateBuiltinMathMinMax(build, IrCmd::MIN_NUM, nparams, ra, arg, args, nresults, pcpos);
+ return translateBuiltinMathMinMax(build, IrCmd::MIN_NUM, nparams, ra, arg, args, arg3, nresults, pcpos);
  case LBF_MATH_MAX:
- return translateBuiltinMathMinMax(build, IrCmd::MAX_NUM, nparams, ra, arg, args, nresults, pcpos);
+ return translateBuiltinMathMinMax(build, IrCmd::MAX_NUM, nparams, ra, arg, args, arg3, nresults, pcpos);
  case LBF_MATH_CLAMP:
- return translateBuiltinMathClamp(build, nparams, ra, arg, args, nresults, fallback, pcpos);
+ return translateBuiltinMathClamp(build, nparams, ra, arg, args, arg3, nresults, fallback, pcpos);
  case LBF_MATH_FLOOR:
  return translateBuiltinMathUnary(build, IrCmd::FLOOR_NUM, nparams, ra, arg, nresults, pcpos);
  case LBF_MATH_CEIL:
@@ -52595,7 +52552,7 @@ BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, 
  case LBF_MATH_TAN:
  case LBF_MATH_TANH:
  case LBF_MATH_LOG10:
- return translateBuiltinNumberToNumberLibm(build, LuauBuiltinFunction(bfid), nparams, ra, arg, args, nresults, pcpos);
+ return translateBuiltinNumberToNumberLibm(build, LuauBuiltinFunction(bfid), nparams, ra, arg, nresults, pcpos);
  case LBF_MATH_SIGN:
  return translateBuiltinNumberToNumber(build, LuauBuiltinFunction(bfid), nparams, ra, arg, args, nresults, pcpos);
  case LBF_MATH_POW:
@@ -52607,13 +52564,13 @@ BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, 
  case LBF_MATH_MODF:
  return translateBuiltinNumberTo2Number(build, LuauBuiltinFunction(bfid), nparams, ra, arg, args, nresults, pcpos);
  case LBF_BIT32_BAND:
- return translateBuiltinBit32BinaryOp(build, IrCmd::BITAND_UINT, false, nparams, ra, arg, args, nresults, pcpos);
+ return translateBuiltinBit32BinaryOp(build, IrCmd::BITAND_UINT, false, nparams, ra, arg, args, arg3, nresults, pcpos);
  case LBF_BIT32_BOR:
- return translateBuiltinBit32BinaryOp(build, IrCmd::BITOR_UINT, false, nparams, ra, arg, args, nresults, pcpos);
+ return translateBuiltinBit32BinaryOp(build, IrCmd::BITOR_UINT, false, nparams, ra, arg, args, arg3, nresults, pcpos);
  case LBF_BIT32_BXOR:
- return translateBuiltinBit32BinaryOp(build, IrCmd::BITXOR_UINT, false, nparams, ra, arg, args, nresults, pcpos);
+ return translateBuiltinBit32BinaryOp(build, IrCmd::BITXOR_UINT, false, nparams, ra, arg, args, arg3, nresults, pcpos);
  case LBF_BIT32_BTEST:
- return translateBuiltinBit32BinaryOp(build, IrCmd::BITAND_UINT, true, nparams, ra, arg, args, nresults, pcpos);
+ return translateBuiltinBit32BinaryOp(build, IrCmd::BITAND_UINT, true, nparams, ra, arg, args, arg3, nresults, pcpos);
  case LBF_BIT32_BNOT:
  return translateBuiltinBit32Bnot(build, nparams, ra, arg, args, nresults, pcpos);
  case LBF_BIT32_LSHIFT:
@@ -52627,7 +52584,7 @@ BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, 
  case LBF_BIT32_RROTATE:
  return translateBuiltinBit32Rotate(build, IrCmd::BITRROTATE_UINT, nparams, ra, arg, args, nresults, pcpos);
  case LBF_BIT32_EXTRACT:
- return translateBuiltinBit32Extract(build, nparams, ra, arg, args, nresults, fallback, pcpos);
+ return translateBuiltinBit32Extract(build, nparams, ra, arg, args, arg3, nresults, fallback, pcpos);
  case LBF_BIT32_EXTRACTK:
  return translateBuiltinBit32ExtractK(build, nparams, ra, arg, args, nresults, pcpos);
  case LBF_BIT32_COUNTLZ:
@@ -52635,13 +52592,13 @@ BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, 
  case LBF_BIT32_COUNTRZ:
  return translateBuiltinBit32Unary(build, IrCmd::BITCOUNTRZ_UINT, nparams, ra, arg, args, nresults, pcpos);
  case LBF_BIT32_REPLACE:
- return translateBuiltinBit32Replace(build, nparams, ra, arg, args, nresults, fallback, pcpos);
+ return translateBuiltinBit32Replace(build, nparams, ra, arg, args, arg3, nresults, fallback, pcpos);
  case LBF_TYPE:
  return translateBuiltinType(build, nparams, ra, arg, args, nresults);
  case LBF_TYPEOF:
  return translateBuiltinTypeof(build, nparams, ra, arg, args, nresults);
  case LBF_VECTOR:
- return translateBuiltinVector(build, nparams, ra, arg, args, nresults, pcpos);
+ return translateBuiltinVector(build, nparams, ra, arg, args, arg3, nresults, pcpos);
  case LBF_TABLE_INSERT:
  return translateBuiltinTableInsert(build, nparams, ra, arg, args, nresults, pcpos);
  case LBF_STRING_LEN:
@@ -52649,31 +52606,31 @@ BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, 
  case LBF_BIT32_BYTESWAP:
  return translateBuiltinBit32Unary(build, IrCmd::BYTESWAP_UINT, nparams, ra, arg, args, nresults, pcpos);
  case LBF_BUFFER_READI8:
- return translateBuiltinBufferRead(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_READI8, 1, IrCmd::INT_TO_NUM);
+ return translateBuiltinBufferRead(build, nparams, ra, arg, args, arg3, nresults, pcpos, IrCmd::BUFFER_READI8, 1, IrCmd::INT_TO_NUM);
  case LBF_BUFFER_READU8:
- return translateBuiltinBufferRead(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_READU8, 1, IrCmd::INT_TO_NUM);
+ return translateBuiltinBufferRead(build, nparams, ra, arg, args, arg3, nresults, pcpos, IrCmd::BUFFER_READU8, 1, IrCmd::INT_TO_NUM);
  case LBF_BUFFER_WRITEU8:
- return translateBuiltinBufferWrite(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_WRITEI8, 1, IrCmd::NUM_TO_UINT);
+ return translateBuiltinBufferWrite(build, nparams, ra, arg, args, arg3, nresults, pcpos, IrCmd::BUFFER_WRITEI8, 1, IrCmd::NUM_TO_UINT);
  case LBF_BUFFER_READI16:
- return translateBuiltinBufferRead(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_READI16, 2, IrCmd::INT_TO_NUM);
+ return translateBuiltinBufferRead(build, nparams, ra, arg, args, arg3, nresults, pcpos, IrCmd::BUFFER_READI16, 2, IrCmd::INT_TO_NUM);
  case LBF_BUFFER_READU16:
- return translateBuiltinBufferRead(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_READU16, 2, IrCmd::INT_TO_NUM);
+ return translateBuiltinBufferRead(build, nparams, ra, arg, args, arg3, nresults, pcpos, IrCmd::BUFFER_READU16, 2, IrCmd::INT_TO_NUM);
  case LBF_BUFFER_WRITEU16:
- return translateBuiltinBufferWrite(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_WRITEI16, 2, IrCmd::NUM_TO_UINT);
+ return translateBuiltinBufferWrite(build, nparams, ra, arg, args, arg3, nresults, pcpos, IrCmd::BUFFER_WRITEI16, 2, IrCmd::NUM_TO_UINT);
  case LBF_BUFFER_READI32:
- return translateBuiltinBufferRead(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_READI32, 4, IrCmd::INT_TO_NUM);
+ return translateBuiltinBufferRead(build, nparams, ra, arg, args, arg3, nresults, pcpos, IrCmd::BUFFER_READI32, 4, IrCmd::INT_TO_NUM);
  case LBF_BUFFER_READU32:
- return translateBuiltinBufferRead(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_READI32, 4, IrCmd::UINT_TO_NUM);
+ return translateBuiltinBufferRead(build, nparams, ra, arg, args, arg3, nresults, pcpos, IrCmd::BUFFER_READI32, 4, IrCmd::UINT_TO_NUM);
  case LBF_BUFFER_WRITEU32:
- return translateBuiltinBufferWrite(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_WRITEI32, 4, IrCmd::NUM_TO_UINT);
+ return translateBuiltinBufferWrite(build, nparams, ra, arg, args, arg3, nresults, pcpos, IrCmd::BUFFER_WRITEI32, 4, IrCmd::NUM_TO_UINT);
  case LBF_BUFFER_READF32:
- return translateBuiltinBufferRead(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_READF32, 4, IrCmd::NOP);
+ return translateBuiltinBufferRead(build, nparams, ra, arg, args, arg3, nresults, pcpos, IrCmd::BUFFER_READF32, 4, IrCmd::NOP);
  case LBF_BUFFER_WRITEF32:
- return translateBuiltinBufferWrite(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_WRITEF32, 4, IrCmd::NOP);
+ return translateBuiltinBufferWrite(build, nparams, ra, arg, args, arg3, nresults, pcpos, IrCmd::BUFFER_WRITEF32, 4, IrCmd::NOP);
  case LBF_BUFFER_READF64:
- return translateBuiltinBufferRead(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_READF64, 8, IrCmd::NOP);
+ return translateBuiltinBufferRead(build, nparams, ra, arg, args, arg3, nresults, pcpos, IrCmd::BUFFER_READF64, 8, IrCmd::NOP);
  case LBF_BUFFER_WRITEF64:
- return translateBuiltinBufferWrite(build, nparams, ra, arg, args, nresults, pcpos, IrCmd::BUFFER_WRITEF64, 8, IrCmd::NOP);
+ return translateBuiltinBufferWrite(build, nparams, ra, arg, args, arg3, nresults, pcpos, IrCmd::BUFFER_WRITEF64, 8, IrCmd::NOP);
  default:
  return {BuiltinImplType::None, -1};
  }
@@ -52682,9 +52639,9 @@ BuiltinImplResult translateBuiltin(IrBuilder& build, int bfid, int ra, int arg, 
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "IrTranslation.cpp"
-LUAU_FASTFLAGVARIABLE(LuauCodegenDirectUserdataFlow, false)
 LUAU_FASTFLAG(LuauCodegenAnalyzeHostVectorOps)
 LUAU_FASTFLAG(LuauCodegenUserdataOps)
+LUAU_FASTFLAG(LuauCodegenFastcall3)
 namespace Luau
 {
 namespace CodeGen
@@ -53236,7 +53193,7 @@ void translateInstCloseUpvals(IrBuilder& build, const Instruction* pc)
  int ra = LUAU_INSN_A(*pc);
  build.inst(IrCmd::CLOSE_UPVALS, build.vmReg(ra));
 }
-IrOp translateFastCallN(IrBuilder& build, const Instruction* pc, int pcpos, bool customParams, int customParamCount, IrOp customArgs)
+IrOp translateFastCallN(IrBuilder& build, const Instruction* pc, int pcpos, bool customParams, int customParamCount, IrOp customArgs, IrOp customArg3)
 {
  LuauOpcode opcode = LuauOpcode(LUAU_INSN_OP(*pc));
  int bfid = LUAU_INSN_A(*pc);
@@ -53256,10 +53213,11 @@ IrOp translateFastCallN(IrBuilder& build, const Instruction* pc, int pcpos, bool
  if (protok.tt == LUA_TNUMBER)
  builtinArgs = build.constDouble(protok.value.n);
  }
+ IrOp builtinArg3 = FFlag::LuauCodegenFastcall3 ? (customParams ? customArg3 : build.vmReg(ra + 3)) : IrOp{};
  IrOp fallback = build.block(IrBlockKind::Fallback);
  build.inst(IrCmd::CHECK_SAFE_ENV, build.vmExit(pcpos + getOpLength(opcode)));
- BuiltinImplResult br =
- translateBuiltin(build, LuauBuiltinFunction(bfid), ra, arg, builtinArgs, nparams, nresults, fallback, pcpos + getOpLength(opcode));
+ BuiltinImplResult br = translateBuiltin(
+ build, LuauBuiltinFunction(bfid), ra, arg, builtinArgs, builtinArg3, nparams, nresults, fallback, pcpos + getOpLength(opcode));
  if (br.type != BuiltinImplType::None)
  {
  CODEGEN_ASSERT(nparams != LUA_MULTRET && "builtins are not allowed to handle variadic arguments");
@@ -53270,6 +53228,18 @@ IrOp translateFastCallN(IrBuilder& build, const Instruction* pc, int pcpos, bool
  build.function.blockOp(fallback).kind = IrBlockKind::Dead;
  return build.undef();
  }
+ }
+ else if (FFlag::LuauCodegenFastcall3)
+ {
+ IrOp arg3 = customParams ? customArg3 : build.undef();
+ build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + getOpLength(opcode)));
+ IrOp res = build.inst(IrCmd::INVOKE_FASTCALL, build.constUint(bfid), build.vmReg(ra), build.vmReg(arg), args, arg3, build.constInt(nparams),
+ build.constInt(nresults));
+ build.inst(IrCmd::CHECK_FASTCALL_RES, res, fallback);
+ if (nresults == LUA_MULTRET)
+ build.inst(IrCmd::ADJUST_STACK_TO_REG, build.vmReg(ra), res);
+ else if (nparams == LUA_MULTRET)
+ build.inst(IrCmd::ADJUST_STACK_TO_TOP);
  }
  else
  {
@@ -53598,7 +53568,7 @@ void translateInstGetTableKS(IrBuilder& build, const Instruction* pc, int pcpos)
  }
  return;
  }
- if (FFlag::LuauCodegenDirectUserdataFlow && (FFlag::LuauCodegenUserdataOps ? isUserdataBytecodeType(bcTypes.a) : bcTypes.a == LBC_TYPE_USERDATA))
+ if (FFlag::LuauCodegenUserdataOps ? isUserdataBytecodeType(bcTypes.a) : bcTypes.a == LBC_TYPE_USERDATA)
  {
  build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TUSERDATA), build.vmExit(pcpos));
  if (FFlag::LuauCodegenUserdataOps && build.hostHooks.userdataAccess)
@@ -53630,7 +53600,7 @@ void translateInstSetTableKS(IrBuilder& build, const Instruction* pc, int pcpos)
  uint32_t aux = pc[1];
  BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
  IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
- if (FFlag::LuauCodegenDirectUserdataFlow && (FFlag::LuauCodegenUserdataOps ? isUserdataBytecodeType(bcTypes.a) : bcTypes.a == LBC_TYPE_USERDATA))
+ if (FFlag::LuauCodegenUserdataOps ? isUserdataBytecodeType(bcTypes.a) : bcTypes.a == LBC_TYPE_USERDATA)
  {
  build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TUSERDATA), build.vmExit(pcpos));
  build.inst(IrCmd::FALLBACK_SETTABLEKS, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
@@ -53718,7 +53688,7 @@ bool translateInstNamecall(IrBuilder& build, const Instruction* pc, int pcpos)
  int rb = LUAU_INSN_B(*pc);
  uint32_t aux = pc[1];
  BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
- if (FFlag::LuauCodegenDirectUserdataFlow && bcTypes.a == LBC_TYPE_VECTOR)
+ if (bcTypes.a == LBC_TYPE_VECTOR)
  {
  build.loadAndCheckTag(build.vmReg(rb), LUA_TVECTOR, build.vmExit(pcpos));
  if (FFlag::LuauCodegenAnalyzeHostVectorOps && build.hostHooks.vectorNamecall)
@@ -53736,7 +53706,7 @@ bool translateInstNamecall(IrBuilder& build, const Instruction* pc, int pcpos)
  build.inst(IrCmd::FALLBACK_NAMECALL, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
  return false;
  }
- if (FFlag::LuauCodegenDirectUserdataFlow && (FFlag::LuauCodegenUserdataOps ? isUserdataBytecodeType(bcTypes.a) : bcTypes.a == LBC_TYPE_USERDATA))
+ if (FFlag::LuauCodegenUserdataOps ? isUserdataBytecodeType(bcTypes.a) : bcTypes.a == LBC_TYPE_USERDATA)
  {
  build.loadAndCheckTag(build.vmReg(rb), LUA_TUSERDATA, build.vmExit(pcpos));
  if (FFlag::LuauCodegenUserdataOps && build.hostHooks.userdataNamecall)
@@ -53758,8 +53728,7 @@ bool translateInstNamecall(IrBuilder& build, const Instruction* pc, int pcpos)
  IrOp fallback = build.block(IrBlockKind::Fallback);
  IrOp firstFastPathSuccess = build.block(IrBlockKind::Internal);
  IrOp secondFastPath = build.block(IrBlockKind::Internal);
- build.loadAndCheckTag(
- build.vmReg(rb), LUA_TTABLE, FFlag::LuauCodegenDirectUserdataFlow && bcTypes.a == LBC_TYPE_TABLE ? build.vmExit(pcpos) : fallback);
+ build.loadAndCheckTag(build.vmReg(rb), LUA_TTABLE, bcTypes.a == LBC_TYPE_TABLE ? build.vmExit(pcpos) : fallback);
  IrOp table = build.inst(IrCmd::LOAD_POINTER, build.vmReg(rb));
  CODEGEN_ASSERT(build.function.proto);
  IrOp addrNodeEl = build.inst(IrCmd::GET_HASH_NODE_ADDR, table, build.constUint(tsvalue(&build.function.proto->k[aux])->hash));
@@ -54767,6 +54736,7 @@ IrBlock& getNextBlock(IrFunction& function, const std::vector<uint32_t>& sortedB
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "IrValueLocationTracking.cpp"
+LUAU_FASTFLAG(LuauCodegenFastcall3)
 namespace Luau
 {
 namespace CodeGen
@@ -54803,10 +54773,10 @@ void IrValueLocationTracking::beforeInstLowering(IrInst& inst)
  invalidateRestoreVmRegs(vmRegOp(inst.a), -1);
  break;
  case IrCmd::FASTCALL:
- invalidateRestoreVmRegs(vmRegOp(inst.b), function.intOp(inst.f));
+ invalidateRestoreVmRegs(vmRegOp(inst.b), function.intOp(FFlag::LuauCodegenFastcall3 ? inst.d : inst.f));
  break;
  case IrCmd::INVOKE_FASTCALL:
- if (int count = function.intOp(inst.f); count != -1)
+ if (int count = function.intOp(FFlag::LuauCodegenFastcall3 ? inst.g : inst.f); count != -1)
  invalidateRestoreVmRegs(vmRegOp(inst.b), count);
  break;
  case IrCmd::DO_ARITH:
@@ -54871,7 +54841,7 @@ void IrValueLocationTracking::beforeInstLowering(IrInst& inst)
  case IrCmd::NEWCLOSURE:
  case IrCmd::FINDUPVAL:
  break;
- case IrCmd::CHECK_TAG: // TODO: remove with FFlagLuauCodegenRemoveDeadStores5
+ case IrCmd::CHECK_TAG:
  case IrCmd::CHECK_TRUTHY:
  case IrCmd::ADD_NUM:
  case IrCmd::SUB_NUM:
@@ -55109,10 +55079,10 @@ LUAU_FASTINTVARIABLE(LuauCodeGenMinLinearBlockPath, 3)
 LUAU_FASTINTVARIABLE(LuauCodeGenReuseSlotLimit, 64)
 LUAU_FASTINTVARIABLE(LuauCodeGenReuseUdataTagLimit, 64)
 LUAU_FASTFLAGVARIABLE(DebugLuauAbortingChecks, false)
-LUAU_FASTFLAG(LuauCodegenRemoveDeadStores5)
 LUAU_FASTFLAGVARIABLE(LuauCodegenFixSplitStoreConstMismatch, false)
 LUAU_FASTFLAG(LuauCodegenUserdataOps)
 LUAU_FASTFLAG(LuauCodegenUserdataAlloc)
+LUAU_FASTFLAG(LuauCodegenFastcall3)
 namespace Luau
 {
 namespace CodeGen
@@ -55575,16 +55545,9 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  uint8_t value = function.tagOp(inst.b);
  std::tie(activeLoadCmd, activeLoadValue) = state.getPreviousVersionedLoadForTag(value, source);
  if (state.tryGetTag(source) == value)
- {
- if (FFlag::DebugLuauAbortingChecks && !FFlag::LuauCodegenRemoveDeadStores5)
- replace(function, block, index, {IrCmd::CHECK_TAG, inst.a, inst.b, build.undef()});
- else
  kill(function, inst);
- }
  else
- {
  state.saveTag(source, value);
- }
  }
  else
  {
@@ -56045,11 +56008,9 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  break;
  case IrCmd::FASTCALL:
  {
- if (FFlag::LuauCodegenRemoveDeadStores5)
- {
  LuauBuiltinFunction bfid = LuauBuiltinFunction(function.uintOp(inst.a));
  int firstReturnReg = vmRegOp(inst.b);
- int nresults = function.intOp(inst.f);
+ int nresults = function.intOp(FFlag::LuauCodegenFastcall3 ? inst.d : inst.f);
  handleBuiltinEffects(state, bfid, firstReturnReg, nresults);
  switch (bfid)
  {
@@ -56065,15 +56026,11 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  default:
  break;
  }
- }
- else
- {
- handleBuiltinEffects(state, LuauBuiltinFunction(function.uintOp(inst.a)), vmRegOp(inst.b), function.intOp(inst.f));
- }
  break;
  }
  case IrCmd::INVOKE_FASTCALL:
- handleBuiltinEffects(state, LuauBuiltinFunction(function.uintOp(inst.a)), vmRegOp(inst.b), function.intOp(inst.f));
+ handleBuiltinEffects(
+ state, LuauBuiltinFunction(function.uintOp(inst.a)), vmRegOp(inst.b), function.intOp(FFlag::LuauCodegenFastcall3 ? inst.g : inst.f));
  break;
  case IrCmd::NOP:
  case IrCmd::LOAD_ENV:
@@ -56536,7 +56493,6 @@ void createLinearBlocks(IrBuilder& build, bool useValueNumbering)
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "OptimizeDeadStore.cpp"
-LUAU_FASTFLAGVARIABLE(LuauCodegenRemoveDeadStores5, false)
 LUAU_FASTFLAG(LuauCodegenUserdataOps)
 namespace Luau
 {
