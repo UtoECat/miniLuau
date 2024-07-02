@@ -125,7 +125,6 @@ enum LuauBytecodeTag
  LBC_VERSION_MIN = 3,
  LBC_VERSION_MAX = 6,
  LBC_VERSION_TARGET = 5,
- LBC_TYPE_VERSION_DEPRECATED = 1,
  LBC_TYPE_VERSION_MIN = 1,
  LBC_TYPE_VERSION_MAX = 3,
  LBC_TYPE_VERSION_TARGET = 3,
@@ -1869,7 +1868,6 @@ LUAI_FUNC int luaV_strcmp(const TString* ls, const TString* rs);
 LUAI_FUNC int luaV_lessthan(lua_State* L, const TValue* l, const TValue* r);
 LUAI_FUNC int luaV_lessequal(lua_State* L, const TValue* l, const TValue* r);
 LUAI_FUNC int luaV_equalval(lua_State* L, const TValue* t1, const TValue* t2);
-LUAI_FUNC void luaV_doarith(lua_State* L, StkId ra, const TValue* rb, const TValue* rc, TMS op);
 template<TMS op>
 void luaV_doarithimpl(lua_State* L, StkId ra, const TValue* rb, const TValue* rc);
 LUAI_FUNC void luaV_dolen(lua_State* L, StkId ra, const TValue* rb);
@@ -13681,7 +13679,6 @@ int luaopen_utf8(lua_State* L)
 }
 #line __LINE__ ""
 #line __LINE__ "lvmexecute.cpp"
-LUAU_FASTFLAGVARIABLE(LuauVmSplitDoarith, false)
 #ifdef __clang__
 #if __has_warning("-Wc99-designator")
 #pragma clang diagnostic ignored "-Wc99-designator"
@@ -14742,14 +14739,7 @@ reentry:
  }
  else
  {
- if (FFlag::LuauVmSplitDoarith)
- {
  VM_PROTECT(luaV_doarithimpl<TM_ADD>(L, ra, rb, rc));
- }
- else
- {
- VM_PROTECT(luaV_doarith(L, ra, rb, rc, TM_ADD));
- }
  VM_NEXT();
  }
  }
@@ -14788,14 +14778,7 @@ reentry:
  }
  else
  {
- if (FFlag::LuauVmSplitDoarith)
- {
  VM_PROTECT(luaV_doarithimpl<TM_SUB>(L, ra, rb, rc));
- }
- else
- {
- VM_PROTECT(luaV_doarith(L, ra, rb, rc, TM_SUB));
- }
  VM_NEXT();
  }
  }
@@ -14849,14 +14832,7 @@ reentry:
  }
  else
  {
- if (FFlag::LuauVmSplitDoarith)
- {
  VM_PROTECT(luaV_doarithimpl<TM_MUL>(L, ra, rb, rc));
- }
- else
- {
- VM_PROTECT(luaV_doarith(L, ra, rb, rc, TM_MUL));
- }
  VM_NEXT();
  }
  }
@@ -14910,14 +14886,7 @@ reentry:
  }
  else
  {
- if (FFlag::LuauVmSplitDoarith)
- {
  VM_PROTECT(luaV_doarithimpl<TM_DIV>(L, ra, rb, rc));
- }
- else
- {
- VM_PROTECT(luaV_doarith(L, ra, rb, rc, TM_DIV));
- }
  VM_NEXT();
  }
  }
@@ -14958,14 +14927,7 @@ reentry:
  }
  else
  {
- if (FFlag::LuauVmSplitDoarith)
- {
  VM_PROTECT(luaV_doarithimpl<TM_IDIV>(L, ra, rb, rc));
- }
- else
- {
- VM_PROTECT(luaV_doarith(L, ra, rb, rc, TM_IDIV));
- }
  VM_NEXT();
  }
  }
@@ -14985,14 +14947,7 @@ reentry:
  }
  else
  {
- if (FFlag::LuauVmSplitDoarith)
- {
  VM_PROTECT(luaV_doarithimpl<TM_MOD>(L, ra, rb, rc));
- }
- else
- {
- VM_PROTECT(luaV_doarith(L, ra, rb, rc, TM_MOD));
- }
  VM_NEXT();
  }
  }
@@ -15009,14 +14964,7 @@ reentry:
  }
  else
  {
- if (FFlag::LuauVmSplitDoarith)
- {
  VM_PROTECT(luaV_doarithimpl<TM_POW>(L, ra, rb, rc));
- }
- else
- {
- VM_PROTECT(luaV_doarith(L, ra, rb, rc, TM_POW));
- }
  VM_NEXT();
  }
  }
@@ -15033,14 +14981,7 @@ reentry:
  }
  else
  {
- if (FFlag::LuauVmSplitDoarith)
- {
  VM_PROTECT(luaV_doarithimpl<TM_ADD>(L, ra, rb, kv));
- }
- else
- {
- VM_PROTECT(luaV_doarith(L, ra, rb, kv, TM_ADD));
- }
  VM_NEXT();
  }
  }
@@ -15057,14 +14998,7 @@ reentry:
  }
  else
  {
- if (FFlag::LuauVmSplitDoarith)
- {
  VM_PROTECT(luaV_doarithimpl<TM_SUB>(L, ra, rb, kv));
- }
- else
- {
- VM_PROTECT(luaV_doarith(L, ra, rb, kv, TM_SUB));
- }
  VM_NEXT();
  }
  }
@@ -15102,14 +15036,7 @@ reentry:
  }
  else
  {
- if (FFlag::LuauVmSplitDoarith)
- {
  VM_PROTECT(luaV_doarithimpl<TM_MUL>(L, ra, rb, kv));
- }
- else
- {
- VM_PROTECT(luaV_doarith(L, ra, rb, kv, TM_MUL));
- }
  VM_NEXT();
  }
  }
@@ -15148,14 +15075,7 @@ reentry:
  }
  else
  {
- if (FFlag::LuauVmSplitDoarith)
- {
  VM_PROTECT(luaV_doarithimpl<TM_DIV>(L, ra, rb, kv));
- }
- else
- {
- VM_PROTECT(luaV_doarith(L, ra, rb, kv, TM_DIV));
- }
  VM_NEXT();
  }
  }
@@ -15195,14 +15115,7 @@ reentry:
  }
  else
  {
- if (FFlag::LuauVmSplitDoarith)
- {
  VM_PROTECT(luaV_doarithimpl<TM_IDIV>(L, ra, rb, kv));
- }
- else
- {
- VM_PROTECT(luaV_doarith(L, ra, rb, kv, TM_IDIV));
- }
  VM_NEXT();
  }
  }
@@ -15222,14 +15135,7 @@ reentry:
  }
  else
  {
- if (FFlag::LuauVmSplitDoarith)
- {
  VM_PROTECT(luaV_doarithimpl<TM_MOD>(L, ra, rb, kv));
- }
- else
- {
- VM_PROTECT(luaV_doarith(L, ra, rb, kv, TM_MOD));
- }
  VM_NEXT();
  }
  }
@@ -15249,14 +15155,7 @@ reentry:
  }
  else
  {
- if (FFlag::LuauVmSplitDoarith)
- {
  VM_PROTECT(luaV_doarithimpl<TM_POW>(L, ra, rb, kv));
- }
- else
- {
- VM_PROTECT(luaV_doarith(L, ra, rb, kv, TM_POW));
- }
  VM_NEXT();
  }
  }
@@ -15347,14 +15246,7 @@ reentry:
  }
  else
  {
- if (FFlag::LuauVmSplitDoarith)
- {
  VM_PROTECT(luaV_doarithimpl<TM_UNM>(L, ra, rb, rb));
- }
- else
- {
- VM_PROTECT(luaV_doarith(L, ra, rb, rb, TM_UNM));
- }
  VM_NEXT();
  }
  }
@@ -15801,14 +15693,7 @@ reentry:
  }
  else
  {
- if (FFlag::LuauVmSplitDoarith)
- {
  VM_PROTECT(luaV_doarithimpl<TM_SUB>(L, ra, kv, rc));
- }
- else
- {
- VM_PROTECT(luaV_doarith(L, ra, kv, rc, TM_SUB));
- }
  VM_NEXT();
  }
  }
@@ -15832,14 +15717,7 @@ reentry:
  }
  else
  {
- if (FFlag::LuauVmSplitDoarith)
- {
  VM_PROTECT(luaV_doarithimpl<TM_DIV>(L, ra, kv, rc));
- }
- else
- {
- VM_PROTECT(luaV_doarith(L, ra, kv, rc, TM_DIV));
- }
  VM_NEXT();
  }
  }
@@ -17019,127 +16897,6 @@ template void luaV_doarithimpl<TM_IDIV>(lua_State* L, StkId ra, const TValue* rb
 template void luaV_doarithimpl<TM_MOD>(lua_State* L, StkId ra, const TValue* rb, const TValue* rc);
 template void luaV_doarithimpl<TM_POW>(lua_State* L, StkId ra, const TValue* rb, const TValue* rc);
 template void luaV_doarithimpl<TM_UNM>(lua_State* L, StkId ra, const TValue* rb, const TValue* rc);
-void luaV_doarith(lua_State* L, StkId ra, const TValue* rb, const TValue* rc, TMS op)
-{
- TValue tempb, tempc;
- const TValue *b, *c;
- if ((b = luaV_tonumber(rb, &tempb)) != NULL && (c = luaV_tonumber(rc, &tempc)) != NULL)
- {
- double nb = nvalue(b), nc = nvalue(c);
- switch (op)
- {
- case TM_ADD:
- setnvalue(ra, luai_numadd(nb, nc));
- break;
- case TM_SUB:
- setnvalue(ra, luai_numsub(nb, nc));
- break;
- case TM_MUL:
- setnvalue(ra, luai_nummul(nb, nc));
- break;
- case TM_DIV:
- setnvalue(ra, luai_numdiv(nb, nc));
- break;
- case TM_IDIV:
- setnvalue(ra, luai_numidiv(nb, nc));
- break;
- case TM_MOD:
- setnvalue(ra, luai_nummod(nb, nc));
- break;
- case TM_POW:
- setnvalue(ra, luai_numpow(nb, nc));
- break;
- case TM_UNM:
- setnvalue(ra, luai_numunm(nb));
- break;
- default:
- LUAU_ASSERT(0);
- break;
- }
- }
- else
- {
- const float* vb = luaV_tovector(rb);
- const float* vc = luaV_tovector(rc);
- if (vb && vc)
- {
- switch (op)
- {
- case TM_ADD:
- setvvalue(ra, vb[0] + vc[0], vb[1] + vc[1], vb[2] + vc[2], vb[3] + vc[3]);
- return;
- case TM_SUB:
- setvvalue(ra, vb[0] - vc[0], vb[1] - vc[1], vb[2] - vc[2], vb[3] - vc[3]);
- return;
- case TM_MUL:
- setvvalue(ra, vb[0] * vc[0], vb[1] * vc[1], vb[2] * vc[2], vb[3] * vc[3]);
- return;
- case TM_DIV:
- setvvalue(ra, vb[0] / vc[0], vb[1] / vc[1], vb[2] / vc[2], vb[3] / vc[3]);
- return;
- case TM_IDIV:
- setvvalue(ra, float(luai_numidiv(vb[0], vc[0])), float(luai_numidiv(vb[1], vc[1])), float(luai_numidiv(vb[2], vc[2])),
- float(luai_numidiv(vb[3], vc[3])));
- return;
- case TM_UNM:
- setvvalue(ra, -vb[0], -vb[1], -vb[2], -vb[3]);
- return;
- default:
- break;
- }
- }
- else if (vb)
- {
- c = luaV_tonumber(rc, &tempc);
- if (c)
- {
- float nc = cast_to(float, nvalue(c));
- switch (op)
- {
- case TM_MUL:
- setvvalue(ra, vb[0] * nc, vb[1] * nc, vb[2] * nc, vb[3] * nc);
- return;
- case TM_DIV:
- setvvalue(ra, vb[0] / nc, vb[1] / nc, vb[2] / nc, vb[3] / nc);
- return;
- case TM_IDIV:
- setvvalue(ra, float(luai_numidiv(vb[0], nc)), float(luai_numidiv(vb[1], nc)), float(luai_numidiv(vb[2], nc)),
- float(luai_numidiv(vb[3], nc)));
- return;
- default:
- break;
- }
- }
- }
- else if (vc)
- {
- b = luaV_tonumber(rb, &tempb);
- if (b)
- {
- float nb = cast_to(float, nvalue(b));
- switch (op)
- {
- case TM_MUL:
- setvvalue(ra, nb * vc[0], nb * vc[1], nb * vc[2], nb * vc[3]);
- return;
- case TM_DIV:
- setvvalue(ra, nb / vc[0], nb / vc[1], nb / vc[2], nb / vc[3]);
- return;
- case TM_IDIV:
- setvvalue(ra, float(luai_numidiv(nb, vc[0])), float(luai_numidiv(nb, vc[1])), float(luai_numidiv(nb, vc[2])),
- float(luai_numidiv(nb, vc[3])));
- return;
- default:
- break;
- }
- }
- }
- if (!call_binTM(L, rb, rc, ra, op))
- {
- luaG_aritherror(L, rb, rc, op);
- }
- }
-}
 void luaV_dolen(lua_State* L, StkId ra, const TValue* rb)
 {
  const TValue* tm = NULL;
@@ -17886,36 +17643,42 @@ class AstStatDeclareGlobal : public AstStat
 {
 public:
  LUAU_RTTI(AstStatDeclareGlobal)
- AstStatDeclareGlobal(const Location& location, const AstName& name, AstType* type);
+ AstStatDeclareGlobal(const Location& location, const AstName& name, const Location& nameLocation, AstType* type);
  void visit(AstVisitor* visitor) override;
  AstName name;
+ Location nameLocation;
  AstType* type;
 };
 class AstStatDeclareFunction : public AstStat
 {
 public:
  LUAU_RTTI(AstStatDeclareFunction)
- AstStatDeclareFunction(const Location& location, const AstName& name, const AstArray<AstGenericType>& generics,
- const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& params, const AstArray<AstArgumentName>& paramNames,
- const AstTypeList& retTypes);
- AstStatDeclareFunction(const Location& location, const AstArray<AstAttr*>& attributes, const AstName& name,
+ AstStatDeclareFunction(const Location& location, const AstName& name, const Location& nameLocation, const AstArray<AstGenericType>& generics,
+ const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& params, const AstArray<AstArgumentName>& paramNames, bool vararg,
+ const Location& varargLocation, const AstTypeList& retTypes);
+ AstStatDeclareFunction(const Location& location, const AstArray<AstAttr*>& attributes, const AstName& name, const Location& nameLocation,
  const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& params,
- const AstArray<AstArgumentName>& paramNames, const AstTypeList& retTypes);
+ const AstArray<AstArgumentName>& paramNames, bool vararg, const Location& varargLocation, const AstTypeList& retTypes);
  void visit(AstVisitor* visitor) override;
  bool isCheckedFunction() const;
  AstArray<AstAttr*> attributes;
  AstName name;
+ Location nameLocation;
  AstArray<AstGenericType> generics;
  AstArray<AstGenericTypePack> genericPacks;
  AstTypeList params;
  AstArray<AstArgumentName> paramNames;
+ bool vararg = false;
+ Location varargLocation;
  AstTypeList retTypes;
 };
 struct AstDeclaredClassProp
 {
  AstName name;
+ Location nameLocation;
  AstType* ty = nullptr;
  bool isMethod = false;
+ Location location;
 };
 enum class AstTableAccess
 {
@@ -18972,9 +18735,10 @@ void AstStatTypeAlias::visit(AstVisitor* visitor)
  type->visit(visitor);
  }
 }
-AstStatDeclareGlobal::AstStatDeclareGlobal(const Location& location, const AstName& name, AstType* type)
+AstStatDeclareGlobal::AstStatDeclareGlobal(const Location& location, const AstName& name, const Location& nameLocation, AstType* type)
  : AstStat(ClassIndex(), location)
  , name(name)
+ , nameLocation(nameLocation)
  , type(type)
 {
 }
@@ -18983,29 +18747,35 @@ void AstStatDeclareGlobal::visit(AstVisitor* visitor)
  if (visitor->visit(this))
  type->visit(visitor);
 }
-AstStatDeclareFunction::AstStatDeclareFunction(const Location& location, const AstName& name, const AstArray<AstGenericType>& generics,
- const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& params, const AstArray<AstArgumentName>& paramNames,
- const AstTypeList& retTypes)
+AstStatDeclareFunction::AstStatDeclareFunction(const Location& location, const AstName& name, const Location& nameLocation,
+ const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& params,
+ const AstArray<AstArgumentName>& paramNames, bool vararg, const Location& varargLocation, const AstTypeList& retTypes)
  : AstStat(ClassIndex(), location)
  , attributes()
  , name(name)
+ , nameLocation(nameLocation)
  , generics(generics)
  , genericPacks(genericPacks)
  , params(params)
  , paramNames(paramNames)
+ , vararg(vararg)
+ , varargLocation(varargLocation)
  , retTypes(retTypes)
 {
 }
 AstStatDeclareFunction::AstStatDeclareFunction(const Location& location, const AstArray<AstAttr*>& attributes, const AstName& name,
- const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& params,
- const AstArray<AstArgumentName>& paramNames, const AstTypeList& retTypes)
+ const Location& nameLocation, const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks,
+ const AstTypeList& params, const AstArray<AstArgumentName>& paramNames, bool vararg, const Location& varargLocation, const AstTypeList& retTypes)
  : AstStat(ClassIndex(), location)
  , attributes(attributes)
  , name(name)
+ , nameLocation(nameLocation)
  , generics(generics)
  , genericPacks(genericPacks)
  , params(params)
  , paramNames(paramNames)
+ , vararg(vararg)
+ , varargLocation(varargLocation)
  , retTypes(retTypes)
 {
 }
@@ -22809,6 +22579,12 @@ struct ThreadContext
  std::vector<char> data;
  static constexpr size_t kEventFlushLimit = 8192;
 };
+using ThreadContextProvider = ThreadContext& (*)();
+inline ThreadContextProvider& threadContextProvider()
+{
+ static ThreadContextProvider handler = nullptr;
+ return handler;
+}
 ThreadContext& getThreadContext();
 struct Scope
 {
@@ -22880,6 +22656,7 @@ LUAU_FASTFLAG(LuauAttributeSyntax)
 LUAU_FASTFLAGVARIABLE(LuauLeadingBarAndAmpersand2, false)
 LUAU_FASTFLAGVARIABLE(LuauNativeAttribute, false)
 LUAU_FASTFLAGVARIABLE(LuauAttributeSyntaxFunExpr, false)
+LUAU_FASTFLAGVARIABLE(LuauDeclarationExtraPropData, false)
 namespace Luau
 {
 struct AttributeEntry
@@ -23473,8 +23250,12 @@ AstStat* Parser::parseTypeAlias(const Location& start, bool exported)
 }
 AstDeclaredClassProp Parser::parseDeclaredClassMethod()
 {
+ Location start;
+ if (FFlag::LuauDeclarationExtraPropData)
+ start = lexer.current().location;
  nextLexeme();
- Location start = lexer.current().location;
+ if (!FFlag::LuauDeclarationExtraPropData)
+ start = lexer.current().location;
  Name fnName = parseName("function name");
  AstArray<AstGenericType> generics;
  AstArray<AstGenericTypePack> genericPacks;
@@ -23492,13 +23273,13 @@ AstDeclaredClassProp Parser::parseDeclaredClassMethod()
  std::tie(vararg, varargLocation, varargAnnotation) = parseBindingList(args, true);
  expectMatchAndConsume(')', matchParen);
  AstTypeList retTypes = parseOptionalReturnType().value_or(AstTypeList{copy<AstType*>(nullptr, 0), nullptr});
- Location end = lexer.current().location;
+ Location end = FFlag::LuauDeclarationExtraPropData ? lexer.previousLocation() : lexer.current().location;
  TempVector<AstType*> vars(scratchType);
  TempVector<std::optional<AstArgumentName>> varNames(scratchOptArgName);
  if (args.size() == 0 || args[0].name.name != "self" || args[0].annotation != nullptr)
  {
- return AstDeclaredClassProp{
- fnName.name, reportTypeError(Location(start, end), {}, "'self' must be present as the unannotated first parameter"), true};
+ return AstDeclaredClassProp{fnName.name, FFlag::LuauDeclarationExtraPropData ? fnName.location : Location{},
+ reportTypeError(Location(start, end), {}, "'self' must be present as the unannotated first parameter"), true};
  }
  for (size_t i = 1; i < args.size(); ++i)
  {
@@ -23512,7 +23293,8 @@ AstDeclaredClassProp Parser::parseDeclaredClassMethod()
  report(start, "All declaration parameters aside from 'self' must be annotated");
  AstType* fnType = allocator.alloc<AstTypeFunction>(
  Location(start, end), generics, genericPacks, AstTypeList{copy(vars), varargAnnotation}, copy(varNames), retTypes);
- return AstDeclaredClassProp{fnName.name, fnType, true};
+ return AstDeclaredClassProp{fnName.name, FFlag::LuauDeclarationExtraPropData ? fnName.location : Location{}, fnType, true,
+ FFlag::LuauDeclarationExtraPropData ? Location(start, end) : Location{}};
 }
 AstStat* Parser::parseDeclaration(const Location& start, const AstArray<AstAttr*>& attributes)
 {
@@ -23546,8 +23328,12 @@ AstStat* Parser::parseDeclaration(const Location& start, const AstArray<AstAttr*
  }
  if (vararg && !varargAnnotation)
  return reportStatError(Location(start, end), {}, {}, "All declaration parameters must be annotated");
- return allocator.alloc<AstStatDeclareFunction>(Location(start, end), attributes, globalName.name, generics, genericPacks,
- AstTypeList{copy(vars), varargAnnotation}, copy(varNames), retTypes);
+ if (FFlag::LuauDeclarationExtraPropData)
+ return allocator.alloc<AstStatDeclareFunction>(Location(start, end), attributes, globalName.name, globalName.location, generics,
+ genericPacks, AstTypeList{copy(vars), varargAnnotation}, copy(varNames), vararg, varargLocation, retTypes);
+ else
+ return allocator.alloc<AstStatDeclareFunction>(Location(start, end), attributes, globalName.name, Location{}, generics, genericPacks,
+ AstTypeList{copy(vars), varargAnnotation}, copy(varNames), false, Location{}, retTypes);
  }
  else if (AstName(lexer.current().name) == "class")
  {
@@ -23572,15 +23358,33 @@ AstStat* Parser::parseDeclaration(const Location& start, const AstArray<AstAttr*
  {
  const Lexeme begin = lexer.current();
  nextLexeme();
+ if (FFlag::LuauDeclarationExtraPropData)
+ {
+ const Location nameBegin = lexer.current().location;
+ std::optional<AstArray<char>> chars = parseCharArray();
+ const Location nameEnd = lexer.previousLocation();
+ expectMatchAndConsume(']', begin);
+ expectAndConsume(':', "property type annotation");
+ AstType* type = parseType();
+ bool containsNull = chars && (strnlen(chars->data, chars->size) < chars->size);
+ if (chars && !containsNull)
+ props.push_back(AstDeclaredClassProp{
+ AstName(chars->data), Location(nameBegin, nameEnd), type, false, Location(begin.location, lexer.previousLocation())});
+ else
+ report(begin.location, "String literal contains malformed escape sequence or \\0");
+ }
+ else
+ {
  std::optional<AstArray<char>> chars = parseCharArray();
  expectMatchAndConsume(']', begin);
  expectAndConsume(':', "property type annotation");
  AstType* type = parseType();
  bool containsNull = chars && (strnlen(chars->data, chars->size) < chars->size);
  if (chars && !containsNull)
- props.push_back(AstDeclaredClassProp{AstName(chars->data), type, false});
+ props.push_back(AstDeclaredClassProp{AstName(chars->data), Location{}, type, false});
  else
  report(begin.location, "String literal contains malformed escape sequence or \\0");
+ }
  }
  else if (lexer.current().type == '[')
  {
@@ -23594,12 +23398,21 @@ AstStat* Parser::parseDeclaration(const Location& start, const AstArray<AstAttr*
  indexer = parseTableIndexer(AstTableAccess::ReadWrite, std::nullopt);
  }
  }
+ else if (FFlag::LuauDeclarationExtraPropData)
+ {
+ Location propStart = lexer.current().location;
+ Name propName = parseName("property name");
+ expectAndConsume(':', "property type annotation");
+ AstType* propType = parseType();
+ props.push_back(
+ AstDeclaredClassProp{propName.name, propName.location, propType, false, Location(propStart, lexer.previousLocation())});
+ }
  else
  {
  Name propName = parseName("property name");
  expectAndConsume(':', "property type annotation");
  AstType* propType = parseType();
- props.push_back(AstDeclaredClassProp{propName.name, propType, false});
+ props.push_back(AstDeclaredClassProp{propName.name, Location{}, propType, false});
  }
  }
  Location classEnd = lexer.current().location;
@@ -23610,7 +23423,8 @@ AstStat* Parser::parseDeclaration(const Location& start, const AstArray<AstAttr*
  {
  expectAndConsume(':', "global variable declaration");
  AstType* type = parseType( true);
- return allocator.alloc<AstStatDeclareGlobal>(Location(start, type->location), globalName->name, type);
+ return allocator.alloc<AstStatDeclareGlobal>(
+ Location(start, type->location), globalName->name, FFlag::LuauDeclarationExtraPropData ? globalName->location : Location{}, type);
  }
  else
  {
@@ -25713,6 +25527,8 @@ void flushEvents(GlobalContext& context, uint32_t threadId, const std::vector<Ev
 }
 ThreadContext& getThreadContext()
 {
+ if (auto provider = threadContextProvider())
+ return provider();
  thread_local ThreadContext context;
  return context;
 }
@@ -26900,7 +26716,6 @@ private:
 };
 }
 #line __LINE__ "BytecodeBuilder.cpp"
-LUAU_FASTFLAGVARIABLE(LuauCompileTypeInfo, false)
 LUAU_FASTFLAG(LuauCompileUserdataInfo)
 LUAU_FASTFLAG(LuauCompileFastcall3)
 namespace Luau
@@ -27113,11 +26928,8 @@ void BytecodeBuilder::endFunction(uint8_t maxstacksize, uint8_t numupvalues, uin
  tableShapes.clear();
  debugLocals.clear();
  debugUpvals.clear();
- if (FFlag::LuauCompileTypeInfo)
- {
  typedLocals.clear();
  typedUpvals.clear();
- }
  constantMap.clear();
  tableShapeMap.clear();
  protoMap.clear();
@@ -27316,7 +27128,6 @@ void BytecodeBuilder::setFunctionTypeInfo(std::string value)
 }
 void BytecodeBuilder::pushLocalTypeInfo(LuauBytecodeType type, uint8_t reg, uint32_t startpc, uint32_t endpc)
 {
- LUAU_ASSERT(FFlag::LuauCompileTypeInfo);
  TypedLocal local;
  local.type = type;
  local.reg = reg;
@@ -27326,7 +27137,6 @@ void BytecodeBuilder::pushLocalTypeInfo(LuauBytecodeType type, uint8_t reg, uint
 }
 void BytecodeBuilder::pushUpvalTypeInfo(LuauBytecodeType type)
 {
- LUAU_ASSERT(FFlag::LuauCompileTypeInfo);
  TypedUpval upval;
  upval.type = type;
  typedUpvals.push_back(upval);
@@ -27425,7 +27235,7 @@ void BytecodeBuilder::finalize()
  LUAU_ASSERT(typesversion >= LBC_TYPE_VERSION_MIN && typesversion <= LBC_TYPE_VERSION_MAX);
  writeByte(bytecode, typesversion);
  writeStringTable(bytecode);
- if (FFlag::LuauCompileTypeInfo && FFlag::LuauCompileUserdataInfo)
+ if (FFlag::LuauCompileUserdataInfo)
  {
  for (uint32_t i = 0; i < uint32_t(userdataTypes.size()); i++)
  {
@@ -27449,8 +27259,6 @@ void BytecodeBuilder::writeFunction(std::string& ss, uint32_t id, uint8_t flags)
  writeByte(ss, func.numupvalues);
  writeByte(ss, func.isvararg);
  writeByte(ss, flags);
- if (FFlag::LuauCompileTypeInfo)
- {
  if (!func.typeinfo.empty() || !typedUpvals.empty() || !typedLocals.empty())
  {
  tempTypeInfo.clear();
@@ -27474,12 +27282,6 @@ void BytecodeBuilder::writeFunction(std::string& ss, uint32_t id, uint8_t flags)
  else
  {
  writeVarInt(ss, 0);
- }
- }
- else
- {
- writeVarInt(ss, uint32_t(func.typeinfo.size()));
- ss.append(func.typeinfo);
  }
  writeVarInt(ss, uint32_t(insns.size()));
  for (uint32_t insn : insns)
@@ -27795,9 +27597,9 @@ uint8_t BytecodeBuilder::getVersion()
 }
 uint8_t BytecodeBuilder::getTypeEncodingVersion()
 {
- if (FFlag::LuauCompileTypeInfo && FFlag::LuauCompileUserdataInfo)
+ if (FFlag::LuauCompileUserdataInfo)
  return LBC_TYPE_VERSION_TARGET;
- return FFlag::LuauCompileTypeInfo ? 2 : LBC_TYPE_VERSION_DEPRECATED;
+ return 2;
 }
 #ifdef LUAU_ASSERTENABLED
 void BytecodeBuilder::validate() const
@@ -28683,8 +28485,6 @@ std::string BytecodeBuilder::dumpCurrentFunction(std::vector<int>& dumpinstoffs)
  }
  }
  }
- if (FFlag::LuauCompileTypeInfo)
- {
  if (dumpFlags & Dump_Types)
  {
  const std::string& typeinfo = functions.back().typeinfo;
@@ -28737,7 +28537,6 @@ std::string BytecodeBuilder::dumpCurrentFunction(std::vector<int>& dumpinstoffs)
  const char* base = getBaseTypeString(l.type);
  const char* optional = (l.type & LBC_TYPE_OPTIONAL_BIT) ? "?" : "";
  formatAppend(result, "R%d: %s%s from %d to %d\n", l.reg, base, optional, l.startpc, l.endpc);
- }
  }
  }
  }
@@ -28956,8 +28755,6 @@ LUAU_FASTINTVARIABLE(LuauCompileLoopUnrollThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThreshold, 25)
 LUAU_FASTINTVARIABLE(LuauCompileInlineThresholdMaxBoost, 300)
 LUAU_FASTINTVARIABLE(LuauCompileInlineDepth, 5)
-LUAU_FASTFLAG(LuauCompileTypeInfo)
-LUAU_FASTFLAGVARIABLE(LuauCompileTempTypeInfo, false)
 LUAU_FASTFLAGVARIABLE(LuauCompileUserdataInfo, false)
 LUAU_FASTFLAGVARIABLE(LuauCompileFastcall3, false)
 LUAU_FASTFLAG(LuauNativeAttribute)
@@ -29102,11 +28899,6 @@ struct Compiler
  bool self = func->self != 0;
  uint32_t fid = bytecode.beginFunction(uint8_t(self + func->args.size), func->vararg);
  setDebugLine(func);
- if (!FFlag::LuauCompileTypeInfo)
- {
- if (std::string* funcType = functionTypes.find(func))
- bytecode.setFunctionTypeInfo(std::move(*funcType));
- }
  if (func->vararg)
  bytecode.emitABC(LOP_PREPVARARGS, uint8_t(self + func->args.size), 0, 0);
  uint8_t args = allocReg(func, self + unsigned(func->args.size));
@@ -29114,7 +28906,6 @@ struct Compiler
  pushLocal(func->self, args, kDefaultAllocPc);
  for (size_t i = 0; i < func->args.size; ++i)
  pushLocal(func->args.data[i], uint8_t(args + self + i), kDefaultAllocPc);
- if (FFlag::LuauCompileTypeInfo)
  argCount = localStack.size();
  AstStatBlock* stat = func->body;
  for (size_t i = 0; i < stat->body.size; ++i)
@@ -29135,7 +28926,7 @@ struct Compiler
  for (AstLocal* l : upvals)
  bytecode.pushDebugUpval(sref(l->name));
  }
- if (FFlag::LuauCompileTypeInfo && options.typeInfoLevel >= 1)
+ if (options.typeInfoLevel >= 1)
  {
  for (AstLocal* l : upvals)
  {
@@ -29151,11 +28942,8 @@ struct Compiler
  popLocals(0);
  if (bytecode.getInstructionCount() > kMaxInstructionCount)
  CompileError::raise(func->location, "Exceeded function instruction limit; split the function into parts to compile");
- if (FFlag::LuauCompileTypeInfo)
- {
  if (std::string* funcType = functionTypes.find(func))
  bytecode.setFunctionTypeInfo(std::move(*funcType));
- }
  if (func->functionDepth == 0 && !hasLoops)
  protoflags |= LPF_NATIVE_COLD;
  if (FFlag::LuauNativeAttribute && func->hasNativeAttribute())
@@ -29178,7 +28966,6 @@ struct Compiler
  }
  upvals.clear();
  stackSize = 0;
- if (FFlag::LuauCompileTypeInfo)
  argCount = 0;
  hasLoops = false;
  return fid;
@@ -29403,7 +29190,7 @@ struct Compiler
  {
  unsigned int tail = unsigned(func->args.size - expr->args.size) + 1;
  uint8_t reg = allocReg(arg, tail);
- uint32_t allocpc = FFlag::LuauCompileTypeInfo ? bytecode.getDebugPC() : kDefaultAllocPc;
+ uint32_t allocpc = bytecode.getDebugPC();
  if (AstExprCall* expr = arg->as<AstExprCall>())
  compileExprCall(expr, reg, tail, true);
  else if (AstExprVarargs* expr = arg->as<AstExprVarargs>())
@@ -29411,26 +29198,18 @@ struct Compiler
  else
  LUAU_ASSERT(!"Unexpected expression type");
  for (size_t j = i; j < func->args.size; ++j)
- {
- if (FFlag::LuauCompileTypeInfo)
  args.push_back({func->args.data[j], uint8_t(reg + (j - i)), {Constant::Type_Unknown}, allocpc});
- else
- args.push_back({func->args.data[j], uint8_t(reg + (j - i))});
- }
  break;
  }
  else if (Variable* vv = variables.find(var); vv && vv->written)
  {
  uint8_t reg = allocReg(arg, 1);
- uint32_t allocpc = FFlag::LuauCompileTypeInfo ? bytecode.getDebugPC() : kDefaultAllocPc;
+ uint32_t allocpc = bytecode.getDebugPC();
  if (arg)
  compileExprTemp(arg, reg);
  else
  bytecode.emitABC(LOP_LOADNIL, reg, 0, 0);
- if (FFlag::LuauCompileTypeInfo)
  args.push_back({var, reg, {Constant::Type_Unknown}, allocpc});
- else
- args.push_back({var, reg});
  }
  else if (arg == nullptr)
  {
@@ -29451,12 +29230,9 @@ struct Compiler
  else
  {
  uint8_t temp = allocReg(arg, 1);
- uint32_t allocpc = FFlag::LuauCompileTypeInfo ? bytecode.getDebugPC() : kDefaultAllocPc;
+ uint32_t allocpc = bytecode.getDebugPC();
  compileExprTemp(arg, temp);
- if (FFlag::LuauCompileTypeInfo)
  args.push_back({var, temp, {Constant::Type_Unknown}, allocpc});
- else
- args.push_back({var, temp});
  }
  }
  }
@@ -29465,16 +29241,9 @@ struct Compiler
  for (InlineArg& arg : args)
  {
  if (arg.value.type == Constant::Type_Unknown)
- {
- if (FFlag::LuauCompileTypeInfo)
  pushLocal(arg.local, arg.reg, arg.allocpc);
  else
- pushLocal(arg.local, arg.reg, kDefaultAllocPc);
- }
- else
- {
  locstants[arg.local] = arg.value;
- }
  }
  inlineFrames.push_back({func, oldLocals, target, targetCount});
  foldConstants(constants, variables, locstants, builtinsFold, builtinsFoldMathK, func->body);
@@ -29631,7 +29400,6 @@ struct Compiler
  CompileError::raise(fi->location, "Exceeded constant limit; simplify the code to compile");
  bytecode.emitABC(LOP_NAMECALL, regs, selfreg, uint8_t(BytecodeBuilder::getStringHash(iname)));
  bytecode.emitAux(cid);
- if (FFlag::LuauCompileTempTypeInfo)
  hintTemporaryExprRegType(fi->expr, selfreg, LBC_TYPE_TABLE, 2);
  }
  else if (bfid >= 0)
@@ -30096,7 +29864,6 @@ struct Compiler
  {
  uint8_t rl = compileExprAuto(expr->left, rs);
  bytecode.emitABC(getBinaryOpArith(expr->op, true), target, rl, uint8_t(rc));
- if (FFlag::LuauCompileTempTypeInfo)
  hintTemporaryExprRegType(expr->left, rl, LBC_TYPE_NUMBER, 1);
  }
  else
@@ -30109,7 +29876,6 @@ struct Compiler
  uint8_t rr = compileExprAuto(expr->right, rs);
  LuauOpcode op = (expr->op == AstExprBinary::Sub) ? LOP_SUBRK : LOP_DIVRK;
  bytecode.emitABC(op, target, uint8_t(lc), uint8_t(rr));
- if (FFlag::LuauCompileTempTypeInfo)
  hintTemporaryExprRegType(expr->right, rr, LBC_TYPE_NUMBER, 1);
  return;
  }
@@ -30117,11 +29883,8 @@ struct Compiler
  uint8_t rl = compileExprAuto(expr->left, rs);
  uint8_t rr = compileExprAuto(expr->right, rs);
  bytecode.emitABC(getBinaryOpArith(expr->op), target, rl, rr);
- if (FFlag::LuauCompileTempTypeInfo)
- {
  hintTemporaryExprRegType(expr->left, rl, LBC_TYPE_NUMBER, 1);
  hintTemporaryExprRegType(expr->right, rr, LBC_TYPE_NUMBER, 1);
- }
  }
  }
  break;
@@ -30446,7 +30209,6 @@ struct Compiler
  CompileError::raise(expr->location, "Exceeded constant limit; simplify the code to compile");
  bytecode.emitABC(LOP_GETTABLEKS, target, reg, uint8_t(BytecodeBuilder::getStringHash(iname)));
  bytecode.emitAux(cid);
- if (FFlag::LuauCompileTempTypeInfo)
  hintTemporaryExprRegType(expr->expr, reg, LBC_TYPE_TABLE, 2);
  }
  void compileExprIndexExpr(AstExprIndexExpr* expr, uint8_t target)
@@ -31108,7 +30870,7 @@ struct Compiler
  }
  }
  uint8_t vars = allocReg(stat, unsigned(stat->vars.size));
- uint32_t allocpc = FFlag::LuauCompileTypeInfo ? bytecode.getDebugPC() : kDefaultAllocPc;
+ uint32_t allocpc = bytecode.getDebugPC();
  compileExprListTemp(stat->values, vars, uint8_t(stat->vars.size), true);
  for (size_t i = 0; i < stat->vars.size; ++i)
  pushLocal(stat->vars.data[i], uint8_t(vars + i), allocpc);
@@ -31194,7 +30956,7 @@ struct Compiler
  hasLoops = true;
  uint8_t regs = allocReg(stat, 3);
  uint8_t varreg = regs + 2;
- uint32_t varregallocpc = FFlag::LuauCompileTypeInfo ? bytecode.getDebugPC() : kDefaultAllocPc;
+ uint32_t varregallocpc = bytecode.getDebugPC();
  if (Variable* il = variables.find(stat->var); il && il->written)
  varreg = allocReg(stat, 1);
  compileExprTemp(stat->from, uint8_t(regs + 2));
@@ -31234,7 +30996,7 @@ struct Compiler
  compileExprListTemp(stat->values, regs, 3, true);
  uint8_t vars = allocReg(stat, std::max(unsigned(stat->vars.size), 2u));
  LUAU_ASSERT(vars == regs + 3);
- uint32_t varsallocpc = FFlag::LuauCompileTypeInfo ? bytecode.getDebugPC() : kDefaultAllocPc;
+ uint32_t varsallocpc = bytecode.getDebugPC();
  LuauOpcode skipOp = LOP_FORGPREP;
  if (options.optimizationLevel >= 1 && stat->vars.size <= 2)
  {
@@ -31423,12 +31185,9 @@ struct Compiler
  {
  uint8_t rr = compileExprAuto(stat->value, rs);
  bytecode.emitABC(getBinaryOpArith(stat->op), target, target, rr);
- if (FFlag::LuauCompileTempTypeInfo)
- {
  if (var.kind != LValue::Kind_Local)
  hintTemporaryRegType(stat->var, target, LBC_TYPE_NUMBER, 1);
  hintTemporaryExprRegType(stat->value, rr, LBC_TYPE_NUMBER, 1);
- }
  }
  }
  break;
@@ -31606,7 +31365,6 @@ struct Compiler
  l.reg = reg;
  l.allocated = true;
  l.debugpc = bytecode.getDebugPC();
- if (FFlag::LuauCompileTypeInfo)
  l.allocpc = allocpc == kDefaultAllocPc ? l.debugpc : allocpc;
  }
  bool areLocalsCaptured(size_t start)
@@ -31655,7 +31413,7 @@ struct Compiler
  uint32_t debugpc = bytecode.getDebugPC();
  bytecode.pushDebugLocal(sref(localStack[i]->name), l->reg, l->debugpc, debugpc);
  }
- if (FFlag::LuauCompileTypeInfo && options.typeInfoLevel >= 1 && i >= argCount)
+ if (options.typeInfoLevel >= 1 && i >= argCount)
  {
  uint32_t debugpc = bytecode.getDebugPC();
  LuauBytecodeType ty = LBC_TYPE_ANY;
@@ -31725,7 +31483,6 @@ struct Compiler
  }
  void hintTemporaryRegType(AstExpr* expr, int reg, LuauBytecodeType expectedType, int instLength)
  {
- LUAU_ASSERT(FFlag::LuauCompileTempTypeInfo);
  if (LuauBytecodeType* ty = exprTypes.find(expr))
  {
  if (*ty != expectedType)
@@ -31734,7 +31491,6 @@ struct Compiler
  }
  void hintTemporaryExprRegType(AstExpr* expr, int reg, LuauBytecodeType expectedType, int instLength)
  {
- LUAU_ASSERT(FFlag::LuauCompileTempTypeInfo);
  if (!getExprLocal(expr))
  hintTemporaryRegType(expr, reg, expectedType, instLength);
  }
@@ -31959,7 +31715,6 @@ struct Compiler
 static void setCompileOptionsForNativeCompilation(CompileOptions& options)
 {
  options.optimizationLevel = 2;
- if (FFlag::LuauCompileTypeInfo)
  options.typeInfoLevel = 1;
 }
 void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, const AstNameTable& names, const CompileOptions& inputOptions)
@@ -32018,18 +31773,9 @@ void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, c
  CompileError::raise(root->location, "Exceeded userdata type limit in the compilation options");
  }
  }
- if (FFlag::LuauCompileTypeInfo)
- {
  if (options.typeInfoLevel >= 1)
  buildTypeMap(compiler.functionTypes, compiler.localTypes, compiler.exprTypes, root, options.vectorType, compiler.userdataTypes,
  compiler.builtinTypes, compiler.builtins, compiler.globals, bytecode);
- }
- else
- {
- if (functionVisitor.hasTypes)
- buildTypeMap(compiler.functionTypes, compiler.localTypes, compiler.exprTypes, root, options.vectorType, compiler.userdataTypes,
- compiler.builtinTypes, compiler.builtins, compiler.globals, bytecode);
- }
  for (AstExprFunction* expr : functions)
  {
  uint8_t protoflags = 0;
@@ -32900,8 +32646,6 @@ void predictTableShapes(DenseHashMap<AstExprTable*, TableShape>& shapes, AstNode
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "Types.cpp"
-LUAU_FASTFLAG(LuauCompileTypeInfo)
-LUAU_FASTFLAG(LuauCompileTempTypeInfo)
 LUAU_FASTFLAG(LuauCompileUserdataInfo)
 namespace Luau
 {
@@ -33026,7 +32770,6 @@ static std::string getFunctionType(const AstExprFunction* func, const DenseHashM
 }
 static bool isMatchingGlobal(const DenseHashMap<AstName, Compile::Global>& globals, AstExpr* node, const char* name)
 {
- LUAU_ASSERT(FFlag::LuauCompileTempTypeInfo);
  if (AstExprGlobal* expr = node->as<AstExprGlobal>())
  return Compile::getGlobalState(globals, expr->name) == Compile::Global::Default && expr->name == name;
  return false;
@@ -33087,7 +32830,6 @@ struct TypeMapVisitor : AstVisitor
  }
  const AstType* resolveAliases(const AstType* ty)
  {
- LUAU_ASSERT(FFlag::LuauCompileTempTypeInfo);
  if (const AstTypeReference* ref = ty->as<AstTypeReference>())
  {
  if (ref->prefix)
@@ -33099,7 +32841,6 @@ struct TypeMapVisitor : AstVisitor
  }
  const AstTableIndexer* tryGetTableIndexer(AstExpr* expr)
  {
- LUAU_ASSERT(FFlag::LuauCompileTempTypeInfo);
  if (const AstType** typePtr = resolvedExprs.find(expr))
  {
  if (const AstTypeTable* tableTy = (*typePtr)->as<AstTypeTable>())
@@ -33109,7 +32850,6 @@ struct TypeMapVisitor : AstVisitor
  }
  LuauBytecodeType recordResolvedType(AstExpr* expr, const AstType* ty)
  {
- LUAU_ASSERT(FFlag::LuauCompileTempTypeInfo);
  ty = resolveAliases(ty);
  resolvedExprs[expr] = ty;
  LuauBytecodeType bty = getType(ty, {}, typeAliases, true, vectorType, userdataTypes, bytecode);
@@ -33118,7 +32858,6 @@ struct TypeMapVisitor : AstVisitor
  }
  LuauBytecodeType recordResolvedType(AstLocal* local, const AstType* ty)
  {
- LUAU_ASSERT(FFlag::LuauCompileTempTypeInfo);
  ty = resolveAliases(ty);
  resolvedLocals[local] = ty;
  LuauBytecodeType bty = getType(ty, {}, typeAliases, true, vectorType, userdataTypes, bytecode);
@@ -33145,8 +32884,6 @@ struct TypeMapVisitor : AstVisitor
  }
  bool visit(AstStatForIn* node) override
  {
- if (!FFlag::LuauCompileTempTypeInfo)
- return true;
  for (AstExpr* expr : node->values)
  expr->visit(this);
  if (node->vars.size == 2 && node->values.size == 1)
@@ -33196,10 +32933,6 @@ struct TypeMapVisitor : AstVisitor
  }
  bool visit(AstExprLocal* node) override
  {
- if (FFlag::LuauCompileTempTypeInfo)
- {
- if (FFlag::LuauCompileTypeInfo)
- {
  AstLocal* local = node->local;
  if (AstType* annotation = local->annotation)
  {
@@ -33211,28 +32944,10 @@ struct TypeMapVisitor : AstVisitor
  {
  localTypes[local] = recordResolvedType(node, *typePtr);
  }
- }
  return false;
- }
- else
- {
- if (FFlag::LuauCompileTypeInfo)
- {
- AstLocal* local = node->local;
- if (AstType* annotation = local->annotation)
- {
- LuauBytecodeType ty = getType(annotation, {}, typeAliases, true, vectorType, userdataTypes, bytecode);
- if (ty != LBC_TYPE_ANY)
- localTypes[local] = ty;
- }
- }
- return true;
- }
  }
  bool visit(AstStatLocal* node) override
  {
- if (!FFlag::LuauCompileTempTypeInfo)
- return true;
  for (AstExpr* expr : node->values)
  expr->visit(this);
  for (size_t i = 0; i < node->vars.size; i++)
@@ -33251,8 +32966,6 @@ struct TypeMapVisitor : AstVisitor
  }
  bool visit(AstExprIndexExpr* node) override
  {
- if (!FFlag::LuauCompileTempTypeInfo)
- return true;
  node->expr->visit(this);
  node->index->visit(this);
  if (const AstTableIndexer* indexer = tryGetTableIndexer(node->expr))
@@ -33261,8 +32974,6 @@ struct TypeMapVisitor : AstVisitor
  }
  bool visit(AstExprIndexName* node) override
  {
- if (!FFlag::LuauCompileTempTypeInfo)
- return true;
  node->expr->visit(this);
  if (const AstType** typePtr = resolvedExprs.find(node->expr))
  {
@@ -33290,8 +33001,6 @@ struct TypeMapVisitor : AstVisitor
  }
  bool visit(AstExprUnary* node) override
  {
- if (!FFlag::LuauCompileTempTypeInfo)
- return true;
  node->expr->visit(this);
  switch (node->op)
  {
@@ -33318,8 +33027,6 @@ struct TypeMapVisitor : AstVisitor
  }
  bool visit(AstExprBinary* node) override
  {
- if (!FFlag::LuauCompileTempTypeInfo)
- return true;
  node->left->visit(this);
  node->right->visit(this);
  if (node->op == AstExprBinary::CompareNe || node->op == AstExprBinary::CompareEq || node->op == AstExprBinary::CompareLt ||
@@ -33348,8 +33055,6 @@ struct TypeMapVisitor : AstVisitor
  }
  bool visit(AstExprGroup* node) override
  {
- if (!FFlag::LuauCompileTempTypeInfo)
- return true;
  node->expr->visit(this);
  if (const AstType** typePtr = resolvedExprs.find(node->expr))
  recordResolvedType(node, *typePtr);
@@ -33357,44 +33062,32 @@ struct TypeMapVisitor : AstVisitor
  }
  bool visit(AstExprTypeAssertion* node) override
  {
- if (!FFlag::LuauCompileTempTypeInfo)
- return true;
  node->expr->visit(this);
  recordResolvedType(node, node->annotation);
  return false;
  }
  bool visit(AstExprConstantBool* node) override
  {
- if (!FFlag::LuauCompileTempTypeInfo)
- return true;
  recordResolvedType(node, &builtinTypes.booleanType);
  return false;
  }
  bool visit(AstExprConstantNumber* node) override
  {
- if (!FFlag::LuauCompileTempTypeInfo)
- return true;
  recordResolvedType(node, &builtinTypes.numberType);
  return false;
  }
  bool visit(AstExprConstantString* node) override
  {
- if (!FFlag::LuauCompileTempTypeInfo)
- return true;
  recordResolvedType(node, &builtinTypes.stringType);
  return false;
  }
  bool visit(AstExprInterpString* node) override
  {
- if (!FFlag::LuauCompileTempTypeInfo)
- return true;
  recordResolvedType(node, &builtinTypes.stringType);
  return false;
  }
  bool visit(AstExprIfElse* node) override
  {
- if (!FFlag::LuauCompileTempTypeInfo)
- return true;
  node->condition->visit(this);
  node->trueExpr->visit(this);
  node->falseExpr->visit(this);
@@ -33407,8 +33100,6 @@ struct TypeMapVisitor : AstVisitor
  }
  bool visit(AstExprCall* node) override
  {
- if (!FFlag::LuauCompileTempTypeInfo)
- return true;
  if (const int* bfid = builtinCalls.find(node))
  {
  switch (LuauBuiltinFunction(*bfid))
@@ -34132,6 +33823,7 @@ enum class IrCmd : uint8_t
  ROUND_NUM,
  SQRT_NUM,
  ABS_NUM,
+ SIGN_NUM,
  ADD_VEC,
  SUB_VEC,
  MUL_VEC,
@@ -34859,6 +34551,7 @@ inline bool hasResult(IrCmd cmd)
  case IrCmd::ROUND_NUM:
  case IrCmd::SQRT_NUM:
  case IrCmd::ABS_NUM:
+ case IrCmd::SIGN_NUM:
  case IrCmd::ADD_VEC:
  case IrCmd::SUB_VEC:
  case IrCmd::MUL_VEC:
@@ -35009,7 +34702,6 @@ void afterInstForNLoop(IrBuilder& build, const Instruction* pc);
 }
 } // namespace Luau
 #line __LINE__ "IrBuilder.cpp"
-LUAU_FASTFLAG(LuauCodegenAnalyzeHostVectorOps)
 LUAU_FASTFLAG(LuauLoadUserdataInfo)
 LUAU_FASTFLAG(LuauCodegenInstG)
 LUAU_FASTFLAG(LuauCodegenFastcall3)
@@ -35454,15 +35146,8 @@ void IrBuilder::translateInst(LuauOpcode op, const Instruction* pc, int i)
  translateInstCapture(*this, pc, i);
  break;
  case LOP_NAMECALL:
- if (FFlag::LuauCodegenAnalyzeHostVectorOps)
- {
  if (translateInstNamecall(*this, pc, i))
  cmdSkipTarget = i + 3;
- }
- else
- {
- translateInstNamecall(*this, pc, i);
- }
  break;
  case LOP_PREPVARARGS:
  inst(IrCmd::FALLBACK_PREPVARARGS, constUint(i), constInt(LUAU_INSN_A(*pc)));
@@ -36132,7 +35817,6 @@ struct NativeContext
  int (*luaV_lessthan)(lua_State* L, const TValue* l, const TValue* r) = nullptr;
  int (*luaV_lessequal)(lua_State* L, const TValue* l, const TValue* r) = nullptr;
  int (*luaV_equalval)(lua_State* L, const TValue* t1, const TValue* t2) = nullptr;
- void (*luaV_doarith)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc, TMS op) = nullptr;
  void (*luaV_doarithadd)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc) = nullptr;
  void (*luaV_doarithsub)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc) = nullptr;
  void (*luaV_doarithmul)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc) = nullptr;
@@ -37724,7 +37408,6 @@ private:
 }
 } // namespace Luau
 #line __LINE__ "CodeGenContext.cpp"
-LUAU_FASTFLAGVARIABLE(LuauCodegenCheckNullContext, false)
 LUAU_FASTINTVARIABLE(LuauCodeGenBlockSize, 4 * 1024 * 1024)
 LUAU_FASTINTVARIABLE(LuauCodeGenMaxTotalSize, 256 * 1024 * 1024)
 LUAU_FASTFLAG(LuauNativeAttribute)
@@ -37970,7 +37653,7 @@ static size_t getMemorySize(lua_State* L, Proto* proto)
 }
 static void initializeExecutionCallbacks(lua_State* L, BaseCodeGenContext* codeGenContext) noexcept
 {
- CODEGEN_ASSERT(!FFlag::LuauCodegenCheckNullContext || codeGenContext != nullptr);
+ CODEGEN_ASSERT(codeGenContext != nullptr);
  lua_ExecutionCallbacks* ecb = &L->global->ecb;
  ecb->context = codeGenContext;
  ecb->close = onCloseState;
@@ -40939,8 +40622,6 @@ const char* AssemblyBuilderX64::getRegisterName(RegisterX64 reg) const
 }
 #line __LINE__ ""
 #line __LINE__ "BytecodeAnalysis.cpp"
-LUAU_FASTFLAGVARIABLE(LuauCodegenAnalyzeHostVectorOps, false)
-LUAU_FASTFLAGVARIABLE(LuauCodegenLoadTypeUpvalCheck, false)
 LUAU_FASTFLAGVARIABLE(LuauCodegenUserdataOps, false)
 LUAU_FASTFLAGVARIABLE(LuauCodegenFastcall3, false)
 namespace Luau
@@ -40985,10 +40666,6 @@ void loadBytecodeTypeInfo(IrFunction& function)
  uint32_t typeSize = readVarInt(data, offset);
  uint32_t upvalCount = readVarInt(data, offset);
  uint32_t localCount = readVarInt(data, offset);
- if (!FFlag::LuauCodegenLoadTypeUpvalCheck)
- {
- CODEGEN_ASSERT(upvalCount == unsigned(proto->nups));
- }
  if (typeSize != 0)
  {
  uint8_t* types = (uint8_t*)data + offset;
@@ -41001,10 +40678,7 @@ void loadBytecodeTypeInfo(IrFunction& function)
  }
  if (upvalCount != 0)
  {
- if (FFlag::LuauCodegenLoadTypeUpvalCheck)
- {
  CODEGEN_ASSERT(upvalCount == unsigned(proto->nups));
- }
  typeInfo.upvalueTypes.resize(upvalCount);
  uint8_t* types = (uint8_t*)data + offset;
  memcpy(typeInfo.upvalueTypes.data(), types, upvalCount);
@@ -41595,7 +41269,7 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  if (ch == 'x' || ch == 'y' || ch == 'z')
  regTags[ra] = LBC_TYPE_NUMBER;
  }
- if (FFlag::LuauCodegenAnalyzeHostVectorOps && regTags[ra] == LBC_TYPE_ANY && hostHooks.vectorAccessBytecodeType)
+ if (regTags[ra] == LBC_TYPE_ANY && hostHooks.vectorAccessBytecodeType)
  regTags[ra] = hostHooks.vectorAccessBytecodeType(field, str->len);
  }
  else if (isCustomUserdataBytecodeType(bcType.a))
@@ -41616,7 +41290,7 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  if (ch == 'x' || ch == 'y' || ch == 'z')
  regTags[ra] = LBC_TYPE_NUMBER;
  }
- if (FFlag::LuauCodegenAnalyzeHostVectorOps && regTags[ra] == LBC_TYPE_ANY && hostHooks.vectorAccessBytecodeType)
+ if (regTags[ra] == LBC_TYPE_ANY && hostHooks.vectorAccessBytecodeType)
  regTags[ra] = hostHooks.vectorAccessBytecodeType(field, str->len);
  }
  }
@@ -41965,14 +41639,14 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  {
  TString* str = gco2ts(function.proto->k[kc].value.gc);
  const char* field = getstr(str);
- if (FFlag::LuauCodegenAnalyzeHostVectorOps && bcType.a == LBC_TYPE_VECTOR && hostHooks.vectorNamecallBytecodeType)
+ if (bcType.a == LBC_TYPE_VECTOR && hostHooks.vectorNamecallBytecodeType)
  knownNextCallResult = LuauBytecodeType(hostHooks.vectorNamecallBytecodeType(field, str->len));
  else if (isCustomUserdataBytecodeType(bcType.a) && hostHooks.userdataNamecallBytecodeType)
  knownNextCallResult = LuauBytecodeType(hostHooks.userdataNamecallBytecodeType(bcType.a, field, str->len));
  }
  else
  {
- if (FFlag::LuauCodegenAnalyzeHostVectorOps && bcType.a == LBC_TYPE_VECTOR && hostHooks.vectorNamecallBytecodeType)
+ if (bcType.a == LBC_TYPE_VECTOR && hostHooks.vectorNamecallBytecodeType)
  {
  TString* str = gco2ts(function.proto->k[kc].value.gc);
  const char* field = getstr(str);
@@ -41983,8 +41657,6 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  }
  case LOP_CALL:
  {
- if (FFlag::LuauCodegenAnalyzeHostVectorOps)
- {
  int ra = LUAU_INSN_A(*pc);
  if (knownNextCallResult != LBC_TYPE_ANY)
  {
@@ -41993,7 +41665,6 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  regTags[ra] = bcType.result;
  }
  refineRegType(bcTypeInfo, ra, i, bcType.result);
- }
  break;
  }
  case LOP_GETUPVAL:
@@ -44103,6 +43774,7 @@ private:
 } // namespace CodeGen
 }
 #line __LINE__ "EmitBuiltinsX64.cpp"
+LUAU_FASTFLAG(LuauCodegenMathSign)
 namespace Luau
 {
 namespace CodeGen
@@ -44141,6 +43813,7 @@ static void emitBuiltinMathModf(IrRegAllocX64& regs, AssemblyBuilderX64& build, 
 }
 static void emitBuiltinMathSign(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, int arg)
 {
+ CODEGEN_ASSERT(!FFlag::LuauCodegenMathSign);
  ScopedRegX64 tmp0{regs, SizeX64::xmmword};
  ScopedRegX64 tmp1{regs, SizeX64::xmmword};
  ScopedRegX64 tmp2{regs, SizeX64::xmmword};
@@ -44166,6 +43839,7 @@ void emitBuiltin(IrRegAllocX64& regs, AssemblyBuilderX64& build, int bfid, int r
  CODEGEN_ASSERT(nresults == 1 || nresults == 2);
  return emitBuiltinMathModf(regs, build, ra, arg, nresults);
  case LBF_MATH_SIGN:
+ CODEGEN_ASSERT(!FFlag::LuauCodegenMathSign);
  CODEGEN_ASSERT(nresults == 1);
  return emitBuiltinMathSign(regs, build, ra, arg);
  default:
@@ -44177,7 +43851,6 @@ void emitBuiltin(IrRegAllocX64& regs, AssemblyBuilderX64& build, int bfid, int r
 }
 #line __LINE__ ""
 #line __LINE__ "EmitCommonX64.cpp"
-LUAU_FASTFLAGVARIABLE(LuauCodegenSplitDoarith, false)
 namespace Luau
 {
 namespace CodeGen
@@ -44286,8 +43959,6 @@ void callArithHelper(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, Ope
  callWrap.addArgument(SizeX64::qword, luauRegAddress(ra));
  callWrap.addArgument(SizeX64::qword, b);
  callWrap.addArgument(SizeX64::qword, c);
- if (FFlag::LuauCodegenSplitDoarith)
- {
  switch (tm)
  {
  case TM_ADD:
@@ -44317,12 +43988,6 @@ void callArithHelper(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, Ope
  default:
  CODEGEN_ASSERT(!"Invalid doarith helper operation tag");
  break;
- }
- }
- else
- {
- callWrap.addArgument(SizeX64::dword, tm);
- callWrap.call(qword[rNativeContext + offsetof(NativeContext, luaV_doarith)]);
  }
  emitUpdateBase(build);
 }
@@ -46120,6 +45785,8 @@ const char* getCmdName(IrCmd cmd)
  return "SQRT_NUM";
  case IrCmd::ABS_NUM:
  return "ABS_NUM";
+ case IrCmd::SIGN_NUM:
+ return "SIGN_NUM";
  case IrCmd::ADD_VEC:
  return "ADD_VEC";
  case IrCmd::SUB_VEC:
@@ -46895,11 +46562,11 @@ std::string dumpDot(const IrFunction& function, bool includeInst)
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "IrLoweringA64.cpp"
-LUAU_FASTFLAG(LuauCodegenSplitDoarith)
 LUAU_FASTFLAG(LuauCodegenUserdataOps)
 LUAU_FASTFLAGVARIABLE(LuauCodegenUserdataAlloc, false)
 LUAU_FASTFLAGVARIABLE(LuauCodegenUserdataOpsFixA64, false)
 LUAU_FASTFLAG(LuauCodegenFastcall3)
+LUAU_FASTFLAG(LuauCodegenMathSign)
 namespace Luau
 {
 namespace CodeGen
@@ -47076,6 +46743,7 @@ static bool emitBuiltin(AssemblyBuilderA64& build, IrFunction& function, IrRegAl
  }
  case LBF_MATH_SIGN:
  {
+ CODEGEN_ASSERT(!FFlag::LuauCodegenMathSign);
  CODEGEN_ASSERT(nresults == 1);
  build.ldr(d0, mem(rBase, arg * sizeof(TValue) + offsetof(TValue, value.n)));
  build.fcmpz(d0);
@@ -47503,6 +47171,21 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  inst.regA64 = regs.allocReuse(KindA64::d, index, {inst.a});
  RegisterA64 temp = tempDouble(inst.a);
  build.fabs(inst.regA64, temp);
+ break;
+ }
+ case IrCmd::SIGN_NUM:
+ {
+ CODEGEN_ASSERT(FFlag::LuauCodegenMathSign);
+ inst.regA64 = regs.allocReuse(KindA64::d, index, {inst.a});
+ RegisterA64 temp = tempDouble(inst.a);
+ RegisterA64 temp0 = regs.allocTemp(KindA64::d);
+ RegisterA64 temp1 = regs.allocTemp(KindA64::d);
+ build.fcmpz(temp);
+ build.fmov(temp0, 0.0);
+ build.fmov(temp1, 1.0);
+ build.fcsel(inst.regA64, temp1, temp0, getConditionFP(IrCondition::Greater));
+ build.fmov(temp1, -1.0);
+ build.fcsel(inst.regA64, temp1, inst.regA64, getConditionFP(IrCondition::Less));
  break;
  }
  case IrCmd::ADD_VEC:
@@ -48006,8 +47689,6 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  emitAddOffset(build, x3, rConstants, vmConstOp(inst.c) * sizeof(TValue));
  else
  build.add(x3, rBase, uint16_t(vmRegOp(inst.c) * sizeof(TValue)));
- if (FFlag::LuauCodegenSplitDoarith)
- {
  switch (TMS(intOp(inst.d)))
  {
  case TM_ADD:
@@ -48039,13 +47720,6 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  break;
  }
  build.blr(x4);
- }
- else
- {
- build.mov(w4, TMS(intOp(inst.d)));
- build.ldr(x5, mem(rNativeContext, offsetof(NativeContext, luaV_doarith)));
- build.blr(x5);
- }
  emitUpdateBase(build);
  break;
  case IrCmd::DO_LEN:
@@ -49273,6 +48947,7 @@ Label& IrLoweringA64::labelOp(IrOp op) const
 LUAU_FASTFLAG(LuauCodegenUserdataOps)
 LUAU_FASTFLAG(LuauCodegenUserdataAlloc)
 LUAU_FASTFLAG(LuauCodegenFastcall3)
+LUAU_FASTFLAG(LuauCodegenMathSign)
 namespace Luau
 {
 namespace CodeGen
@@ -49774,6 +49449,21 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  build.vmovsd(inst.regX64, inst.regX64, regOp(inst.a));
  build.vandpd(inst.regX64, inst.regX64, build.i64(~(1LL << 63)));
  break;
+ case IrCmd::SIGN_NUM:
+ {
+ CODEGEN_ASSERT(FFlag::LuauCodegenMathSign);
+ inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a});
+ ScopedRegX64 tmp0{regs, SizeX64::xmmword};
+ ScopedRegX64 tmp1{regs, SizeX64::xmmword};
+ ScopedRegX64 tmp2{regs, SizeX64::xmmword};
+ build.vxorpd(tmp0.reg, tmp0.reg, tmp0.reg);
+ build.vcmpltsd(tmp1.reg, regOp(inst.a), tmp0.reg);
+ build.vmovsd(tmp2.reg, build.f64(-1));
+ build.vandpd(tmp1.reg, tmp1.reg, tmp2.reg);
+ build.vcmpltsd(inst.regX64, tmp0.reg, regOp(inst.a));
+ build.vblendvpd(inst.regX64, tmp1.reg, build.f64x2(1, 1), inst.regX64);
+ break;
+ }
  case IrCmd::ADD_VEC:
  {
  inst.regX64 = regs.allocRegOrReuse(SizeX64::xmmword, index, {inst.a, inst.b});
@@ -51951,6 +51641,7 @@ BuiltinImplResult translateBuiltin(
 } // namespace Luau
 #line __LINE__ "IrTranslateBuiltins.cpp"
 LUAU_FASTFLAG(LuauCodegenFastcall3)
+LUAU_FASTFLAGVARIABLE(LuauCodegenMathSign, false)
 static const int kMinMaxUnrolledParams = 5;
 static const int kBit32BinaryOpUnrolledParams = 5;
 namespace Luau
@@ -51973,6 +51664,7 @@ static IrOp builtinLoadDouble(IrBuilder& build, IrOp arg)
 static BuiltinImplResult translateBuiltinNumberToNumber(
  IrBuilder& build, LuauBuiltinFunction bfid, int nparams, int ra, int arg, IrOp args, int nresults, int pcpos)
 {
+ CODEGEN_ASSERT(!FFlag::LuauCodegenMathSign);
  if (nparams < 1 || nresults > 1)
  return {BuiltinImplType::None, -1};
  builtinCheckDouble(build, build.vmReg(arg), pcpos);
@@ -52554,6 +52246,9 @@ BuiltinImplResult translateBuiltin(
  case LBF_MATH_LOG10:
  return translateBuiltinNumberToNumberLibm(build, LuauBuiltinFunction(bfid), nparams, ra, arg, nresults, pcpos);
  case LBF_MATH_SIGN:
+ if (FFlag::LuauCodegenMathSign)
+ return translateBuiltinMathUnary(build, IrCmd::SIGN_NUM, nparams, ra, arg, nresults, pcpos);
+ else
  return translateBuiltinNumberToNumber(build, LuauBuiltinFunction(bfid), nparams, ra, arg, args, nresults, pcpos);
  case LBF_MATH_POW:
  case LBF_MATH_FMOD:
@@ -52639,7 +52334,6 @@ BuiltinImplResult translateBuiltin(
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "IrTranslation.cpp"
-LUAU_FASTFLAG(LuauCodegenAnalyzeHostVectorOps)
 LUAU_FASTFLAG(LuauCodegenUserdataOps)
 LUAU_FASTFLAG(LuauCodegenFastcall3)
 namespace Luau
@@ -53561,8 +53255,7 @@ void translateInstGetTableKS(IrBuilder& build, const Instruction* pc, int pcpos)
  }
  else
  {
- if (FFlag::LuauCodegenAnalyzeHostVectorOps && build.hostHooks.vectorAccess &&
- build.hostHooks.vectorAccess(build, field, str->len, ra, rb, pcpos))
+ if (build.hostHooks.vectorAccess && build.hostHooks.vectorAccess(build, field, str->len, ra, rb, pcpos))
  return;
  build.inst(IrCmd::FALLBACK_GETTABLEKS, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
  }
@@ -53691,7 +53384,7 @@ bool translateInstNamecall(IrBuilder& build, const Instruction* pc, int pcpos)
  if (bcTypes.a == LBC_TYPE_VECTOR)
  {
  build.loadAndCheckTag(build.vmReg(rb), LUA_TVECTOR, build.vmExit(pcpos));
- if (FFlag::LuauCodegenAnalyzeHostVectorOps && build.hostHooks.vectorNamecall)
+ if (build.hostHooks.vectorNamecall)
  {
  Instruction call = pc[2];
  CODEGEN_ASSERT(LUAU_INSN_OP(call) == LOP_CALL);
@@ -53913,6 +53606,7 @@ IrValueKind getCmdValueKind(IrCmd cmd)
  case IrCmd::ROUND_NUM:
  case IrCmd::SQRT_NUM:
  case IrCmd::ABS_NUM:
+ case IrCmd::SIGN_NUM:
  return IrValueKind::Double;
  case IrCmd::ADD_VEC:
  case IrCmd::SUB_VEC:
@@ -54418,6 +54112,13 @@ void foldConstants(IrBuilder& build, IrFunction& function, IrBlock& block, uint3
  case IrCmd::ABS_NUM:
  if (inst.a.kind == IrOpKind::Constant)
  substitute(function, inst, build.constDouble(fabs(function.doubleOp(inst.a))));
+ break;
+ case IrCmd::SIGN_NUM:
+ if (inst.a.kind == IrOpKind::Constant)
+ {
+ double v = function.doubleOp(inst.a);
+ substitute(function, inst, build.constDouble(v > 0.0 ? 1.0 : v < 0.0 ? -1.0 : 0.0));
+ }
  break;
  case IrCmd::NOT_ANY:
  if (inst.a.kind == IrOpKind::Constant)
@@ -55002,7 +54703,6 @@ void initFunctions(NativeContext& context)
  context.luaV_lessthan = luaV_lessthan;
  context.luaV_lessequal = luaV_lessequal;
  context.luaV_equalval = luaV_equalval;
- context.luaV_doarith = luaV_doarith;
  context.luaV_doarithadd = luaV_doarithimpl<TM_ADD>;
  context.luaV_doarithsub = luaV_doarithimpl<TM_SUB>;
  context.luaV_doarithmul = luaV_doarithimpl<TM_MUL>;
@@ -55079,10 +54779,10 @@ LUAU_FASTINTVARIABLE(LuauCodeGenMinLinearBlockPath, 3)
 LUAU_FASTINTVARIABLE(LuauCodeGenReuseSlotLimit, 64)
 LUAU_FASTINTVARIABLE(LuauCodeGenReuseUdataTagLimit, 64)
 LUAU_FASTFLAGVARIABLE(DebugLuauAbortingChecks, false)
-LUAU_FASTFLAGVARIABLE(LuauCodegenFixSplitStoreConstMismatch, false)
 LUAU_FASTFLAG(LuauCodegenUserdataOps)
 LUAU_FASTFLAG(LuauCodegenUserdataAlloc)
 LUAU_FASTFLAG(LuauCodegenFastcall3)
+LUAU_FASTFLAG(LuauCodegenMathSign)
 namespace Luau
 {
 namespace CodeGen
@@ -55663,8 +55363,6 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  value = IrOp{IrOpKind::Inst, activeLoadValue};
  }
  }
- if (FFlag::LuauCodegenFixSplitStoreConstMismatch)
- {
  bool canSplitTvalueStore = false;
  if (tag == LUA_TBOOLEAN &&
  (value.kind == IrOpKind::Inst || (value.kind == IrOpKind::Constant && function.constOp(value).kind == IrConstKind::Int)))
@@ -55683,20 +55381,6 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  else if (inst.a.kind == IrOpKind::VmReg)
  {
  state.forwardVmRegStoreToLoad(inst, IrCmd::LOAD_TVALUE);
- }
- }
- else
- {
- if (tag != 0xff && value.kind != IrOpKind::None && (tag == LUA_TBOOLEAN || tag == LUA_TNUMBER || isGCO(tag)))
- {
- replace(function, block, index, {IrCmd::STORE_SPLIT_TVALUE, inst.a, build.constTag(tag), value, inst.c});
- if (inst.a.kind == IrOpKind::VmReg && activeLoadValue != kInvalidInstIdx)
- state.valueMap[state.versionedVmRegLoad(activeLoadCmd, inst.a)] = activeLoadValue;
- }
- else if (inst.a.kind == IrOpKind::VmReg)
- {
- state.forwardVmRegStoreToLoad(inst, IrCmd::LOAD_TVALUE);
- }
  }
  }
  break;
@@ -56021,6 +55705,7 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  state.updateTag(IrOp{IrOpKind::VmReg, uint8_t(firstReturnReg + 1)}, LUA_TNUMBER);
  break;
  case LBF_MATH_SIGN:
+ CODEGEN_ASSERT(!FFlag::LuauCodegenMathSign);
  state.updateTag(IrOp{IrOpKind::VmReg, uint8_t(firstReturnReg)}, LUA_TNUMBER);
  break;
  default:
@@ -56080,6 +55765,7 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  case IrCmd::ROUND_NUM:
  case IrCmd::SQRT_NUM:
  case IrCmd::ABS_NUM:
+ case IrCmd::SIGN_NUM:
  case IrCmd::NOT_ANY:
  state.substituteOrRecord(inst, index);
  break;

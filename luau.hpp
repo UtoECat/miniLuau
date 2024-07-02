@@ -469,7 +469,7 @@ struct lua_CompileOptions
  const char* vectorCtor;
  const char* vectorType;
  const char* const* mutableGlobals;
- const char* const* userdataTypes = nullptr;
+ const char* const* userdataTypes;
 };
 LUACODE_API char* luau_compile(const char* source, size_t size, lua_CompileOptions* options, size_t* outsize);
 #line __LINE__ ""
