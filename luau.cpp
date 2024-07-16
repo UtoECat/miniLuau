@@ -16023,7 +16023,6 @@ void luau_poscall(lua_State* L, StkId first)
 }
 #line __LINE__ ""
 #line __LINE__ "lvmload.cpp"
-LUAU_FASTFLAGVARIABLE(LuauLoadUserdataInfo, false)
 template<typename T>
 struct TempBuffer
 {
@@ -16153,7 +16152,6 @@ static void resolveImportSafe(lua_State* L, Table* env, TValue* k, uint32_t id)
 }
 static void remapUserdataTypes(char* data, size_t size, uint8_t* userdataRemapping, uint32_t count)
 {
- LUAU_ASSERT(FFlag::LuauLoadUserdataInfo);
  size_t offset = 0;
  uint32_t typeSize = readVarInt(data, size, offset);
  uint32_t upvalCount = readVarInt(data, size, offset);
@@ -16220,16 +16218,13 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  if (version >= 4)
  {
  typesversion = read<uint8_t>(data, size, offset);
- if (FFlag::LuauLoadUserdataInfo)
- {
  if (typesversion < LBC_TYPE_VERSION_MIN || typesversion > LBC_TYPE_VERSION_MAX)
  {
  char chunkbuf[LUA_IDSIZE];
  const char* chunkid = luaO_chunkid(chunkbuf, sizeof(chunkbuf), chunkname, strlen(chunkname));
- lua_pushfstring(L, "%s: bytecode type version mismatch (expected [%d..%d], got %d)", chunkid, LBC_TYPE_VERSION_MIN,
- LBC_TYPE_VERSION_MAX, typesversion);
+ lua_pushfstring(L, "%s: bytecode type version mismatch (expected [%d..%d], got %d)", chunkid, LBC_TYPE_VERSION_MIN, LBC_TYPE_VERSION_MAX,
+ typesversion);
  return 1;
- }
  }
  }
  unsigned int stringCount = readVarInt(data, size, offset);
@@ -16242,7 +16237,7 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  }
  const uint32_t userdataTypeLimit = LBC_TYPE_TAGGED_USERDATA_END - LBC_TYPE_TAGGED_USERDATA_BASE;
  uint8_t userdataRemapping[userdataTypeLimit];
- if (FFlag::LuauLoadUserdataInfo && typesversion == 3)
+ if (typesversion == 3)
  {
  memset(userdataRemapping, LBC_TYPE_USERDATA, userdataTypeLimit);
  uint8_t index = read<uint8_t>(data, size, offset);
@@ -16300,7 +16295,7 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  }
  offset += typesize;
  }
- else if (typesversion == 2 || (FFlag::LuauLoadUserdataInfo && typesversion == 3))
+ else if (typesversion == 2 || typesversion == 3)
  {
  uint32_t typesize = readVarInt(data, size, offset);
  if (typesize)
@@ -16310,7 +16305,7 @@ int luau_load(lua_State* L, const char* chunkname, const char* data, size_t size
  p->sizetypeinfo = typesize;
  memcpy(p->typeinfo, types, typesize);
  offset += typesize;
- if (FFlag::LuauLoadUserdataInfo && typesversion == 3)
+ if (typesversion == 3)
  {
  remapUserdataTypes((char*)(uint8_t*)p->typeinfo, p->sizetypeinfo, userdataRemapping, userdataTypeLimit);
  }
@@ -34702,8 +34697,6 @@ void afterInstForNLoop(IrBuilder& build, const Instruction* pc);
 }
 } // namespace Luau
 #line __LINE__ "IrBuilder.cpp"
-LUAU_FASTFLAG(LuauLoadUserdataInfo)
-LUAU_FASTFLAG(LuauCodegenInstG)
 LUAU_FASTFLAG(LuauCodegenFastcall3)
 namespace Luau
 {
@@ -34777,8 +34770,6 @@ static void buildArgumentTypeChecks(IrBuilder& build)
  build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TBUFFER), build.vmExit(kVmExitEntryGuardPc));
  break;
  default:
- if (FFlag::LuauLoadUserdataInfo)
- {
  if (tag >= LBC_TYPE_TAGGED_USERDATA_BASE && tag < LBC_TYPE_TAGGED_USERDATA_END)
  {
  build.inst(IrCmd::CHECK_TAG, load, build.constTag(LUA_TUSERDATA), build.vmExit(kVmExitEntryGuardPc));
@@ -34786,7 +34777,6 @@ static void buildArgumentTypeChecks(IrBuilder& build)
  else
  {
  CODEGEN_ASSERT(!"unknown argument type tag");
- }
  }
  break;
  }
@@ -35239,7 +35229,6 @@ void IrBuilder::clone(const IrBlock& source, bool removeCurrentTerminator)
  redirect(clone.d);
  redirect(clone.e);
  redirect(clone.f);
- if (FFlag::LuauCodegenInstG)
  redirect(clone.g);
  addUse(function, clone.a);
  addUse(function, clone.b);
@@ -35247,13 +35236,9 @@ void IrBuilder::clone(const IrBlock& source, bool removeCurrentTerminator)
  addUse(function, clone.d);
  addUse(function, clone.e);
  addUse(function, clone.f);
- if (FFlag::LuauCodegenInstG)
  addUse(function, clone.g);
  instRedir[index] = uint32_t(function.instructions.size());
- if (FFlag::LuauCodegenInstG)
  inst(clone.cmd, clone.a, clone.b, clone.c, clone.d, clone.e, clone.f, clone.g);
- else
- inst(clone.cmd, clone.a, clone.b, clone.c, clone.d, clone.e, clone.f);
  }
 }
 IrOp IrBuilder::undef()
@@ -35331,26 +35316,10 @@ IrOp IrBuilder::inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e)
 }
 IrOp IrBuilder::inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e, IrOp f)
 {
- if (FFlag::LuauCodegenInstG)
- {
  return inst(cmd, a, b, c, d, e, f, {});
- }
- else
- {
- uint32_t index = uint32_t(function.instructions.size());
- function.instructions.push_back({cmd, a, b, c, d, e, f});
- CODEGEN_ASSERT(!inTerminatedBlock);
- if (isBlockTerminator(cmd))
- {
- function.blocks[activeBlockIdx].finish = index;
- inTerminatedBlock = true;
- }
- return {IrOpKind::Inst, index};
- }
 }
 IrOp IrBuilder::inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e, IrOp f, IrOp g)
 {
- CODEGEN_ASSERT(FFlag::LuauCodegenInstG);
  uint32_t index = uint32_t(function.instructions.size());
  function.instructions.push_back({cmd, a, b, c, d, e, f, g});
  CODEGEN_ASSERT(!inTerminatedBlock);
@@ -36665,9 +36634,7 @@ void toString(IrToStringContext& ctx, const IrInst& inst, uint32_t index);
 void toString(IrToStringContext& ctx, const IrBlock& block, uint32_t index);
 void toString(IrToStringContext& ctx, IrOp op);
 void toString(std::string& result, IrConst constant);
-const char* getBytecodeTypeName_DEPRECATED(uint8_t type);
 const char* getBytecodeTypeName(uint8_t type, const char* const* userdataTypes);
-void toString_DEPRECATED(std::string& result, const BytecodeTypes& bcTypes);
 void toString(std::string& result, const BytecodeTypes& bcTypes, const char* const* userdataTypes);
 void toStringDetailed(
  IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, const IrInst& inst, uint32_t instIdx, IncludeUseInfo includeUseInfo);
@@ -37021,7 +36988,6 @@ LUAU_FASTFLAG(DebugCodegenSkipNumbering)
 LUAU_FASTINT(CodegenHeuristicsInstructionLimit)
 LUAU_FASTINT(CodegenHeuristicsBlockLimit)
 LUAU_FASTINT(CodegenHeuristicsBlockInstructionLimit)
-LUAU_FASTFLAG(LuauLoadUserdataInfo)
 LUAU_FASTFLAG(LuauNativeAttribute)
 namespace Luau
 {
@@ -37121,10 +37087,7 @@ inline bool lowerImpl(AssemblyBuilder& build, IrLowering& lowering, IrFunction& 
  BytecodeTypes bcTypes = function.getBytecodeTypesAt(bcLocation);
  if (bcTypes.result != LBC_TYPE_ANY || bcTypes.a != LBC_TYPE_ANY || bcTypes.b != LBC_TYPE_ANY || bcTypes.c != LBC_TYPE_ANY)
  {
- if (FFlag::LuauLoadUserdataInfo)
  toString(ctx.result, bcTypes, options.compilationOptions.userdataTypes);
- else
- toString_DEPRECATED(ctx.result, bcTypes);
  build.logAppend("\n");
  }
  }
@@ -40622,7 +40585,6 @@ const char* AssemblyBuilderX64::getRegisterName(RegisterX64 reg) const
 }
 #line __LINE__ ""
 #line __LINE__ "BytecodeAnalysis.cpp"
-LUAU_FASTFLAGVARIABLE(LuauCodegenUserdataOps, false)
 LUAU_FASTFLAGVARIABLE(LuauCodegenFastcall3, false)
 namespace Luau
 {
@@ -41257,8 +41219,6 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  bcType.a = regTags[rb];
  bcType.b = getBytecodeConstantTag(proto, kc);
  regTags[ra] = LBC_TYPE_ANY;
- if (FFlag::LuauCodegenUserdataOps)
- {
  TString* str = gco2ts(function.proto->k[kc].value.gc);
  const char* field = getstr(str);
  if (bcType.a == LBC_TYPE_VECTOR)
@@ -41276,23 +41236,6 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  {
  if (regTags[ra] == LBC_TYPE_ANY && hostHooks.userdataAccessBytecodeType)
  regTags[ra] = hostHooks.userdataAccessBytecodeType(bcType.a, field, str->len);
- }
- }
- else
- {
- if (bcType.a == LBC_TYPE_VECTOR)
- {
- TString* str = gco2ts(function.proto->k[kc].value.gc);
- const char* field = getstr(str);
- if (str->len == 1)
- {
- char ch = field[0] | ' ';
- if (ch == 'x' || ch == 'y' || ch == 'z')
- regTags[ra] = LBC_TYPE_NUMBER;
- }
- if (regTags[ra] == LBC_TYPE_ANY && hostHooks.vectorAccessBytecodeType)
- regTags[ra] = hostHooks.vectorAccessBytecodeType(field, str->len);
- }
  }
  bcType.result = regTags[ra];
  break;
@@ -41325,7 +41268,7 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  regTags[ra] = LBC_TYPE_NUMBER;
  else if (bcType.a == LBC_TYPE_VECTOR && bcType.b == LBC_TYPE_VECTOR)
  regTags[ra] = LBC_TYPE_VECTOR;
- else if (FFlag::LuauCodegenUserdataOps && hostHooks.userdataMetamethodBytecodeType &&
+ else if (hostHooks.userdataMetamethodBytecodeType &&
  (isCustomUserdataBytecodeType(bcType.a) || isCustomUserdataBytecodeType(bcType.b)))
  regTags[ra] = hostHooks.userdataMetamethodBytecodeType(bcType.a, bcType.b, opcodeToHostMetamethod(op));
  bcType.result = regTags[ra];
@@ -41353,7 +41296,7 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  if (bcType.b == LBC_TYPE_NUMBER || bcType.b == LBC_TYPE_VECTOR)
  regTags[ra] = LBC_TYPE_VECTOR;
  }
- else if (FFlag::LuauCodegenUserdataOps && hostHooks.userdataMetamethodBytecodeType &&
+ else if (hostHooks.userdataMetamethodBytecodeType &&
  (isCustomUserdataBytecodeType(bcType.a) || isCustomUserdataBytecodeType(bcType.b)))
  {
  regTags[ra] = hostHooks.userdataMetamethodBytecodeType(bcType.a, bcType.b, opcodeToHostMetamethod(op));
@@ -41372,7 +41315,7 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  regTags[ra] = LBC_TYPE_ANY;
  if (bcType.a == LBC_TYPE_NUMBER && bcType.b == LBC_TYPE_NUMBER)
  regTags[ra] = LBC_TYPE_NUMBER;
- else if (FFlag::LuauCodegenUserdataOps && hostHooks.userdataMetamethodBytecodeType &&
+ else if (hostHooks.userdataMetamethodBytecodeType &&
  (isCustomUserdataBytecodeType(bcType.a) || isCustomUserdataBytecodeType(bcType.b)))
  regTags[ra] = hostHooks.userdataMetamethodBytecodeType(bcType.a, bcType.b, opcodeToHostMetamethod(op));
  bcType.result = regTags[ra];
@@ -41391,7 +41334,7 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  regTags[ra] = LBC_TYPE_NUMBER;
  else if (bcType.a == LBC_TYPE_VECTOR && bcType.b == LBC_TYPE_VECTOR)
  regTags[ra] = LBC_TYPE_VECTOR;
- else if (FFlag::LuauCodegenUserdataOps && hostHooks.userdataMetamethodBytecodeType &&
+ else if (hostHooks.userdataMetamethodBytecodeType &&
  (isCustomUserdataBytecodeType(bcType.a) || isCustomUserdataBytecodeType(bcType.b)))
  regTags[ra] = hostHooks.userdataMetamethodBytecodeType(bcType.a, bcType.b, opcodeToHostMetamethod(op));
  bcType.result = regTags[ra];
@@ -41419,7 +41362,7 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  if (bcType.b == LBC_TYPE_NUMBER || bcType.b == LBC_TYPE_VECTOR)
  regTags[ra] = LBC_TYPE_VECTOR;
  }
- else if (FFlag::LuauCodegenUserdataOps && hostHooks.userdataMetamethodBytecodeType &&
+ else if (hostHooks.userdataMetamethodBytecodeType &&
  (isCustomUserdataBytecodeType(bcType.a) || isCustomUserdataBytecodeType(bcType.b)))
  {
  regTags[ra] = hostHooks.userdataMetamethodBytecodeType(bcType.a, bcType.b, opcodeToHostMetamethod(op));
@@ -41438,7 +41381,7 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  regTags[ra] = LBC_TYPE_ANY;
  if (bcType.a == LBC_TYPE_NUMBER && bcType.b == LBC_TYPE_NUMBER)
  regTags[ra] = LBC_TYPE_NUMBER;
- else if (FFlag::LuauCodegenUserdataOps && hostHooks.userdataMetamethodBytecodeType &&
+ else if (hostHooks.userdataMetamethodBytecodeType &&
  (isCustomUserdataBytecodeType(bcType.a) || isCustomUserdataBytecodeType(bcType.b)))
  regTags[ra] = hostHooks.userdataMetamethodBytecodeType(bcType.a, bcType.b, opcodeToHostMetamethod(op));
  bcType.result = regTags[ra];
@@ -41456,7 +41399,7 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  regTags[ra] = LBC_TYPE_NUMBER;
  else if (bcType.a == LBC_TYPE_VECTOR && bcType.b == LBC_TYPE_VECTOR)
  regTags[ra] = LBC_TYPE_VECTOR;
- else if (FFlag::LuauCodegenUserdataOps && hostHooks.userdataMetamethodBytecodeType &&
+ else if (hostHooks.userdataMetamethodBytecodeType &&
  (isCustomUserdataBytecodeType(bcType.a) || isCustomUserdataBytecodeType(bcType.b)))
  regTags[ra] = hostHooks.userdataMetamethodBytecodeType(bcType.a, bcType.b, opcodeToHostMetamethod(op));
  bcType.result = regTags[ra];
@@ -41482,7 +41425,7 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  if (bcType.b == LBC_TYPE_NUMBER || bcType.b == LBC_TYPE_VECTOR)
  regTags[ra] = LBC_TYPE_VECTOR;
  }
- else if (FFlag::LuauCodegenUserdataOps && hostHooks.userdataMetamethodBytecodeType &&
+ else if (hostHooks.userdataMetamethodBytecodeType &&
  (isCustomUserdataBytecodeType(bcType.a) || isCustomUserdataBytecodeType(bcType.b)))
  {
  regTags[ra] = hostHooks.userdataMetamethodBytecodeType(bcType.a, bcType.b, opcodeToHostMetamethod(op));
@@ -41509,7 +41452,7 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  regTags[ra] = LBC_TYPE_NUMBER;
  else if (bcType.a == LBC_TYPE_VECTOR)
  regTags[ra] = LBC_TYPE_VECTOR;
- else if (FFlag::LuauCodegenUserdataOps && hostHooks.userdataMetamethodBytecodeType && isCustomUserdataBytecodeType(bcType.a))
+ else if (hostHooks.userdataMetamethodBytecodeType && isCustomUserdataBytecodeType(bcType.a))
  regTags[ra] = hostHooks.userdataMetamethodBytecodeType(bcType.a, LBC_TYPE_ANY, HostMetamethod::Minus);
  bcType.result = regTags[ra];
  break;
@@ -41635,24 +41578,12 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks)
  regTags[ra] = LBC_TYPE_FUNCTION;
  regTags[ra + 1] = bcType.a;
  bcType.result = LBC_TYPE_FUNCTION;
- if (FFlag::LuauCodegenUserdataOps)
- {
  TString* str = gco2ts(function.proto->k[kc].value.gc);
  const char* field = getstr(str);
  if (bcType.a == LBC_TYPE_VECTOR && hostHooks.vectorNamecallBytecodeType)
  knownNextCallResult = LuauBytecodeType(hostHooks.vectorNamecallBytecodeType(field, str->len));
  else if (isCustomUserdataBytecodeType(bcType.a) && hostHooks.userdataNamecallBytecodeType)
  knownNextCallResult = LuauBytecodeType(hostHooks.userdataNamecallBytecodeType(bcType.a, field, str->len));
- }
- else
- {
- if (bcType.a == LBC_TYPE_VECTOR && hostHooks.vectorNamecallBytecodeType)
- {
- TString* str = gco2ts(function.proto->k[kc].value.gc);
- const char* field = getstr(str);
- knownNextCallResult = LuauBytecodeType(hostHooks.vectorNamecallBytecodeType(field, str->len));
- }
- }
  break;
  }
  case LOP_CALL:
@@ -42553,7 +42484,6 @@ void assembleHelpers(AssemblyBuilderA64& build, ModuleHelpers& helpers)
 }
 #line __LINE__ ""
 #line __LINE__ "CodeGenAssembly.cpp"
-LUAU_FASTFLAG(LuauLoadUserdataInfo)
 LUAU_FASTFLAG(LuauNativeAttribute)
 namespace Luau
 {
@@ -42610,44 +42540,8 @@ static void logFunctionHeader(AssemblyBuilder& build, Proto* proto)
  build.logAppend("\n");
 }
 template<typename AssemblyBuilder>
-static void logFunctionTypes_DEPRECATED(AssemblyBuilder& build, const IrFunction& function)
-{
- CODEGEN_ASSERT(!FFlag::LuauLoadUserdataInfo);
- const BytecodeTypeInfo& typeInfo = function.bcTypeInfo;
- for (size_t i = 0; i < typeInfo.argumentTypes.size(); i++)
- {
- uint8_t ty = typeInfo.argumentTypes[i];
- if (ty != LBC_TYPE_ANY)
- {
- if (const char* name = tryFindLocalName(function.proto, int(i), 0))
- build.logAppend("; R%d: %s [argument '%s']\n", int(i), getBytecodeTypeName_DEPRECATED(ty), name);
- else
- build.logAppend("; R%d: %s [argument]\n", int(i), getBytecodeTypeName_DEPRECATED(ty));
- }
- }
- for (size_t i = 0; i < typeInfo.upvalueTypes.size(); i++)
- {
- uint8_t ty = typeInfo.upvalueTypes[i];
- if (ty != LBC_TYPE_ANY)
- {
- if (const char* name = tryFindUpvalueName(function.proto, int(i)))
- build.logAppend("; U%d: %s ['%s']\n", int(i), getBytecodeTypeName_DEPRECATED(ty), name);
- else
- build.logAppend("; U%d: %s\n", int(i), getBytecodeTypeName_DEPRECATED(ty));
- }
- }
- for (const BytecodeRegTypeInfo& el : typeInfo.regTypes)
- {
- if (const char* name = tryFindLocalName(function.proto, el.reg, el.endpc - 1))
- build.logAppend("; R%d: %s from %d to %d [local '%s']\n", el.reg, getBytecodeTypeName_DEPRECATED(el.type), el.startpc, el.endpc, name);
- else
- build.logAppend("; R%d: %s from %d to %d\n", el.reg, getBytecodeTypeName_DEPRECATED(el.type), el.startpc, el.endpc);
- }
-}
-template<typename AssemblyBuilder>
 static void logFunctionTypes(AssemblyBuilder& build, const IrFunction& function, const char* const* userdataTypes)
 {
- CODEGEN_ASSERT(FFlag::LuauLoadUserdataInfo);
  const BytecodeTypeInfo& typeInfo = function.bcTypeInfo;
  for (size_t i = 0; i < typeInfo.argumentTypes.size(); i++)
  {
@@ -42734,12 +42628,7 @@ static std::string getAssemblyImpl(AssemblyBuilder& build, const TValue* func, A
  if (options.includeAssembly || options.includeIr)
  logFunctionHeader(build, p);
  if (options.includeIrTypes)
- {
- if (FFlag::LuauLoadUserdataInfo)
  logFunctionTypes(build, ir.function, options.compilationOptions.userdataTypes);
- else
- logFunctionTypes_DEPRECATED(build, ir.function);
- }
  CodeGenCompilationResult result = CodeGenCompilationResult::Success;
  if (!lowerFunction(ir, build, helpers, p, options, stats, result))
  {
@@ -44730,7 +44619,6 @@ static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrBlock& 
 }
 } // namespace Luau
 #line __LINE__ "IrAnalysis.cpp"
-LUAU_FASTFLAGVARIABLE(LuauCodegenInstG, false)
 namespace Luau
 {
 namespace CodeGen
@@ -44765,7 +44653,6 @@ void updateUseCounts(IrFunction& function)
  checkOp(inst.d);
  checkOp(inst.e);
  checkOp(inst.f);
- if (FFlag::LuauCodegenInstG)
  checkOp(inst.g);
  }
 }
@@ -44800,7 +44687,6 @@ void updateLastUseLocations(IrFunction& function, const std::vector<uint32_t>& s
  checkOp(inst.d);
  checkOp(inst.e);
  checkOp(inst.f);
- if (FFlag::LuauCodegenInstG)
  checkOp(inst.g);
  }
  }
@@ -44826,11 +44712,8 @@ uint32_t getNextInstUse(IrFunction& function, uint32_t targetInstIdx, uint32_t s
  return i;
  if (inst.f.kind == IrOpKind::Inst && inst.f.index == targetInstIdx)
  return i;
- if (FFlag::LuauCodegenInstG)
- {
  if (inst.g.kind == IrOpKind::Inst && inst.g.index == targetInstIdx)
  return i;
- }
  }
  CODEGEN_ASSERT(!"Failed to find next use");
  return targetInst.lastUse;
@@ -44860,7 +44743,6 @@ std::pair<uint32_t, uint32_t> getLiveInOutValueCount(IrFunction& function, IrBlo
  checkOp(inst.d);
  checkOp(inst.e);
  checkOp(inst.f);
- if (FFlag::LuauCodegenInstG)
  checkOp(inst.g);
  }
  return std::make_pair(liveIns, liveOuts);
@@ -45090,7 +44972,6 @@ static void computeCfgBlockEdges(IrFunction& function)
  checkOp(inst.d);
  checkOp(inst.e);
  checkOp(inst.f);
- if (FFlag::LuauCodegenInstG)
  checkOp(inst.g);
  }
  }
@@ -45646,8 +45527,6 @@ void IrCallWrapperX64::removeRegisterUse(RegisterX64 reg)
 }
 #line __LINE__ ""
 #line __LINE__ "IrDump.cpp"
-LUAU_FASTFLAG(LuauLoadUserdataInfo)
-LUAU_FASTFLAG(LuauCodegenInstG)
 namespace Luau
 {
 namespace CodeGen
@@ -46042,7 +45921,6 @@ void toString(IrToStringContext& ctx, const IrInst& inst, uint32_t index)
  checkOp(inst.d, ", ");
  checkOp(inst.e, ", ");
  checkOp(inst.f, ", ");
- if (FFlag::LuauCodegenInstG)
  checkOp(inst.g, ", ");
 }
 void toString(IrToStringContext& ctx, const IrBlock& block, uint32_t index)
@@ -46109,40 +45987,8 @@ void toString(std::string& result, IrConst constant)
  break;
  }
 }
-const char* getBytecodeTypeName_DEPRECATED(uint8_t type)
-{
- CODEGEN_ASSERT(!FFlag::LuauLoadUserdataInfo);
- switch (type & ~LBC_TYPE_OPTIONAL_BIT)
- {
- case LBC_TYPE_NIL:
- return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "nil?" : "nil";
- case LBC_TYPE_BOOLEAN:
- return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "boolean?" : "boolean";
- case LBC_TYPE_NUMBER:
- return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "number?" : "number";
- case LBC_TYPE_STRING:
- return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "string?" : "string";
- case LBC_TYPE_TABLE:
- return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "table?" : "table";
- case LBC_TYPE_FUNCTION:
- return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "function?" : "function";
- case LBC_TYPE_THREAD:
- return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "thread?" : "thread";
- case LBC_TYPE_USERDATA:
- return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "userdata?" : "userdata";
- case LBC_TYPE_VECTOR:
- return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "vector?" : "vector";
- case LBC_TYPE_BUFFER:
- return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "buffer?" : "buffer";
- case LBC_TYPE_ANY:
- return (type & LBC_TYPE_OPTIONAL_BIT) != 0 ? "any?" : "any";
- }
- CODEGEN_ASSERT(!"Unhandled type in getBytecodeTypeName");
- return nullptr;
-}
 const char* getBytecodeTypeName(uint8_t type, const char* const* userdataTypes)
 {
- CODEGEN_ASSERT(FFlag::LuauLoadUserdataInfo);
  type = type & ~LBC_TYPE_OPTIONAL_BIT;
  if (type >= LBC_TYPE_TAGGED_USERDATA_BASE && type < LBC_TYPE_TAGGED_USERDATA_END)
  {
@@ -46178,19 +46024,8 @@ const char* getBytecodeTypeName(uint8_t type, const char* const* userdataTypes)
  CODEGEN_ASSERT(!"Unhandled type in getBytecodeTypeName");
  return nullptr;
 }
-void toString_DEPRECATED(std::string& result, const BytecodeTypes& bcTypes)
-{
- CODEGEN_ASSERT(!FFlag::LuauLoadUserdataInfo);
- if (bcTypes.c != LBC_TYPE_ANY)
- append(result, "%s <- %s, %s, %s", getBytecodeTypeName_DEPRECATED(bcTypes.result), getBytecodeTypeName_DEPRECATED(bcTypes.a),
- getBytecodeTypeName_DEPRECATED(bcTypes.b), getBytecodeTypeName_DEPRECATED(bcTypes.c));
- else
- append(result, "%s <- %s, %s", getBytecodeTypeName_DEPRECATED(bcTypes.result), getBytecodeTypeName_DEPRECATED(bcTypes.a),
- getBytecodeTypeName_DEPRECATED(bcTypes.b));
-}
 void toString(std::string& result, const BytecodeTypes& bcTypes, const char* const* userdataTypes)
 {
- CODEGEN_ASSERT(FFlag::LuauLoadUserdataInfo);
  append(result, "%s%s", getBytecodeTypeName(bcTypes.result, userdataTypes), (bcTypes.result & LBC_TYPE_OPTIONAL_BIT) != 0 ? "?" : "");
  append(result, " <- ");
  append(result, "%s%s", getBytecodeTypeName(bcTypes.a, userdataTypes), (bcTypes.a & LBC_TYPE_OPTIONAL_BIT) != 0 ? "?" : "");
@@ -46251,7 +46086,7 @@ static RegisterSet getJumpTargetExtraLiveIn(IrToStringContext& ctx, const IrBloc
  op = inst.e;
  else if (inst.f.kind == IrOpKind::Block)
  op = inst.f;
- else if (FFlag::LuauCodegenInstG && inst.g.kind == IrOpKind::Block)
+ else if (inst.g.kind == IrOpKind::Block)
  op = inst.g;
  if (op.kind == IrOpKind::Block && op.index < ctx.cfg.in.size())
  {
@@ -46471,7 +46306,6 @@ std::string toDot(const IrFunction& function, bool includeInst)
  checkOp(inst.d);
  checkOp(inst.e);
  checkOp(inst.f);
- if (FFlag::LuauCodegenInstG)
  checkOp(inst.g);
  }
  }
@@ -46562,9 +46396,6 @@ std::string dumpDot(const IrFunction& function, bool includeInst)
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "IrLoweringA64.cpp"
-LUAU_FASTFLAG(LuauCodegenUserdataOps)
-LUAU_FASTFLAGVARIABLE(LuauCodegenUserdataAlloc, false)
-LUAU_FASTFLAGVARIABLE(LuauCodegenUserdataOpsFixA64, false)
 LUAU_FASTFLAG(LuauCodegenFastcall3)
 LUAU_FASTFLAG(LuauCodegenMathSign)
 namespace Luau
@@ -47495,7 +47326,6 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  case IrCmd::NEW_USERDATA:
  {
- CODEGEN_ASSERT(FFlag::LuauCodegenUserdataAlloc);
  regs.spill(build, index);
  build.mov(x0, rState);
  build.mov(x1, intOp(inst.a));
@@ -48037,15 +47867,11 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  case IrCmd::CHECK_USERDATA_TAG:
  {
- CODEGEN_ASSERT(FFlag::LuauCodegenUserdataOps);
  Label fresh;
  Label& fail = getTargetLabel(inst.c, fresh);
  RegisterA64 temp = regs.allocTemp(KindA64::w);
  build.ldrb(temp, mem(regOp(inst.a), offsetof(Udata, tag)));
- if (FFlag::LuauCodegenUserdataOpsFixA64)
  build.cmp(temp, intOp(inst.b));
- else
- build.cmp(temp, tagOp(inst.b));
  build.b(ConditionA64::NotEqual, fail);
  finalizeTargetLabel(inst.c, fresh);
  break;
@@ -48852,8 +48678,6 @@ AddressA64 IrLoweringA64::tempAddr(IrOp op, int offset)
 }
 AddressA64 IrLoweringA64::tempAddrBuffer(IrOp bufferOp, IrOp indexOp, uint8_t tag)
 {
- if (FFlag::LuauCodegenUserdataOps)
- {
  CODEGEN_ASSERT(tag == LUA_TUSERDATA || tag == LUA_TBUFFER);
  int dataOffset = tag == LUA_TBUFFER ? offsetof(Buffer, data) : offsetof(Udata, data);
  if (indexOp.kind == IrOpKind::Inst)
@@ -48876,31 +48700,6 @@ AddressA64 IrLoweringA64::tempAddrBuffer(IrOp bufferOp, IrOp indexOp, uint8_t ta
  {
  CODEGEN_ASSERT(!"Unsupported instruction form");
  return noreg;
- }
- }
- else
- {
- if (indexOp.kind == IrOpKind::Inst)
- {
- RegisterA64 temp = regs.allocTemp(KindA64::x);
- build.add(temp, regOp(bufferOp), regOp(indexOp));
- return mem(temp, offsetof(Buffer, data));
- }
- else if (indexOp.kind == IrOpKind::Constant)
- {
- if (unsigned(intOp(indexOp)) + offsetof(Buffer, data) <= 255)
- return mem(regOp(bufferOp), int(intOp(indexOp) + offsetof(Buffer, data)));
- if (intOp(indexOp) < 0)
- return mem(regOp(bufferOp), offsetof(Buffer, data));
- RegisterA64 temp = regs.allocTemp(KindA64::x);
- emitAddOffset(build, temp, regOp(bufferOp), size_t(intOp(indexOp)));
- return mem(temp, offsetof(Buffer, data));
- }
- else
- {
- CODEGEN_ASSERT(!"Unsupported instruction form");
- return noreg;
- }
  }
 }
 RegisterA64 IrLoweringA64::regOp(IrOp op)
@@ -48944,8 +48743,6 @@ Label& IrLoweringA64::labelOp(IrOp op) const
 }
 #line __LINE__ ""
 #line __LINE__ "IrLoweringX64.cpp"
-LUAU_FASTFLAG(LuauCodegenUserdataOps)
-LUAU_FASTFLAG(LuauCodegenUserdataAlloc)
 LUAU_FASTFLAG(LuauCodegenFastcall3)
 LUAU_FASTFLAG(LuauCodegenMathSign)
 namespace Luau
@@ -49729,7 +49526,6 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  case IrCmd::NEW_USERDATA:
  {
- CODEGEN_ASSERT(FFlag::LuauCodegenUserdataAlloc);
  IrCallWrapperX64 callWrap(regs, build, index);
  callWrap.addArgument(SizeX64::qword, rState);
  callWrap.addArgument(SizeX64::qword, intOp(inst.a));
@@ -50131,7 +49927,6 @@ void IrLoweringX64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  }
  case IrCmd::CHECK_USERDATA_TAG:
  {
- CODEGEN_ASSERT(FFlag::LuauCodegenUserdataOps);
  build.cmp(byte[regOp(inst.a) + offsetof(Udata, tag)], intOp(inst.b));
  jumpOrAbortOnUndef(ConditionX64::NotEqual, inst.c, next);
  break;
@@ -50794,22 +50589,12 @@ RegisterX64 IrLoweringX64::regOp(IrOp op)
 }
 OperandX64 IrLoweringX64::bufferAddrOp(IrOp bufferOp, IrOp indexOp, uint8_t tag)
 {
- if (FFlag::LuauCodegenUserdataOps)
- {
  CODEGEN_ASSERT(tag == LUA_TUSERDATA || tag == LUA_TBUFFER);
  int dataOffset = tag == LUA_TBUFFER ? offsetof(Buffer, data) : offsetof(Udata, data);
  if (indexOp.kind == IrOpKind::Inst)
  return regOp(bufferOp) + qwordReg(regOp(indexOp)) + dataOffset;
  else if (indexOp.kind == IrOpKind::Constant)
  return regOp(bufferOp) + intOp(indexOp) + dataOffset;
- }
- else
- {
- if (indexOp.kind == IrOpKind::Inst)
- return regOp(bufferOp) + qwordReg(regOp(indexOp)) + offsetof(Buffer, data);
- else if (indexOp.kind == IrOpKind::Constant)
- return regOp(bufferOp) + intOp(indexOp) + offsetof(Buffer, data);
- }
  CODEGEN_ASSERT(!"Unsupported instruction form");
  return noreg;
 }
@@ -50863,7 +50648,6 @@ OperandX64 IrLoweringX64::vectorAndMaskOp()
 #line __LINE__ ""
 #line __LINE__ "IrRegAllocA64.cpp"
 LUAU_FASTFLAGVARIABLE(DebugCodegenChaosA64, false)
-LUAU_FASTFLAG(LuauCodegenInstG)
 namespace Luau
 {
 namespace CodeGen
@@ -51050,7 +50834,6 @@ void IrRegAllocA64::freeLastUseRegs(const IrInst& inst, uint32_t index)
  checkOp(inst.d);
  checkOp(inst.e);
  checkOp(inst.f);
- if (FFlag::LuauCodegenInstG)
  checkOp(inst.g);
 }
 void IrRegAllocA64::freeTempRegs()
@@ -51198,7 +50981,6 @@ IrRegAllocA64::Set& IrRegAllocA64::getSet(KindA64 kind)
 }
 #line __LINE__ ""
 #line __LINE__ "IrRegAllocX64.cpp"
-LUAU_FASTFLAG(LuauCodegenInstG)
 namespace Luau
 {
 namespace CodeGen
@@ -51345,7 +51127,6 @@ void IrRegAllocX64::freeLastUseRegs(const IrInst& inst, uint32_t instIdx)
  checkOp(inst.d);
  checkOp(inst.e);
  checkOp(inst.f);
- if (FFlag::LuauCodegenInstG)
  checkOp(inst.g);
 }
 bool IrRegAllocX64::isLastUseReg(const IrInst& target, uint32_t instIdx) const
@@ -52334,7 +52115,6 @@ BuiltinImplResult translateBuiltin(
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "IrTranslation.cpp"
-LUAU_FASTFLAG(LuauCodegenUserdataOps)
 LUAU_FASTFLAG(LuauCodegenFastcall3)
 namespace Luau
 {
@@ -52657,7 +52437,7 @@ static void translateInstBinaryNumeric(IrBuilder& build, int ra, int rb, int rc,
  build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), result);
  return;
  }
- if (FFlag::LuauCodegenUserdataOps && (isUserdataBytecodeType(bcTypes.a) || isUserdataBytecodeType(bcTypes.b)))
+ if (isUserdataBytecodeType(bcTypes.a) || isUserdataBytecodeType(bcTypes.b))
  {
  if (build.hostHooks.userdataMetamethod &&
  build.hostHooks.userdataMetamethod(build, bcTypes.a, bcTypes.b, ra, opb, opc, tmToHostMetamethod(tm), pcpos))
@@ -52781,7 +52561,7 @@ void translateInstMinus(IrBuilder& build, const Instruction* pc, int pcpos)
  build.inst(IrCmd::STORE_TVALUE, build.vmReg(ra), va);
  return;
  }
- if (FFlag::LuauCodegenUserdataOps && isUserdataBytecodeType(bcTypes.a))
+ if (isUserdataBytecodeType(bcTypes.a))
  {
  if (build.hostHooks.userdataMetamethod &&
  build.hostHooks.userdataMetamethod(build, bcTypes.a, bcTypes.b, ra, build.vmReg(rb), {}, tmToHostMetamethod(TM_UNM), pcpos))
@@ -52804,15 +52584,7 @@ void translateInstMinus(IrBuilder& build, const Instruction* pc, int pcpos)
  IrOp next = build.blockAtInst(pcpos + 1);
  FallbackStreamScope scope(build, fallback, next);
  build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
- if (FFlag::LuauCodegenUserdataOps)
- {
  build.inst(IrCmd::DO_ARITH, build.vmReg(ra), build.vmReg(rb), build.vmReg(rb), build.constInt(TM_UNM));
- }
- else
- {
- build.inst(
- IrCmd::DO_ARITH, build.vmReg(LUAU_INSN_A(*pc)), build.vmReg(LUAU_INSN_B(*pc)), build.vmReg(LUAU_INSN_B(*pc)), build.constInt(TM_UNM));
- }
  build.inst(IrCmd::JUMP, next);
  }
 }
@@ -52821,7 +52593,7 @@ void translateInstLength(IrBuilder& build, const Instruction* pc, int pcpos)
  BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
  int ra = LUAU_INSN_A(*pc);
  int rb = LUAU_INSN_B(*pc);
- if (FFlag::LuauCodegenUserdataOps && isUserdataBytecodeType(bcTypes.a))
+ if (isUserdataBytecodeType(bcTypes.a))
  {
  if (build.hostHooks.userdataMetamethod &&
  build.hostHooks.userdataMetamethod(build, bcTypes.a, bcTypes.b, ra, build.vmReg(rb), {}, tmToHostMetamethod(TM_LEN), pcpos))
@@ -52842,10 +52614,7 @@ void translateInstLength(IrBuilder& build, const Instruction* pc, int pcpos)
  IrOp next = build.blockAtInst(pcpos + 1);
  FallbackStreamScope scope(build, fallback, next);
  build.inst(IrCmd::SET_SAVEDPC, build.constUint(pcpos + 1));
- if (FFlag::LuauCodegenUserdataOps)
  build.inst(IrCmd::DO_LEN, build.vmReg(ra), build.vmReg(rb));
- else
- build.inst(IrCmd::DO_LEN, build.vmReg(LUAU_INSN_A(*pc)), build.vmReg(LUAU_INSN_B(*pc)));
  build.inst(IrCmd::JUMP, next);
 }
 void translateInstNewTable(IrBuilder& build, const Instruction* pc, int pcpos)
@@ -53261,10 +53030,10 @@ void translateInstGetTableKS(IrBuilder& build, const Instruction* pc, int pcpos)
  }
  return;
  }
- if (FFlag::LuauCodegenUserdataOps ? isUserdataBytecodeType(bcTypes.a) : bcTypes.a == LBC_TYPE_USERDATA)
+ if (isUserdataBytecodeType(bcTypes.a))
  {
  build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TUSERDATA), build.vmExit(pcpos));
- if (FFlag::LuauCodegenUserdataOps && build.hostHooks.userdataAccess)
+ if (build.hostHooks.userdataAccess)
  {
  TString* str = gco2ts(build.function.proto->k[aux].value.gc);
  const char* field = getstr(str);
@@ -53293,7 +53062,7 @@ void translateInstSetTableKS(IrBuilder& build, const Instruction* pc, int pcpos)
  uint32_t aux = pc[1];
  BytecodeTypes bcTypes = build.function.getBytecodeTypesAt(pcpos);
  IrOp tb = build.inst(IrCmd::LOAD_TAG, build.vmReg(rb));
- if (FFlag::LuauCodegenUserdataOps ? isUserdataBytecodeType(bcTypes.a) : bcTypes.a == LBC_TYPE_USERDATA)
+ if (isUserdataBytecodeType(bcTypes.a))
  {
  build.inst(IrCmd::CHECK_TAG, tb, build.constTag(LUA_TUSERDATA), build.vmExit(pcpos));
  build.inst(IrCmd::FALLBACK_SETTABLEKS, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
@@ -53399,10 +53168,10 @@ bool translateInstNamecall(IrBuilder& build, const Instruction* pc, int pcpos)
  build.inst(IrCmd::FALLBACK_NAMECALL, build.constUint(pcpos), build.vmReg(ra), build.vmReg(rb), build.vmConst(aux));
  return false;
  }
- if (FFlag::LuauCodegenUserdataOps ? isUserdataBytecodeType(bcTypes.a) : bcTypes.a == LBC_TYPE_USERDATA)
+ if (isUserdataBytecodeType(bcTypes.a))
  {
  build.loadAndCheckTag(build.vmReg(rb), LUA_TUSERDATA, build.vmExit(pcpos));
- if (FFlag::LuauCodegenUserdataOps && build.hostHooks.userdataNamecall)
+ if (build.hostHooks.userdataNamecall)
  {
  Instruction call = pc[2];
  CODEGEN_ASSERT(LUAU_INSN_OP(call) == LOP_CALL);
@@ -53551,7 +53320,6 @@ void translateInstNewClosure(IrBuilder& build, const Instruction* pc, int pcpos)
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "IrUtils.cpp"
-LUAU_FASTFLAG(LuauCodegenInstG)
 namespace Luau
 {
 namespace CodeGen
@@ -53834,7 +53602,6 @@ void kill(IrFunction& function, IrInst& inst)
  removeUse(function, inst.d);
  removeUse(function, inst.e);
  removeUse(function, inst.f);
- if (FFlag::LuauCodegenInstG)
  removeUse(function, inst.g);
  inst.a = {};
  inst.b = {};
@@ -53842,7 +53609,6 @@ void kill(IrFunction& function, IrInst& inst)
  inst.d = {};
  inst.e = {};
  inst.f = {};
- if (FFlag::LuauCodegenInstG)
  inst.g = {};
 }
 void kill(IrFunction& function, uint32_t start, uint32_t end)
@@ -53879,7 +53645,6 @@ void replace(IrFunction& function, IrBlock& block, uint32_t instIdx, IrInst repl
  addUse(function, replacement.d);
  addUse(function, replacement.e);
  addUse(function, replacement.f);
- if (FFlag::LuauCodegenInstG)
  addUse(function, replacement.g);
  block.useCount++;
  if (!isBlockTerminator(inst.cmd) && isBlockTerminator(replacement.cmd))
@@ -53895,7 +53660,6 @@ void replace(IrFunction& function, IrBlock& block, uint32_t instIdx, IrInst repl
  removeUse(function, inst.d);
  removeUse(function, inst.e);
  removeUse(function, inst.f);
- if (FFlag::LuauCodegenInstG)
  removeUse(function, inst.g);
  replacement.useCount = inst.useCount;
  inst = replacement;
@@ -53912,7 +53676,6 @@ void substitute(IrFunction& function, IrInst& inst, IrOp replacement)
  removeUse(function, inst.d);
  removeUse(function, inst.e);
  removeUse(function, inst.f);
- if (FFlag::LuauCodegenInstG)
  removeUse(function, inst.g);
  inst.a = replacement;
  inst.b = {};
@@ -53920,7 +53683,6 @@ void substitute(IrFunction& function, IrInst& inst, IrOp replacement)
  inst.d = {};
  inst.e = {};
  inst.f = {};
- if (FFlag::LuauCodegenInstG)
  inst.g = {};
 }
 void applySubstitutions(IrFunction& function, IrOp& op)
@@ -53957,7 +53719,6 @@ void applySubstitutions(IrFunction& function, IrInst& inst)
  applySubstitutions(function, inst.d);
  applySubstitutions(function, inst.e);
  applySubstitutions(function, inst.f);
- if (FFlag::LuauCodegenInstG)
  applySubstitutions(function, inst.g);
 }
 bool compare(double a, double b, IrCondition cond)
@@ -54691,7 +54452,6 @@ void destroyNativeProtoExecData(const uint32_t* instructionOffsets) noexcept
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "NativeState.cpp"
-LUAU_FASTFLAG(LuauCodegenUserdataAlloc)
 namespace Luau
 {
 namespace CodeGen
@@ -54756,7 +54516,6 @@ void initFunctions(NativeContext& context)
  context.forgPrepXnextFallback = forgPrepXnextFallback;
  context.callProlog = callProlog;
  context.callEpilogC = callEpilogC;
- if (FFlag::LuauCodegenUserdataAlloc)
  context.newUserdata = newUserdata;
  context.callFallback = callFallback;
  context.executeGETGLOBAL = executeGETGLOBAL;
@@ -54779,8 +54538,6 @@ LUAU_FASTINTVARIABLE(LuauCodeGenMinLinearBlockPath, 3)
 LUAU_FASTINTVARIABLE(LuauCodeGenReuseSlotLimit, 64)
 LUAU_FASTINTVARIABLE(LuauCodeGenReuseUdataTagLimit, 64)
 LUAU_FASTFLAGVARIABLE(DebugLuauAbortingChecks, false)
-LUAU_FASTFLAG(LuauCodegenUserdataOps)
-LUAU_FASTFLAG(LuauCodegenUserdataAlloc)
 LUAU_FASTFLAG(LuauCodegenFastcall3)
 LUAU_FASTFLAG(LuauCodegenMathSign)
 namespace Luau
@@ -55081,7 +54838,6 @@ struct ConstPropState
  invalidateValuePropagation();
  invalidateHeapTableData();
  invalidateHeapBufferData();
- if (FFlag::LuauCodegenUserdataOps)
  invalidateUserdataData();
  }
  IrFunction& function;
@@ -55629,7 +55385,6 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  }
  case IrCmd::CHECK_USERDATA_TAG:
  {
- CODEGEN_ASSERT(FFlag::LuauCodegenUserdataOps);
  for (uint32_t prevIdx : state.useradataTagCache)
  {
  IrInst& prev = function.instructions[prevIdx];
@@ -55638,7 +55393,7 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  if (prev.a != inst.a || prev.b != inst.b)
  continue;
  }
- else if (FFlag::LuauCodegenUserdataAlloc && prev.cmd == IrCmd::NEW_USERDATA)
+ else if (prev.cmd == IrCmd::NEW_USERDATA)
  {
  if (inst.a.kind != IrOpKind::Inst || prevIdx != inst.a.index || prev.b != inst.b)
  continue;
@@ -55800,7 +55555,6 @@ static void constPropInInst(ConstPropState& state, IrBuilder& build, IrFunction&
  case IrCmd::TRY_CALL_FASTGETTM:
  break;
  case IrCmd::NEW_USERDATA:
- CODEGEN_ASSERT(FFlag::LuauCodegenUserdataAlloc);
  if (int(state.useradataTagCache.size()) < FInt::LuauCodeGenReuseUdataTagLimit)
  state.useradataTagCache.push_back(index);
  break;
@@ -56040,7 +55794,6 @@ static void constPropInBlockChain(IrBuilder& build, std::vector<uint8_t>& visite
  state.invalidateValuePropagation();
  state.invalidateHeapTableData();
  state.invalidateHeapBufferData();
- if (FFlag::LuauCodegenUserdataOps)
  state.invalidateUserdataData();
  block->sortkey = startSortkey;
  block->chainkey = chainPos++;
@@ -56179,7 +55932,6 @@ void createLinearBlocks(IrBuilder& build, bool useValueNumbering)
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "OptimizeDeadStore.cpp"
-LUAU_FASTFLAG(LuauCodegenUserdataOps)
 namespace Luau
 {
 namespace CodeGen
@@ -56616,7 +56368,6 @@ static void markDeadStoresInInst(RemoveDeadStoreState& state, IrBuilder& build, 
  state.checkLiveIns(inst.d);
  break;
  case IrCmd::CHECK_USERDATA_TAG:
- CODEGEN_ASSERT(FFlag::LuauCodegenUserdataOps);
  state.checkLiveIns(inst.c);
  break;
  case IrCmd::JUMP:
