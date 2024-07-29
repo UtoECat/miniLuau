@@ -893,8 +893,8 @@ inline bool isFlagExperimental(const char* flag)
 {
  static const char* const kList[] = {
  "LuauInstantiateInSubtyping", // requires some fixes to lua-apps code
- "LuauTinyControlFlowAnalysis", // waiting for updates to packages depended by internal builtin plugins
  "LuauFixIndexerSubtypingOrdering", // requires some small fixes to lua-apps code since this fixes a false negative
+ "StudioReportLuauAny", // takes telemetry data for usage of any types
  nullptr,
  };
  for (const char* item : kList)
@@ -13520,6 +13520,7 @@ int luaopen_table(lua_State* L)
 }
 #line __LINE__ ""
 #line __LINE__ "ltm.cpp"
+LUAU_FASTFLAGVARIABLE(LuauPreserveLudataRenaming, false)
 const char* const luaT_typenames[] = {
  "nil",
  "boolean",
@@ -13603,6 +13604,34 @@ const TValue* luaT_gettmbyobj(lua_State* L, const TValue* o, TMS event)
 }
 const TString* luaT_objtypenamestr(lua_State* L, const TValue* o)
 {
+ if (FFlag::LuauPreserveLudataRenaming)
+ {
+ if (ttisuserdata(o) && uvalue(o)->tag != UTAG_PROXY && uvalue(o)->metatable)
+ {
+ const TValue* type = luaH_getstr(uvalue(o)->metatable, L->global->tmname[TM_TYPE]);
+ if (ttisstring(type))
+ return tsvalue(type);
+ return L->global->ttname[ttype(o)];
+ }
+ if (ttislightuserdata(o))
+ {
+ int tag = lightuserdatatag(o);
+ if (unsigned(tag) < LUA_LUTAG_LIMIT)
+ {
+ if (const TString* name = L->global->lightuserdataname[tag])
+ return name;
+ }
+ }
+ if (Table* mt = L->global->mt[ttype(o)])
+ {
+ const TValue* type = luaH_getstr(mt, L->global->tmname[TM_TYPE]);
+ if (ttisstring(type))
+ return tsvalue(type);
+ }
+ return L->global->ttname[ttype(o)];
+ }
+ else
+ {
  if (ttisuserdata(o) && uvalue(o)->tag != UTAG_PROXY && uvalue(o)->metatable)
  {
  const TValue* type = luaH_getstr(uvalue(o)->metatable, L->global->tmname[TM_TYPE]);
@@ -13626,6 +13655,7 @@ const TString* luaT_objtypenamestr(lua_State* L, const TValue* o)
  return tsvalue(type);
  }
  return L->global->ttname[ttype(o)];
+ }
 }
 const char* luaT_objtypename(lua_State* L, const TValue* o)
 {
@@ -18353,7 +18383,6 @@ struct hash<Luau::AstName>
 };
 }
 #line __LINE__ "Ast.cpp"
-LUAU_FASTFLAG(LuauAttributeSyntax);
 LUAU_FASTFLAG(LuauNativeAttribute);
 namespace Luau
 {
@@ -19013,7 +19042,6 @@ void AstStatDeclareFunction::visit(AstVisitor* visitor)
 }
 bool AstStatDeclareFunction::isCheckedFunction() const
 {
- LUAU_ASSERT(FFlag::LuauAttributeSyntax);
  for (const AstAttr* attr : attributes)
  {
  if (attr->type == AstAttr::Type::Checked)
@@ -19134,7 +19162,6 @@ void AstTypeFunction::visit(AstVisitor* visitor)
 }
 bool AstTypeFunction::isCheckedFunction() const
 {
- LUAU_ASSERT(FFlag::LuauAttributeSyntax);
  for (const AstAttr* attr : attributes)
  {
  if (attr->type == AstAttr::Type::Checked)
@@ -21294,7 +21321,6 @@ bool isIdentifier(std::string_view s);
 }
 #line __LINE__ "Lexer.cpp"
 LUAU_FASTFLAGVARIABLE(LuauLexerLookaheadRemembersBraceType, false)
-LUAU_FASTFLAGVARIABLE(LuauAttributeSyntax, false)
 namespace Luau
 {
 Allocator::Allocator()
@@ -21438,7 +21464,6 @@ std::string Lexeme::toString() const
  case Comment:
  return "comment";
  case Attribute:
- LUAU_ASSERT(FFlag::LuauAttributeSyntax);
  return name ? format("'%s'", name) : "attribute";
  case BrokenString:
  return "malformed string";
@@ -22077,11 +22102,8 @@ Lexeme Lexer::readNext()
  }
  case '@':
  {
- if (FFlag::LuauAttributeSyntax)
- {
  std::pair<AstName, Lexeme::Type> attribute = readName();
  return Lexeme(Location(start, position()), Lexeme::Attribute, attribute.first.value);
- }
  }
  default:
  if (isDigit(peekch()))
@@ -22875,8 +22897,6 @@ LUAU_FASTINTVARIABLE(LuauRecursionLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauTypeLengthLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
 LUAU_FASTFLAGVARIABLE(DebugLuauDeferredConstraintResolution, false)
-LUAU_FASTFLAG(LuauAttributeSyntax)
-LUAU_FASTFLAGVARIABLE(LuauLeadingBarAndAmpersand2, false)
 LUAU_FASTFLAGVARIABLE(LuauNativeAttribute, false)
 LUAU_FASTFLAGVARIABLE(LuauAttributeSyntaxFunExpr, false)
 LUAU_FASTFLAGVARIABLE(LuauDeclarationExtraPropData, false)
@@ -23098,7 +23118,6 @@ AstStat* Parser::parseStat()
  case Lexeme::ReservedBreak:
  return parseBreak();
  case Lexeme::Attribute:
- if (FFlag::LuauAttributeSyntax)
  return parseAttributeStat();
  default:;
  }
@@ -23331,7 +23350,6 @@ AstStat* Parser::parseFunctionStat(const AstArray<AstAttr*>& attributes)
 }
 std::pair<bool, AstAttr::Type> Parser::validateAttribute(const char* attributeName, const TempVector<AstAttr*>& attributes)
 {
- LUAU_ASSERT(FFlag::LuauAttributeSyntax);
  AstAttr::Type type;
  bool found = false;
  for (int i = 0; kAttributeEntries[i].name; ++i)
@@ -23366,7 +23384,6 @@ std::pair<bool, AstAttr::Type> Parser::validateAttribute(const char* attributeNa
 }
 void Parser::parseAttribute(TempVector<AstAttr*>& attributes)
 {
- LUAU_ASSERT(FFlag::LuauAttributeSyntax);
  LUAU_ASSERT(lexer.current().type == Lexeme::Type::Attribute);
  Location loc = lexer.current().location;
  const char* name = lexer.current().name;
@@ -23377,7 +23394,6 @@ void Parser::parseAttribute(TempVector<AstAttr*>& attributes)
 }
 AstArray<AstAttr*> Parser::parseAttributes()
 {
- LUAU_ASSERT(FFlag::LuauAttributeSyntax);
  Lexeme::Type type = lexer.current().type;
  LUAU_ASSERT(type == Lexeme::Attribute);
  TempVector<AstAttr*> attributes(scratchAttr);
@@ -23387,7 +23403,6 @@ AstArray<AstAttr*> Parser::parseAttributes()
 }
 AstStat* Parser::parseAttributeStat()
 {
- LUAU_ASSERT(FFlag::LuauAttributeSyntax);
  AstArray<AstAttr*> attributes = parseAttributes();
  Lexeme::Type type = lexer.current().type;
  switch (type)
@@ -23404,7 +23419,7 @@ AstStat* Parser::parseAttributeStat()
  }
  default:
  return reportStatError(lexer.current().location, {}, {},
- "Expected 'function', 'local function', 'declare function' or a function type declaration after attribute, but got %s intead",
+ "Expected 'function', 'local function', 'declare function' or a function type declaration after attribute, but got %s instead",
  lexer.current().toString().c_str());
  }
 }
@@ -23427,9 +23442,9 @@ AstStat* Parser::parseLocal(const AstArray<AstAttr*>& attributes)
  }
  else
  {
- if (FFlag::LuauAttributeSyntax && attributes.size != 0)
+ if (attributes.size != 0)
  {
- return reportStatError(lexer.current().location, {}, {}, "Expected 'function' after local declaration with attribute, but got %s intead",
+ return reportStatError(lexer.current().location, {}, {}, "Expected 'function' after local declaration with attribute, but got %s instead",
  lexer.current().toString().c_str());
  }
  matchRecoveryStopOnToken['=']++;
@@ -23521,8 +23536,8 @@ AstDeclaredClassProp Parser::parseDeclaredClassMethod()
 }
 AstStat* Parser::parseDeclaration(const Location& start, const AstArray<AstAttr*>& attributes)
 {
- if (FFlag::LuauAttributeSyntax && (attributes.size != 0) && (lexer.current().type != Lexeme::ReservedFunction))
- return reportStatError(lexer.current().location, {}, {}, "Expected a function type declaration after attribute, but got %s intead",
+ if ((attributes.size != 0) && (lexer.current().type != Lexeme::ReservedFunction))
+ return reportStatError(lexer.current().location, {}, {}, "Expected a function type declaration after attribute, but got %s instead",
  lexer.current().toString().c_str());
  if (lexer.current().type == Lexeme::ReservedFunction)
  {
@@ -24031,10 +24046,8 @@ AstType* Parser::parseFunctionTypeTail(const Lexeme& begin, const AstArray<AstAt
 AstType* Parser::parseTypeSuffix(AstType* type, const Location& begin)
 {
  TempVector<AstType*> parts(scratchType);
- if (!FFlag::LuauLeadingBarAndAmpersand2 || type != nullptr)
- {
+ if (type != nullptr)
  parts.push_back(type);
- }
  incrementRecursionCounter("type annotation");
  bool isUnion = false;
  bool isIntersection = false;
@@ -24080,7 +24093,7 @@ AstType* Parser::parseTypeSuffix(AstType* type, const Location& begin)
  ParseError::raise(parts.back()->location, "Exceeded allowed type length; simplify your type annotation to make the code compile");
  }
  if (parts.size() == 1)
- return FFlag::LuauLeadingBarAndAmpersand2 ? parts[0] : type;
+ return parts[0];
  if (isUnion && isIntersection)
  {
  return reportTypeError(Location(begin, parts.back()->location), copy(parts),
@@ -24111,8 +24124,6 @@ AstType* Parser::parseType(bool inDeclarationContext)
 {
  unsigned int oldRecursionCount = recursionCounter;
  Location begin = lexer.current().location;
- if (FFlag::LuauLeadingBarAndAmpersand2)
- {
  AstType* type = nullptr;
  Lexeme::Type c = lexer.current().type;
  if (c != '|' && c != '&')
@@ -24123,13 +24134,6 @@ AstType* Parser::parseType(bool inDeclarationContext)
  AstType* typeWithSuffix = parseTypeSuffix(type, begin);
  recursionCounter = oldRecursionCount;
  return typeWithSuffix;
- }
- else
- {
- AstType* type = parseSimpleType( false, inDeclarationContext).type;
- recursionCounter = oldRecursionCount;
- return parseTypeSuffix(type, begin);
- }
 }
 AstTypeOrPack Parser::parseSimpleType(bool allowPack, bool inDeclarationContext)
 {
@@ -24138,7 +24142,7 @@ AstTypeOrPack Parser::parseSimpleType(bool allowPack, bool inDeclarationContext)
  AstArray<AstAttr*> attributes{nullptr, 0};
  if (lexer.current().type == Lexeme::Attribute)
  {
- if (!inDeclarationContext || !FFlag::LuauAttributeSyntax)
+ if (!inDeclarationContext)
  {
  return {reportTypeError(start, {}, "attributes are not allowed in declaration context")};
  }
@@ -24580,13 +24584,13 @@ AstExpr* Parser::parseSimpleExpr()
 {
  Location start = lexer.current().location;
  AstArray<AstAttr*> attributes{nullptr, 0};
- if (FFlag::LuauAttributeSyntax && FFlag::LuauAttributeSyntaxFunExpr && lexer.current().type == Lexeme::Attribute)
+ if (FFlag::LuauAttributeSyntaxFunExpr && lexer.current().type == Lexeme::Attribute)
  {
  attributes = parseAttributes();
  if (lexer.current().type != Lexeme::ReservedFunction)
  {
  return reportExprError(
- start, {}, "Expected 'function' declaration after attribute, but got %s intead", lexer.current().toString().c_str());
+ start, {}, "Expected 'function' declaration after attribute, but got %s instead", lexer.current().toString().c_str());
  }
  }
  if (lexer.current().type == Lexeme::ReservedNil)
@@ -28293,7 +28297,7 @@ void BytecodeBuilder::dumpConstant(std::string& result, int k) const
  }
  case Constant::Type_Import:
  {
- int id0 = -1, id1 = -1, id2 = -1;
+ int32_t id0 = -1, id1 = -1, id2 = -1;
  if (int count = decomposeImportId(data.valueImport, id0, id1, id2))
  {
  {
