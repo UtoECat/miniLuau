@@ -304,6 +304,17 @@ inline int getOpLength(LuauOpcode op)
 #define LUAU_UNREACHABLE() __builtin_unreachable()
 #define LUAU_DEBUGBREAK() __builtin_trap()
 #endif
+#if defined(__clang__) && defined(__has_warning)
+#if __has_feature(cxx_attributes) && __has_warning("-Wimplicit-fallthrough")
+#define LUAU_FALLTHROUGH [[clang::fallthrough]]
+#else
+#define LUAU_FALLTHROUGH
+#endif
+#elif defined(__GNUC__) && __GNUC__ >= 7
+#define LUAU_FALLTHROUGH [[gnu::fallthrough]]
+#else
+#define LUAU_FALLTHROUGH
+#endif
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #define LUAU_BIG_ENDIAN
 #endif
@@ -11435,6 +11446,7 @@ init:
  }
  case '+':
  s++; // 1 match already done
+ LUAU_FALLTHROUGH;
  case '*': // 0 or more repetitions
  s = max_expand(ms, s, p, ep);
  break;
@@ -12237,6 +12249,7 @@ static int str_pack(lua_State* L)
  }
  case Kpadding:
  luaL_addchar(&b, LUAL_PACKPADBYTE);
+ LUAU_FALLTHROUGH;
  case Kpaddalign:
  case Knop:
  arg--;
@@ -12895,6 +12908,7 @@ const TValue* luaH_get(Table* t, const TValue* key)
  luai_num2int(k, n);
  if (luai_numeq(cast_num(k), nvalue(key)))
  return luaH_getnum(t, k); // use specialized version
+ LUAU_FALLTHROUGH;
  }
  default:
  {
@@ -23717,6 +23731,7 @@ AstStat* Parser::parseAttributeStat()
  AstExpr* expr = parsePrimaryExpr( true);
  return parseDeclaration(expr->location, attributes);
  }
+ [[fallthrough]];
  default:
  return reportStatError(
  lexer.current().location,
