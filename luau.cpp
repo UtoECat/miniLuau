@@ -9844,6 +9844,10 @@ void* luaM_new_(lua_State* L, size_t nsize, uint8_t memcat)
  luaD_throw(L, LUA_ERRMEM);
  g->totalbytes += nsize;
  g->memcatbytes[memcat] += nsize;
+ if (LUAU_UNLIKELY(!!g->cb.onallocate))
+ {
+ g->cb.onallocate(L, 0, nsize);
+ }
  return block;
 }
 GCObject* luaM_newgco_(lua_State* L, size_t nsize, uint8_t memcat)
@@ -9868,6 +9872,10 @@ GCObject* luaM_newgco_(lua_State* L, size_t nsize, uint8_t memcat)
  luaD_throw(L, LUA_ERRMEM);
  g->totalbytes += nsize;
  g->memcatbytes[memcat] += nsize;
+ if (LUAU_UNLIKELY(!!g->cb.onallocate))
+ {
+ g->cb.onallocate(L, 0, nsize);
+ }
  return (GCObject*)block;
 }
 void luaM_free_(lua_State* L, void* block, size_t osize, uint8_t memcat)
@@ -9930,6 +9938,10 @@ void* luaM_realloc_(lua_State* L, void* block, size_t osize, size_t nsize, uint8
  LUAU_ASSERT((nsize == 0) == (result == NULL));
  g->totalbytes = (g->totalbytes - osize) + nsize;
  g->memcatbytes[memcat] += nsize - osize;
+ if (LUAU_UNLIKELY(!!g->cb.onallocate))
+ {
+ g->cb.onallocate(L, osize, nsize);
+ }
  return result;
 }
 void luaM_getpagewalkinfo(lua_Page* page, char** start, char** end, int* busyBlocks, int* blockSize)
@@ -13574,7 +13586,6 @@ int luaopen_table(lua_State* L)
 }
 #line __LINE__ ""
 #line __LINE__ "ltm.cpp"
-LUAU_FASTFLAGVARIABLE(LuauPreserveLudataRenaming, false)
 const char* const luaT_typenames[] = {
  "nil",
  "boolean",
@@ -13658,8 +13669,6 @@ const TValue* luaT_gettmbyobj(lua_State* L, const TValue* o, TMS event)
 }
 const TString* luaT_objtypenamestr(lua_State* L, const TValue* o)
 {
- if (FFlag::LuauPreserveLudataRenaming)
- {
  if (ttisuserdata(o) && uvalue(o)->tag != UTAG_PROXY && uvalue(o)->metatable)
  {
  const TValue* type = luaH_getstr(uvalue(o)->metatable, L->global->tmname[TM_TYPE]);
@@ -13683,33 +13692,6 @@ const TString* luaT_objtypenamestr(lua_State* L, const TValue* o)
  return tsvalue(type);
  }
  return L->global->ttname[ttype(o)];
- }
- else
- {
- if (ttisuserdata(o) && uvalue(o)->tag != UTAG_PROXY && uvalue(o)->metatable)
- {
- const TValue* type = luaH_getstr(uvalue(o)->metatable, L->global->tmname[TM_TYPE]);
- if (ttisstring(type))
- return tsvalue(type);
- }
- else if (ttislightuserdata(o))
- {
- int tag = lightuserdatatag(o);
- if (unsigned(tag) < LUA_LUTAG_LIMIT)
- {
- const TString* name = L->global->lightuserdataname[tag];
- if (name)
- return name;
- }
- }
- else if (Table* mt = L->global->mt[ttype(o)])
- {
- const TValue* type = luaH_getstr(mt, L->global->tmname[TM_TYPE]);
- if (ttisstring(type))
- return tsvalue(type);
- }
- return L->global->ttname[ttype(o)];
- }
 }
 const char* luaT_objtypename(lua_State* L, const TValue* o)
 {
@@ -18558,6 +18540,7 @@ struct hash<Luau::AstName>
 };
 }
 LUAU_FASTFLAG(LuauNativeAttribute);
+LUAU_DYNAMIC_FASTINTVARIABLE(LuauTypeSolverRelease, 643)
 namespace Luau
 {
 static void visitTypeList(AstVisitor* visitor, const AstTypeList& list)
@@ -21609,7 +21592,6 @@ std::string escape(std::string_view s, bool escapeForInterpString = false);
 bool isIdentifier(std::string_view s);
 }
 #line __LINE__ "Lexer.cpp"
-LUAU_FASTFLAGVARIABLE(LuauLexerLookaheadRemembersBraceType, false)
 namespace Luau
 {
 Allocator::Allocator()
@@ -21938,13 +21920,10 @@ Lexeme Lexer::lookahead()
  lineOffset = currentLineOffset;
  lexeme = currentLexeme;
  prevLocation = currentPrevLocation;
- if (FFlag::LuauLexerLookaheadRemembersBraceType)
- {
  if (braceStack.size() < currentBraceStackSize)
  braceStack.push_back(currentBraceType);
  else if (braceStack.size() > currentBraceStackSize)
  braceStack.pop_back();
- }
  return result;
 }
 bool Lexer::isReserved(const std::string& word)
@@ -22732,10 +22711,16 @@ enum class Mode
  Strict,
  Definition, // Type definition module, has special parsing rules
 };
+struct FragmentParseResumeSettings
+{
+ DenseHashMap<AstName, AstLocal*> localMap{AstName()};
+ std::vector<AstLocal*> localStack;
+};
 struct ParseOptions
 {
  bool allowDeclarationSyntax = false;
  bool captureComments = false;
+ std::optional<FragmentParseResumeSettings> parseFragment = std::nullopt;
 };
 }
 #line __LINE__ "Parser.h"
@@ -22850,7 +22835,7 @@ private:
  AstStat* parseLocal(const AstArray<AstAttr*>& attributes);
  AstStat* parseReturn();
  AstStat* parseTypeAlias(const Location& start, bool exported);
- AstStat* parseTypeFunction(const Location& start);
+ AstStat* parseTypeFunction(const Location& start, bool exported);
  AstDeclaredClassProp parseDeclaredClassMethod();
  AstStat* parseDeclaration(const Location& start, const AstArray<AstAttr*>& attributes);
  AstStat* parseAssignment(AstExpr* initial);
@@ -23014,6 +22999,7 @@ private:
  AstName nameNil;
  MatchLexeme endMismatchSuspect;
  std::vector<Function> functionStack;
+ size_t typeFunctionDepth = 0;
  DenseHashMap<AstName, AstLocal*> localMap;
  std::vector<AstLocal*> localStack;
  std::vector<ParseError> parseErrors;
@@ -23039,6 +23025,7 @@ private:
  std::string scratchData;
 };
 }
+#line __LINE__ "Parser.cpp"
 #line __LINE__ "TimeTrace.h"
 LUAU_FASTFLAG(DebugLuauTimeTracing)
 namespace Luau
@@ -23213,7 +23200,8 @@ LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
 LUAU_FASTFLAGVARIABLE(LuauSolverV2, false)
 LUAU_FASTFLAGVARIABLE(LuauNativeAttribute, false)
 LUAU_FASTFLAGVARIABLE(LuauAttributeSyntaxFunExpr, false)
-LUAU_FASTFLAGVARIABLE(LuauUserDefinedTypeFunctions, false)
+LUAU_FASTFLAGVARIABLE(LuauUserDefinedTypeFunctionsSyntax2, false)
+LUAU_FASTFLAGVARIABLE(LuauAllowFragmentParsing, false)
 namespace Luau
 {
 struct AttributeEntry
@@ -23363,6 +23351,14 @@ Parser::Parser(const char* buffer, size_t bufferSize, AstNameTable& names, Alloc
  scratchExpr.reserve(16);
  scratchLocal.reserve(16);
  scratchBinding.reserve(16);
+ if (FFlag::LuauAllowFragmentParsing)
+ {
+ if (options.parseFragment)
+ {
+ localMap = options.parseFragment->localMap;
+ localStack = options.parseFragment->localStack;
+ }
+ }
 }
 bool Parser::blockFollow(const Lexeme& l)
 {
@@ -23802,10 +23798,10 @@ AstStat* Parser::parseReturn()
 }
 AstStat* Parser::parseTypeAlias(const Location& start, bool exported)
 {
- if (FFlag::LuauUserDefinedTypeFunctions)
+ if (FFlag::LuauUserDefinedTypeFunctionsSyntax2)
  {
  if (lexer.current().type == Lexeme::ReservedFunction)
- return parseTypeFunction(start);
+ return parseTypeFunction(start, exported);
  }
  std::optional<Name> name = parseNameOpt("type name");
  if (!name)
@@ -23815,15 +23811,20 @@ AstStat* Parser::parseTypeAlias(const Location& start, bool exported)
  AstType* type = parseType();
  return allocator.alloc<AstStatTypeAlias>(Location(start, type->location), name->name, name->location, generics, genericPacks, type, exported);
 }
-AstStat* Parser::parseTypeFunction(const Location& start)
+AstStat* Parser::parseTypeFunction(const Location& start, bool exported)
 {
  Lexeme matchFn = lexer.current();
  nextLexeme();
+ if (exported)
+ report(start, "Type function cannot be exported");
  std::optional<Name> fnName = parseNameOpt("type function name");
  if (!fnName)
  fnName = Name(nameError, lexer.current().location);
  matchRecoveryStopOnToken[Lexeme::ReservedEnd]++;
+ size_t oldTypeFunctionDepth = typeFunctionDepth;
+ typeFunctionDepth = functionStack.size();
  AstExprFunction* body = parseFunctionBody( false, matchFn, fnName->name, nullptr, AstArray<AstAttr*>({nullptr, 0})).first;
+ typeFunctionDepth = oldTypeFunctionDepth;
  matchRecoveryStopOnToken[Lexeme::ReservedEnd]--;
  return allocator.alloc<AstStatTypeFunction>(Location(start, body->location), fnName->name, fnName->location, body);
 }
@@ -24824,6 +24825,11 @@ AstExpr* Parser::parseNameExpr(const char* context)
  if (value && *value)
  {
  AstLocal* local = *value;
+ if (FFlag::LuauUserDefinedTypeFunctionsSyntax2)
+ {
+ if (local->functionDepth < typeFunctionDepth)
+ return reportExprError(lexer.current().location, {}, "Type function cannot reference outer local '%s'", local->name.value);
+ }
  return allocator.alloc<AstExprLocal>(name->location, local, local->functionDepth != functionStack.size() - 1);
  }
  return allocator.alloc<AstExprGlobal>(name->location, name->name);
@@ -31989,6 +31995,9 @@ struct Compiler
  else if (node->is<AstStatTypeAlias>())
  {
  }
+ else if (node->is<AstStatTypeFunction>())
+ {
+ }
  else
  {
  LUAU_ASSERT(!"Unknown statement type");
@@ -38498,12 +38507,12 @@ void SharedCodeGenContextDeleter::operator()(const SharedCodeGenContext* codeGen
 {
  return static_cast<BaseCodeGenContext*>(L->global->ecb.context);
 }
-static void onCloseState(lua_State* L) noexcept
+static void onCloseState(lua_State* L)
 {
  getCodeGenContext(L)->onCloseState();
  L->global->ecb = lua_ExecutionCallbacks{};
 }
-static void onDestroyFunction(lua_State* L, Proto* proto) noexcept
+static void onDestroyFunction(lua_State* L, Proto* proto)
 {
  getCodeGenContext(L)->onDestroyFunction(proto->execdata);
  proto->execdata = nullptr;
@@ -47380,7 +47389,6 @@ std::string dumpDot(const IrFunction& function, bool includeInst)
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "IrLoweringA64.cpp"
-LUAU_FASTFLAGVARIABLE(LuauCodegenArmNumToVecFix, false)
 namespace Luau
 {
 namespace CodeGen
@@ -48356,7 +48364,7 @@ void IrLoweringA64::lowerInst(IrInst& inst, uint32_t index, const IrBlock& next)
  else
  {
  RegisterA64 tempd = tempDouble(inst.a);
- RegisterA64 temps = FFlag::LuauCodegenArmNumToVecFix ? regs.allocTemp(KindA64::s) : castReg(KindA64::s, tempd);
+ RegisterA64 temps = regs.allocTemp(KindA64::s);
  build.fcvt(temps, tempd);
  build.dup_4s(inst.regA64, castReg(KindA64::q, temps), 0);
  }
