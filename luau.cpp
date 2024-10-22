@@ -6904,7 +6904,6 @@ const char* lua_debugtrace(lua_State* L)
 #include <setjmp.h>
 #else
 #endif
-LUAU_FASTFLAGVARIABLE(LuauErrorResumeCleanupArgs, false)
 #if LUA_USE_LONGJMP
 struct lua_jmpbuf
 {
@@ -7202,10 +7201,7 @@ static void resume_handle(lua_State* L, void* ud)
 }
 static int resume_error(lua_State* L, const char* msg, int narg)
 {
- if (FFlag::LuauErrorResumeCleanupArgs)
  L->top -= narg;
- else
- L->top = L->ci->base;
  setsvalue(L, L->top, luaS_new(L, msg));
  incr_top(L);
  return LUA_ERRRUN;
@@ -9179,6 +9175,7 @@ lua_State* luaL_newstate(void)
 #line __LINE__ ""
 #line __LINE__ "lmathlib.cpp"
 #include <time.h>
+LUAU_FASTFLAGVARIABLE(LuauMathMap, false)
 #undef PI
 #define PI (3.14159265358979323846)
 #define RADIANS_PER_DEGREE (PI / 180.0)
@@ -9514,6 +9511,17 @@ static int math_round(lua_State* L)
  lua_pushnumber(L, round(luaL_checknumber(L, 1)));
  return 1;
 }
+static int math_map(lua_State* L)
+{
+ double x = luaL_checknumber(L, 1);
+ double inmin = luaL_checknumber(L, 2);
+ double inmax = luaL_checknumber(L, 3);
+ double outmin = luaL_checknumber(L, 4);
+ double outmax = luaL_checknumber(L, 5);
+ double result = outmin + (x - inmin) * (outmax - outmin) / (inmax - inmin);
+ lua_pushnumber(L, result);
+ return 1;
+}
 static const luaL_Reg mathlib[] = {
  {"abs", math_abs},
  {"acos", math_acos},
@@ -9560,6 +9568,11 @@ int luaopen_math(lua_State* L)
  lua_setfield(L, -2, "pi");
  lua_pushnumber(L, HUGE_VAL);
  lua_setfield(L, -2, "huge");
+ if (FFlag::LuauMathMap)
+ {
+ lua_pushcfunction(L, math_map, "map");
+ lua_setfield(L, -2, "map");
+ }
  return 1;
 }
 #line __LINE__ ""
@@ -23336,9 +23349,18 @@ Parser::Parser(const char* buffer, size_t bufferSize, AstNameTable& names, Alloc
  top.vararg = true;
  functionStack.reserve(8);
  functionStack.push_back(top);
+ if (FFlag::LuauAllowFragmentParsing)
+ {
+ nameSelf = names.getOrAdd("self");
+ nameNumber = names.getOrAdd("number");
+ nameError = names.getOrAdd(kParseNameError);
+ }
+ else
+ {
  nameSelf = names.addStatic("self");
  nameNumber = names.addStatic("number");
  nameError = names.addStatic(kParseNameError);
+ }
  nameNil = names.getOrAdd("nil"); // nil is a reserved keyword
  matchRecoveryStopOnToken.assign(Lexeme::Type::Reserved_END, 0);
  matchRecoveryStopOnToken[Lexeme::Type::Eof] = 1;
