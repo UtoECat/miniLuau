@@ -235,6 +235,17 @@ enum LuauBuiltinFunction
  LBF_BUFFER_WRITEF32,
  LBF_BUFFER_READF64,
  LBF_BUFFER_WRITEF64,
+ LBF_VECTOR_MAGNITUDE,
+ LBF_VECTOR_NORMALIZE,
+ LBF_VECTOR_CROSS,
+ LBF_VECTOR_DOT,
+ LBF_VECTOR_FLOOR,
+ LBF_VECTOR_CEIL,
+ LBF_VECTOR_ABS,
+ LBF_VECTOR_SIGN,
+ LBF_VECTOR_CLAMP,
+ LBF_VECTOR_MIN,
+ LBF_VECTOR_MAX,
 };
 enum LuauCaptureType
 {
@@ -366,7 +377,7 @@ template<typename T>
 FValue<T>* FValue<T>::list = nullptr;
 }
 #define LUAU_FASTFLAG(flag) namespace FFlag { extern Luau::FValue<bool> flag; }
-#define LUAU_FASTFLAGVARIABLE(flag, def) namespace FFlag { Luau::FValue<bool> flag(#flag, def, false); }
+#define LUAU_FASTFLAGVARIABLE(flag) namespace FFlag { Luau::FValue<bool> flag(#flag, false, false); }
 #define LUAU_FASTINT(flag) namespace FInt { extern Luau::FValue<int> flag; }
 #define LUAU_FASTINTVARIABLE(flag, def) namespace FInt { Luau::FValue<int> flag(#flag, def, false); }
 #define LUAU_DYNAMIC_FASTFLAG(flag) namespace DFFlag { extern Luau::FValue<bool> flag; }
@@ -2166,6 +2177,15 @@ inline bool luai_vecisnan(const float* a)
  return a[0] != a[0] || a[1] != a[1] || a[2] != a[2];
 #endif
 }
+inline float luaui_signf(float v)
+{
+ return v > 0.0f ? 1.0f : v < 0.0f ? -1.0f : 0.0f;
+}
+inline float luaui_clampf(float v, float min, float max)
+{
+ float r = v < min ? min : v;
+ return r > max ? max : r;
+}
 LUAU_FASTMATH_BEGIN
 inline double luai_nummod(double a, double b)
 {
@@ -3244,6 +3264,20 @@ void* lua_newuserdatatagged(lua_State* L, size_t sz, int tag)
  luaC_checkGC(L);
  luaC_threadbarrier(L);
  Udata* u = luaU_newudata(L, sz, tag);
+ setuvalue(L, L->top, u);
+ api_incr_top(L);
+ return u->data;
+}
+void* lua_newuserdatataggedwithmetatable(lua_State* L, size_t sz, int tag)
+{
+ api_check(L, unsigned(tag) < LUA_UTAG_LIMIT);
+ luaC_checkGC(L);
+ luaC_threadbarrier(L);
+ Udata* u = luaU_newudata(L, sz, tag);
+ LUAU_ASSERT(!isblack(obj2gco(u)));
+ Table* h = L->global->udatamt[tag];
+ api_check(L, h != nullptr);
+ u->metatable = h;
  setuvalue(L, L->top, u);
  api_incr_top(L);
  return u->data;
@@ -5930,6 +5964,207 @@ static int luauF_writefp(lua_State* L, StkId res, TValue* arg0, int nresults, St
 #endif
  return -1;
 }
+static int luauF_vectormagnitude(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
+{
+ if (nparams >= 1 && nresults <= 1 && ttisvector(arg0))
+ {
+ const float* v = vvalue(arg0);
+#if LUA_VECTOR_SIZE == 4
+ setnvalue(res, sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2] + v[3] * v[3]));
+#else
+ setnvalue(res, sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]));
+#endif
+ return 1;
+ }
+ return -1;
+}
+static int luauF_vectornormalize(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
+{
+ if (nparams >= 1 && nresults <= 1 && ttisvector(arg0))
+ {
+ const float* v = vvalue(arg0);
+#if LUA_VECTOR_SIZE == 4
+ float invSqrt = 1.0f / sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2] + v[3] * v[3]);
+ setvvalue(res, v[0] * invSqrt, v[1] * invSqrt, v[2] * invSqrt, v[3] * invSqrt);
+#else
+ float invSqrt = 1.0f / sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+ setvvalue(res, v[0] * invSqrt, v[1] * invSqrt, v[2] * invSqrt, 0.0f);
+#endif
+ return 1;
+ }
+ return -1;
+}
+static int luauF_vectorcross(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
+{
+ if (nparams >= 2 && nresults <= 1 && ttisvector(arg0) && ttisvector(args))
+ {
+ const float* a = vvalue(arg0);
+ const float* b = vvalue(args);
+ setvvalue(res, a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0], 0.0f);
+ return 1;
+ }
+ return -1;
+}
+static int luauF_vectordot(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
+{
+ if (nparams >= 2 && nresults <= 1 && ttisvector(arg0) && ttisvector(args))
+ {
+ const float* a = vvalue(arg0);
+ const float* b = vvalue(args);
+#if LUA_VECTOR_SIZE == 4
+ setnvalue(res, a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3]);
+#else
+ setnvalue(res, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]);
+#endif
+ return 1;
+ }
+ return -1;
+}
+static int luauF_vectorfloor(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
+{
+ if (nparams >= 1 && nresults <= 1 && ttisvector(arg0))
+ {
+ const float* v = vvalue(arg0);
+#if LUA_VECTOR_SIZE == 4
+ setvvalue(res, floorf(v[0]), floorf(v[1]), floorf(v[2]), floorf(v[3]));
+#else
+ setvvalue(res, floorf(v[0]), floorf(v[1]), floorf(v[2]), 0.0f);
+#endif
+ return 1;
+ }
+ return -1;
+}
+static int luauF_vectorceil(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
+{
+ if (nparams >= 1 && nresults <= 1 && ttisvector(arg0))
+ {
+ const float* v = vvalue(arg0);
+#if LUA_VECTOR_SIZE == 4
+ setvvalue(res, ceilf(v[0]), ceilf(v[1]), ceilf(v[2]), ceilf(v[3]));
+#else
+ setvvalue(res, ceilf(v[0]), ceilf(v[1]), ceilf(v[2]), 0.0f);
+#endif
+ return 1;
+ }
+ return -1;
+}
+static int luauF_vectorabs(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
+{
+ if (nparams >= 1 && nresults <= 1 && ttisvector(arg0))
+ {
+ const float* v = vvalue(arg0);
+#if LUA_VECTOR_SIZE == 4
+ setvvalue(res, fabsf(v[0]), fabsf(v[1]), fabsf(v[2]), fabsf(v[3]));
+#else
+ setvvalue(res, fabsf(v[0]), fabsf(v[1]), fabsf(v[2]), 0.0f);
+#endif
+ return 1;
+ }
+ return -1;
+}
+static int luauF_vectorsign(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
+{
+ if (nparams >= 1 && nresults <= 1 && ttisvector(arg0))
+ {
+ const float* v = vvalue(arg0);
+#if LUA_VECTOR_SIZE == 4
+ setvvalue(res, luaui_signf(v[0]), luaui_signf(v[1]), luaui_signf(v[2]), luaui_signf(v[3]));
+#else
+ setvvalue(res, luaui_signf(v[0]), luaui_signf(v[1]), luaui_signf(v[2]), 0.0f);
+#endif
+ return 1;
+ }
+ return -1;
+}
+static int luauF_vectorclamp(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
+{
+ if (nparams >= 3 && nresults <= 1 && ttisvector(arg0) && ttisvector(args) && ttisvector(args + 1))
+ {
+ const float* v = vvalue(arg0);
+ const float* min = vvalue(args);
+ const float* max = vvalue(args + 1);
+ if (min[0] <= max[0] && min[1] <= max[1] && min[2] <= max[2])
+ {
+#if LUA_VECTOR_SIZE == 4
+ setvvalue(
+ res,
+ luaui_clampf(v[0], min[0], max[0]),
+ luaui_clampf(v[1], min[1], max[1]),
+ luaui_clampf(v[2], min[2], max[2]),
+ luaui_clampf(v[3], min[3], max[3])
+ );
+#else
+ setvvalue(res, luaui_clampf(v[0], min[0], max[0]), luaui_clampf(v[1], min[1], max[1]), luaui_clampf(v[2], min[2], max[2]), 0.0f);
+#endif
+ return 1;
+ }
+ }
+ return -1;
+}
+static int luauF_vectormin(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
+{
+ if (nparams >= 2 && nresults <= 1 && ttisvector(arg0) && ttisvector(args))
+ {
+ const float* a = vvalue(arg0);
+ const float* b = vvalue(args);
+ float result[4];
+ result[0] = (b[0] < a[0]) ? b[0] : a[0];
+ result[1] = (b[1] < a[1]) ? b[1] : a[1];
+ result[2] = (b[2] < a[2]) ? b[2] : a[2];
+#if LUA_VECTOR_SIZE == 4
+ result[3] = (b[3] < a[3]) ? b[3] : a[3];
+#else
+ result[3] = 0.0f;
+#endif
+ for (int i = 3; i <= nparams; ++i)
+ {
+ if (!ttisvector(args + (i - 2)))
+ return -1;
+ const float* c = vvalue(args + (i - 2));
+ result[0] = (c[0] < result[0]) ? c[0] : result[0];
+ result[1] = (c[1] < result[1]) ? c[1] : result[1];
+ result[2] = (c[2] < result[2]) ? c[2] : result[2];
+#if LUA_VECTOR_SIZE == 4
+ result[3] = (c[3] < result[3]) ? c[3] : result[3];
+#endif
+ }
+ setvvalue(res, result[0], result[1], result[2], result[3]);
+ return 1;
+ }
+ return -1;
+}
+static int luauF_vectormax(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
+{
+ if (nparams >= 2 && nresults <= 1 && ttisvector(arg0) && ttisvector(args))
+ {
+ const float* a = vvalue(arg0);
+ const float* b = vvalue(args);
+ float result[4];
+ result[0] = (b[0] > a[0]) ? b[0] : a[0];
+ result[1] = (b[1] > a[1]) ? b[1] : a[1];
+ result[2] = (b[2] > a[2]) ? b[2] : a[2];
+#if LUA_VECTOR_SIZE == 4
+ result[3] = (b[3] > a[3]) ? b[3] : a[3];
+#else
+ result[3] = 0.0f;
+#endif
+ for (int i = 3; i <= nparams; ++i)
+ {
+ if (!ttisvector(args + (i - 2)))
+ return -1;
+ const float* c = vvalue(args + (i - 2));
+ result[0] = (c[0] > result[0]) ? c[0] : result[0];
+ result[1] = (c[1] > result[1]) ? c[1] : result[1];
+ result[2] = (c[2] > result[2]) ? c[2] : result[2];
+#if LUA_VECTOR_SIZE == 4
+ result[3] = (c[3] > result[3]) ? c[3] : result[3];
+#endif
+ }
+ setvvalue(res, result[0], result[1], result[2], result[3]);
+ return 1;
+ }
+ return -1;
+}
 static int luauF_missing(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams)
 {
  return -1;
@@ -6075,6 +6310,17 @@ const luau_FastFunction luauF_table[256] = {
  luauF_writefp<float>,
  luauF_readfp<double>,
  luauF_writefp<double>,
+ luauF_vectormagnitude,
+ luauF_vectornormalize,
+ luauF_vectorcross,
+ luauF_vectordot,
+ luauF_vectorfloor,
+ luauF_vectorceil,
+ luauF_vectorabs,
+ luauF_vectorsign,
+ luauF_vectorclamp,
+ luauF_vectormin,
+ luauF_vectormax,
 #define MISSING8 luauF_missing, luauF_missing, luauF_missing, luauF_missing, luauF_missing, luauF_missing, luauF_missing, luauF_missing
  MISSING8,
  MISSING8,
@@ -6090,6 +6336,8 @@ const luau_FastFunction luauF_table[256] = {
 #line __LINE__ "lbytecode.h"
 #line __LINE__ ""
 #line __LINE__ "lcorolib.cpp"
+LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauCoroCheckStack, false)
+LUAU_DYNAMIC_FASTFLAG(LuauStackLimit)
 #define CO_STATUS_ERROR -1
 #define CO_STATUS_BREAK -2
 static const char* const statnames[] = {"running", "suspended", "normal", "dead", "dead"}; // dead appears twice for LUA_COERR and LUA_COFIN
@@ -6116,6 +6364,11 @@ static int auxresume(lua_State* L, lua_State* co, int narg)
  if (!lua_checkstack(co, narg))
  luaL_error(L, "too many arguments to resume");
  lua_xmove(L, co, narg);
+ }
+ else if (DFFlag::LuauCoroCheckStack)
+ {
+ if ((co->top - co->base) > LUAI_MAXCSTACK)
+ luaL_error(L, "too many arguments to resume");
  }
  co->singlestep = L->singlestep;
  int status = lua_resume(co, L, narg);
@@ -6273,8 +6526,20 @@ static int coclose(lua_State* L)
  else
  {
  lua_pushboolean(L, false);
+ if (DFFlag::LuauStackLimit)
+ {
+ if (co->status == LUA_ERRMEM)
+ lua_pushstring(L, LUA_MEMERRMSG);
+ else if (co->status == LUA_ERRERR)
+ lua_pushstring(L, LUA_ERRERRMSG);
+ else if (lua_gettop(co))
+ lua_xmove(co, L, 1);
+ }
+ else
+ {
  if (lua_gettop(co))
  lua_xmove(co, L, 1);
+ }
  lua_resetthread(co);
  return 2;
  }
@@ -6298,6 +6563,7 @@ int luaopen_coroutine(lua_State* L)
 }
 #line __LINE__ ""
 #line __LINE__ "ldblib.cpp"
+LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauDebugInfoInvArgLeftovers, false)
 static lua_State* getthread(lua_State* L, int* arg)
 {
  if (lua_isthread(L, 1))
@@ -6378,6 +6644,8 @@ static int db_info(lua_State* L)
  results += 2;
  break;
  default:
+ if (DFFlag::LuauDebugInfoInvArgLeftovers && L != L1)
+ lua_settop(L1, l1top);
  luaL_argerror(L, arg + 2, "invalid option");
  }
  }
@@ -6904,6 +7172,8 @@ const char* lua_debugtrace(lua_State* L)
 #include <setjmp.h>
 #else
 #endif
+LUAU_DYNAMIC_FASTFLAGVARIABLE(LuauStackLimit, false)
+#define MAX_STACK_SIZE (int(1024 / sizeof(TValue)) * 1024 * 1024)
 #if LUA_USE_LONGJMP
 struct lua_jmpbuf
 {
@@ -7027,6 +7297,8 @@ static void correctstack(lua_State* L, TValue* oldstack)
 }
 void luaD_reallocstack(lua_State* L, int newsize)
 {
+ if (DFFlag::LuauStackLimit && newsize > MAX_STACK_SIZE)
+ luaD_throw(L, LUA_ERRMEM);
  TValue* oldstack = L->stack;
  int realsize = newsize + EXTRA_STACK;
  LUAU_ASSERT(L->stack_last - L->stack == L->stacksize - EXTRA_STACK);
@@ -7509,6 +7781,7 @@ const LocVar* luaF_findlocal(const Proto* f, int local_reg, int pc)
 }
 #line __LINE__ ""
 #line __LINE__ "lgc.cpp"
+LUAU_DYNAMIC_FASTFLAG(LuauCoroCheckStack)
 #define GC_SWEEPPAGESTEPCOST 16
 #define GC_INTERRUPT(state) { void (*interrupt)(lua_State*, int) = g->cb.interrupt; if (LUAU_UNLIKELY(!!interrupt)) interrupt(L, state); }
 #define maskmarks cast_byte(~(bitmask(BLACKBIT) | WHITEBITS))
@@ -7775,12 +8048,24 @@ static void shrinkstack(lua_State* L)
  int s_used = cast_int(lim - L->stack);
  if (L->size_ci > LUAI_MAXCALLS) // handling overflow?
  return;
+ if (DFFlag::LuauCoroCheckStack)
+ {
+ if (3 * size_t(ci_used) < size_t(L->size_ci) && 2 * BASIC_CI_SIZE < L->size_ci)
+ luaD_reallocCI(L, L->size_ci / 2); // still big enough...
+ condhardstacktests(luaD_reallocCI(L, ci_used + 1));
+ if (3 * size_t(s_used) < size_t(L->stacksize) && 2 * (BASIC_STACK_SIZE + EXTRA_STACK) < L->stacksize)
+ luaD_reallocstack(L, L->stacksize / 2); // still big enough...
+ condhardstacktests(luaD_reallocstack(L, s_used));
+ }
+ else
+ {
  if (3 * ci_used < L->size_ci && 2 * BASIC_CI_SIZE < L->size_ci)
  luaD_reallocCI(L, L->size_ci / 2); // still big enough...
  condhardstacktests(luaD_reallocCI(L, ci_used + 1));
  if (3 * s_used < L->stacksize && 2 * (BASIC_STACK_SIZE + EXTRA_STACK) < L->stacksize)
  luaD_reallocstack(L, L->stacksize / 2); // still big enough...
  condhardstacktests(luaD_reallocstack(L, s_used));
+ }
 }
 static size_t propagatemark(global_State* g)
 {
@@ -9111,6 +9396,7 @@ static const luaL_Reg lualibs[] = {
  {LUA_UTF8LIBNAME, luaopen_utf8},
  {LUA_BITLIBNAME, luaopen_bit32},
  {LUA_BUFFERLIBNAME, luaopen_buffer},
+ {LUA_VECLIBNAME, luaopen_vector},
  {NULL, NULL},
 };
 void luaL_openlibs(lua_State* L)
@@ -9175,7 +9461,7 @@ lua_State* luaL_newstate(void)
 #line __LINE__ ""
 #line __LINE__ "lmathlib.cpp"
 #include <time.h>
-LUAU_FASTFLAGVARIABLE(LuauMathMap, false)
+LUAU_FASTFLAGVARIABLE(LuauMathMap)
 #undef PI
 #define PI (3.14159265358979323846)
 #define RADIANS_PER_DEGREE (PI / 180.0)
@@ -13986,6 +14272,235 @@ int luaopen_utf8(lua_State* L)
  return 1;
 }
 #line __LINE__ ""
+#line __LINE__ "lveclib.cpp"
+static int vector_create(lua_State* L)
+{
+ double x = luaL_checknumber(L, 1);
+ double y = luaL_checknumber(L, 2);
+ double z = luaL_checknumber(L, 3);
+#if LUA_VECTOR_SIZE == 4
+ double w = lua_gettop(L) >= 4 ? luaL_checknumber(L, 4) : 0.0;
+ lua_pushvector(L, float(x), float(y), float(z), float(w));
+#else
+ lua_pushvector(L, float(x), float(y), float(z));
+#endif
+ return 1;
+}
+static int vector_magnitude(lua_State* L)
+{
+ const float* v = luaL_checkvector(L, 1);
+#if LUA_VECTOR_SIZE == 4
+ lua_pushnumber(L, sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2] + v[3] * v[3]));
+#else
+ lua_pushnumber(L, sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]));
+#endif
+ return 1;
+}
+static int vector_normalize(lua_State* L)
+{
+ const float* v = luaL_checkvector(L, 1);
+#if LUA_VECTOR_SIZE == 4
+ float invSqrt = 1.0f / sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2] + v[3] * v[3]);
+ lua_pushvector(L, v[0] * invSqrt, v[1] * invSqrt, v[2] * invSqrt, v[3] * invSqrt);
+#else
+ float invSqrt = 1.0f / sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+ lua_pushvector(L, v[0] * invSqrt, v[1] * invSqrt, v[2] * invSqrt);
+#endif
+ return 1;
+}
+static int vector_cross(lua_State* L)
+{
+ const float* a = luaL_checkvector(L, 1);
+ const float* b = luaL_checkvector(L, 2);
+#if LUA_VECTOR_SIZE == 4
+ lua_pushvector(L, a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0], 0.0f);
+#else
+ lua_pushvector(L, a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]);
+#endif
+ return 1;
+}
+static int vector_dot(lua_State* L)
+{
+ const float* a = luaL_checkvector(L, 1);
+ const float* b = luaL_checkvector(L, 2);
+#if LUA_VECTOR_SIZE == 4
+ lua_pushnumber(L, a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3]);
+#else
+ lua_pushnumber(L, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]);
+#endif
+ return 1;
+}
+static int vector_angle(lua_State* L)
+{
+ const float* a = luaL_checkvector(L, 1);
+ const float* b = luaL_checkvector(L, 2);
+ const float* axis = luaL_optvector(L, 3, nullptr);
+ float cross[] = {a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]};
+ double sinA = sqrt(cross[0] * cross[0] + cross[1] * cross[1] + cross[2] * cross[2]);
+ double cosA = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+ double angle = atan2(sinA, cosA);
+ if (axis)
+ {
+ if (cross[0] * axis[0] + cross[1] * axis[1] + cross[2] * axis[2] < 0.0f)
+ angle = -angle;
+ }
+ lua_pushnumber(L, angle);
+ return 1;
+}
+static int vector_floor(lua_State* L)
+{
+ const float* v = luaL_checkvector(L, 1);
+#if LUA_VECTOR_SIZE == 4
+ lua_pushvector(L, floorf(v[0]), floorf(v[1]), floorf(v[2]), floorf(v[3]));
+#else
+ lua_pushvector(L, floorf(v[0]), floorf(v[1]), floorf(v[2]));
+#endif
+ return 1;
+}
+static int vector_ceil(lua_State* L)
+{
+ const float* v = luaL_checkvector(L, 1);
+#if LUA_VECTOR_SIZE == 4
+ lua_pushvector(L, ceilf(v[0]), ceilf(v[1]), ceilf(v[2]), ceilf(v[3]));
+#else
+ lua_pushvector(L, ceilf(v[0]), ceilf(v[1]), ceilf(v[2]));
+#endif
+ return 1;
+}
+static int vector_abs(lua_State* L)
+{
+ const float* v = luaL_checkvector(L, 1);
+#if LUA_VECTOR_SIZE == 4
+ lua_pushvector(L, fabsf(v[0]), fabsf(v[1]), fabsf(v[2]), fabsf(v[3]));
+#else
+ lua_pushvector(L, fabsf(v[0]), fabsf(v[1]), fabsf(v[2]));
+#endif
+ return 1;
+}
+static int vector_sign(lua_State* L)
+{
+ const float* v = luaL_checkvector(L, 1);
+#if LUA_VECTOR_SIZE == 4
+ lua_pushvector(L, luaui_signf(v[0]), luaui_signf(v[1]), luaui_signf(v[2]), luaui_signf(v[3]));
+#else
+ lua_pushvector(L, luaui_signf(v[0]), luaui_signf(v[1]), luaui_signf(v[2]));
+#endif
+ return 1;
+}
+static int vector_clamp(lua_State* L)
+{
+ const float* v = luaL_checkvector(L, 1);
+ const float* min = luaL_checkvector(L, 2);
+ const float* max = luaL_checkvector(L, 3);
+ luaL_argcheck(L, min[0] <= max[0], 3, "max.x must be greater than or equal to min.x");
+ luaL_argcheck(L, min[1] <= max[1], 3, "max.y must be greater than or equal to min.y");
+ luaL_argcheck(L, min[2] <= max[2], 3, "max.z must be greater than or equal to min.z");
+#if LUA_VECTOR_SIZE == 4
+ lua_pushvector(
+ L,
+ luaui_clampf(v[0], min[0], max[0]),
+ luaui_clampf(v[1], min[1], max[1]),
+ luaui_clampf(v[2], min[2], max[2]),
+ luaui_clampf(v[3], min[3], max[3])
+ );
+#else
+ lua_pushvector(L, luaui_clampf(v[0], min[0], max[0]), luaui_clampf(v[1], min[1], max[1]), luaui_clampf(v[2], min[2], max[2]));
+#endif
+ return 1;
+}
+static int vector_min(lua_State* L)
+{
+ int n = lua_gettop(L);
+ const float* v = luaL_checkvector(L, 1);
+#if LUA_VECTOR_SIZE == 4
+ float result[] = {v[0], v[1], v[2], v[3]};
+#else
+ float result[] = {v[0], v[1], v[2]};
+#endif
+ for (int i = 2; i <= n; i++)
+ {
+ const float* b = luaL_checkvector(L, i);
+ if (b[0] < result[0])
+ result[0] = b[0];
+ if (b[1] < result[1])
+ result[1] = b[1];
+ if (b[2] < result[2])
+ result[2] = b[2];
+#if LUA_VECTOR_SIZE == 4
+ if (b[3] < result[3])
+ result[3] = b[3];
+#endif
+ }
+#if LUA_VECTOR_SIZE == 4
+ lua_pushvector(L, result[0], result[1], result[2], result[3]);
+#else
+ lua_pushvector(L, result[0], result[1], result[2]);
+#endif
+ return 1;
+}
+static int vector_max(lua_State* L)
+{
+ int n = lua_gettop(L);
+ const float* v = luaL_checkvector(L, 1);
+#if LUA_VECTOR_SIZE == 4
+ float result[] = {v[0], v[1], v[2], v[3]};
+#else
+ float result[] = {v[0], v[1], v[2]};
+#endif
+ for (int i = 2; i <= n; i++)
+ {
+ const float* b = luaL_checkvector(L, i);
+ if (b[0] > result[0])
+ result[0] = b[0];
+ if (b[1] > result[1])
+ result[1] = b[1];
+ if (b[2] > result[2])
+ result[2] = b[2];
+#if LUA_VECTOR_SIZE == 4
+ if (b[3] > result[3])
+ result[3] = b[3];
+#endif
+ }
+#if LUA_VECTOR_SIZE == 4
+ lua_pushvector(L, result[0], result[1], result[2], result[3]);
+#else
+ lua_pushvector(L, result[0], result[1], result[2]);
+#endif
+ return 1;
+}
+static const luaL_Reg vectorlib[] = {
+ {"create", vector_create},
+ {"magnitude", vector_magnitude},
+ {"normalize", vector_normalize},
+ {"cross", vector_cross},
+ {"dot", vector_dot},
+ {"angle", vector_angle},
+ {"floor", vector_floor},
+ {"ceil", vector_ceil},
+ {"abs", vector_abs},
+ {"sign", vector_sign},
+ {"clamp", vector_clamp},
+ {"max", vector_max},
+ {"min", vector_min},
+ {NULL, NULL},
+};
+int luaopen_vector(lua_State* L)
+{
+ luaL_register(L, LUA_VECLIBNAME, vectorlib);
+#if LUA_VECTOR_SIZE == 4
+ lua_pushvector(L, 0.0f, 0.0f, 0.0f, 0.0f);
+ lua_setfield(L, -2, "zero");
+ lua_pushvector(L, 1.0f, 1.0f, 1.0f, 1.0f);
+ lua_setfield(L, -2, "one");
+#else
+ lua_pushvector(L, 0.0f, 0.0f, 0.0f);
+ lua_setfield(L, -2, "zero");
+ lua_pushvector(L, 1.0f, 1.0f, 1.0f);
+ lua_setfield(L, -2, "one");
+#endif
+ return 1;
+}
+#line __LINE__ ""
 #line __LINE__ "lvmexecute.cpp"
 #ifdef __clang__
 #if __has_warning("-Wc99-designator")
@@ -18530,6 +19045,7 @@ public:
  return visit(static_cast<AstTypePack*>(node));
  }
 };
+bool isLValue(const AstExpr*);
 AstName getIdentifier(AstExpr*);
 Location getLocation(const AstTypeList& typeList);
 template<typename T>
@@ -18552,6 +19068,7 @@ struct hash<Luau::AstName>
  }
 };
 }
+#line __LINE__ "Ast.cpp"
 LUAU_FASTFLAG(LuauNativeAttribute);
 LUAU_DYNAMIC_FASTINTVARIABLE(LuauTypeSolverRelease, 643)
 namespace Luau
@@ -19552,6 +20069,13 @@ void AstTypePackGeneric::visit(AstVisitor* visitor)
 {
  visitor->visit(this);
 }
+bool isLValue(const AstExpr* expr)
+{
+ return expr->is<AstExprLocal>()
+ || expr->is<AstExprGlobal>()
+ || expr->is<AstExprIndexName>()
+ || expr->is<AstExprIndexExpr>();
+}
 AstName getIdentifier(AstExpr* node)
 {
  if (AstExprGlobal* expr = node->as<AstExprGlobal>())
@@ -19572,6 +20096,7 @@ Location getLocation(const AstTypeList& typeList)
  return result;
 }
 }
+#line __LINE__ ""
 #line __LINE__ "Confusables.cpp"
 namespace Luau
 {
@@ -22881,7 +23406,7 @@ private:
  );
  AstType* parseTableType(bool inDeclarationContext = false);
  AstTypeOrPack parseSimpleType(bool allowPack, bool inDeclarationContext = false);
- AstTypeOrPack parseTypeOrPack();
+ AstTypeOrPack parseSimpleTypeOrPack();
  AstType* parseType(bool inDeclarationContext = false);
  AstTypePack* parseTypePack();
  AstTypePack* parseVariadicArgumentTypePack();
@@ -23210,11 +23735,12 @@ LUAU_NOINLINE uint16_t createScopeData(const char* name, const char* category);
 LUAU_FASTINTVARIABLE(LuauRecursionLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauTypeLengthLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
-LUAU_FASTFLAGVARIABLE(LuauSolverV2, false)
-LUAU_FASTFLAGVARIABLE(LuauNativeAttribute, false)
-LUAU_FASTFLAGVARIABLE(LuauAttributeSyntaxFunExpr, false)
-LUAU_FASTFLAGVARIABLE(LuauUserDefinedTypeFunctionsSyntax2, false)
-LUAU_FASTFLAGVARIABLE(LuauAllowFragmentParsing, false)
+LUAU_FASTFLAGVARIABLE(LuauSolverV2)
+LUAU_FASTFLAGVARIABLE(LuauNativeAttribute)
+LUAU_FASTFLAGVARIABLE(LuauAttributeSyntaxFunExpr)
+LUAU_FASTFLAGVARIABLE(LuauUserDefinedTypeFunctionsSyntax2)
+LUAU_FASTFLAGVARIABLE(LuauAllowFragmentParsing)
+LUAU_FASTFLAGVARIABLE(LuauPortableStringZeroCheck)
 namespace Luau
 {
 struct AttributeEntry
@@ -23975,7 +24501,8 @@ AstStat* Parser::parseDeclaration(const Location& start, const AstArray<AstAttr*
  expectMatchAndConsume(']', begin);
  expectAndConsume(':', "property type annotation");
  AstType* type = parseType();
- bool containsNull = chars && (strnlen(chars->data, chars->size) < chars->size);
+ bool containsNull = chars && (FFlag::LuauPortableStringZeroCheck ? memchr(chars->data, 0, chars->size) != nullptr
+ : strnlen(chars->data, chars->size) < chars->size);
  if (chars && !containsNull)
  {
  props.push_back(AstDeclaredClassProp{
@@ -24314,7 +24841,8 @@ AstType* Parser::parseTableType(bool inDeclarationContext)
  expectMatchAndConsume(']', begin);
  expectAndConsume(':', "table field");
  AstType* type = parseType();
- bool containsNull = chars && (strnlen(chars->data, chars->size) < chars->size);
+ bool containsNull = chars && (FFlag::LuauPortableStringZeroCheck ? memchr(chars->data, 0, chars->size) != nullptr
+ : strnlen(chars->data, chars->size) < chars->size);
  if (chars && !containsNull)
  props.push_back(AstTableProp{AstName(chars->data), begin.location, type, access, accessLocation});
  else
@@ -24493,7 +25021,7 @@ AstType* Parser::parseTypeSuffix(AstType* type, const Location& begin)
  LUAU_ASSERT(false);
  ParseError::raise(begin, "Composite type was not an intersection or union.");
 }
-AstTypeOrPack Parser::parseTypeOrPack()
+AstTypeOrPack Parser::parseSimpleTypeOrPack()
 {
  unsigned int oldRecursionCount = recursionCounter;
  Location begin = lexer.current().location;
@@ -25276,7 +25804,7 @@ std::pair<AstArray<AstGenericType>, AstArray<AstGenericTypePack>> Parser::parseG
  }
  else
  {
- auto [type, typePack] = parseTypeOrPack();
+ auto [type, typePack] = parseSimpleTypeOrPack();
  if (type)
  report(type->location, "Expected type pack after '=', got type");
  namePacks.push_back({name, nameLocation, typePack});
@@ -25339,7 +25867,7 @@ AstArray<AstTypeOrPack> Parser::parseTypeParams()
  }
  else if (lexer.current().type == '(')
  {
- auto [type, typePack] = parseTypeOrPack();
+ auto [type, typePack] = parseSimpleTypeOrPack();
  if (typePack)
  parameters.push_back({{}, typePack});
  else
@@ -26005,7 +26533,7 @@ std::string escape(std::string_view s, bool escapeForInterpString)
 #endif
 #ifdef __APPLE__
 #endif
-LUAU_FASTFLAGVARIABLE(DebugLuauTimeTracing, false)
+LUAU_FASTFLAGVARIABLE(DebugLuauTimeTracing)
 namespace Luau
 {
 namespace TimeTrace
@@ -26784,6 +27312,7 @@ std::string compile(
 );
 }
 #line __LINE__ "Builtins.cpp"
+LUAU_FASTFLAGVARIABLE(LuauVectorBuiltins)
 namespace Luau
 {
 namespace Compile
@@ -26984,6 +27513,33 @@ static int getBuiltinFunctionId(const Builtin& builtin, const CompileOptions& op
  if (builtin.method == "writef64")
  return LBF_BUFFER_WRITEF64;
  }
+ if (FFlag::LuauVectorBuiltins && builtin.object == "vector")
+ {
+ if (builtin.method == "create")
+ return LBF_VECTOR;
+ if (builtin.method == "magnitude")
+ return LBF_VECTOR_MAGNITUDE;
+ if (builtin.method == "normalize")
+ return LBF_VECTOR_NORMALIZE;
+ if (builtin.method == "cross")
+ return LBF_VECTOR_CROSS;
+ if (builtin.method == "dot")
+ return LBF_VECTOR_DOT;
+ if (builtin.method == "floor")
+ return LBF_VECTOR_FLOOR;
+ if (builtin.method == "ceil")
+ return LBF_VECTOR_CEIL;
+ if (builtin.method == "abs")
+ return LBF_VECTOR_ABS;
+ if (builtin.method == "sign")
+ return LBF_VECTOR_SIGN;
+ if (builtin.method == "clamp")
+ return LBF_VECTOR_CLAMP;
+ if (builtin.method == "min")
+ return LBF_VECTOR_MIN;
+ if (builtin.method == "max")
+ return LBF_VECTOR_MAX;
+ }
  if (options.vectorCtor)
  {
  if (options.vectorLib)
@@ -27169,6 +27725,22 @@ BuiltinInfo getBuiltinInfo(int bfid)
  case LBF_BUFFER_WRITEF32:
  case LBF_BUFFER_WRITEF64:
  return {3, 0, BuiltinInfo::Flag_NoneSafe};
+ case LBF_VECTOR_MAGNITUDE:
+ case LBF_VECTOR_NORMALIZE:
+ return {1, 1, BuiltinInfo::Flag_NoneSafe};
+ case LBF_VECTOR_CROSS:
+ case LBF_VECTOR_DOT:
+ return {2, 1, BuiltinInfo::Flag_NoneSafe};
+ case LBF_VECTOR_FLOOR:
+ case LBF_VECTOR_CEIL:
+ case LBF_VECTOR_ABS:
+ case LBF_VECTOR_SIGN:
+ return {1, 1, BuiltinInfo::Flag_NoneSafe};
+ case LBF_VECTOR_CLAMP:
+ return {3, 1, BuiltinInfo::Flag_NoneSafe};
+ case LBF_VECTOR_MIN:
+ case LBF_VECTOR_MAX:
+ return {-1, 1};
  }
  LUAU_UNREACHABLE();
 }
@@ -29408,21 +29980,22 @@ namespace Luau
 class BytecodeBuilder;
 struct BuiltinAstTypes
 {
- BuiltinAstTypes(const char* vectorType)
- : vectorType{{}, std::nullopt, AstName{vectorType}, std::nullopt, {}}
+ BuiltinAstTypes(const char* hostVectorType)
+ : hostVectorType{{}, std::nullopt, AstName{hostVectorType}, std::nullopt, {}}
  {
  }
  AstTypeReference booleanType{{}, std::nullopt, AstName{"boolean"}, std::nullopt, {}};
  AstTypeReference numberType{{}, std::nullopt, AstName{"number"}, std::nullopt, {}};
  AstTypeReference stringType{{}, std::nullopt, AstName{"string"}, std::nullopt, {}};
- AstTypeReference vectorType;
+ AstTypeReference vectorType{{}, std::nullopt, AstName{"vector"}, std::nullopt, {}};
+ AstTypeReference hostVectorType;
 };
 void buildTypeMap(
  DenseHashMap<AstExprFunction*, std::string>& functionTypes,
  DenseHashMap<AstLocal*, LuauBytecodeType>& localTypes,
  DenseHashMap<AstExpr*, LuauBytecodeType>& exprTypes,
  AstNode* root,
- const char* vectorType,
+ const char* hostVectorType,
  const DenseHashMap<AstName, uint8_t>& userdataTypes,
  const BuiltinAstTypes& builtinTypes,
  const DenseHashMap<AstExprCall*, int>& builtinCalls,
@@ -33375,6 +33948,7 @@ void predictTableShapes(DenseHashMap<AstExprTable*, TableShape>& shapes, AstNode
 } // namespace Luau
 #line __LINE__ ""
 #line __LINE__ "Types.cpp"
+LUAU_FASTFLAGVARIABLE(LuauCompileVectorTypeInfo)
 namespace Luau
 {
 static bool isGeneric(AstName name, const AstArray<AstGenericType>& generics)
@@ -33398,6 +33972,8 @@ static LuauBytecodeType getPrimitiveType(AstName name)
  return LBC_TYPE_THREAD;
  else if (name == "buffer")
  return LBC_TYPE_BUFFER;
+ else if (FFlag::LuauCompileVectorTypeInfo && name == "vector")
+ return LBC_TYPE_VECTOR;
  else if (name == "any" || name == "unknown")
  return LBC_TYPE_ANY;
  else
@@ -33408,7 +33984,7 @@ static LuauBytecodeType getType(
  const AstArray<AstGenericType>& generics,
  const DenseHashMap<AstName, AstStatTypeAlias*>& typeAliases,
  bool resolveAliases,
- const char* vectorType,
+ const char* hostVectorType,
  const DenseHashMap<AstName, uint8_t>& userdataTypes,
  BytecodeBuilder& bytecode
 )
@@ -33420,13 +33996,13 @@ static LuauBytecodeType getType(
  if (AstStatTypeAlias* const* alias = typeAliases.find(ref->name); alias && *alias)
  {
  if (resolveAliases)
- return getType((*alias)->type, (*alias)->generics, typeAliases, false, vectorType, userdataTypes, bytecode);
+ return getType((*alias)->type, (*alias)->generics, typeAliases, false, hostVectorType, userdataTypes, bytecode);
  else
  return LBC_TYPE_ANY;
  }
  if (isGeneric(ref->name, generics))
  return LBC_TYPE_ANY;
- if (vectorType && ref->name == vectorType)
+ if (hostVectorType && ref->name == hostVectorType)
  return LBC_TYPE_VECTOR;
  if (LuauBytecodeType prim = getPrimitiveType(ref->name); prim != LBC_TYPE_INVALID)
  return prim;
@@ -33451,7 +34027,7 @@ static LuauBytecodeType getType(
  LuauBytecodeType type = LBC_TYPE_INVALID;
  for (AstType* ty : un->types)
  {
- LuauBytecodeType et = getType(ty, generics, typeAliases, resolveAliases, vectorType, userdataTypes, bytecode);
+ LuauBytecodeType et = getType(ty, generics, typeAliases, resolveAliases, hostVectorType, userdataTypes, bytecode);
  if (et == LBC_TYPE_NIL)
  {
  optional = true;
@@ -33478,7 +34054,7 @@ static LuauBytecodeType getType(
 static std::string getFunctionType(
  const AstExprFunction* func,
  const DenseHashMap<AstName, AstStatTypeAlias*>& typeAliases,
- const char* vectorType,
+ const char* hostVectorType,
  const DenseHashMap<AstName, uint8_t>& userdataTypes,
  BytecodeBuilder& bytecode
 )
@@ -33494,7 +34070,8 @@ static std::string getFunctionType(
  for (AstLocal* arg : func->args)
  {
  LuauBytecodeType ty =
- arg->annotation ? getType(arg->annotation, func->generics, typeAliases, true, vectorType, userdataTypes, bytecode)
+ arg->annotation
+ ? getType(arg->annotation, func->generics, typeAliases, true, hostVectorType, userdataTypes, bytecode)
  : LBC_TYPE_ANY;
  if (ty != LBC_TYPE_ANY)
  haveNonAnyParam = true;
@@ -33515,7 +34092,7 @@ struct TypeMapVisitor : AstVisitor
  DenseHashMap<AstExprFunction*, std::string>& functionTypes;
  DenseHashMap<AstLocal*, LuauBytecodeType>& localTypes;
  DenseHashMap<AstExpr*, LuauBytecodeType>& exprTypes;
- const char* vectorType;
+ const char* hostVectorType;
  const DenseHashMap<AstName, uint8_t>& userdataTypes;
  const BuiltinAstTypes& builtinTypes;
  const DenseHashMap<AstExprCall*, int>& builtinCalls;
@@ -33529,7 +34106,7 @@ struct TypeMapVisitor : AstVisitor
  DenseHashMap<AstExprFunction*, std::string>& functionTypes,
  DenseHashMap<AstLocal*, LuauBytecodeType>& localTypes,
  DenseHashMap<AstExpr*, LuauBytecodeType>& exprTypes,
- const char* vectorType,
+ const char* hostVectorType,
  const DenseHashMap<AstName, uint8_t>& userdataTypes,
  const BuiltinAstTypes& builtinTypes,
  const DenseHashMap<AstExprCall*, int>& builtinCalls,
@@ -33539,7 +34116,7 @@ struct TypeMapVisitor : AstVisitor
  : functionTypes(functionTypes)
  , localTypes(localTypes)
  , exprTypes(exprTypes)
- , vectorType(vectorType)
+ , hostVectorType(hostVectorType)
  , userdataTypes(userdataTypes)
  , builtinTypes(builtinTypes)
  , builtinCalls(builtinCalls)
@@ -33595,7 +34172,7 @@ struct TypeMapVisitor : AstVisitor
  {
  ty = resolveAliases(ty);
  resolvedExprs[expr] = ty;
- LuauBytecodeType bty = getType(ty, {}, typeAliases, true, vectorType, userdataTypes, bytecode);
+ LuauBytecodeType bty = getType(ty, {}, typeAliases, true, hostVectorType, userdataTypes, bytecode);
  exprTypes[expr] = bty;
  return bty;
  }
@@ -33603,7 +34180,7 @@ struct TypeMapVisitor : AstVisitor
  {
  ty = resolveAliases(ty);
  resolvedLocals[local] = ty;
- LuauBytecodeType bty = getType(ty, {}, typeAliases, true, vectorType, userdataTypes, bytecode);
+ LuauBytecodeType bty = getType(ty, {}, typeAliases, true, hostVectorType, userdataTypes, bytecode);
  if (bty != LBC_TYPE_ANY)
  localTypes[local] = bty;
  return bty;
@@ -33669,7 +34246,7 @@ struct TypeMapVisitor : AstVisitor
  }
  bool visit(AstExprFunction* node) override
  {
- std::string type = getFunctionType(node, typeAliases, vectorType, userdataTypes, bytecode);
+ std::string type = getFunctionType(node, typeAliases, hostVectorType, userdataTypes, bytecode);
  if (!type.empty())
  functionTypes[node] = std::move(type);
  return true;
@@ -33919,6 +34496,8 @@ struct TypeMapVisitor : AstVisitor
  case LBF_BUFFER_READU32:
  case LBF_BUFFER_READF32:
  case LBF_BUFFER_READF64:
+ case LBF_VECTOR_MAGNITUDE:
+ case LBF_VECTOR_DOT:
  recordResolvedType(node, &builtinTypes.numberType);
  break;
  case LBF_TYPE:
@@ -33932,6 +34511,15 @@ struct TypeMapVisitor : AstVisitor
  recordResolvedType(node, &builtinTypes.booleanType);
  break;
  case LBF_VECTOR:
+ case LBF_VECTOR_NORMALIZE:
+ case LBF_VECTOR_CROSS:
+ case LBF_VECTOR_FLOOR:
+ case LBF_VECTOR_CEIL:
+ case LBF_VECTOR_ABS:
+ case LBF_VECTOR_SIGN:
+ case LBF_VECTOR_CLAMP:
+ case LBF_VECTOR_MIN:
+ case LBF_VECTOR_MAX:
  recordResolvedType(node, &builtinTypes.vectorType);
  break;
  }
@@ -33944,7 +34532,7 @@ void buildTypeMap(
  DenseHashMap<AstLocal*, LuauBytecodeType>& localTypes,
  DenseHashMap<AstExpr*, LuauBytecodeType>& exprTypes,
  AstNode* root,
- const char* vectorType,
+ const char* hostVectorType,
  const DenseHashMap<AstName, uint8_t>& userdataTypes,
  const BuiltinAstTypes& builtinTypes,
  const DenseHashMap<AstExprCall*, int>& builtinCalls,
@@ -33952,7 +34540,7 @@ void buildTypeMap(
  BytecodeBuilder& bytecode
 )
 {
- TypeMapVisitor visitor(functionTypes, localTypes, exprTypes, vectorType, userdataTypes, builtinTypes, builtinCalls, globals, bytecode);
+ TypeMapVisitor visitor(functionTypes, localTypes, exprTypes, hostVectorType, userdataTypes, builtinTypes, builtinCalls, globals, bytecode);
  root->visit(&visitor);
 }
 }
@@ -42044,6 +42632,40 @@ static void applyBuiltinCall(int bfid, BytecodeTypes& types)
  types.a = LBC_TYPE_TABLE;
  types.b = LBC_TYPE_TABLE;
  break;
+ case LBF_VECTOR_MAGNITUDE:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_VECTOR;
+ break;
+ case LBF_VECTOR_NORMALIZE:
+ types.result = LBC_TYPE_VECTOR;
+ types.a = LBC_TYPE_VECTOR;
+ break;
+ case LBF_VECTOR_CROSS:
+ types.result = LBC_TYPE_VECTOR;
+ types.a = LBC_TYPE_VECTOR;
+ types.b = LBC_TYPE_VECTOR;
+ break;
+ case LBF_VECTOR_DOT:
+ types.result = LBC_TYPE_NUMBER;
+ types.a = LBC_TYPE_VECTOR;
+ types.b = LBC_TYPE_VECTOR;
+ break;
+ case LBF_VECTOR_FLOOR:
+ case LBF_VECTOR_CEIL:
+ case LBF_VECTOR_ABS:
+ case LBF_VECTOR_SIGN:
+ case LBF_VECTOR_CLAMP:
+ types.result = LBC_TYPE_VECTOR;
+ types.a = LBC_TYPE_VECTOR;
+ types.b = LBC_TYPE_VECTOR;
+ break;
+ case LBF_VECTOR_MIN:
+ case LBF_VECTOR_MAX:
+ types.result = LBC_TYPE_VECTOR;
+ types.a = LBC_TYPE_VECTOR;
+ types.b = LBC_TYPE_VECTOR;
+ types.c = LBC_TYPE_VECTOR;
+ break;
  }
 }
 static HostMetamethod opcodeToHostMetamethod(LuauOpcode op)
@@ -43123,9 +43745,9 @@ bool isUnwindSupported()
 #ifdef __APPLE__
 #endif
 #endif
-LUAU_FASTFLAGVARIABLE(DebugCodegenNoOpt, false)
-LUAU_FASTFLAGVARIABLE(DebugCodegenOptSize, false)
-LUAU_FASTFLAGVARIABLE(DebugCodegenSkipNumbering, false)
+LUAU_FASTFLAGVARIABLE(DebugCodegenNoOpt)
+LUAU_FASTFLAGVARIABLE(DebugCodegenOptSize)
+LUAU_FASTFLAGVARIABLE(DebugCodegenSkipNumbering)
 LUAU_FASTINTVARIABLE(CodegenHeuristicsInstructionLimit, 1'048'576) // 1 M
 LUAU_FASTINTVARIABLE(CodegenHeuristicsBlockLimit, 32'768)
 LUAU_FASTINTVARIABLE(CodegenHeuristicsBlockInstructionLimit, 65'536)
@@ -43877,8 +44499,8 @@ Udata* newUserdata(lua_State* L, size_t s, int tag)
  Udata* u = luaU_newudata(L, s, tag);
  if (Table* h = L->global->udatamt[tag])
  {
+ LUAU_ASSERT(!isblack(obj2gco(u)));
  u->metatable = h;
- luaC_objbarrier(L, u, h);
  }
  return u;
 }
@@ -51617,7 +52239,7 @@ OperandX64 IrLoweringX64::vectorAndMaskOp()
 }
 #line __LINE__ ""
 #line __LINE__ "IrRegAllocA64.cpp"
-LUAU_FASTFLAGVARIABLE(DebugCodegenChaosA64, false)
+LUAU_FASTFLAGVARIABLE(DebugCodegenChaosA64)
 namespace Luau
 {
 namespace CodeGen
@@ -52405,6 +53027,7 @@ BuiltinImplResult translateBuiltin(
 #line __LINE__ "IrTranslateBuiltins.cpp"
 static const int kMinMaxUnrolledParams = 5;
 static const int kBit32BinaryOpUnrolledParams = 5;
+LUAU_FASTFLAGVARIABLE(LuauVectorLibNativeCodegen);
 namespace Luau
 {
 namespace CodeGen
@@ -53055,6 +53678,220 @@ static BuiltinImplResult translateBuiltinBufferWrite(
  build.inst(writeCmd, buf, intIndex, convCmd == IrCmd::NOP ? numValue : build.inst(convCmd, numValue));
  return {BuiltinImplType::Full, 0};
 }
+static BuiltinImplResult translateBuiltinVectorMagnitude(
+ IrBuilder& build,
+ int nparams,
+ int ra,
+ int arg,
+ IrOp args,
+ IrOp arg3,
+ int nresults,
+ int pcpos
+)
+{
+ LUAU_ASSERT(FFlag::LuauVectorLibNativeCodegen);
+ IrOp arg1 = build.vmReg(arg);
+ if (nparams != 1 || nresults > 1 || arg1.kind == IrOpKind::Constant)
+ return {BuiltinImplType::None, -1};
+ build.loadAndCheckTag(arg1, LUA_TVECTOR, build.vmExit(pcpos));
+ IrOp x = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(0));
+ IrOp y = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(4));
+ IrOp z = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(8));
+ IrOp x2 = build.inst(IrCmd::MUL_NUM, x, x);
+ IrOp y2 = build.inst(IrCmd::MUL_NUM, y, y);
+ IrOp z2 = build.inst(IrCmd::MUL_NUM, z, z);
+ IrOp sum = build.inst(IrCmd::ADD_NUM, build.inst(IrCmd::ADD_NUM, x2, y2), z2);
+ IrOp mag = build.inst(IrCmd::SQRT_NUM, sum);
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), mag);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinVectorNormalize(
+ IrBuilder& build,
+ int nparams,
+ int ra,
+ int arg,
+ IrOp args,
+ IrOp arg3,
+ int nresults,
+ int pcpos
+)
+{
+ LUAU_ASSERT(FFlag::LuauVectorLibNativeCodegen);
+ IrOp arg1 = build.vmReg(arg);
+ if (nparams != 1 || nresults > 1 || arg1.kind == IrOpKind::Constant)
+ return {BuiltinImplType::None, -1};
+ build.loadAndCheckTag(arg1, LUA_TVECTOR, build.vmExit(pcpos));
+ IrOp x = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(0));
+ IrOp y = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(4));
+ IrOp z = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(8));
+ IrOp x2 = build.inst(IrCmd::MUL_NUM, x, x);
+ IrOp y2 = build.inst(IrCmd::MUL_NUM, y, y);
+ IrOp z2 = build.inst(IrCmd::MUL_NUM, z, z);
+ IrOp sum = build.inst(IrCmd::ADD_NUM, build.inst(IrCmd::ADD_NUM, x2, y2), z2);
+ IrOp mag = build.inst(IrCmd::SQRT_NUM, sum);
+ IrOp inv = build.inst(IrCmd::DIV_NUM, build.constDouble(1.0), mag);
+ IrOp xr = build.inst(IrCmd::MUL_NUM, x, inv);
+ IrOp yr = build.inst(IrCmd::MUL_NUM, y, inv);
+ IrOp zr = build.inst(IrCmd::MUL_NUM, z, inv);
+ build.inst(IrCmd::STORE_VECTOR, build.vmReg(ra), xr, yr, zr);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TVECTOR));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinVectorCross(IrBuilder& build, int nparams, int ra, int arg, IrOp args, IrOp arg3, int nresults, int pcpos)
+{
+ LUAU_ASSERT(FFlag::LuauVectorLibNativeCodegen);
+ IrOp arg1 = build.vmReg(arg);
+ if (nparams != 2 || nresults > 1 || arg1.kind == IrOpKind::Constant || args.kind == IrOpKind::Constant)
+ return {BuiltinImplType::None, -1};
+ build.loadAndCheckTag(arg1, LUA_TVECTOR, build.vmExit(pcpos));
+ build.loadAndCheckTag(args, LUA_TVECTOR, build.vmExit(pcpos));
+ IrOp x1 = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(0));
+ IrOp x2 = build.inst(IrCmd::LOAD_FLOAT, args, build.constInt(0));
+ IrOp y1 = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(4));
+ IrOp y2 = build.inst(IrCmd::LOAD_FLOAT, args, build.constInt(4));
+ IrOp z1 = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(8));
+ IrOp z2 = build.inst(IrCmd::LOAD_FLOAT, args, build.constInt(8));
+ IrOp y1z2 = build.inst(IrCmd::MUL_NUM, y1, z2);
+ IrOp z1y2 = build.inst(IrCmd::MUL_NUM, z1, y2);
+ IrOp xr = build.inst(IrCmd::SUB_NUM, y1z2, z1y2);
+ IrOp z1x2 = build.inst(IrCmd::MUL_NUM, z1, x2);
+ IrOp x1z2 = build.inst(IrCmd::MUL_NUM, x1, z2);
+ IrOp yr = build.inst(IrCmd::SUB_NUM, z1x2, x1z2);
+ IrOp x1y2 = build.inst(IrCmd::MUL_NUM, x1, y2);
+ IrOp y1x2 = build.inst(IrCmd::MUL_NUM, y1, x2);
+ IrOp zr = build.inst(IrCmd::SUB_NUM, x1y2, y1x2);
+ build.inst(IrCmd::STORE_VECTOR, build.vmReg(ra), xr, yr, zr);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TVECTOR));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinVectorDot(IrBuilder& build, int nparams, int ra, int arg, IrOp args, IrOp arg3, int nresults, int pcpos)
+{
+ LUAU_ASSERT(FFlag::LuauVectorLibNativeCodegen);
+ IrOp arg1 = build.vmReg(arg);
+ if (nparams != 2 || nresults > 1 || arg1.kind == IrOpKind::Constant || args.kind == IrOpKind::Constant)
+ return {BuiltinImplType::None, -1};
+ build.loadAndCheckTag(arg1, LUA_TVECTOR, build.vmExit(pcpos));
+ build.loadAndCheckTag(args, LUA_TVECTOR, build.vmExit(pcpos));
+ IrOp x1 = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(0));
+ IrOp x2 = build.inst(IrCmd::LOAD_FLOAT, args, build.constInt(0));
+ IrOp xx = build.inst(IrCmd::MUL_NUM, x1, x2);
+ IrOp y1 = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(4));
+ IrOp y2 = build.inst(IrCmd::LOAD_FLOAT, args, build.constInt(4));
+ IrOp yy = build.inst(IrCmd::MUL_NUM, y1, y2);
+ IrOp z1 = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(8));
+ IrOp z2 = build.inst(IrCmd::LOAD_FLOAT, args, build.constInt(8));
+ IrOp zz = build.inst(IrCmd::MUL_NUM, z1, z2);
+ IrOp sum = build.inst(IrCmd::ADD_NUM, build.inst(IrCmd::ADD_NUM, xx, yy), zz);
+ build.inst(IrCmd::STORE_DOUBLE, build.vmReg(ra), sum);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TNUMBER));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinVectorMap1(
+ IrBuilder& build,
+ IrCmd cmd,
+ int nparams,
+ int ra,
+ int arg,
+ IrOp args,
+ IrOp arg3,
+ int nresults,
+ int pcpos
+)
+{
+ LUAU_ASSERT(FFlag::LuauVectorLibNativeCodegen);
+ IrOp arg1 = build.vmReg(arg);
+ if (nparams != 1 || nresults > 1 || arg1.kind == IrOpKind::Constant)
+ return {BuiltinImplType::None, -1};
+ build.loadAndCheckTag(arg1, LUA_TVECTOR, build.vmExit(pcpos));
+ IrOp x1 = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(0));
+ IrOp y1 = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(4));
+ IrOp z1 = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(8));
+ IrOp xr = build.inst(cmd, x1);
+ IrOp yr = build.inst(cmd, y1);
+ IrOp zr = build.inst(cmd, z1);
+ build.inst(IrCmd::STORE_VECTOR, build.vmReg(ra), xr, yr, zr);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TVECTOR));
+ return {BuiltinImplType::Full, 1};
+}
+static BuiltinImplResult translateBuiltinVectorClamp(
+ IrBuilder& build,
+ int nparams,
+ int ra,
+ int arg,
+ IrOp args,
+ IrOp arg3,
+ int nresults,
+ IrOp fallback,
+ int pcpos
+)
+{
+ LUAU_ASSERT(FFlag::LuauVectorLibNativeCodegen);
+ IrOp arg1 = build.vmReg(arg);
+ if (nparams != 3 || nresults > 1 || arg1.kind == IrOpKind::Constant || args.kind == IrOpKind::Constant || arg3.kind == IrOpKind::Constant)
+ return {BuiltinImplType::None, -1};
+ build.loadAndCheckTag(arg1, LUA_TVECTOR, build.vmExit(pcpos));
+ build.loadAndCheckTag(args, LUA_TVECTOR, build.vmExit(pcpos));
+ build.loadAndCheckTag(arg3, LUA_TVECTOR, build.vmExit(pcpos));
+ IrOp block1 = build.block(IrBlockKind::Internal);
+ IrOp block2 = build.block(IrBlockKind::Internal);
+ IrOp block3 = build.block(IrBlockKind::Internal);
+ IrOp x = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(0));
+ IrOp xmin = build.inst(IrCmd::LOAD_FLOAT, args, build.constInt(0));
+ IrOp xmax = build.inst(IrCmd::LOAD_FLOAT, arg3, build.constInt(0));
+ build.inst(IrCmd::JUMP_CMP_NUM, xmin, xmax, build.cond(IrCondition::NotLessEqual), fallback, block1);
+ build.beginBlock(block1);
+ IrOp y = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(4));
+ IrOp ymin = build.inst(IrCmd::LOAD_FLOAT, args, build.constInt(4));
+ IrOp ymax = build.inst(IrCmd::LOAD_FLOAT, arg3, build.constInt(4));
+ build.inst(IrCmd::JUMP_CMP_NUM, ymin, ymax, build.cond(IrCondition::NotLessEqual), fallback, block2);
+ build.beginBlock(block2);
+ IrOp z = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(8));
+ IrOp zmin = build.inst(IrCmd::LOAD_FLOAT, args, build.constInt(8));
+ IrOp zmax = build.inst(IrCmd::LOAD_FLOAT, arg3, build.constInt(8));
+ build.inst(IrCmd::JUMP_CMP_NUM, zmin, zmax, build.cond(IrCondition::NotLessEqual), fallback, block3);
+ build.beginBlock(block3);
+ IrOp xtemp = build.inst(IrCmd::MAX_NUM, xmin, x);
+ IrOp xclamped = build.inst(IrCmd::MIN_NUM, xmax, xtemp);
+ IrOp ytemp = build.inst(IrCmd::MAX_NUM, ymin, y);
+ IrOp yclamped = build.inst(IrCmd::MIN_NUM, ymax, ytemp);
+ IrOp ztemp = build.inst(IrCmd::MAX_NUM, zmin, z);
+ IrOp zclamped = build.inst(IrCmd::MIN_NUM, zmax, ztemp);
+ build.inst(IrCmd::STORE_VECTOR, build.vmReg(ra), xclamped, yclamped, zclamped);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TVECTOR));
+ return {BuiltinImplType::UsesFallback, 1};
+}
+static BuiltinImplResult translateBuiltinVectorMap2(
+ IrBuilder& build,
+ IrCmd cmd,
+ int nparams,
+ int ra,
+ int arg,
+ IrOp args,
+ IrOp arg3,
+ int nresults,
+ int pcpos
+)
+{
+ LUAU_ASSERT(FFlag::LuauVectorLibNativeCodegen);
+ IrOp arg1 = build.vmReg(arg);
+ if (nparams != 2 || nresults > 1 || arg1.kind == IrOpKind::Constant || args.kind == IrOpKind::Constant)
+ return {BuiltinImplType::None, -1};
+ build.loadAndCheckTag(arg1, LUA_TVECTOR, build.vmExit(pcpos));
+ build.loadAndCheckTag(args, LUA_TVECTOR, build.vmExit(pcpos));
+ IrOp x1 = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(0));
+ IrOp y1 = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(4));
+ IrOp z1 = build.inst(IrCmd::LOAD_FLOAT, arg1, build.constInt(8));
+ IrOp x2 = build.inst(IrCmd::LOAD_FLOAT, args, build.constInt(0));
+ IrOp y2 = build.inst(IrCmd::LOAD_FLOAT, args, build.constInt(4));
+ IrOp z2 = build.inst(IrCmd::LOAD_FLOAT, args, build.constInt(8));
+ IrOp xr = build.inst(cmd, x1, x2);
+ IrOp yr = build.inst(cmd, y1, y2);
+ IrOp zr = build.inst(cmd, z1, z2);
+ build.inst(IrCmd::STORE_VECTOR, build.vmReg(ra), xr, yr, zr);
+ build.inst(IrCmd::STORE_TAG, build.vmReg(ra), build.constTag(LUA_TVECTOR));
+ return {BuiltinImplType::Full, 1};
+}
 BuiltinImplResult translateBuiltin(
  IrBuilder& build,
  int bfid,
@@ -53068,6 +53905,7 @@ BuiltinImplResult translateBuiltin(
  int pcpos
 )
 {
+ BuiltinImplResult noneResult = {BuiltinImplType::None, -1};
  if (nparams == LUA_MULTRET)
  return {BuiltinImplType::None, -1};
  switch (bfid)
@@ -53186,6 +54024,35 @@ BuiltinImplResult translateBuiltin(
  return translateBuiltinBufferRead(build, nparams, ra, arg, args, arg3, nresults, pcpos, IrCmd::BUFFER_READF64, 8, IrCmd::NOP);
  case LBF_BUFFER_WRITEF64:
  return translateBuiltinBufferWrite(build, nparams, ra, arg, args, arg3, nresults, pcpos, IrCmd::BUFFER_WRITEF64, 8, IrCmd::NOP);
+ case LBF_VECTOR_MAGNITUDE:
+ return FFlag::LuauVectorLibNativeCodegen ? translateBuiltinVectorMagnitude(build, nparams, ra, arg, args, arg3, nresults, pcpos) : noneResult;
+ case LBF_VECTOR_NORMALIZE:
+ return FFlag::LuauVectorLibNativeCodegen ? translateBuiltinVectorNormalize(build, nparams, ra, arg, args, arg3, nresults, pcpos) : noneResult;
+ case LBF_VECTOR_CROSS:
+ return FFlag::LuauVectorLibNativeCodegen ? translateBuiltinVectorCross(build, nparams, ra, arg, args, arg3, nresults, pcpos) : noneResult;
+ case LBF_VECTOR_DOT:
+ return FFlag::LuauVectorLibNativeCodegen ? translateBuiltinVectorDot(build, nparams, ra, arg, args, arg3, nresults, pcpos) : noneResult;
+ case LBF_VECTOR_FLOOR:
+ return FFlag::LuauVectorLibNativeCodegen ? translateBuiltinVectorMap1(build, IrCmd::FLOOR_NUM, nparams, ra, arg, args, arg3, nresults, pcpos)
+ : noneResult;
+ case LBF_VECTOR_CEIL:
+ return FFlag::LuauVectorLibNativeCodegen ? translateBuiltinVectorMap1(build, IrCmd::CEIL_NUM, nparams, ra, arg, args, arg3, nresults, pcpos)
+ : noneResult;
+ case LBF_VECTOR_ABS:
+ return FFlag::LuauVectorLibNativeCodegen ? translateBuiltinVectorMap1(build, IrCmd::ABS_NUM, nparams, ra, arg, args, arg3, nresults, pcpos)
+ : noneResult;
+ case LBF_VECTOR_SIGN:
+ return FFlag::LuauVectorLibNativeCodegen ? translateBuiltinVectorMap1(build, IrCmd::SIGN_NUM, nparams, ra, arg, args, arg3, nresults, pcpos)
+ : noneResult;
+ case LBF_VECTOR_CLAMP:
+ return FFlag::LuauVectorLibNativeCodegen ? translateBuiltinVectorClamp(build, nparams, ra, arg, args, arg3, nresults, fallback, pcpos)
+ : noneResult;
+ case LBF_VECTOR_MIN:
+ return FFlag::LuauVectorLibNativeCodegen ? translateBuiltinVectorMap2(build, IrCmd::MIN_NUM, nparams, ra, arg, args, arg3, nresults, pcpos)
+ : noneResult;
+ case LBF_VECTOR_MAX:
+ return FFlag::LuauVectorLibNativeCodegen ? translateBuiltinVectorMap2(build, IrCmd::MAX_NUM, nparams, ra, arg, args, arg3, nresults, pcpos)
+ : noneResult;
  default:
  return {BuiltinImplType::None, -1};
  }
@@ -55633,7 +56500,7 @@ void initFunctions(NativeContext& context)
 LUAU_FASTINTVARIABLE(LuauCodeGenMinLinearBlockPath, 3)
 LUAU_FASTINTVARIABLE(LuauCodeGenReuseSlotLimit, 64)
 LUAU_FASTINTVARIABLE(LuauCodeGenReuseUdataTagLimit, 64)
-LUAU_FASTFLAGVARIABLE(DebugLuauAbortingChecks, false)
+LUAU_FASTFLAGVARIABLE(DebugLuauAbortingChecks)
 namespace Luau
 {
 namespace CodeGen
@@ -56029,6 +56896,17 @@ static void handleBuiltinEffects(ConstPropState& state, LuauBuiltinFunction bfid
  case LBF_BUFFER_WRITEF32:
  case LBF_BUFFER_READF64:
  case LBF_BUFFER_WRITEF64:
+ case LBF_VECTOR_MAGNITUDE:
+ case LBF_VECTOR_NORMALIZE:
+ case LBF_VECTOR_CROSS:
+ case LBF_VECTOR_DOT:
+ case LBF_VECTOR_FLOOR:
+ case LBF_VECTOR_CEIL:
+ case LBF_VECTOR_ABS:
+ case LBF_VECTOR_SIGN:
+ case LBF_VECTOR_CLAMP:
+ case LBF_VECTOR_MIN:
+ case LBF_VECTOR_MAX:
  break;
  case LBF_TABLE_INSERT:
  state.invalidateHeap();

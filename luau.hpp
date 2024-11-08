@@ -227,6 +227,7 @@ LUA_API void lua_pushboolean(lua_State* L, int b);
 LUA_API int lua_pushthread(lua_State* L);
 LUA_API void lua_pushlightuserdatatagged(lua_State* L, void* p, int tag);
 LUA_API void* lua_newuserdatatagged(lua_State* L, size_t sz, int tag);
+LUA_API void* lua_newuserdatataggedwithmetatable(lua_State* L, size_t sz, int tag);
 LUA_API void* lua_newuserdatadtor(lua_State* L, size_t sz, void (*dtor)(void*));
 LUA_API void* lua_newbuffer(lua_State* L, size_t sz);
 LUA_API int lua_gettable(lua_State* L, int idx);
@@ -451,6 +452,8 @@ LUALIB_API int luaopen_utf8(lua_State* L);
 LUALIB_API int luaopen_math(lua_State* L);
 #define LUA_DBLIBNAME "debug"
 LUALIB_API int luaopen_debug(lua_State* L);
+#define LUA_VECLIBNAME "vector"
+LUALIB_API int luaopen_vector(lua_State* L);
 LUALIB_API void luaL_openlibs(lua_State* L);
 LUALIB_API void luaL_sandbox(lua_State* L);
 LUALIB_API void luaL_sandboxthread(lua_State* L);
