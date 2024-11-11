@@ -1,195 +1,681 @@
+
+inspect = dofile('../inspect.lua')
+
 print([[
-Luau source packer.
+Luau source packer v2.0.
 Copyright (C) UtECat 2023-2024.
 MIT License.
 NO ANY WARRIANTY!
 ]])
 
--- modules directories to pack
-local modules = {
-	"Ast", 
-	"Compiler",
-	"CodeGen", -- let's go
-	"VM"
-}
+local START_TIME = os.time()
 
--- directory of currently packed module.
-local module_dir = nil
+-- 
+-- UTILITIES 
+--
 
--- common directory
-local common_dir = "Common/include/Luau"
+gen = {}
 
--- subdirs in every module
-local subdirs_name = {"include", "include/Luau", "src"}
-
--- PATH_SEP
-local SEP = '/'
-
-local function checkfile(n)
-	local f = io.open(n, 'r')
-	if f then 
-		f:close()
-		return n
-	end
-	return nil
+local function pesc(s)
+  return string.gsub(s, '([%"%$])', '\\%1')
 end
 
-local function searchfile(n)
-	local tmp
-
-	-- check in module sources at first :
-	tmp = checkfile(module_dir..SEP..subdirs_name[3]..SEP..n)
-	if tmp then return tmp end
-
-	-- else check in common dir (no src dir there)
-	tmp = checkfile(common_dir..SEP..n)
-	if tmp then return tmp end
-
-	-- else check in shared modules dirs (no src dir there)
-	for _, mod in pairs(modules) do
-		tmp = checkfile(mod..SEP..subdirs_name[1]..SEP..n)
-		if tmp then return tmp end
-		-- and in Luau subfolder too
-		tmp = checkfile(mod..SEP..subdirs_name[2]..SEP..n)
-		if tmp then return tmp end
-	end
-
-	-- not found
-	return nil
+local function trimspaces(s)
+  local n = s:find"%S"
+  return n and s:match(".*%S", n) or ""
 end
 
-local function lsdir(path)
-	local t = {}
-	local p = io.popen(string.format("ls '%s' --file-type", path), 'r')
+-- RAW list all directories
+function gen.dirs(path)
+  local t = {}
+  path = trimspaces(path)
+  local p = io.popen(string.format('find "%s" -type d', pesc(path)), 'r')
+  assert(p, "can't execute find command!")
 	for c in p:lines() do
-		if not string.find(c, '/') then
+    c = trimspaces(c)
+		if c ~= path then
 			t[#t+1] = c
 		end
 	end
 	p:close()
-	return t
+  return t
 end
 
-local function readfile(n)
-	n = searchfile(n) or n
+function gen.pathinfo(filePath)
+    filePath = trimspaces(filePath)
+    local pathParts = {}
+    local fileNameWithExt = filePath:match("([^/\\]+)$")
+    local fileNameWithoutExt = fileNameWithExt:match("(.+)%..+$") or fileNameWithExt
+    local fileExtension = fileNameWithExt:match("%.([^%.]+)$") or ""
+    local pathWithoutFileName = filePath:match("^(.*[\\/])") or ""
+    pathParts.ext = fileExtension
+    pathParts.filename = fileNameWithoutExt
+    pathParts.fullname = fileNameWithExt
+    -- fullpath is the original path
+    pathParts.path = pathWithoutFileName
+    pathParts.fullpath = filePath
+    return pathParts
+end
+
+function gen.files(path)
+  local c = {}
+  local h = {}
+  path = trimspaces(path)
+  local p = io.popen(string.format('find "%s" -maxdepth 1 -type f -name \'*.cpp\' -or -name \'*.h\' -or -name \'*.hpp\' ', pesc(path)), 'r')
+  assert(p, "can't execute find command!")
+	for n in p:lines() do
+    local info = gen.pathinfo(n)
+    n = info.fullpath
+    local ext = info.ext:lower()
+    if ext == "cpp" or ext == "c" then
+		  c[#c+1] = n
+    else
+      h[#h+1] = n
+    end
+	end
+	p:close()
+  return c, h
+end
+
+
+local SEP = "/"
+
+function gen.splitpath(path)
+    local components = {}
+    -- Split the path by the separator and trim each component
+    for component in string.gmatch(path, "([^/\\]+)") do
+        -- Trim leading and trailing separators
+        local trimmed = component:gsub("^[%./\\]+", ""):gsub("[/\\]+$", "")
+        if trimmed ~= "" then
+            table.insert(components, trimmed)
+        end
+    end
+    return components
+end
+
+function gen.conpath(...)
+  local t = {}
+  local n = select('#', ...)
+
+  for i = 1, n do
+    local s = select(i, ...)
+    t[#t+1] = tostring(s):gsub("[/\\]+$", ""):gsub("^[%./\\]+", "")
+  end
+  return table.concat(t, "/")
+end
+
+function gen.pathset(Path)
+    local paths = {}
+    Path = gen.conpath(Path)
+
+    -- Split the file path into components
+    local components = {}
+    for component in string.gmatch(Path, "([^/]+)") do
+        table.insert(components, component)
+    end
+
+    -- Build all possible paths
+    for i = 1, #components do
+        -- Join the remaining components to form the new path
+        local newPath = table.concat(components, "/", i)
+        table.insert(paths, newPath)
+    end
+    return paths
+end
+
+function table.merge(a, b)
+  for k, v in pairs(a) do
+    if not b[k] then
+      b[k] = v
+    end
+  end
+  return b
+end
+
+function table.arr_to_set(t, s)
+  s = s or {}
+  for k, v in pairs(t) do
+    s[v] = k
+  end
+  return s
+end
+
+function table.set_to_arr(t, a)
+  a = a or {}
+  for k, _ in pairs(t) do
+    a[#a+1] = k
+  end
+  return a
+end
+
+function table.combine_arr_from_set(a, b)
+  local set = table.arr_to_set(b)
+  for k, _ in pairs(a) do
+    if not set[k] then
+      b[#b+1] = k
+    end
+  end
+  return b
+end
+
+function table.override(a, b)
+  for k, v in pairs(a) do
+    b[k] = v
+  end
+  return b
+end
+
+if not table.clone then
+  table.clone = function (a)
+    return table.override(a, {})
+  end
+end
+
+function table.set_append(s, k, v)
+  local t = s[k] or {}
+  s[k] = t
+  table.merge(v, t)
+end
+
+
+---
+--- CONFIGURE
+---
+
+-- CONFIGURE : list of modules
+-- dependencies syntax
+-- name - neme odf the directory we will dig for code and headers
+-- out - ouput name of amalgamated files without extensions
+-- deps - list of dependencies.
+-- all dependencies are resolved propely in order + all #includes are replaced prioperly
+-- dirs - list of source diectories
+
+local modules = {
+  {
+    name = "Common",
+    dirs = {"include/Luau"},
+    out = "luau_common",
+    deps = {}
+  },
+  {
+    name = "Ast",
+    dirs = {"include/Luau", "include", "src"},
+    out = "luau_ast",
+    deps = {"Common"},
+  },
+  {
+    name = "Compiler",
+    dirs = {"include/Luau", "include", "src"},
+    out = "luau_compiler",
+    deps = {"Ast"}
+  },
+  {
+    name = "Config",
+    out = "luau_config",
+    dirs = {"include/Luau", "include", "src"},
+    deps = {"Ast"}
+  },
+  {
+    name = "Analysis",
+    out = "luau_analysis",
+    dirs = {"include/Luau", "include", "src"},
+    deps = {"Ast", "Config"}
+  },
+  {
+    name = "CodeGen",
+    out = "luau_codegen",
+    dirs = {"include/Luau", "include", "src"},
+    deps = {"Common", "VM"}
+  },
+  {
+    name = "VM",
+    out = "luau_vm",
+    dirs = {"src", "include"},
+    deps = {"Common"}
+  }
+}
+
+-- set of result filenames we NOT allowed to inline!
+local resultset = {
+
+}
+
+-- CONFIGURE : condition on which header goes into internal header, instead of global exposed one!
+local function is_internal_header(mod, path)
+  if mod.internal then return true end
+  local arr = gen.splitpath(path)
+  if arr[2] == "src" then
+    return true
+  end
+  if arr[2] == "include" and arr[3] == "Luau" then
+    return true
+  end
+  return false
+end
+
+-- 
+-- SEARCHING ALGORITHM 
+--
+
+local function recursive_set_append(t, origin, curr)
+  assert(t and origin and curr)
+  for _, k in pairs(curr) do
+    if not t[k] then
+      t[k] = assert(origin[k], tostring(k).." not exists!").deps
+      assert(t[k], tostring(k))
+      recursive_set_append(t, origin, t[k]) -- append values of thos set
+    end
+  end
+  return curr
+end
+
+local function process_modules()
+  local res = {}
+  for k, v in pairs(modules) do
+    if res[v.name] then error('module' .. v.name .. 'already exists') end
+    res[v.name] = v
+  end
+  modules = res
+  for _, v in pairs(modules) do
+    local set = {}
+    recursive_set_append(set, modules, v.deps)
+    table.combine_arr_from_set(set, v.deps)
+
+    v.sources = {}
+    v.headers = {}
+    for _, path in pairs(v.dirs) do
+      local c, h = gen.files(gen.conpath(v.name, path))
+      for _, item in pairs(c) do
+        v.sources[#v.sources+1] = item
+      end
+      for _, item in pairs(h) do
+        v.headers[#v.headers+1] = item
+      end
+    end
+  end
+end
+
+
+local function genincludes(v)
+    local set = {}
+    for _, path in pairs(v.headers) do
+      local outname = v.out .. (is_internal_header(v, path) and '_int.hpp' or '.hpp')
+      resultset[outname] = true -- ensure it's added
+      for _, item in pairs(gen.pathset(path)) do
+        set[item] = {common = outname, real = path}
+      end
+    end
+  return set
+end
+
+function gen.find_header(curr, name)
+  local deps = curr.deps
+
+  -- try our own headers first
+  local myset = {}
+  table.merge(genincludes(curr), myset)
+  if myset[name] then
+    print("FOUND IN OUR HEADERS")
+    return myset[name].real
+  end
+
+  -- then try all dependencies
+  for _, _n in pairs(deps) do
+    local set = {}
+    table.merge(genincludes(modules[_n]), set)
+    if set[name] then
+      print("FOUND IN EXTERNAL HEADERS")
+      return tostring(set[name].common)
+    end
+  end
+
+  --print('not found '..name..' !')
+  return nil
+end
+
+process_modules()
+--print(inspect(modules))
+
+--local try = {"Luau/Bytecode.h", "Luau/Location.h", "BytecodeSummary.h"}
+
+--for _,v in pairs(try) do
+--  print(inspect(gen.find_header(modules["Ast"], v)))
+--end
+MOD = modules
+
+
+
+local CTX = {
+  included = {}, -- inclusion cache
+  buffer = {}, -- current file buffer
+  module = nil,
+  incl_stack = {}
+}
+
+
+function gen.readfile(n)
+  if not n then return n end
 	local f, err = io.open(n, 'r')
 	if not f then
-		print("Can't open file " ..n.. " : " .. err)
-		return "#include <"..n..">\n", false
+    print(n, err)
+		return nil
 	end
 	local str = f:read('a')
 	f:close()
-	if not str then return nil, false end
-	return str, true
+	if not str then return nil end
+	return str
 end
 
--- anti-infinite recursion + inclusion cache.
-local included = {}
+function CTX.remember(name, realname, ok)
+  if not CTX.included[realname] then
+    CTX.included[realname] = {ok = ok, count = 0}
+  end
+  local o = CTX.included[realname]
+  o.count = o.count + 1
+
+  if not CTX.included[name] then
+    CTX.included[name] = {ref=o}
+  end
+end
+
+local function format_string(str)
+  str = str:gsub("\t", "  ") -- remove tabs
+  str = str:gsub("#pragma +once", "\n") -- remove pragmas
+	str = str:gsub("\\ -\n", "") -- remove continue line
+  return str
+end
+
 local INCLUDE_PATTERN = '\n?%s*#%s*include%s+["<](.-)[">]'
-
-local curr = ""
-
 -- recursive :D
-local function includefile(oname)
+function CTX.includefile(_oname)
+	local oname = gen.pathinfo(_oname).fullpath
 	-- get only filename without path separator at the beginning
-	local _, _, name = oname:find("/?([%w_.,]*)$")
-	if not included[name] then
-		print("Including", name, "!")
-		local txt, stat = readfile(oname)
-		included[name] = 0
-		if stat then
-			-- parse included file for more inclusions
-      print('debug: ', name, curr)
-			local str = ('#line __LINE__ "%s"\n%s'):format(name, txt)
-			local old = curr
-			curr = name
-			str = str:gsub(INCLUDE_PATTERN, includefile)
-			curr = old
-			str = str..('#line __LINE__ "%s"\n'):format(curr)
-			return str
-		else
-			included[name] = -1;
-			return "\n"..txt -- include error :(
-		end	
-	elseif included[name] > 0 then
-		return '\n' -- already included
+
+  if CTX.included[oname] == nil then
+		--print("Including", oname, "!") -- new short name 
+    -- search for realname
+    local realname = gen.find_header(CTX.module, oname)
+		print("Including", oname, ">>", realname, "!")
+
+    -- error condition 1
+    if not realname then
+      print("header not found " .. oname)
+      CTX.included[oname] = {ok = false, count = 1}
+      return "\n// @@@ PACK.lua : not found, likely and std header\n#include <"..oname..">\n" -- ok
+    end
+
+    -- error condition 2
+    if resultset[realname] then
+      print("header ignored (it's from result set):" ..realname)
+      CTX.remember(oname, realname, true) -- good
+      return "\n#include \""..realname.."\"\n", false -- local
+    end
+
+    if CTX.included[realname] == nil then
+      -- include file!
+      local txt = gen.readfile(realname)
+        assert(type(txt) == "string")
+        txt = "\n"..format_string(txt).."\n"
+
+        CTX.remember(oname, realname, true) -- good
+        -- parse included file for more inclusions
+        -- push
+        CTX.incl_stack[#CTX.incl_stack+1] = oname
+        --print('debug: ', inspect(CTX.incl_stack))
+        local str = txt
+        str = str:gsub(INCLUDE_PATTERN, CTX.includefile)
+
+        --print("TEST : ", str:find(INCLUDE_PATTERN))
+        local _tmp = {}
+        for match in string.gmatch(str, INCLUDE_PATTERN) do
+          _tmp[#_tmp+1] = match
+        end
+        if #_tmp > 0 then
+          print("@@> DEBUG : leftover : ", table.concat(_tmp, ', '))
+        end
+        
+        -- pop
+        CTX.incl_stack[#CTX.incl_stack] = nil
+			  return "// @@@ PACK.lua : done, inlined <"..realname..">\n\n"..str
+    else -- found
+      CTX.remember(oname, realname, true) -- good
+      return "\n// DONE : was aleready inlined <"..oname..">\n" -- ok
+    end
+    print("@@!! FAILED ", oname, realname)
+  end
+	if CTX.included[oname].ref then
+		return '\n// @@@@@ PACK.LUA : unknown was already included! <'..oname..'>\n' -- already included
 	end
-	if included[name] >= 0 then included[name] = included[name] + 1 end
-	return '//included "'..name..'" \n' -- i don't know why it repeats here
-	-- btw it works, so i leave it alone
+  if CTX.included[oname].count then
+    CTX.included[oname].count = CTX.included[oname].count + 1
+		return '\n// @@@@@ PACK.LUA : was already included! <'..oname..'>\n' -- already included
+	end
+  error('how?')
 end
+
+
+-- append source file with headers :)
+function CTX.appendfile(oname)
+	-- get only filename without path separator at the beginning
+	local name = gen.pathinfo(oname).fullpath
+		print("Source ", name, oname, "!")
+		local txt = gen.readfile(name)
+    assert(type(txt) == "string")
+    txt = "\n"..format_string(txt).."\n"
+
+			-- parse included file for more inclusions
+      CTX.incl_stack[#CTX.incl_stack+1] = name
+      print('debug: ', inspect(CTX.incl_stack))
+
+			local str = txt --('#line __LINE__ "%s"\n%s'):format(name, txt)
+			str = str:gsub(INCLUDE_PATTERN, CTX.includefile)
+      -- pop
+      CTX.incl_stack[#CTX.incl_stack] = nil
+			str = str--..('#line __LINE__ "%s"\n'):format(curr)
+			return str
+end
+
+
+
 
 -- here all magic is packed together
-local buf = {} -- buffer for output file sources
 
 -- finally outputs source file
-local function donefile(file, append, prepend)
-	local str = table.concat(buf, '\n')
-	buf = {}
+function CTX.donefile(filename, append, prepend)
+	local str = table.concat(CTX.buffer, '\n')
+	CTX.buffer = {}
 	collectgarbage()
-	
+
+  local doit = false
+
 	--str = str:gsub("\n?%s*#%s*define[ \t]+([_%w]*)[ \t]?(.-)\n", unused_check)
-	str = str:gsub("#pragma%s-once", "\n") -- remove pragmas
-	str = str:gsub("\\%s-\n", "") -- remove continue line
-	str = str:gsub('(\n[^/"]-)//.-\n', "%1\n") -- remove C++ comments
-	str = str:gsub('\n%s*//.-\n', "\n") -- remove C++ comments 2
-	str = str:gsub("/%*.-%*/", "") -- remove /* */ commentaries
-	str = str:gsub("\t", " ") -- remove tabs
-	str = str:gsub(" +", " ") -- remove ALL spaces ._.
-	str = str:gsub(" \n", "\n") -- remove space + newline
-	str = str:gsub("\n\n+", "\n") -- remove extra newlines...
-	str = (append or "") .. str .. (prepend or "") -- hehe
+
+  if doit then
+	  str = str:gsub('(\n[^/"]-)//.-\n', "%1\n") -- remove C++ comments
+	  str = str:gsub('\n%s*//.-\n', "\n") -- remove C++ comments 2
+    str = str:gsub("/%*.-%*/", "") -- remove /* */ commentaries
+  end
+  if doit then
+    str = str:gsub(" +", " ") -- remove redundant spaces 
+	  str = str:gsub(" \n", "\n") -- remove space + newline
+	  --str = str:gsub("\n\n+", "\n") -- remove extra newlines...
+  end
+	str = (append or "") .. "\n#pragma once\n" .. str .. (prepend or "") -- hehe
 
 	-- rollback included cache :
 	-- we want to reinclude cpp STL and cstdlib headers again
 	-- in new files, but don't want to do this for Luau sources.
-	for k, v in pairs(included) do
-		if v > 0 then
-			included[k] = 1 -- Luau
-		elseif v == -1 then
-			included[k] = nil -- Std headers (all unfounded)
+	for k, v in pairs(CTX.included) do
+    local o = v.ref and v.ref or v
+		if v.ok and v.count then
+			v.count = 1
+		else
+			CTX.included[k] = nil -- Std headers (all unfounded)
 		end
 	end
 
-	local f = io.open(file, "w")
+  str = "/* @@@@@ PACK.LUA : THIS FILE WAS AUTOGENERATED USING PACK.lua v.2.0!\n * @@@@@ SEE https://github.com/UtoECat/miniLuau/blob/main/PACK.lua FOR DETAILS\n */\n" .. str
+
+  -- change dest path
+  filename = "../" .. filename
+
+	local f = io.open(filename, "w")
+  assert(f)
 	f:write(str)
 	f:flush()
 	f:close()
-	print("File "..file.." is done!")
+
+  local cmd = "clang-format --style=LLVM -i " .. pesc(filename)
+  print("@!! calling clang-format", cmd)
+  print(os.execute(cmd))
+
+	print("File "..filename.." is done!")
 end
 
-local function includeFiles(t)
+function CTX.appendFiles(t)
 	for _,v in pairs(t) do
-		buf[#buf+1] = includefile(v)
+	CTX.buffer[#CTX.buffer+1] = CTX.appendfile(v)
 	end
 end
 
+function CTX.includeFiles(t)
+  print(inspect(t))
+	for _,v in pairs(t) do
+	  CTX.buffer[#CTX.buffer+1] = CTX.includefile(v)
+	end
+end
+
+-- reset and setup new module!
+function CTX.start(modname)
+  CTX.incl_stack = {}
+  CTX.buffer = {}
+  CTX.included = {}
+  CTX.module = assert(modules[modname])
+end
+
+
 -- luau copyright
 local COPYRIGHT = [[/*
-Luau programming language. (Packed version using PACK.LUA)
-MIT License
-
-Copyright (c) 2019-2024 Roblox Corporation
-Copyright (c) 1994–2019 Lua.org, PUC-Rio.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. */
+ * Luau programming language.
+ * MIT License
+ *
+ * Copyright (c) 2019-2024 Roblox Corporation
+ * Copyright (c) 1994–2019 Lua.org, PUC-Rio.
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 ]]
+
+
+--- 
+--- FINAL SEQUENCE
+--- 
+
+local function pack_module(mod)
+  print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+  print("@@@ MODULE = ", inspect(mod))
+  print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+  CTX.start(mod.name)
+
+  resultset[CTX.module.out .. '.hpp'] = true
+  resultset[CTX.module.out .. '_int.hpp'] = true
+
+  -- do external headers
+  local has_glob = false
+  print("@@@ packing external header file")
+  for _,v in pairs(CTX.module.headers) do
+    if not is_internal_header(CTX.module, v) then
+	    CTX.buffer[#CTX.buffer+1] = CTX.includefile(v)
+    end
+	end
+  if #CTX.buffer > 0 then -- OK
+     has_glob = true
+    CTX.donefile(CTX.module.out .. '.hpp', COPYRIGHT)
+  end
+  --print(inspect(CTX.included))
+
+  local has_int = false
+  -- do internal headers
+  print("@@@ packing internal header file")
+  for _,v in pairs(CTX.module.headers) do
+    if is_internal_header(CTX.module, v) then
+	    CTX.buffer[#CTX.buffer+1] = CTX.includefile(v)
+    end
+	end
+  if #CTX.buffer > 0 then -- OK
+    has_int = true
+    CTX.donefile(CTX.module.out .. '_int.hpp', COPYRIGHT .. (has_glob and ("\n#include\""..CTX.module.out .. '.hpp'.."\"\n") or ""))
+  end
+  --print(inspect(CTX.included))
+
+  -- do sources
+  print("@@@ packing c++ source file")
+  for _,v in pairs(CTX.module.sources) do
+	  CTX.buffer[#CTX.buffer+1] = CTX.appendfile(v)
+	end
+  if #CTX.buffer > 0 then -- OK
+    local include_file = (has_int and ("\n#include\""..CTX.module.out .. 'int_.hpp'.."\"\n") or nil) 
+    include_file = include_file or (has_glob and ("\n#include\""..CTX.module.out .. '.hpp'.."\"\n") or nil)
+
+    CTX.donefile(CTX.module.out .. '.cpp',  COPYRIGHT .. (include_file) and (include_file) or "")
+  end
+  --print(inspect(CTX.included))
+end
+
+-- tree traverse with dependencies first
+local done_modules = {}
+
+local function traverse_module(mod)
+  if done_modules[mod] then
+    return
+  end
+
+  -- mark to prevent recursion
+  done_modules[mod] = 0
+
+  -- pack dependencies first
+  for _, sub in pairs(mod.deps) do
+    local submod = modules[sub]
+    if not done_modules[submod] then
+      traverse_module(submod)
+    end
+  end
+
+  -- now pack us
+  done_modules[mod] = 1
+  pack_module(mod)
+end
+
+for _, mod in pairs(modules) do
+  traverse_module(mod) -- pack all with correct dependency order
+end
+
+print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+print("@@@@@ DONE! TOTAL TIME (sec) : ", os.time() - START_TIME)
+print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+
+--doit(modules["Common"])
+--doit(modules["Ast"])
+--doit(modules["Config"])
+
+
+--[==[
 
 -- do luau.h at first
 module_dir = "VM"
@@ -291,4 +777,4 @@ donefile('luau.cpp', COPYRIGHT..[[
 #define kPageSize kPageSize
 #define hasTypedParameters hasTypedParameters
 ]])
-
+]==]
