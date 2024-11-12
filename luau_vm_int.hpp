@@ -7,17 +7,17 @@
  *
  * Copyright (c) 2019-2024 Roblox Corporation
  * Copyright (c) 1994–2019 Lua.org, PUC-Rio.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -27,25 +27,22 @@
  * SOFTWARE.
  */
 
-#include "luau_vm.hpp"
+#include"luau_vm.hpp"
 
+//only once
 #pragma once
 // @@@ PACK.lua : done, inlined <VM/src/lvm.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details This code is based on Lua 5.x
-// implementation licensed under MIT License; see lua_LICENSE.txt for details//
-// @@@ PACK.lua : done, inlined <VM/src/lobject.h>
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details// @@@ PACK.lua : done, inlined <VM/src/lobject.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details This code is based on Lua 5.x
-// implementation licensed under MIT License; see lua_LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 // DONE : was aleready inlined <lua.h>
 // @@@ PACK.lua : done, inlined <VM/src/lcommon.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details This code is based on Lua 5.x
-// implementation licensed under MIT License; see lua_LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 // @@@ PACK.lua : not found, likely and std header
 #include <limits.h>
 
@@ -100,8 +97,7 @@ typedef uint32_t Instruction;
 typedef union GCObject GCObject;
 
 /*
-** Common Header for all collectible objects (in macro form, to be included in
-*other objects)
+** Common Header for all collectible objects (in macro form, to be included in other objects)
 */
 // clang-format off
 #define CommonHeader      uint8_t tt; uint8_t marked; uint8_t memcat
@@ -110,29 +106,32 @@ typedef union GCObject GCObject;
 /*
 ** Common header in struct form
 */
-typedef struct GCheader {
-  CommonHeader;
+typedef struct GCheader
+{
+    CommonHeader;
 } GCheader;
 
 /*
 ** Union of all Lua values
 */
-typedef union {
-  GCObject *gc;
-  void *p;
-  double n;
-  int b;
-  float v[2]; // v[0], v[1] live here; v[2] lives in TValue::extra
+typedef union
+{
+    GCObject* gc;
+    void* p;
+    double n;
+    int b;
+    float v[2]; // v[0], v[1] live here; v[2] lives in TValue::extra
 } Value;
 
 /*
 ** Tagged Values
 */
 
-typedef struct lua_TValue {
-  Value value;
-  int extra[LUA_EXTRA_SIZE];
-  int tt;
+typedef struct lua_TValue
+{
+    Value value;
+    int extra[LUA_EXTRA_SIZE];
+    int tt;
 } TValue;
 
 // Macros to test type
@@ -174,133 +173,42 @@ typedef struct lua_TValue {
 /*
 ** for internal debug only
 */
-#define checkconsistency(obj)                                                  \
-  LUAU_ASSERT(!iscollectable(obj) || (ttype(obj) == (obj)->value.gc->gch.tt))
+#define checkconsistency(obj) LUAU_ASSERT(!iscollectable(obj) || (ttype(obj) == (obj)->value.gc->gch.tt))
 
-#define checkliveness(g, obj)                                                  \
-  LUAU_ASSERT(!iscollectable(obj) ||                                           \
-              ((ttype(obj) == (obj)->value.gc->gch.tt) &&                      \
-               !isdead(g, (obj)->value.gc)))
+#define checkliveness(g, obj) LUAU_ASSERT(!iscollectable(obj) || ((ttype(obj) == (obj)->value.gc->gch.tt) && !isdead(g, (obj)->value.gc)))
 
 // Macros to set values
 #define setnilvalue(obj) ((obj)->tt = LUA_TNIL)
 
-#define setnvalue(obj, x)                                                      \
-  {                                                                            \
-    TValue *i_o = (obj);                                                       \
-    i_o->value.n = (x);                                                        \
-    i_o->tt = LUA_TNUMBER;                                                     \
-  }
+#define setnvalue(obj, x)     {         TValue* i_o = (obj);         i_o->value.n = (x);         i_o->tt = LUA_TNUMBER;     }
 
 #if LUA_VECTOR_SIZE == 4
-#define setvvalue(obj, x, y, z, w)                                             \
-  {                                                                            \
-    TValue *i_o = (obj);                                                       \
-    float *i_v = i_o->value.v;                                                 \
-    i_v[0] = (x);                                                              \
-    i_v[1] = (y);                                                              \
-    i_v[2] = (z);                                                              \
-    i_v[3] = (w);                                                              \
-    i_o->tt = LUA_TVECTOR;                                                     \
-  }
+#define setvvalue(obj, x, y, z, w)     {         TValue* i_o = (obj);         float* i_v = i_o->value.v;         i_v[0] = (x);         i_v[1] = (y);         i_v[2] = (z);         i_v[3] = (w);         i_o->tt = LUA_TVECTOR;     }
 #else
-#define setvvalue(obj, x, y, z, w)                                             \
-  {                                                                            \
-    TValue *i_o = (obj);                                                       \
-    float *i_v = i_o->value.v;                                                 \
-    i_v[0] = (x);                                                              \
-    i_v[1] = (y);                                                              \
-    i_v[2] = (z);                                                              \
-    i_o->tt = LUA_TVECTOR;                                                     \
-  }
+#define setvvalue(obj, x, y, z, w)     {         TValue* i_o = (obj);         float* i_v = i_o->value.v;         i_v[0] = (x);         i_v[1] = (y);         i_v[2] = (z);         i_o->tt = LUA_TVECTOR;     }
 #endif
 
-#define setpvalue(obj, x, tag)                                                 \
-  {                                                                            \
-    TValue *i_o = (obj);                                                       \
-    i_o->value.p = (x);                                                        \
-    i_o->extra[0] = (tag);                                                     \
-    i_o->tt = LUA_TLIGHTUSERDATA;                                              \
-  }
+#define setpvalue(obj, x, tag)     {         TValue* i_o = (obj);         i_o->value.p = (x);         i_o->extra[0] = (tag);         i_o->tt = LUA_TLIGHTUSERDATA;     }
 
-#define setbvalue(obj, x)                                                      \
-  {                                                                            \
-    TValue *i_o = (obj);                                                       \
-    i_o->value.b = (x);                                                        \
-    i_o->tt = LUA_TBOOLEAN;                                                    \
-  }
+#define setbvalue(obj, x)     {         TValue* i_o = (obj);         i_o->value.b = (x);         i_o->tt = LUA_TBOOLEAN;     }
 
-#define setsvalue(L, obj, x)                                                   \
-  {                                                                            \
-    TValue *i_o = (obj);                                                       \
-    i_o->value.gc = cast_to(GCObject *, (x));                                  \
-    i_o->tt = LUA_TSTRING;                                                     \
-    checkliveness(L->global, i_o);                                             \
-  }
+#define setsvalue(L, obj, x)     {         TValue* i_o = (obj);         i_o->value.gc = cast_to(GCObject*, (x));         i_o->tt = LUA_TSTRING;         checkliveness(L->global, i_o);     }
 
-#define setuvalue(L, obj, x)                                                   \
-  {                                                                            \
-    TValue *i_o = (obj);                                                       \
-    i_o->value.gc = cast_to(GCObject *, (x));                                  \
-    i_o->tt = LUA_TUSERDATA;                                                   \
-    checkliveness(L->global, i_o);                                             \
-  }
+#define setuvalue(L, obj, x)     {         TValue* i_o = (obj);         i_o->value.gc = cast_to(GCObject*, (x));         i_o->tt = LUA_TUSERDATA;         checkliveness(L->global, i_o);     }
 
-#define setthvalue(L, obj, x)                                                  \
-  {                                                                            \
-    TValue *i_o = (obj);                                                       \
-    i_o->value.gc = cast_to(GCObject *, (x));                                  \
-    i_o->tt = LUA_TTHREAD;                                                     \
-    checkliveness(L->global, i_o);                                             \
-  }
+#define setthvalue(L, obj, x)     {         TValue* i_o = (obj);         i_o->value.gc = cast_to(GCObject*, (x));         i_o->tt = LUA_TTHREAD;         checkliveness(L->global, i_o);     }
 
-#define setbufvalue(L, obj, x)                                                 \
-  {                                                                            \
-    TValue *i_o = (obj);                                                       \
-    i_o->value.gc = cast_to(GCObject *, (x));                                  \
-    i_o->tt = LUA_TBUFFER;                                                     \
-    checkliveness(L->global, i_o);                                             \
-  }
+#define setbufvalue(L, obj, x)     {         TValue* i_o = (obj);         i_o->value.gc = cast_to(GCObject*, (x));         i_o->tt = LUA_TBUFFER;         checkliveness(L->global, i_o);     }
 
-#define setclvalue(L, obj, x)                                                  \
-  {                                                                            \
-    TValue *i_o = (obj);                                                       \
-    i_o->value.gc = cast_to(GCObject *, (x));                                  \
-    i_o->tt = LUA_TFUNCTION;                                                   \
-    checkliveness(L->global, i_o);                                             \
-  }
+#define setclvalue(L, obj, x)     {         TValue* i_o = (obj);         i_o->value.gc = cast_to(GCObject*, (x));         i_o->tt = LUA_TFUNCTION;         checkliveness(L->global, i_o);     }
 
-#define sethvalue(L, obj, x)                                                   \
-  {                                                                            \
-    TValue *i_o = (obj);                                                       \
-    i_o->value.gc = cast_to(GCObject *, (x));                                  \
-    i_o->tt = LUA_TTABLE;                                                      \
-    checkliveness(L->global, i_o);                                             \
-  }
+#define sethvalue(L, obj, x)     {         TValue* i_o = (obj);         i_o->value.gc = cast_to(GCObject*, (x));         i_o->tt = LUA_TTABLE;         checkliveness(L->global, i_o);     }
 
-#define setptvalue(L, obj, x)                                                  \
-  {                                                                            \
-    TValue *i_o = (obj);                                                       \
-    i_o->value.gc = cast_to(GCObject *, (x));                                  \
-    i_o->tt = LUA_TPROTO;                                                      \
-    checkliveness(L->global, i_o);                                             \
-  }
+#define setptvalue(L, obj, x)     {         TValue* i_o = (obj);         i_o->value.gc = cast_to(GCObject*, (x));         i_o->tt = LUA_TPROTO;         checkliveness(L->global, i_o);     }
 
-#define setupvalue(L, obj, x)                                                  \
-  {                                                                            \
-    TValue *i_o = (obj);                                                       \
-    i_o->value.gc = cast_to(GCObject *, (x));                                  \
-    i_o->tt = LUA_TUPVAL;                                                      \
-    checkliveness(L->global, i_o);                                             \
-  }
+#define setupvalue(L, obj, x)     {         TValue* i_o = (obj);         i_o->value.gc = cast_to(GCObject*, (x));         i_o->tt = LUA_TUPVAL;         checkliveness(L->global, i_o);     }
 
-#define setobj(L, obj1, obj2)                                                  \
-  {                                                                            \
-    const TValue *o2 = (obj2);                                                 \
-    TValue *o1 = (obj1);                                                       \
-    *o1 = *o2;                                                                 \
-    checkliveness(L->global, o1);                                              \
-  }
+#define setobj(L, obj1, obj2)     {         const TValue* o2 = (obj2);         TValue* o1 = (obj1);         *o1 = *o2;         checkliveness(L->global, o1);     }
 
 /*
 ** different types of sets, according to destination
@@ -319,54 +227,59 @@ typedef struct lua_TValue {
 
 #define iscollectable(o) (ttype(o) >= LUA_TSTRING)
 
-typedef TValue *StkId; // index to stack elements
+typedef TValue* StkId; // index to stack elements
 
 /*
 ** String headers for string table
 */
-typedef struct TString {
-  CommonHeader;
-  // 1 byte padding
+typedef struct TString
+{
+    CommonHeader;
+    // 1 byte padding
 
-  int16_t atom;
+    int16_t atom;
 
-  // 2 byte padding
+    // 2 byte padding
 
-  TString *next; // next string in the hash table bucket
+    TString* next; // next string in the hash table bucket
 
-  unsigned int hash;
-  unsigned int len;
+    unsigned int hash;
+    unsigned int len;
 
-  char data[1]; // string data is allocated right after the header
+    char data[1]; // string data is allocated right after the header
 } TString;
 
 #define getstr(ts) (ts)->data
 #define svalue(o) getstr(tsvalue(o))
 
-typedef struct Udata {
-  CommonHeader;
+typedef struct Udata
+{
+    CommonHeader;
 
-  uint8_t tag;
+    uint8_t tag;
 
-  int len;
+    int len;
 
-  struct Table *metatable;
+    struct Table* metatable;
 
-  union {
-    char data[1];      // userdata is allocated right after the header
-    L_Umaxalign dummy; // ensures maximum alignment for data
-  };
+    union
+    {
+        char data[1];      // userdata is allocated right after the header
+        L_Umaxalign dummy; // ensures maximum alignment for data
+    };
 } Udata;
 
-typedef struct Buffer {
-  CommonHeader;
+typedef struct Buffer
+{
+    CommonHeader;
 
-  unsigned int len;
+    unsigned int len;
 
-  union {
-    char data[1];      // buffer is allocated right after the header
-    L_Umaxalign dummy; // ensures maximum alignment for data
-  };
+    union
+    {
+        char data[1];      // buffer is allocated right after the header
+        L_Umaxalign dummy; // ensures maximum alignment for data
+    };
 } Buffer;
 
 /*
@@ -377,13 +290,11 @@ typedef struct Proto
 {
     CommonHeader;
 
-
     uint8_t nups; // number of upvalues
     uint8_t numparams;
     uint8_t is_vararg;
     uint8_t maxstacksize;
     uint8_t flags;
-
 
     TValue* k;              // constants used by the function
     Instruction* code;      // function bytecode
@@ -392,7 +303,6 @@ typedef struct Proto
 
     void* execdata;
     uintptr_t exectarget;
-
 
     uint8_t* lineinfo;      // for each instruction, line number as a delta from baseline
     int* abslineinfo;       // baseline line info, one entry for each 1<<linegaplog2 instructions; allocated after lineinfo
@@ -409,7 +319,6 @@ typedef struct Proto
 
     GCObject* gclist;
 
-
     int sizecode;
     int sizep;
     int sizelocvars;
@@ -423,36 +332,39 @@ typedef struct Proto
 } Proto;
 // clang-format on
 
-typedef struct LocVar {
-  TString *varname;
-  int startpc; // first point where variable is active
-  int endpc;   // first point where variable is dead
-  uint8_t reg; // register slot, relative to base, where variable is stored
+typedef struct LocVar
+{
+    TString* varname;
+    int startpc; // first point where variable is active
+    int endpc;   // first point where variable is dead
+    uint8_t reg; // register slot, relative to base, where variable is stored
 } LocVar;
 
 /*
 ** Upvalues
 */
 
-typedef struct UpVal {
-  CommonHeader;
-  uint8_t markedopen; // set if reachable from an alive thread (only valid
-                      // during atomic)
+typedef struct UpVal
+{
+    CommonHeader;
+    uint8_t markedopen; // set if reachable from an alive thread (only valid during atomic)
 
-  // 4 byte padding (x64)
+    // 4 byte padding (x64)
 
-  TValue *v; // points to stack or to its own value
-  union {
-    TValue value; // the value (when closed)
-    struct {
-      // global double linked list (when open)
-      struct UpVal *prev;
-      struct UpVal *next;
+    TValue* v; // points to stack or to its own value
+    union
+    {
+        TValue value; // the value (when closed)
+        struct
+        {
+            // global double linked list (when open)
+            struct UpVal* prev;
+            struct UpVal* next;
 
-      // thread linked list (when open)
-      struct UpVal *threadnext;
-    } open;
-  } u;
+            // thread linked list (when open)
+            struct UpVal* threadnext;
+        } open;
+    } u;
 } UpVal;
 
 #define upisopen(up) ((up)->v != &(up)->u.value)
@@ -461,30 +373,34 @@ typedef struct UpVal {
 ** Closures
 */
 
-typedef struct Closure {
-  CommonHeader;
+typedef struct Closure
+{
+    CommonHeader;
 
-  uint8_t isC;
-  uint8_t nupvalues;
-  uint8_t stacksize;
-  uint8_t preload;
+    uint8_t isC;
+    uint8_t nupvalues;
+    uint8_t stacksize;
+    uint8_t preload;
 
-  GCObject *gclist;
-  struct Table *env;
+    GCObject* gclist;
+    struct Table* env;
 
-  union {
-    struct {
-      lua_CFunction f;
-      lua_Continuation cont;
-      const char *debugname;
-      TValue upvals[1];
-    } c;
+    union
+    {
+        struct
+        {
+            lua_CFunction f;
+            lua_Continuation cont;
+            const char* debugname;
+            TValue upvals[1];
+        } c;
 
-    struct {
-      struct Proto *p;
-      TValue uprefs[1];
-    } l;
-  };
+        struct
+        {
+            struct Proto* p;
+            TValue uprefs[1];
+        } l;
+    };
 } Closure;
 
 #define iscfunction(o) (ttype(o) == LUA_TFUNCTION && clvalue(o)->isC)
@@ -494,45 +410,30 @@ typedef struct Closure {
 ** Tables
 */
 
-typedef struct TKey {
-  ::Value value;
-  int extra[LUA_EXTRA_SIZE];
-  unsigned tt : 4;
-  int next : 28; // for chaining
+typedef struct TKey
+{
+    ::Value value;
+    int extra[LUA_EXTRA_SIZE];
+    unsigned tt : 4;
+    int next : 28; // for chaining
 } TKey;
 
-typedef struct LuaNode {
-  TValue val;
-  TKey key;
+typedef struct LuaNode
+{
+    TValue val;
+    TKey key;
 } LuaNode;
 
 // copy a value into a key
-#define setnodekey(L, node, obj)                                               \
-  {                                                                            \
-    LuaNode *n_ = (node);                                                      \
-    const TValue *i_o = (obj);                                                 \
-    n_->key.value = i_o->value;                                                \
-    memcpy(n_->key.extra, i_o->extra, sizeof(n_->key.extra));                  \
-    n_->key.tt = i_o->tt;                                                      \
-    checkliveness(L->global, i_o);                                             \
-  }
+#define setnodekey(L, node, obj)     {         LuaNode* n_ = (node);         const TValue* i_o = (obj);         n_->key.value = i_o->value;         memcpy(n_->key.extra, i_o->extra, sizeof(n_->key.extra));         n_->key.tt = i_o->tt;         checkliveness(L->global, i_o);     }
 
 // copy a value from a key
-#define getnodekey(L, obj, node)                                               \
-  {                                                                            \
-    TValue *i_o = (obj);                                                       \
-    const LuaNode *n_ = (node);                                                \
-    i_o->value = n_->key.value;                                                \
-    memcpy(i_o->extra, n_->key.extra, sizeof(i_o->extra));                     \
-    i_o->tt = n_->key.tt;                                                      \
-    checkliveness(L->global, i_o);                                             \
-  }
+#define getnodekey(L, obj, node)     {         TValue* i_o = (obj);         const LuaNode* n_ = (node);         i_o->value = n_->key.value;         memcpy(i_o->extra, n_->key.extra, sizeof(i_o->extra));         i_o->tt = n_->key.tt;         checkliveness(L->global, i_o);     }
 
 // clang-format off
 typedef struct Table
 {
     CommonHeader;
-
 
     uint8_t tmcache;    // 1<<p means tagmethod(p) is not present
     uint8_t readonly;   // sandboxing feature to prohibit writes to table
@@ -547,7 +448,6 @@ typedef struct Table
         int aboundary; // negated 'boundary' of `array' array; iff aboundary < 0
     };
 
-
     struct Table* metatable;
     TValue* array;  // array part
     LuaNode* node;
@@ -558,8 +458,7 @@ typedef struct Table
 /*
 ** `module' operation for hashing (size is always a power of 2)
 */
-#define lmod(s, size)                                                          \
-  (check_exp((size & (size - 1)) == 0, (cast_to(int, (s) & ((size) - 1)))))
+#define lmod(s, size) (check_exp((size & (size - 1)) == 0, (cast_to(int, (s) & ((size)-1)))))
 
 #define twoto(x) ((int)(1 << (x)))
 #define sizenode(t) (twoto((t)->lsizenode))
@@ -568,23 +467,20 @@ typedef struct Table
 
 LUAI_DATA const TValue luaO_nilobject_;
 
-#define ceillog2(x) (luaO_log2((x) - 1) + 1)
+#define ceillog2(x) (luaO_log2((x)-1) + 1)
 
 LUAI_FUNC int luaO_log2(unsigned int x);
-LUAI_FUNC int luaO_rawequalObj(const TValue *t1, const TValue *t2);
-LUAI_FUNC int luaO_rawequalKey(const TKey *t1, const TValue *t2);
-LUAI_FUNC int luaO_str2d(const char *s, double *result);
-LUAI_FUNC const char *luaO_pushvfstring(lua_State *L, const char *fmt,
-                                        va_list argp);
-LUAI_FUNC const char *luaO_pushfstring(lua_State *L, const char *fmt, ...);
-LUAI_FUNC const char *luaO_chunkid(char *buf, size_t buflen, const char *source,
-                                   size_t srclen);
+LUAI_FUNC int luaO_rawequalObj(const TValue* t1, const TValue* t2);
+LUAI_FUNC int luaO_rawequalKey(const TKey* t1, const TValue* t2);
+LUAI_FUNC int luaO_str2d(const char* s, double* result);
+LUAI_FUNC const char* luaO_pushvfstring(lua_State* L, const char* fmt, va_list argp);
+LUAI_FUNC const char* luaO_pushfstring(lua_State* L, const char* fmt, ...);
+LUAI_FUNC const char* luaO_chunkid(char* buf, size_t buflen, const char* source, size_t srclen);
 
 // @@@ PACK.lua : done, inlined <VM/src/ltm.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details This code is based on Lua 5.x
-// implementation licensed under MIT License; see lua_LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <lobject.h>
 
 /*
@@ -594,7 +490,7 @@ LUAI_FUNC const char *luaO_chunkid(char *buf, size_t buflen, const char *source,
 // clang-format off
 typedef enum
 {
-    
+
     TM_INDEX,
     TM_NEWINDEX,
     TM_MODE,
@@ -605,7 +501,6 @@ typedef enum
 
     TM_EQ, // last tag method with `fast' access
 
-    
     TM_ADD,
     TM_SUB,
     TM_MUL,
@@ -615,7 +510,6 @@ typedef enum
     TM_POW,
     TM_UNM,
 
-    
     TM_LT,
     TM_LE,
     TM_CONCAT,
@@ -626,97 +520,81 @@ typedef enum
 } TMS;
 // clang-format on
 
-#define gfasttm(g, et, e)                                                      \
-  ((et) == NULL                    ? NULL                                      \
-   : ((et)->tmcache & (1u << (e))) ? NULL                                      \
-                                   : luaT_gettm(et, e, (g)->tmname[e]))
+#define gfasttm(g, et, e) ((et) == NULL ? NULL : ((et)->tmcache & (1u << (e))) ? NULL : luaT_gettm(et, e, (g)->tmname[e]))
 
 #define fasttm(l, et, e) gfasttm(l->global, et, e)
 #define fastnotm(et, e) ((et) == NULL || ((et)->tmcache & (1u << (e))))
 
-LUAI_DATA const char *const luaT_typenames[];
-LUAI_DATA const char *const luaT_eventname[];
+LUAI_DATA const char* const luaT_typenames[];
+LUAI_DATA const char* const luaT_eventname[];
 
-LUAI_FUNC const TValue *luaT_gettm(Table *events, TMS event, TString *ename);
-LUAI_FUNC const TValue *luaT_gettmbyobj(lua_State *L, const TValue *o,
-                                        TMS event);
+LUAI_FUNC const TValue* luaT_gettm(Table* events, TMS event, TString* ename);
+LUAI_FUNC const TValue* luaT_gettmbyobj(lua_State* L, const TValue* o, TMS event);
 
-LUAI_FUNC const TString *luaT_objtypenamestr(lua_State *L, const TValue *o);
-LUAI_FUNC const char *luaT_objtypename(lua_State *L, const TValue *o);
+LUAI_FUNC const TString* luaT_objtypenamestr(lua_State* L, const TValue* o);
+LUAI_FUNC const char* luaT_objtypename(lua_State* L, const TValue* o);
 
-LUAI_FUNC void luaT_init(lua_State *L);
+LUAI_FUNC void luaT_init(lua_State* L);
 
 #define tostring(L, o) ((ttype(o) == LUA_TSTRING) || (luaV_tostring(L, o)))
 
-#define tonumber(o, n)                                                         \
-  (ttype(o) == LUA_TNUMBER || (((o) = luaV_tonumber(o, n)) != NULL))
+#define tonumber(o, n) (ttype(o) == LUA_TNUMBER || (((o) = luaV_tonumber(o, n)) != NULL))
 
 #define equalobj(L, o1, o2) (ttype(o1) == ttype(o2) && luaV_equalval(L, o1, o2))
 
-LUAI_FUNC int luaV_strcmp(const TString *ls, const TString *rs);
-LUAI_FUNC int luaV_lessthan(lua_State *L, const TValue *l, const TValue *r);
-LUAI_FUNC int luaV_lessequal(lua_State *L, const TValue *l, const TValue *r);
-LUAI_FUNC int luaV_equalval(lua_State *L, const TValue *t1, const TValue *t2);
+LUAI_FUNC int luaV_strcmp(const TString* ls, const TString* rs);
+LUAI_FUNC int luaV_lessthan(lua_State* L, const TValue* l, const TValue* r);
+LUAI_FUNC int luaV_lessequal(lua_State* L, const TValue* l, const TValue* r);
+LUAI_FUNC int luaV_equalval(lua_State* L, const TValue* t1, const TValue* t2);
 
-template <TMS op>
-void luaV_doarithimpl(lua_State *L, StkId ra, const TValue *rb,
-                      const TValue *rc);
+template<TMS op>
+void luaV_doarithimpl(lua_State* L, StkId ra, const TValue* rb, const TValue* rc);
 
-LUAI_FUNC void luaV_dolen(lua_State *L, StkId ra, const TValue *rb);
-LUAI_FUNC const TValue *luaV_tonumber(const TValue *obj, TValue *n);
-LUAI_FUNC const float *luaV_tovector(const TValue *obj);
-LUAI_FUNC int luaV_tostring(lua_State *L, StkId obj);
-LUAI_FUNC void luaV_gettable(lua_State *L, const TValue *t, TValue *key,
-                             StkId val);
-LUAI_FUNC void luaV_settable(lua_State *L, const TValue *t, TValue *key,
-                             StkId val);
-LUAI_FUNC void luaV_concat(lua_State *L, int total, int last);
-LUAI_FUNC void luaV_getimport(lua_State *L, Table *env, TValue *k, StkId res,
-                              uint32_t id, bool propagatenil);
-LUAI_FUNC void luaV_prepareFORN(lua_State *L, StkId plimit, StkId pstep,
-                                StkId pinit);
-LUAI_FUNC void luaV_callTM(lua_State *L, int nparams, int res);
-LUAI_FUNC void luaV_tryfuncTM(lua_State *L, StkId func);
+LUAI_FUNC void luaV_dolen(lua_State* L, StkId ra, const TValue* rb);
+LUAI_FUNC const TValue* luaV_tonumber(const TValue* obj, TValue* n);
+LUAI_FUNC const float* luaV_tovector(const TValue* obj);
+LUAI_FUNC int luaV_tostring(lua_State* L, StkId obj);
+LUAI_FUNC void luaV_gettable(lua_State* L, const TValue* t, TValue* key, StkId val);
+LUAI_FUNC void luaV_settable(lua_State* L, const TValue* t, TValue* key, StkId val);
+LUAI_FUNC void luaV_concat(lua_State* L, int total, int last);
+LUAI_FUNC void luaV_getimport(lua_State* L, Table* env, TValue* k, StkId res, uint32_t id, bool propagatenil);
+LUAI_FUNC void luaV_prepareFORN(lua_State* L, StkId plimit, StkId pstep, StkId pinit);
+LUAI_FUNC void luaV_callTM(lua_State* L, int nparams, int res);
+LUAI_FUNC void luaV_tryfuncTM(lua_State* L, StkId func);
 
-LUAI_FUNC void luau_execute(lua_State *L);
-LUAI_FUNC int luau_precall(lua_State *L, struct lua_TValue *func, int nresults);
-LUAI_FUNC void luau_poscall(lua_State *L, StkId first);
-LUAI_FUNC void luau_callhook(lua_State *L, lua_Hook hook, void *userdata);
+LUAI_FUNC void luau_execute(lua_State* L);
+LUAI_FUNC int luau_precall(lua_State* L, struct lua_TValue* func, int nresults);
+LUAI_FUNC void luau_poscall(lua_State* L, StkId first);
+LUAI_FUNC void luau_callhook(lua_State* L, lua_Hook hook, void* userdata);
 
 // @@@ PACK.lua : done, inlined <VM/src/lfunc.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details This code is based on Lua 5.x
-// implementation licensed under MIT License; see lua_LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <lobject.h>
 
 #define sizeCclosure(n) (offsetof(Closure, c.upvals) + sizeof(TValue) * (n))
 #define sizeLclosure(n) (offsetof(Closure, l.uprefs) + sizeof(TValue) * (n))
 
-LUAI_FUNC Proto *luaF_newproto(lua_State *L);
-LUAI_FUNC Closure *luaF_newLclosure(lua_State *L, int nelems, Table *e,
-                                    Proto *p);
-LUAI_FUNC Closure *luaF_newCclosure(lua_State *L, int nelems, Table *e);
-LUAI_FUNC UpVal *luaF_findupval(lua_State *L, StkId level);
-LUAI_FUNC void luaF_close(lua_State *L, StkId level);
-LUAI_FUNC void luaF_closeupval(lua_State *L, UpVal *uv, bool dead);
-LUAI_FUNC void luaF_freeproto(lua_State *L, Proto *f, struct lua_Page *page);
-LUAI_FUNC void luaF_freeclosure(lua_State *L, Closure *c,
-                                struct lua_Page *page);
-LUAI_FUNC void luaF_freeupval(lua_State *L, UpVal *uv, struct lua_Page *page);
-LUAI_FUNC const LocVar *luaF_getlocal(const Proto *func, int local_number,
-                                      int pc);
-LUAI_FUNC const LocVar *luaF_findlocal(const Proto *func, int local_reg,
-                                       int pc);
+LUAI_FUNC Proto* luaF_newproto(lua_State* L);
+LUAI_FUNC Closure* luaF_newLclosure(lua_State* L, int nelems, Table* e, Proto* p);
+LUAI_FUNC Closure* luaF_newCclosure(lua_State* L, int nelems, Table* e);
+LUAI_FUNC UpVal* luaF_findupval(lua_State* L, StkId level);
+LUAI_FUNC void luaF_close(lua_State* L, StkId level);
+LUAI_FUNC void luaF_closeupval(lua_State* L, UpVal* uv, bool dead);
+LUAI_FUNC void luaF_freeproto(lua_State* L, Proto* f, struct lua_Page* page);
+LUAI_FUNC void luaF_freeclosure(lua_State* L, Closure* c, struct lua_Page* page);
+LUAI_FUNC void luaF_freeupval(lua_State* L, UpVal* uv, struct lua_Page* page);
+LUAI_FUNC const LocVar* luaF_getlocal(const Proto* func, int local_number, int pc);
+LUAI_FUNC const LocVar* luaF_findlocal(const Proto* func, int local_reg, int pc);
 
 // @@@ PACK.lua : done, inlined <VM/src/lbytecode.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details This code is based on Lua 5.x
-// implementation licensed under MIT License; see lua_LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 
 // This is a forwarding header for Luau bytecode definition
-#include "luau_common_int.hpp"
+// DONE : was aleready included <Luau/Bytecode.h>
 
 // @@@@@ PACK.LUA : was already included! <VM/src/lcommon.h>
 
@@ -724,61 +602,41 @@ LUAI_FUNC const LocVar *luaF_findlocal(const Proto *func, int local_reg,
 
 // @@@ PACK.lua : done, inlined <VM/src/lmem.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details This code is based on Lua 5.x
-// implementation licensed under MIT License; see lua_LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <lua.h>
 
 struct lua_Page;
 union GCObject;
 
-#define luaM_newgco(L, t, size, memcat)                                        \
-  cast_to(t *, luaM_newgco_(L, size, memcat))
-#define luaM_freegco(L, p, size, memcat, page)                                 \
-  luaM_freegco_(L, obj2gco(p), size, memcat, page)
+#define luaM_newgco(L, t, size, memcat) cast_to(t*, luaM_newgco_(L, size, memcat))
+#define luaM_freegco(L, p, size, memcat, page) luaM_freegco_(L, obj2gco(p), size, memcat, page)
 
-#define luaM_arraysize_(L, n, e)                                               \
-  ((cast_to(size_t, (n)) <= SIZE_MAX / (e)) ? (n) * (e)                        \
-                                            : (luaM_toobig(L), SIZE_MAX))
+#define luaM_arraysize_(L, n, e) ((cast_to(size_t, (n)) <= SIZE_MAX / (e)) ? (n) * (e) : (luaM_toobig(L), SIZE_MAX))
 
-#define luaM_newarray(L, n, t, memcat)                                         \
-  cast_to(t *, luaM_new_(L, luaM_arraysize_(L, n, sizeof(t)), memcat))
-#define luaM_freearray(L, b, n, t, memcat)                                     \
-  luaM_free_(L, (b), (n) * sizeof(t), memcat)
-#define luaM_reallocarray(L, v, oldn, n, t, memcat)                            \
-  ((v) =                                                                       \
-       cast_to(t *, luaM_realloc_(L, v, (oldn) * sizeof(t),                    \
-                                  luaM_arraysize_(L, n, sizeof(t)), memcat)))
+#define luaM_newarray(L, n, t, memcat) cast_to(t*, luaM_new_(L, luaM_arraysize_(L, n, sizeof(t)), memcat))
+#define luaM_freearray(L, b, n, t, memcat) luaM_free_(L, (b), (n) * sizeof(t), memcat)
+#define luaM_reallocarray(L, v, oldn, n, t, memcat)     ((v) = cast_to(t*, luaM_realloc_(L, v, (oldn) * sizeof(t), luaM_arraysize_(L, n, sizeof(t)), memcat)))
 
-LUAI_FUNC void *luaM_new_(lua_State *L, size_t nsize, uint8_t memcat);
-LUAI_FUNC GCObject *luaM_newgco_(lua_State *L, size_t nsize, uint8_t memcat);
-LUAI_FUNC void luaM_free_(lua_State *L, void *block, size_t osize,
-                          uint8_t memcat);
-LUAI_FUNC void luaM_freegco_(lua_State *L, GCObject *block, size_t osize,
-                             uint8_t memcat, lua_Page *page);
-LUAI_FUNC void *luaM_realloc_(lua_State *L, void *block, size_t osize,
-                              size_t nsize, uint8_t memcat);
+LUAI_FUNC void* luaM_new_(lua_State* L, size_t nsize, uint8_t memcat);
+LUAI_FUNC GCObject* luaM_newgco_(lua_State* L, size_t nsize, uint8_t memcat);
+LUAI_FUNC void luaM_free_(lua_State* L, void* block, size_t osize, uint8_t memcat);
+LUAI_FUNC void luaM_freegco_(lua_State* L, GCObject* block, size_t osize, uint8_t memcat, lua_Page* page);
+LUAI_FUNC void* luaM_realloc_(lua_State* L, void* block, size_t osize, size_t nsize, uint8_t memcat);
 
-LUAI_FUNC l_noret luaM_toobig(lua_State *L);
+LUAI_FUNC l_noret luaM_toobig(lua_State* L);
 
-LUAI_FUNC void luaM_getpagewalkinfo(lua_Page *page, char **start, char **end,
-                                    int *busyBlocks, int *blockSize);
-LUAI_FUNC void luaM_getpageinfo(lua_Page *page, int *pageBlocks,
-                                int *busyBlocks, int *blockSize, int *pageSize);
-LUAI_FUNC lua_Page *luaM_getnextpage(lua_Page *page);
+LUAI_FUNC void luaM_getpagewalkinfo(lua_Page* page, char** start, char** end, int* busyBlocks, int* blockSize);
+LUAI_FUNC void luaM_getpageinfo(lua_Page* page, int* pageBlocks, int* busyBlocks, int* blockSize, int* pageSize);
+LUAI_FUNC lua_Page* luaM_getnextpage(lua_Page* page);
 
-LUAI_FUNC void luaM_visitpage(lua_Page *page, void *context,
-                              bool (*visitor)(void *context, lua_Page *page,
-                                              GCObject *gco));
-LUAI_FUNC void luaM_visitgco(lua_State *L, void *context,
-                             bool (*visitor)(void *context, lua_Page *page,
-                                             GCObject *gco));
+LUAI_FUNC void luaM_visitpage(lua_Page* page, void* context, bool (*visitor)(void* context, lua_Page* page, GCObject* gco));
+LUAI_FUNC void luaM_visitgco(lua_State* L, void* context, bool (*visitor)(void* context, lua_Page* page, GCObject* gco));
 
 // @@@ PACK.lua : done, inlined <VM/src/ltable.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details This code is based on Lua 5.x
-// implementation licensed under MIT License; see lua_LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <lobject.h>
 
 #define gnode(t, i) (&(t)->node[i])
@@ -786,50 +644,43 @@ LUAI_FUNC void luaM_visitgco(lua_State *L, void *context,
 #define gval(n) (&(n)->val)
 #define gnext(n) ((n)->key.next)
 
-#define gval2slot(t, v)                                                        \
-  int(cast_to(LuaNode *, static_cast<const TValue *>(v)) - t->node)
+#define gval2slot(t, v) int(cast_to(LuaNode*, static_cast<const TValue*>(v)) - t->node)
 
 // reset cache of absent metamethods, cache is updated in luaT_gettm
 #define invalidateTMcache(t) t->tmcache = 0
 
-LUAI_FUNC const TValue *luaH_getnum(Table *t, int key);
-LUAI_FUNC TValue *luaH_setnum(lua_State *L, Table *t, int key);
-LUAI_FUNC const TValue *luaH_getstr(Table *t, TString *key);
-LUAI_FUNC TValue *luaH_setstr(lua_State *L, Table *t, TString *key);
-LUAI_FUNC const TValue *luaH_get(Table *t, const TValue *key);
-LUAI_FUNC TValue *luaH_set(lua_State *L, Table *t, const TValue *key);
-LUAI_FUNC TValue *luaH_newkey(lua_State *L, Table *t, const TValue *key);
-LUAI_FUNC Table *luaH_new(lua_State *L, int narray, int lnhash);
-LUAI_FUNC void luaH_resizearray(lua_State *L, Table *t, int nasize);
-LUAI_FUNC void luaH_resizehash(lua_State *L, Table *t, int nhsize);
-LUAI_FUNC void luaH_free(lua_State *L, Table *t, struct lua_Page *page);
-LUAI_FUNC int luaH_next(lua_State *L, Table *t, StkId key);
-LUAI_FUNC int luaH_getn(Table *t);
-LUAI_FUNC Table *luaH_clone(lua_State *L, Table *tt);
-LUAI_FUNC void luaH_clear(Table *tt);
+LUAI_FUNC const TValue* luaH_getnum(Table* t, int key);
+LUAI_FUNC TValue* luaH_setnum(lua_State* L, Table* t, int key);
+LUAI_FUNC const TValue* luaH_getstr(Table* t, TString* key);
+LUAI_FUNC TValue* luaH_setstr(lua_State* L, Table* t, TString* key);
+LUAI_FUNC const TValue* luaH_get(Table* t, const TValue* key);
+LUAI_FUNC TValue* luaH_set(lua_State* L, Table* t, const TValue* key);
+LUAI_FUNC TValue* luaH_newkey(lua_State* L, Table* t, const TValue* key);
+LUAI_FUNC Table* luaH_new(lua_State* L, int narray, int lnhash);
+LUAI_FUNC void luaH_resizearray(lua_State* L, Table* t, int nasize);
+LUAI_FUNC void luaH_resizehash(lua_State* L, Table* t, int nhsize);
+LUAI_FUNC void luaH_free(lua_State* L, Table* t, struct lua_Page* page);
+LUAI_FUNC int luaH_next(lua_State* L, Table* t, StkId key);
+LUAI_FUNC int luaH_getn(Table* t);
+LUAI_FUNC Table* luaH_clone(lua_State* L, Table* tt);
+LUAI_FUNC void luaH_clear(Table* tt);
 
-#define luaH_setslot(L, t, slot, key)                                          \
-  (invalidateTMcache(t), (slot == luaO_nilobject ? luaH_newkey(L, t, key)      \
-                                                 : cast_to(TValue *, slot)))
+#define luaH_setslot(L, t, slot, key) (invalidateTMcache(t), (slot == luaO_nilobject ? luaH_newkey(L, t, key) : cast_to(TValue*, slot)))
 
 extern const LuaNode luaH_dummynode;
 
 // @@@ PACK.lua : done, inlined <VM/src/lgc.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details This code is based on Lua 5.x
-// implementation licensed under MIT License; see lua_LICENSE.txt for details//
-// @@@ PACK.lua : done, inlined <VM/src/ldo.h>
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details// @@@ PACK.lua : done, inlined <VM/src/ldo.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details This code is based on Lua 5.x
-// implementation licensed under MIT License; see lua_LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <lobject.h>
 // @@@ PACK.lua : done, inlined <VM/src/lstate.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details This code is based on Lua 5.x
-// implementation licensed under MIT License; see lua_LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <lobject.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <ltm.h>
@@ -858,37 +709,29 @@ typedef struct stringtable
 ** informations about a call
 **
 ** the general Lua stack frame structure is as follows:
-** - each function gets a stack frame, with function "registers" being stack
-*slots on the frame
+** - each function gets a stack frame, with function "registers" being stack slots on the frame
 ** - function arguments are associated with registers 0+
-** - function locals and temporaries follow after; usually locals are a
-*consecutive block per scope, and temporaries are allocated after this, but this
-*is up to the compiler
+** - function locals and temporaries follow after; usually locals are a consecutive block per scope, and temporaries are allocated after this, but
+*this is up to the compiler
 **
 ** when function doesn't have varargs, the stack layout is as follows:
 ** ^ (func) ^^ [fixed args] [locals + temporaries]
-** where ^ is the 'func' pointer in CallInfo struct, and ^^ is the 'base'
-*pointer (which is what registers are relative to)
+** where ^ is the 'func' pointer in CallInfo struct, and ^^ is the 'base' pointer (which is what registers are relative to)
 **
-** when function *does* have varargs, the stack layout is more complex - the
-*runtime has to copy the fixed arguments so that the 0+ addressing still works
-*as follows:
+** when function *does* have varargs, the stack layout is more complex - the runtime has to copy the fixed arguments so that the 0+ addressing still
+*works as follows:
 ** ^ (func) [fixed args] [varargs] ^^ [fixed args] [locals + temporaries]
 **
 ** computing the sizes of these individual blocks works as follows:
-** - the number of fixed args is always matching the `numparams` in a function's
-*Proto object; runtime adds `nil` during the call execution as necessary
-** - the number of variadic args can be computed by evaluating (ci->base -
-*ci->func - 1 - numparams)
+** - the number of fixed args is always matching the `numparams` in a function's Proto object; runtime adds `nil` during the call execution as
+*necessary
+** - the number of variadic args can be computed by evaluating (ci->base - ci->func - 1 - numparams)
 **
-** the CallInfo structures are allocated as an array, with each subsequent call
-*being *appended* to this array (so if f calls g, CallInfo for g immediately
-*follows CallInfo for f)
-** the `nresults` field in CallInfo is set by the caller to tell the function
-*how many arguments the caller is expecting on the stack after the function
-*returns
-** the `flags` field in CallInfo contains internal execution flags that are
-*important for pcall/etc, see LUA_CALLINFO_*
+** the CallInfo structures are allocated as an array, with each subsequent call being *appended* to this array (so if f calls g, CallInfo for g
+*immediately follows CallInfo for f)
+** the `nresults` field in CallInfo is set by the caller to tell the function how many arguments the caller is expecting on the stack after the
+*function returns
+** the `flags` field in CallInfo contains internal execution flags that are important for pcall/etc, see LUA_CALLINFO_*
 */
 // clang-format off
 typedef struct CallInfo
@@ -904,109 +747,96 @@ typedef struct CallInfo
 } CallInfo;
 // clang-format on
 
-#define LUA_CALLINFO_RETURN                                                    \
-  (1 << 0) // should the interpreter return after returning from this callinfo?
-           // first frame must have this set
-#define LUA_CALLINFO_HANDLE                                                    \
-  (1 << 1) // should the error thrown during execution get handled by
-           // continuation from this callinfo? func must be C
-#define LUA_CALLINFO_NATIVE                                                    \
-  (1 << 2) // should this function be executed using execution callback for
-           // native code
+#define LUA_CALLINFO_RETURN (1 << 0) // should the interpreter return after returning from this callinfo? first frame must have this set
+#define LUA_CALLINFO_HANDLE (1 << 1) // should the error thrown during execution get handled by continuation from this callinfo? func must be C
+#define LUA_CALLINFO_NATIVE (1 << 2) // should this function be executed using execution callback for native code
 
 #define curr_func(L) (clvalue(L->ci->func))
 #define ci_func(ci) (clvalue((ci)->func))
 #define f_isLua(ci) (!ci_func(ci)->isC)
 #define isLua(ci) (ttisfunction((ci)->func) && f_isLua(ci))
 
-struct GCStats {
-  // data for proportional-integral controller of heap trigger value
-  int32_t triggerterms[32] = {0};
-  uint32_t triggertermpos = 0;
-  int32_t triggerintegral = 0;
+struct GCStats
+{
+    // data for proportional-integral controller of heap trigger value
+    int32_t triggerterms[32] = {0};
+    uint32_t triggertermpos = 0;
+    int32_t triggerintegral = 0;
 
-  size_t atomicstarttotalsizebytes = 0;
-  size_t endtotalsizebytes = 0;
-  size_t heapgoalsizebytes = 0;
+    size_t atomicstarttotalsizebytes = 0;
+    size_t endtotalsizebytes = 0;
+    size_t heapgoalsizebytes = 0;
 
-  double starttimestamp = 0;
-  double atomicstarttimestamp = 0;
-  double endtimestamp = 0;
+    double starttimestamp = 0;
+    double atomicstarttimestamp = 0;
+    double endtimestamp = 0;
 };
 
 #ifdef LUAI_GCMETRICS
-struct GCCycleMetrics {
-  size_t starttotalsizebytes = 0;
-  size_t heaptriggersizebytes = 0;
+struct GCCycleMetrics
+{
+    size_t starttotalsizebytes = 0;
+    size_t heaptriggersizebytes = 0;
 
-  double pausetime =
-      0.0; // time from end of the last cycle to the start of a new one
+    double pausetime = 0.0; // time from end of the last cycle to the start of a new one
 
-  double starttimestamp = 0.0;
-  double endtimestamp = 0.0;
+    double starttimestamp = 0.0;
+    double endtimestamp = 0.0;
 
-  double marktime = 0.0;
-  double markassisttime = 0.0;
-  double markmaxexplicittime = 0.0;
-  size_t markexplicitsteps = 0;
-  size_t markwork = 0;
+    double marktime = 0.0;
+    double markassisttime = 0.0;
+    double markmaxexplicittime = 0.0;
+    size_t markexplicitsteps = 0;
+    size_t markwork = 0;
 
-  double atomicstarttimestamp = 0.0;
-  size_t atomicstarttotalsizebytes = 0;
-  double atomictime = 0.0;
+    double atomicstarttimestamp = 0.0;
+    size_t atomicstarttotalsizebytes = 0;
+    double atomictime = 0.0;
 
-  // specific atomic stage parts
-  double atomictimeupval = 0.0;
-  double atomictimeweak = 0.0;
-  double atomictimegray = 0.0;
-  double atomictimeclear = 0.0;
+    // specific atomic stage parts
+    double atomictimeupval = 0.0;
+    double atomictimeweak = 0.0;
+    double atomictimegray = 0.0;
+    double atomictimeclear = 0.0;
 
-  double sweeptime = 0.0;
-  double sweepassisttime = 0.0;
-  double sweepmaxexplicittime = 0.0;
-  size_t sweepexplicitsteps = 0;
-  size_t sweepwork = 0;
+    double sweeptime = 0.0;
+    double sweepassisttime = 0.0;
+    double sweepmaxexplicittime = 0.0;
+    size_t sweepexplicitsteps = 0;
+    size_t sweepwork = 0;
 
-  size_t assistwork = 0;
-  size_t explicitwork = 0;
+    size_t assistwork = 0;
+    size_t explicitwork = 0;
 
-  size_t propagatework = 0;
-  size_t propagateagainwork = 0;
+    size_t propagatework = 0;
+    size_t propagateagainwork = 0;
 
-  size_t endtotalsizebytes = 0;
+    size_t endtotalsizebytes = 0;
 };
 
-struct GCMetrics {
-  double stepexplicittimeacc = 0.0;
-  double stepassisttimeacc = 0.0;
+struct GCMetrics
+{
+    double stepexplicittimeacc = 0.0;
+    double stepassisttimeacc = 0.0;
 
-  // when cycle is completed, last cycle values are updated
-  uint64_t completedcycles = 0;
+    // when cycle is completed, last cycle values are updated
+    uint64_t completedcycles = 0;
 
-  GCCycleMetrics lastcycle;
-  GCCycleMetrics currcycle;
+    GCCycleMetrics lastcycle;
+    GCCycleMetrics currcycle;
 };
 #endif
 
-// Callbacks that can be used to to redirect code execution from Luau bytecode
-// VM to a custom implementation (AoT/JiT/sandboxing/...)
-struct lua_ExecutionCallbacks {
-  void *context;
-  void (*close)(lua_State *L); // called when global VM state is closed
-  void (*destroy)(lua_State *L,
-                  Proto *proto); // called when function is destroyed
-  int (*enter)(lua_State *L,
-               Proto *proto); // called when function is about to start/resume
-                              // (when execdata is present), return 0 to exit VM
-  void (*disable)(lua_State *L,
-                  Proto *proto); // called when function has to be switched from
-                                 // native to bytecode in the debugger
-  size_t (*getmemorysize)(
-      lua_State *L, Proto *proto); // called to request the size of memory
-                                   // associated with native part of the Proto
-  uint8_t (*gettypemapping)(
-      lua_State *L, const char *str,
-      size_t len); // called to get the userdata type index
+// Callbacks that can be used to to redirect code execution from Luau bytecode VM to a custom implementation (AoT/JiT/sandboxing/...)
+struct lua_ExecutionCallbacks
+{
+    void* context;
+    void (*close)(lua_State* L);                 // called when global VM state is closed
+    void (*destroy)(lua_State* L, Proto* proto); // called when function is destroyed
+    int (*enter)(lua_State* L, Proto* proto);    // called when function is about to start/resume (when execdata is present), return 0 to exit VM
+    void (*disable)(lua_State* L, Proto* proto); // called when function has to be switched from native to bytecode in the debugger
+    size_t (*getmemorysize)(lua_State* L, Proto* proto); // called to request the size of memory associated with native part of the Proto
+    uint8_t (*gettypemapping)(lua_State* L, const char* str, size_t len); // called to get the userdata type index
 };
 
 /*
@@ -1017,19 +847,15 @@ typedef struct global_State
 {
     stringtable strt; // hash table for strings
 
-
     lua_Alloc frealloc;   // function to reallocate memory
     void* ud;            // auxiliary data to `frealloc'
-
 
     uint8_t currentwhite;
     uint8_t gcstate; // state of garbage collector
 
-
     GCObject* gray;      // list of gray objects
     GCObject* grayagain; // list of objects to be traversed atomically
     GCObject* weak;     // list of weak tables (to be cleared)
-
 
     size_t GCthreshold;                       // when totalbytes > GCthreshold, run GC step
     size_t totalbytes;                        // number of bytes currently allocated
@@ -1044,7 +870,6 @@ typedef struct global_State
     struct lua_Page* sweepgcopage; // position of the sweep in `allgcopages'
 
     size_t memcatbytes[LUA_MEMORY_CATEGORIES]; // total amount of memory used by each memory category
-
 
     struct lua_State* mainthread;
     UpVal uvhead;                                    // head of double-linked list of all open upvalues
@@ -1093,7 +918,6 @@ struct lua_State
     bool isactive;   // thread is currently executing, stack may be mutated without barriers
     bool singlestep; // call debugstep hook after each instruction
 
-
     StkId top;                                        // first free slot in the stack
     StkId base;                                       // base of current function
     global_State* global;
@@ -1101,20 +925,16 @@ struct lua_State
     StkId stack_last;                                 // last free slot in the stack
     StkId stack;                                     // stack base
 
-
     CallInfo* end_ci;                          // points after end of ci array
     CallInfo* base_ci;                        // array of CallInfo's
 
-
     int stacksize;
     int size_ci;                              // size of array `base_ci'
-
 
     unsigned short nCcalls;     // number of nested C calls
     unsigned short baseCcalls; // nested C calls when resuming coroutine
 
     int cachedslot;    // when table operations or INDEX/NEWINDEX is invoked from Luau, what is the expected slot for lookup?
-
 
     Table* gt;           // table of globals
     UpVal* openupval;    // list of open upvalues in this stack
@@ -1129,16 +949,17 @@ struct lua_State
 /*
 ** Union of all collectible objects
 */
-union GCObject {
-  GCheader gch;
-  struct TString ts;
-  struct Udata u;
-  struct Closure cl;
-  struct Table h;
-  struct Proto p;
-  struct UpVal uv;
-  struct lua_State th; // thread
-  struct Buffer buf;
+union GCObject
+{
+    GCheader gch;
+    struct TString ts;
+    struct Udata u;
+    struct Closure cl;
+    struct Table h;
+    struct Proto p;
+    struct UpVal uv;
+    struct lua_State th; // thread
+    struct Buffer buf;
 };
 
 // macros to convert a GCObject into a specific value
@@ -1152,18 +973,16 @@ union GCObject {
 #define gco2buf(o) check_exp((o)->gch.tt == LUA_TBUFFER, &((o)->buf))
 
 // macro to convert any Lua object into a GCObject
-#define obj2gco(v) check_exp(iscollectable(v), cast_to(GCObject *, (v) + 0))
+#define obj2gco(v) check_exp(iscollectable(v), cast_to(GCObject*, (v) + 0))
 
-LUAI_FUNC lua_State *luaE_newthread(lua_State *L);
-LUAI_FUNC void luaE_freethread(lua_State *L, lua_State *L1,
-                               struct lua_Page *page);
+LUAI_FUNC lua_State* luaE_newthread(lua_State* L);
+LUAI_FUNC void luaE_freethread(lua_State* L, lua_State* L1, struct lua_Page* page);
 
 // @@@@@ PACK.LUA : unknown was already included! <luaconf.h>
 // @@@ PACK.lua : done, inlined <VM/src/ldebug.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details This code is based on Lua 5.x
-// implementation licensed under MIT License; see lua_LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <lstate.h>
 
 #define pcRel(pc, p) ((pc) ? cast_to(int, (pc) - (p)->code) - 1 : 0)
@@ -1175,61 +994,38 @@ LUAI_FUNC void luaE_freethread(lua_State *L, lua_State *L1,
 #define LUA_MEMERRMSG "not enough memory"
 #define LUA_ERRERRMSG "error in error handling"
 
-LUAI_FUNC l_noret luaG_typeerrorL(lua_State *L, const TValue *o,
-                                  const char *opname);
-LUAI_FUNC l_noret luaG_forerrorL(lua_State *L, const TValue *o,
-                                 const char *what);
-LUAI_FUNC l_noret luaG_concaterror(lua_State *L, StkId p1, StkId p2);
-LUAI_FUNC l_noret luaG_aritherror(lua_State *L, const TValue *p1,
-                                  const TValue *p2, TMS op);
-LUAI_FUNC l_noret luaG_ordererror(lua_State *L, const TValue *p1,
-                                  const TValue *p2, TMS op);
-LUAI_FUNC l_noret luaG_indexerror(lua_State *L, const TValue *p1,
-                                  const TValue *p2);
-LUAI_FUNC l_noret luaG_methoderror(lua_State *L, const TValue *p1,
-                                   const TString *p2);
-LUAI_FUNC l_noret luaG_readonlyerror(lua_State *L);
+LUAI_FUNC l_noret luaG_typeerrorL(lua_State* L, const TValue* o, const char* opname);
+LUAI_FUNC l_noret luaG_forerrorL(lua_State* L, const TValue* o, const char* what);
+LUAI_FUNC l_noret luaG_concaterror(lua_State* L, StkId p1, StkId p2);
+LUAI_FUNC l_noret luaG_aritherror(lua_State* L, const TValue* p1, const TValue* p2, TMS op);
+LUAI_FUNC l_noret luaG_ordererror(lua_State* L, const TValue* p1, const TValue* p2, TMS op);
+LUAI_FUNC l_noret luaG_indexerror(lua_State* L, const TValue* p1, const TValue* p2);
+LUAI_FUNC l_noret luaG_methoderror(lua_State* L, const TValue* p1, const TString* p2);
+LUAI_FUNC l_noret luaG_readonlyerror(lua_State* L);
 
-LUAI_FUNC LUA_PRINTF_ATTR(2, 3) l_noret
-    luaG_runerrorL(lua_State *L, const char *fmt, ...);
-LUAI_FUNC void luaG_pusherror(lua_State *L, const char *error);
+LUAI_FUNC LUA_PRINTF_ATTR(2, 3) l_noret luaG_runerrorL(lua_State* L, const char* fmt, ...);
+LUAI_FUNC void luaG_pusherror(lua_State* L, const char* error);
 
-LUAI_FUNC void luaG_breakpoint(lua_State *L, Proto *p, int line, bool enable);
-LUAI_FUNC bool luaG_onbreak(lua_State *L);
+LUAI_FUNC void luaG_breakpoint(lua_State* L, Proto* p, int line, bool enable);
+LUAI_FUNC bool luaG_onbreak(lua_State* L);
 
-LUAI_FUNC int luaG_getline(Proto *p, int pc);
+LUAI_FUNC int luaG_getline(Proto* p, int pc);
 
-LUAI_FUNC int luaG_isnative(lua_State *L, int level);
+LUAI_FUNC int luaG_isnative(lua_State* L, int level);
 
-#define luaD_checkstack(L, n)                                                  \
-  if ((char *)L->stack_last - (char *)L->top <= (n) * (int)sizeof(TValue))     \
-    luaD_growstack(L, n);                                                      \
-  else                                                                         \
-    condhardstacktests(luaD_reallocstack(L, L->stacksize - EXTRA_STACK));
+#define luaD_checkstack(L, n)     if ((char*)L->stack_last - (char*)L->top <= (n) * (int)sizeof(TValue))         luaD_growstack(L, n);     else         condhardstacktests(luaD_reallocstack(L, L->stacksize - EXTRA_STACK));
 
-#define incr_top(L)                                                            \
-  {                                                                            \
-    luaD_checkstack(L, 1);                                                     \
-    L->top++;                                                                  \
-  }
+#define incr_top(L)     {         luaD_checkstack(L, 1);         L->top++;     }
 
-#define savestack(L, p) ((char *)(p) - (char *)L->stack)
-#define restorestack(L, n) ((TValue *)((char *)L->stack + (n)))
+#define savestack(L, p) ((char*)(p) - (char*)L->stack)
+#define restorestack(L, n) ((TValue*)((char*)L->stack + (n)))
 
-#define expandstacklimit(L, p)                                                 \
-  {                                                                            \
-    LUAU_ASSERT((p) <= (L)->stack_last);                                       \
-    if ((L)->ci->top < (p))                                                    \
-      (L)->ci->top = (p);                                                      \
-  }
+#define expandstacklimit(L, p)     {         LUAU_ASSERT((p) <= (L)->stack_last);         if ((L)->ci->top < (p))             (L)->ci->top = (p);     }
 
-#define incr_ci(L)                                                             \
-  ((L->ci == L->end_ci)                                                        \
-       ? luaD_growCI(L)                                                        \
-       : (condhardstacktests(luaD_reallocCI(L, L->size_ci)), ++L->ci))
+#define incr_ci(L) ((L->ci == L->end_ci) ? luaD_growCI(L) : (condhardstacktests(luaD_reallocCI(L, L->size_ci)), ++L->ci))
 
-#define saveci(L, p) ((char *)(p) - (char *)L->base_ci)
-#define restoreci(L, n) ((CallInfo *)((char *)L->base_ci + (n)))
+#define saveci(L, p) ((char*)(p) - (char*)L->base_ci)
+#define restoreci(L, n) ((CallInfo*)((char*)L->base_ci + (n)))
 
 // results from luaD_precall
 #define PCRLUA 0   // initiated a call to a Lua function
@@ -1237,20 +1033,19 @@ LUAI_FUNC int luaG_isnative(lua_State *L, int level);
 #define PCRYIELD 2 // C function yielded
 
 // type of protected functions, to be ran by `runprotected'
-typedef void (*Pfunc)(lua_State *L, void *ud);
+typedef void (*Pfunc)(lua_State* L, void* ud);
 
-LUAI_FUNC CallInfo *luaD_growCI(lua_State *L);
+LUAI_FUNC CallInfo* luaD_growCI(lua_State* L);
 
-LUAI_FUNC void luaD_call(lua_State *L, StkId func, int nresults);
-LUAI_FUNC int luaD_pcall(lua_State *L, Pfunc func, void *u, ptrdiff_t oldtop,
-                         ptrdiff_t ef);
-LUAI_FUNC void luaD_reallocCI(lua_State *L, int newsize);
-LUAI_FUNC void luaD_reallocstack(lua_State *L, int newsize);
-LUAI_FUNC void luaD_growstack(lua_State *L, int n);
-LUAI_FUNC void luaD_checkCstack(lua_State *L);
+LUAI_FUNC void luaD_call(lua_State* L, StkId func, int nresults);
+LUAI_FUNC int luaD_pcall(lua_State* L, Pfunc func, void* u, ptrdiff_t oldtop, ptrdiff_t ef);
+LUAI_FUNC void luaD_reallocCI(lua_State* L, int newsize);
+LUAI_FUNC void luaD_reallocstack(lua_State* L, int newsize);
+LUAI_FUNC void luaD_growstack(lua_State* L, int n);
+LUAI_FUNC void luaD_checkCstack(lua_State* L);
 
-LUAI_FUNC l_noret luaD_throw(lua_State *L, int errcode);
-LUAI_FUNC int luaD_rawrunprotected(lua_State *L, Pfunc f, void *ud);
+LUAI_FUNC l_noret luaD_throw(lua_State* L, int errcode);
+LUAI_FUNC int luaD_rawrunprotected(lua_State* L, Pfunc f, void* ud);
 
 // @@@@@ PACK.LUA : unknown was already included! <lobject.h>
 
@@ -1259,8 +1054,7 @@ LUAI_FUNC int luaD_rawrunprotected(lua_State *L, Pfunc f, void *ud);
 /*
 ** Default settings for GC tunables (settable via lua_gc)
 */
-#define LUAI_GCGOAL                                                            \
-  200 // 200% (allow heap to double compared to live heap size)
+#define LUAI_GCGOAL 200    // 200% (allow heap to double compared to live heap size)
 #define LUAI_GCSTEPMUL 200 // GC runs 'twice the speed' of memory allocation
 #define LUAI_GCSTEPSIZE 1  // GC runs every KB of memory allocation
 
@@ -1279,9 +1073,7 @@ LUAI_FUNC int luaD_rawrunprotected(lua_State *L, Pfunc f, void *ud);
 ** is not being enforced during a sweep phase, and is restored when sweep
 ** ends.
 */
-#define keepinvariant(g)                                                       \
-  ((g)->gcstate == GCSpropagate || (g)->gcstate == GCSpropagateagain ||        \
-   (g)->gcstate == GCSatomic)
+#define keepinvariant(g) ((g)->gcstate == GCSpropagate || (g)->gcstate == GCSpropagateagain || (g)->gcstate == GCSatomic)
 
 /*
 ** some useful bit tricks
@@ -1318,9 +1110,7 @@ LUAI_FUNC int luaD_rawrunprotected(lua_State *L, Pfunc f, void *ud);
 #define isfixed(x) testbit((x)->gch.marked, FIXEDBIT)
 
 #define otherwhite(g) (g->currentwhite ^ WHITEBITS)
-#define isdead(g, v)                                                           \
-  (((v)->gch.marked & (WHITEBITS | bitmask(FIXEDBIT))) ==                      \
-   (otherwhite(g) & WHITEBITS))
+#define isdead(g, v) (((v)->gch.marked & (WHITEBITS | bitmask(FIXEDBIT))) == (otherwhite(g) & WHITEBITS))
 
 #define changewhite(x) ((x)->gch.marked ^= WHITEBITS)
 #define gray2black(x) l_setbit((x)->gch.marked, BLACKBIT)
@@ -1329,80 +1119,40 @@ LUAI_FUNC int luaD_rawrunprotected(lua_State *L, Pfunc f, void *ud);
 
 #define luaC_needsGC(L) (L->global->totalbytes >= L->global->GCthreshold)
 
-#define luaC_checkGC(L)                                                        \
-  {                                                                            \
-    condhardstacktests(luaD_reallocstack(L, L->stacksize - EXTRA_STACK));      \
-    if (luaC_needsGC(L)) {                                                     \
-      condhardmemtests(luaC_validate(L), 1);                                   \
-      luaC_step(L, true);                                                      \
-    } else {                                                                   \
-      condhardmemtests(luaC_validate(L), 2);                                   \
-    }                                                                          \
-  }
+#define luaC_checkGC(L)     {         condhardstacktests(luaD_reallocstack(L, L->stacksize - EXTRA_STACK));         if (luaC_needsGC(L))         {             condhardmemtests(luaC_validate(L), 1);             luaC_step(L, true);         }         else         {             condhardmemtests(luaC_validate(L), 2);         }     }
 
-#define luaC_barrier(L, p, v)                                                  \
-  {                                                                            \
-    if (iscollectable(v) && isblack(obj2gco(p)) && iswhite(gcvalue(v)))        \
-      luaC_barrierf(L, obj2gco(p), gcvalue(v));                                \
-  }
+#define luaC_barrier(L, p, v)     {         if (iscollectable(v) && isblack(obj2gco(p)) && iswhite(gcvalue(v)))             luaC_barrierf(L, obj2gco(p), gcvalue(v));     }
 
-#define luaC_barriert(L, t, v)                                                 \
-  {                                                                            \
-    if (iscollectable(v) && isblack(obj2gco(t)) && iswhite(gcvalue(v)))        \
-      luaC_barriertable(L, t, gcvalue(v));                                     \
-  }
+#define luaC_barriert(L, t, v)     {         if (iscollectable(v) && isblack(obj2gco(t)) && iswhite(gcvalue(v)))             luaC_barriertable(L, t, gcvalue(v));     }
 
-#define luaC_barrierfast(L, t)                                                 \
-  {                                                                            \
-    if (isblack(obj2gco(t)))                                                   \
-      luaC_barrierback(L, obj2gco(t), &t->gclist);                             \
-  }
+#define luaC_barrierfast(L, t)     {         if (isblack(obj2gco(t)))             luaC_barrierback(L, obj2gco(t), &t->gclist);     }
 
-#define luaC_objbarrier(L, p, o)                                               \
-  {                                                                            \
-    if (isblack(obj2gco(p)) && iswhite(obj2gco(o)))                            \
-      luaC_barrierf(L, obj2gco(p), obj2gco(o));                                \
-  }
+#define luaC_objbarrier(L, p, o)     {         if (isblack(obj2gco(p)) && iswhite(obj2gco(o)))             luaC_barrierf(L, obj2gco(p), obj2gco(o));     }
 
-#define luaC_threadbarrier(L)                                                  \
-  {                                                                            \
-    if (isblack(obj2gco(L)))                                                   \
-      luaC_barrierback(L, obj2gco(L), &L->gclist);                             \
-  }
+#define luaC_threadbarrier(L)     {         if (isblack(obj2gco(L)))             luaC_barrierback(L, obj2gco(L), &L->gclist);     }
 
-#define luaC_init(L, o, tt_)                                                   \
-  {                                                                            \
-    o->marked = luaC_white(L->global);                                         \
-    o->tt = tt_;                                                               \
-    o->memcat = L->activememcat;                                               \
-  }
+#define luaC_init(L, o, tt_)     {         o->marked = luaC_white(L->global);         o->tt = tt_;         o->memcat = L->activememcat;     }
 
-LUAI_FUNC void luaC_freeall(lua_State *L);
-LUAI_FUNC size_t luaC_step(lua_State *L, bool assist);
-LUAI_FUNC void luaC_fullgc(lua_State *L);
-LUAI_FUNC void luaC_initobj(lua_State *L, GCObject *o, uint8_t tt);
-LUAI_FUNC void luaC_upvalclosed(lua_State *L, UpVal *uv);
-LUAI_FUNC void luaC_barrierf(lua_State *L, GCObject *o, GCObject *v);
-LUAI_FUNC void luaC_barriertable(lua_State *L, Table *t, GCObject *v);
-LUAI_FUNC void luaC_barrierback(lua_State *L, GCObject *o, GCObject **gclist);
-LUAI_FUNC void luaC_validate(lua_State *L);
-LUAI_FUNC void luaC_dump(lua_State *L, void *file,
-                         const char *(*categoryName)(lua_State *L,
-                                                     uint8_t memcat));
-LUAI_FUNC void luaC_enumheap(lua_State *L, void *context,
-                             void (*node)(void *context, void *ptr, uint8_t tt,
-                                          uint8_t memcat, size_t size,
-                                          const char *name),
-                             void (*edge)(void *context, void *from, void *to,
-                                          const char *name));
-LUAI_FUNC int64_t luaC_allocationrate(lua_State *L);
-LUAI_FUNC const char *luaC_statename(int state);
+LUAI_FUNC void luaC_freeall(lua_State* L);
+LUAI_FUNC size_t luaC_step(lua_State* L, bool assist);
+LUAI_FUNC void luaC_fullgc(lua_State* L);
+LUAI_FUNC void luaC_initobj(lua_State* L, GCObject* o, uint8_t tt);
+LUAI_FUNC void luaC_upvalclosed(lua_State* L, UpVal* uv);
+LUAI_FUNC void luaC_barrierf(lua_State* L, GCObject* o, GCObject* v);
+LUAI_FUNC void luaC_barriertable(lua_State* L, Table* t, GCObject* v);
+LUAI_FUNC void luaC_barrierback(lua_State* L, GCObject* o, GCObject** gclist);
+LUAI_FUNC void luaC_validate(lua_State* L);
+LUAI_FUNC void luaC_dump(lua_State* L, void* file, const char* (*categoryName)(lua_State* L, uint8_t memcat));
+LUAI_FUNC void luaC_enumheap(lua_State* L, void* context,
+    void (*node)(void* context, void* ptr, uint8_t tt, uint8_t memcat, size_t size, const char* name),
+    void (*edge)(void* context, void* from, void* to, const char* name));
+LUAI_FUNC int64_t luaC_allocationrate(lua_State* L);
+LUAI_FUNC const char* luaC_statename(int state);
 
 // @@@ PACK.lua : done, inlined <VM/src/lstring.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details This code is based on Lua 5.x
-// implementation licensed under MIT License; see lua_LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <lobject.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <lstate.h>
@@ -1416,49 +1166,44 @@ LUAI_FUNC const char *luaC_statename(int state);
 #define sizestring(len) (offsetof(TString, data) + len + 1)
 
 #define luaS_new(L, s) (luaS_newlstr(L, s, strlen(s)))
-#define luaS_newliteral(L, s)                                                  \
-  (luaS_newlstr(L, "" s, (sizeof(s) / sizeof(char)) - 1))
+#define luaS_newliteral(L, s) (luaS_newlstr(L, "" s, (sizeof(s) / sizeof(char)) - 1))
 
 #define luaS_fix(s) l_setbit((s)->marked, FIXEDBIT)
 
-LUAI_FUNC unsigned int luaS_hash(const char *str, size_t len);
+LUAI_FUNC unsigned int luaS_hash(const char* str, size_t len);
 
-LUAI_FUNC void luaS_resize(lua_State *L, int newsize);
+LUAI_FUNC void luaS_resize(lua_State* L, int newsize);
 
-LUAI_FUNC TString *luaS_newlstr(lua_State *L, const char *str, size_t l);
-LUAI_FUNC void luaS_free(lua_State *L, TString *ts, struct lua_Page *page);
+LUAI_FUNC TString* luaS_newlstr(lua_State* L, const char* str, size_t l);
+LUAI_FUNC void luaS_free(lua_State* L, TString* ts, struct lua_Page* page);
 
-LUAI_FUNC TString *luaS_bufstart(lua_State *L, size_t size);
-LUAI_FUNC TString *luaS_buffinish(lua_State *L, TString *ts);
+LUAI_FUNC TString* luaS_bufstart(lua_State* L, size_t size);
+LUAI_FUNC TString* luaS_buffinish(lua_State* L, TString* ts);
 
 // @@@ PACK.lua : done, inlined <VM/src/ludata.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details This code is based on Lua 5.x
-// implementation licensed under MIT License; see lua_LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <lobject.h>
 
 // special tag value is used for user data with inline dtors
 #define UTAG_IDTOR LUA_UTAG_LIMIT
 
-// special tag value is used for newproxy-created user data (all other user data
-// objects are host-exposed)
+// special tag value is used for newproxy-created user data (all other user data objects are host-exposed)
 #define UTAG_PROXY (LUA_UTAG_LIMIT + 1)
 
 #define sizeudata(len) (offsetof(Udata, data) + len)
 
-LUAI_FUNC Udata *luaU_newudata(lua_State *L, size_t s, int tag);
-LUAI_FUNC void luaU_freeudata(lua_State *L, Udata *u, struct lua_Page *page);
+LUAI_FUNC Udata* luaU_newudata(lua_State* L, size_t s, int tag);
+LUAI_FUNC void luaU_freeudata(lua_State* L, Udata* u, struct lua_Page* page);
 
 // @@@ PACK.lua : done, inlined <VM/src/lbuiltins.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details This code is based on Lua 5.x
-// implementation licensed under MIT License; see lua_LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <lobject.h>
 
-typedef int (*luau_FastFunction)(lua_State *L, StkId res, TValue *arg0,
-                                 int nresults, StkId args, int nparams);
+typedef int (*luau_FastFunction)(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams);
 
 extern const luau_FastFunction luauF_table[256];
 
@@ -1470,25 +1215,22 @@ extern const luau_FastFunction luauF_table[256];
 
 // @@@ PACK.lua : done, inlined <VM/src/lbuffer.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <lobject.h>
 
 // buffer size limit
 #define MAX_BUFFER_SIZE (1 << 30)
 
-// GCObject size has to be at least 16 bytes, so a minimum of 8 bytes is always
-// reserved
+// GCObject size has to be at least 16 bytes, so a minimum of 8 bytes is always reserved
 #define sizebuffer(len) (offsetof(Buffer, data) + ((len) < 8 ? 8 : (len)))
 
-LUAI_FUNC Buffer *luaB_newbuffer(lua_State *L, size_t s);
-LUAI_FUNC void luaB_freebuffer(lua_State *L, Buffer *u, struct lua_Page *page);
+LUAI_FUNC Buffer* luaB_newbuffer(lua_State* L, size_t s);
+LUAI_FUNC void luaB_freebuffer(lua_State* L, Buffer* u, struct lua_Page* page);
 
 // @@@ PACK.lua : done, inlined <VM/src/lnumutils.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details This code is based on Lua 5.x
-// implementation licensed under MIT License; see lua_LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 // @@@ PACK.lua : not found, likely and std header
 #include <math.h>
 
@@ -1503,60 +1245,60 @@ LUAI_FUNC void luaB_freebuffer(lua_State *L, Buffer *u, struct lua_Page *page);
 #define luai_numlt(a, b) ((a) < (b))
 #define luai_numle(a, b) ((a) <= (b))
 
-inline bool luai_veceq(const float *a, const float *b) {
+inline bool luai_veceq(const float* a, const float* b)
+{
 #if LUA_VECTOR_SIZE == 4
-  return a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3] == b[3];
+    return a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3] == b[3];
 #else
-  return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
+    return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
 #endif
 }
 
-inline bool luai_vecisnan(const float *a) {
+inline bool luai_vecisnan(const float* a)
+{
 #if LUA_VECTOR_SIZE == 4
-  return a[0] != a[0] || a[1] != a[1] || a[2] != a[2] || a[3] != a[3];
+    return a[0] != a[0] || a[1] != a[1] || a[2] != a[2] || a[3] != a[3];
 #else
-  return a[0] != a[0] || a[1] != a[1] || a[2] != a[2];
+    return a[0] != a[0] || a[1] != a[1] || a[2] != a[2];
 #endif
 }
 
 LUAU_FASTMATH_BEGIN
-inline double luai_nummod(double a, double b) { return a - floor(a / b) * b; }
+inline double luai_nummod(double a, double b)
+{
+    return a - floor(a / b) * b;
+}
 LUAU_FASTMATH_END
 
 LUAU_FASTMATH_BEGIN
-inline double luai_numidiv(double a, double b) { return floor(a / b); }
+inline double luai_numidiv(double a, double b)
+{
+    return floor(a / b);
+}
 LUAU_FASTMATH_END
 
 #define luai_num2int(i, d) ((i) = (int)(d))
 
-// On MSVC in 32-bit, double to unsigned cast compiles into a call to __dtoui3,
-// so we invoke x87->int64 conversion path manually
+// On MSVC in 32-bit, double to unsigned cast compiles into a call to __dtoui3, so we invoke x87->int64 conversion path manually
 #if defined(_MSC_VER) && defined(_M_IX86)
-#define luai_num2unsigned(i, n)                                                \
-  {                                                                            \
-    __int64 l;                                                                 \
-    __asm { __asm fld n __asm fistp l}                                               \
-    ;                                                                          \
-    i = (unsigned int)l;                                                       \
-  }
+#define luai_num2unsigned(i, n)     {         __int64 l;         __asm { __asm fld n __asm fistp l}         ;         i = (unsigned int)l;     }
 #else
 #define luai_num2unsigned(i, n) ((i) = (unsigned)(long long)(n))
 #endif
 
 #define LUAI_MAXNUM2STR 48
 
-LUAI_FUNC char *luai_num2str(char *buf, double n);
+LUAI_FUNC char* luai_num2str(char* buf, double n);
 
 #define luai_str2num(s, p) strtod((s), (p))
 
 // @@@ PACK.lua : done, inlined <VM/src/lapi.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details This code is based on Lua 5.x
-// implementation licensed under MIT License; see lua_LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <lobject.h>
 
-LUAI_FUNC const TValue *luaA_toobject(lua_State *L, int idx);
-LUAI_FUNC void luaA_pushobject(lua_State *L, const TValue *o);
+LUAI_FUNC const TValue* luaA_toobject(lua_State* L, int idx);
+LUAI_FUNC void luaA_pushobject(lua_State* L, const TValue* o);
 
 // @@@@@ PACK.LUA : was already included! <VM/src/ldebug.h>

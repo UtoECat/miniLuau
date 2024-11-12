@@ -7,17 +7,17 @@
  *
  * Copyright (c) 2019-2024 Roblox Corporation
  * Copyright (c) 1994–2019 Lua.org, PUC-Rio.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -27,15 +27,13 @@
  * SOFTWARE.
  */
 
+//only once
 #pragma once
 // @@@ PACK.lua : done, inlined <Common/include/Luau/BytecodeUtils.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined
-// <Common/include/Luau/Bytecode.h>
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined <Common/include/Luau/Bytecode.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 
 // clang-format off
 
@@ -657,8 +655,6 @@ enum LuauProtoFlag
     LPF_NATIVE_FUNCTION = 1 << 2,
 };
 
-
-
 namespace Luau
 {
 
@@ -698,14 +694,11 @@ inline int getOpLength(LuauOpcode op)
 
 } // namespace Luau
 
-
 // @@@ PACK.lua : done, inlined <Common/include/Luau/ExperimentalFlags.h>
-
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@ PACK.lua : not found, likely and std header
 #include <string.h>
-
 
 namespace Luau
 {
@@ -731,16 +724,11 @@ inline bool isFlagExperimental(const char* flag)
 
 } // namespace Luau
 
-
 // @@@ PACK.lua : done, inlined <Common/include/Luau/VecDeque.h>
-
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined <Common/include/Luau/Common.h>
 
-
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-
-
 
 // Compiler codegen control macros
 #ifdef _MSC_VER
@@ -845,7 +833,6 @@ FValue<T>* FValue<T>::list = nullptr;
 #define LUAU_PRINTF_ATTR(fmt, arg)
 #endif
 
-
 // @@@ PACK.lua : not found, likely and std header
 #include <algorithm>
 
@@ -866,7 +853,6 @@ FValue<T>* FValue<T>::list = nullptr;
 
 // @@@ PACK.lua : not found, likely and std header
 #include <utility>
-
 
 namespace Luau
 {
@@ -1326,12 +1312,9 @@ public:
 
 } // namespace Luau
 
-
-
 // @@@@@ PACK.LUA : was already included! <Common/include/Luau/Bytecode.h>
 
 // @@@ PACK.lua : done, inlined <Common/include/Luau/DenseHash.h>
-
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
@@ -1348,7 +1331,6 @@ public:
 
 // @@@ PACK.lua : not found, likely and std header
 #include <stdint.h>
-
 
 namespace Luau
 {
@@ -2005,7 +1987,5 @@ public:
 };
 
 } // namespace Luau
-
-
 
 // @@@@@ PACK.LUA : was already included! <Common/include/Luau/Common.h>

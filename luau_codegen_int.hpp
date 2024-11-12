@@ -7,17 +7,17 @@
  *
  * Copyright (c) 2019-2024 Roblox Corporation
  * Copyright (c) 1994–2019 Lua.org, PUC-Rio.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -27,32 +27,23 @@
  * SOFTWARE.
  */
 
-#include "luau_codegen.hpp"
+#include"luau_codegen.hpp"
 
+//only once
 #pragma once
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/UnwindBuilderWin.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined
-// <CodeGen/include/Luau/RegisterX64.h>
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/RegisterX64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined
-// <CodeGen/include/Luau/CodeGenCommon.h>
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/CodeGenCommon.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 #include "luau_common_int.hpp"
 
 #if defined(LUAU_ASSERTENABLED)
-#define CODEGEN_ASSERT(expr)                                                   \
-  ((void)(!!(expr) ||                                                          \
-          (Luau::assertCallHandler(#expr, __FILE__, __LINE__, __FUNCTION__) && \
-           (LUAU_DEBUGBREAK(), 0))))
+#define CODEGEN_ASSERT(expr) ((void)(!!(expr) || (Luau::assertCallHandler(#expr, __FILE__, __LINE__, __FUNCTION__) && (LUAU_DEBUGBREAK(), 0))))
 #elif defined(CODEGEN_ENABLE_ASSERT_HANDLER)
-#define CODEGEN_ASSERT(expr)                                                   \
-  ((void)(!!(expr) ||                                                          \
-          Luau::assertCallHandler(#expr, __FILE__, __LINE__, __FUNCTION__)))
+#define CODEGEN_ASSERT(expr) ((void)(!!(expr) || Luau::assertCallHandler(#expr, __FILE__, __LINE__, __FUNCTION__)))
 #else
 #define CODEGEN_ASSERT(expr) (void)sizeof(!!(expr))
 #endif
@@ -60,29 +51,38 @@
 // @@@ PACK.lua : not found, likely and std header
 #include <stdint.h>
 
-namespace Luau {
-namespace CodeGen {
-namespace X64 {
+namespace Luau
+{
+namespace CodeGen
+{
+namespace X64
+{
 
-enum class SizeX64 : uint8_t {
-  none,
-  byte,
-  word,
-  dword,
-  qword,
-  xmmword,
-  ymmword,
+enum class SizeX64 : uint8_t
+{
+    none,
+    byte,
+    word,
+    dword,
+    qword,
+    xmmword,
+    ymmword,
 };
 
-struct RegisterX64 {
-  SizeX64 size : 3;
-  uint8_t index : 5;
+struct RegisterX64
+{
+    SizeX64 size : 3;
+    uint8_t index : 5;
 
-  constexpr bool operator==(RegisterX64 rhs) const {
-    return size == rhs.size && index == rhs.index;
-  }
+    constexpr bool operator==(RegisterX64 rhs) const
+    {
+        return size == rhs.size && index == rhs.index;
+    }
 
-  constexpr bool operator!=(RegisterX64 rhs) const { return !(*this == rhs); }
+    constexpr bool operator!=(RegisterX64 rhs) const
+    {
+        return !(*this == rhs);
+    }
 };
 
 constexpr RegisterX64 noreg{SizeX64::none, 16};
@@ -173,20 +173,24 @@ constexpr RegisterX64 ymm13{SizeX64::ymmword, 13};
 constexpr RegisterX64 ymm14{SizeX64::ymmword, 14};
 constexpr RegisterX64 ymm15{SizeX64::ymmword, 15};
 
-constexpr RegisterX64 byteReg(RegisterX64 reg) {
-  return RegisterX64{SizeX64::byte, reg.index};
+constexpr RegisterX64 byteReg(RegisterX64 reg)
+{
+    return RegisterX64{SizeX64::byte, reg.index};
 }
 
-constexpr RegisterX64 wordReg(RegisterX64 reg) {
-  return RegisterX64{SizeX64::word, reg.index};
+constexpr RegisterX64 wordReg(RegisterX64 reg)
+{
+    return RegisterX64{SizeX64::word, reg.index};
 }
 
-constexpr RegisterX64 dwordReg(RegisterX64 reg) {
-  return RegisterX64{SizeX64::dword, reg.index};
+constexpr RegisterX64 dwordReg(RegisterX64 reg)
+{
+    return RegisterX64{SizeX64::dword, reg.index};
 }
 
-constexpr RegisterX64 qwordReg(RegisterX64 reg) {
-  return RegisterX64{SizeX64::qword, reg.index};
+constexpr RegisterX64 qwordReg(RegisterX64 reg)
+{
+    return RegisterX64{SizeX64::qword, reg.index};
 }
 
 } // namespace X64
@@ -195,47 +199,53 @@ constexpr RegisterX64 qwordReg(RegisterX64 reg) {
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/UnwindBuilder.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined
-// <CodeGen/include/Luau/RegisterA64.h>
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/RegisterA64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/CodeGenCommon.h>
 
 // @@@@@ PACK.LUA : was already included! <stdint.h>
 
-namespace Luau {
-namespace CodeGen {
-namespace A64 {
+namespace Luau
+{
+namespace CodeGen
+{
+namespace A64
+{
 
-enum class KindA64 : uint8_t {
-  none,
-  w, // 32-bit GPR
-  x, // 64-bit GPR
-  s, // 32-bit SIMD&FP scalar
-  d, // 64-bit SIMD&FP scalar
-  q, // 128-bit SIMD&FP vector
+enum class KindA64 : uint8_t
+{
+    none,
+    w, // 32-bit GPR
+    x, // 64-bit GPR
+    s, // 32-bit SIMD&FP scalar
+    d, // 64-bit SIMD&FP scalar
+    q, // 128-bit SIMD&FP vector
 };
 
-struct RegisterA64 {
-  KindA64 kind : 3;
-  uint8_t index : 5;
+struct RegisterA64
+{
+    KindA64 kind : 3;
+    uint8_t index : 5;
 
-  constexpr bool operator==(RegisterA64 rhs) const {
-    return kind == rhs.kind && index == rhs.index;
-  }
+    constexpr bool operator==(RegisterA64 rhs) const
+    {
+        return kind == rhs.kind && index == rhs.index;
+    }
 
-  constexpr bool operator!=(RegisterA64 rhs) const { return !(*this == rhs); }
+    constexpr bool operator!=(RegisterA64 rhs) const
+    {
+        return !(*this == rhs);
+    }
 };
 
-constexpr RegisterA64 castReg(KindA64 kind, RegisterA64 reg) {
-  CODEGEN_ASSERT(kind != reg.kind);
-  CODEGEN_ASSERT(kind != KindA64::none && reg.kind != KindA64::none);
-  CODEGEN_ASSERT((kind == KindA64::w || kind == KindA64::x) ==
-                 (reg.kind == KindA64::w || reg.kind == KindA64::x));
+constexpr RegisterA64 castReg(KindA64 kind, RegisterA64 reg)
+{
+    CODEGEN_ASSERT(kind != reg.kind);
+    CODEGEN_ASSERT(kind != KindA64::none && reg.kind != KindA64::none);
+    CODEGEN_ASSERT((kind == KindA64::w || kind == KindA64::x) == (reg.kind == KindA64::w || reg.kind == KindA64::x));
 
-  return RegisterA64{kind, reg.index};
+    return RegisterA64{kind, reg.index};
 }
 
 constexpr RegisterA64 noreg{KindA64::none, 0};
@@ -424,51 +434,52 @@ constexpr RegisterA64 q31{KindA64::q, 31};
 
 // @@@@@ PACK.LUA : was already included! <stdint.h>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
-// This value is used in 'finishFunction' to mark the function that spans to the
-// end of the whole code block
+// This value is used in 'finishFunction' to mark the function that spans to the end of the whole code block
 static uint32_t kFullBlockFunction = ~0u;
 
-class UnwindBuilder {
+class UnwindBuilder
+{
 public:
-  enum Arch { X64, A64 };
+    enum Arch
+    {
+        X64,
+        A64
+    };
 
-  virtual ~UnwindBuilder() = default;
+    virtual ~UnwindBuilder() = default;
 
-  virtual void setBeginOffset(size_t beginOffset) = 0;
-  virtual size_t getBeginOffset() const = 0;
+    virtual void setBeginOffset(size_t beginOffset) = 0;
+    virtual size_t getBeginOffset() const = 0;
 
-  virtual void startInfo(Arch arch) = 0;
-  virtual void startFunction() = 0;
-  virtual void finishFunction(uint32_t beginOffset, uint32_t endOffset) = 0;
-  virtual void finishInfo() = 0;
+    virtual void startInfo(Arch arch) = 0;
+    virtual void startFunction() = 0;
+    virtual void finishFunction(uint32_t beginOffset, uint32_t endOffset) = 0;
+    virtual void finishInfo() = 0;
 
-  // A64-specific; prologue must look like this:
-  //   sub sp, sp, stackSize
-  //   store sequence that saves regs to [sp..sp+regs.size*8) in the order
-  //   specified in regs; regs should start with x29, x30 (fp, lr) mov x29, sp
-  virtual void prologueA64(uint32_t prologueSize, uint32_t stackSize,
-                           std::initializer_list<A64::RegisterA64> regs) = 0;
+    // A64-specific; prologue must look like this:
+    //   sub sp, sp, stackSize
+    //   store sequence that saves regs to [sp..sp+regs.size*8) in the order specified in regs; regs should start with x29, x30 (fp, lr)
+    //   mov x29, sp
+    virtual void prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs) = 0;
 
-  // X64-specific; prologue must look like this:
-  //   optional, indicated by setupFrame:
-  //     push rbp
-  //     mov rbp, rsp
-  //   push reg in the order specified in regs
-  //   sub rsp, stackSize
-  virtual void prologueX64(uint32_t prologueSize, uint32_t stackSize,
-                           bool setupFrame,
-                           std::initializer_list<X64::RegisterX64> gpr,
-                           const std::vector<X64::RegisterX64> &simd) = 0;
+    // X64-specific; prologue must look like this:
+    //   optional, indicated by setupFrame:
+    //     push rbp
+    //     mov rbp, rsp
+    //   push reg in the order specified in regs
+    //   sub rsp, stackSize
+    virtual void prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame, std::initializer_list<X64::RegisterX64> gpr,
+        const std::vector<X64::RegisterX64>& simd) = 0;
 
-  virtual size_t getUnwindInfoSize(size_t blockSize) const = 0;
+    virtual size_t getUnwindInfoSize(size_t blockSize) const = 0;
 
-  // This will place the unwinding data at the target address and might update
-  // values of some fields
-  virtual size_t finalize(char *target, size_t offset, void *funcAddress,
-                          size_t blockSize) const = 0;
+    // This will place the unwinding data at the target address and might update values of some fields
+    virtual size_t finalize(char* target, size_t offset, void* funcAddress, size_t blockSize) const = 0;
 };
 
 } // namespace CodeGen
@@ -476,70 +487,72 @@ public:
 
 // @@@@@ PACK.LUA : was already included! <vector>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 // This struct matches the layout of x64 RUNTIME_FUNCTION from winnt.h
-struct UnwindFunctionWin {
-  uint32_t beginOffset;
-  uint32_t endOffset;
-  uint32_t unwindInfoOffset;
+struct UnwindFunctionWin
+{
+    uint32_t beginOffset;
+    uint32_t endOffset;
+    uint32_t unwindInfoOffset;
 };
 
 // This struct matches the layout of x64 UNWIND_INFO from ehdata.h
-struct UnwindInfoWin {
-  uint8_t version : 3;
-  uint8_t flags : 5;
-  uint8_t prologsize;
-  uint8_t unwindcodecount;
-  uint8_t framereg : 4;
-  uint8_t frameregoff : 4;
+struct UnwindInfoWin
+{
+    uint8_t version : 3;
+    uint8_t flags : 5;
+    uint8_t prologsize;
+    uint8_t unwindcodecount;
+    uint8_t framereg : 4;
+    uint8_t frameregoff : 4;
 };
 
 // This struct matches the layout of UNWIND_CODE from ehdata.h
-struct UnwindCodeWin {
-  uint8_t offset;
-  uint8_t opcode : 4;
-  uint8_t opinfo : 4;
+struct UnwindCodeWin
+{
+    uint8_t offset;
+    uint8_t opcode : 4;
+    uint8_t opinfo : 4;
 };
 
-class UnwindBuilderWin : public UnwindBuilder {
+class UnwindBuilderWin : public UnwindBuilder
+{
 public:
-  void setBeginOffset(size_t beginOffset) override;
-  size_t getBeginOffset() const override;
+    void setBeginOffset(size_t beginOffset) override;
+    size_t getBeginOffset() const override;
 
-  void startInfo(Arch arch) override;
-  void startFunction() override;
-  void finishFunction(uint32_t beginOffset, uint32_t endOffset) override;
-  void finishInfo() override;
+    void startInfo(Arch arch) override;
+    void startFunction() override;
+    void finishFunction(uint32_t beginOffset, uint32_t endOffset) override;
+    void finishInfo() override;
 
-  void prologueA64(uint32_t prologueSize, uint32_t stackSize,
-                   std::initializer_list<A64::RegisterA64> regs) override;
-  void prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame,
-                   std::initializer_list<X64::RegisterX64> gpr,
-                   const std::vector<X64::RegisterX64> &simd) override;
+    void prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs) override;
+    void prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame, std::initializer_list<X64::RegisterX64> gpr,
+        const std::vector<X64::RegisterX64>& simd) override;
 
-  size_t getUnwindInfoSize(size_t blockSize = 0) const override;
+    size_t getUnwindInfoSize(size_t blockSize = 0) const override;
 
-  size_t finalize(char *target, size_t offset, void *funcAddress,
-                  size_t blockSize) const override;
+    size_t finalize(char* target, size_t offset, void* funcAddress, size_t blockSize) const override;
 
 private:
-  size_t beginOffset = 0;
+    size_t beginOffset = 0;
 
-  static const unsigned kRawDataLimit = 1024;
-  uint8_t rawData[kRawDataLimit];
-  uint8_t *rawDataPos = rawData;
+    static const unsigned kRawDataLimit = 1024;
+    uint8_t rawData[kRawDataLimit];
+    uint8_t* rawDataPos = rawData;
 
-  std::vector<UnwindFunctionWin> unwindFunctions;
+    std::vector<UnwindFunctionWin> unwindFunctions;
 
-  // Windows unwind codes are written in reverse, so we have to collect them all
-  // first
-  std::vector<UnwindCodeWin> unwindCodes;
+    // Windows unwind codes are written in reverse, so we have to collect them all first
+    std::vector<UnwindCodeWin> unwindCodes;
 
-  uint8_t prologSize = 0;
-  X64::RegisterX64 frameReg = X64::noreg;
-  uint8_t frameRegOffset = 0;
+    uint8_t prologSize = 0;
+    X64::RegisterX64 frameReg = X64::noreg;
+    uint8_t frameRegOffset = 0;
 };
 
 } // namespace CodeGen
@@ -547,27 +560,26 @@ private:
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrCallWrapperX64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined
-// <CodeGen/include/Luau/AssemblyBuilderX64.h>
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/AssemblyBuilderX64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
 
-#include "luau_common_int.hpp"
+// DONE : was aleready included <Luau/DenseHash.h>
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/Label.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : was already included! <stdint.h>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
-struct Label {
-  uint32_t id = 0;
-  uint32_t location = ~0u;
+struct Label
+{
+    uint32_t id = 0;
+    uint32_t location = ~0u;
 };
 
 } // namespace CodeGen
@@ -575,108 +587,112 @@ struct Label {
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/ConditionX64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/CodeGenCommon.h>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
-enum class ConditionX64 : uint8_t {
-  Overflow,
-  NoOverflow,
+enum class ConditionX64 : uint8_t
+{
+    Overflow,
+    NoOverflow,
 
-  Carry,
-  NoCarry,
+    Carry,
+    NoCarry,
 
-  Below,
-  BelowEqual,
-  Above,
-  AboveEqual,
-  Equal,
-  Less,
-  LessEqual,
-  Greater,
-  GreaterEqual,
+    Below,
+    BelowEqual,
+    Above,
+    AboveEqual,
+    Equal,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
 
-  NotBelow,
-  NotBelowEqual,
-  NotAbove,
-  NotAboveEqual,
-  NotEqual,
-  NotLess,
-  NotLessEqual,
-  NotGreater,
-  NotGreaterEqual,
+    NotBelow,
+    NotBelowEqual,
+    NotAbove,
+    NotAboveEqual,
+    NotEqual,
+    NotLess,
+    NotLessEqual,
+    NotGreater,
+    NotGreaterEqual,
 
-  Zero,
-  NotZero,
+    Zero,
+    NotZero,
 
-  Parity,
-  NotParity,
+    Parity,
+    NotParity,
 
-  Count
+    Count
 };
 
-inline ConditionX64 getReverseCondition(ConditionX64 cond) {
-  switch (cond) {
-  case ConditionX64::Overflow:
-    return ConditionX64::NoOverflow;
-  case ConditionX64::NoOverflow:
-    return ConditionX64::Overflow;
-  case ConditionX64::Carry:
-    return ConditionX64::NoCarry;
-  case ConditionX64::NoCarry:
-    return ConditionX64::Carry;
-  case ConditionX64::Below:
-    return ConditionX64::NotBelow;
-  case ConditionX64::BelowEqual:
-    return ConditionX64::NotBelowEqual;
-  case ConditionX64::Above:
-    return ConditionX64::NotAbove;
-  case ConditionX64::AboveEqual:
-    return ConditionX64::NotAboveEqual;
-  case ConditionX64::Equal:
-    return ConditionX64::NotEqual;
-  case ConditionX64::Less:
-    return ConditionX64::NotLess;
-  case ConditionX64::LessEqual:
-    return ConditionX64::NotLessEqual;
-  case ConditionX64::Greater:
-    return ConditionX64::NotGreater;
-  case ConditionX64::GreaterEqual:
-    return ConditionX64::NotGreaterEqual;
-  case ConditionX64::NotBelow:
-    return ConditionX64::Below;
-  case ConditionX64::NotBelowEqual:
-    return ConditionX64::BelowEqual;
-  case ConditionX64::NotAbove:
-    return ConditionX64::Above;
-  case ConditionX64::NotAboveEqual:
-    return ConditionX64::AboveEqual;
-  case ConditionX64::NotEqual:
-    return ConditionX64::Equal;
-  case ConditionX64::NotLess:
-    return ConditionX64::Less;
-  case ConditionX64::NotLessEqual:
-    return ConditionX64::LessEqual;
-  case ConditionX64::NotGreater:
-    return ConditionX64::Greater;
-  case ConditionX64::NotGreaterEqual:
-    return ConditionX64::GreaterEqual;
-  case ConditionX64::Zero:
-    return ConditionX64::NotZero;
-  case ConditionX64::NotZero:
-    return ConditionX64::Zero;
-  case ConditionX64::Parity:
-    return ConditionX64::NotParity;
-  case ConditionX64::NotParity:
-    return ConditionX64::Parity;
-  case ConditionX64::Count:
-    CODEGEN_ASSERT(!"invalid ConditionX64 value");
-  }
+inline ConditionX64 getReverseCondition(ConditionX64 cond)
+{
+    switch (cond)
+    {
+    case ConditionX64::Overflow:
+        return ConditionX64::NoOverflow;
+    case ConditionX64::NoOverflow:
+        return ConditionX64::Overflow;
+    case ConditionX64::Carry:
+        return ConditionX64::NoCarry;
+    case ConditionX64::NoCarry:
+        return ConditionX64::Carry;
+    case ConditionX64::Below:
+        return ConditionX64::NotBelow;
+    case ConditionX64::BelowEqual:
+        return ConditionX64::NotBelowEqual;
+    case ConditionX64::Above:
+        return ConditionX64::NotAbove;
+    case ConditionX64::AboveEqual:
+        return ConditionX64::NotAboveEqual;
+    case ConditionX64::Equal:
+        return ConditionX64::NotEqual;
+    case ConditionX64::Less:
+        return ConditionX64::NotLess;
+    case ConditionX64::LessEqual:
+        return ConditionX64::NotLessEqual;
+    case ConditionX64::Greater:
+        return ConditionX64::NotGreater;
+    case ConditionX64::GreaterEqual:
+        return ConditionX64::NotGreaterEqual;
+    case ConditionX64::NotBelow:
+        return ConditionX64::Below;
+    case ConditionX64::NotBelowEqual:
+        return ConditionX64::BelowEqual;
+    case ConditionX64::NotAbove:
+        return ConditionX64::Above;
+    case ConditionX64::NotAboveEqual:
+        return ConditionX64::AboveEqual;
+    case ConditionX64::NotEqual:
+        return ConditionX64::Equal;
+    case ConditionX64::NotLess:
+        return ConditionX64::Less;
+    case ConditionX64::NotLessEqual:
+        return ConditionX64::LessEqual;
+    case ConditionX64::NotGreater:
+        return ConditionX64::Greater;
+    case ConditionX64::NotGreaterEqual:
+        return ConditionX64::GreaterEqual;
+    case ConditionX64::Zero:
+        return ConditionX64::NotZero;
+    case ConditionX64::NotZero:
+        return ConditionX64::Zero;
+    case ConditionX64::Parity:
+        return ConditionX64::NotParity;
+    case ConditionX64::NotParity:
+        return ConditionX64::Parity;
+    case ConditionX64::Count:
+        CODEGEN_ASSERT(!"invalid ConditionX64 value");
+    }
 
-  return ConditionX64::Count;
+    return ConditionX64::Count;
 }
 
 } // namespace CodeGen
@@ -684,55 +700,77 @@ inline ConditionX64 getReverseCondition(ConditionX64 cond) {
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/OperandX64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/CodeGenCommon.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/RegisterX64.h>
 
 // @@@@@ PACK.LUA : was already included! <stdint.h>
 
-namespace Luau {
-namespace CodeGen {
-namespace X64 {
+namespace Luau
+{
+namespace CodeGen
+{
+namespace X64
+{
 
-enum class CategoryX64 : uint8_t {
-  reg,
-  mem,
-  imm,
+enum class CategoryX64 : uint8_t
+{
+    reg,
+    mem,
+    imm,
 };
 
-struct OperandX64 {
-  constexpr OperandX64(RegisterX64 reg)
-      : cat(CategoryX64::reg), index(noreg), base(reg), memSize(SizeX64::none),
-        scale(1), imm(0) {}
+struct OperandX64
+{
+    constexpr OperandX64(RegisterX64 reg)
+        : cat(CategoryX64::reg)
+        , index(noreg)
+        , base(reg)
+        , memSize(SizeX64::none)
+        , scale(1)
+        , imm(0)
+    {
+    }
 
-  constexpr OperandX64(int32_t imm)
-      : cat(CategoryX64::imm), index(noreg), base(noreg),
-        memSize(SizeX64::none), scale(1), imm(imm) {}
+    constexpr OperandX64(int32_t imm)
+        : cat(CategoryX64::imm)
+        , index(noreg)
+        , base(noreg)
+        , memSize(SizeX64::none)
+        , scale(1)
+        , imm(imm)
+    {
+    }
 
-  constexpr explicit OperandX64(SizeX64 size, RegisterX64 index, uint8_t scale,
-                                RegisterX64 base, int32_t disp)
-      : cat(CategoryX64::mem), index(index), base(base), memSize(size),
-        scale(scale), imm(disp) {}
+    constexpr explicit OperandX64(SizeX64 size, RegisterX64 index, uint8_t scale, RegisterX64 base, int32_t disp)
+        : cat(CategoryX64::mem)
+        , index(index)
+        , base(base)
+        , memSize(size)
+        , scale(scale)
+        , imm(disp)
+    {
+    }
 
-  // Fields are carefully placed to make this struct fit into an 8 byte register
-  CategoryX64 cat;
-  RegisterX64 index;
-  RegisterX64 base;
-  SizeX64 memSize : 4;
-  uint8_t scale : 4;
-  int32_t imm;
+    // Fields are carefully placed to make this struct fit into an 8 byte register
+    CategoryX64 cat;
+    RegisterX64 index;
+    RegisterX64 base;
+    SizeX64 memSize : 4;
+    uint8_t scale : 4;
+    int32_t imm;
 
-  constexpr OperandX64 operator[](OperandX64 &&addr) const {
-    CODEGEN_ASSERT(cat == CategoryX64::mem);
-    CODEGEN_ASSERT(index == noreg && scale == 1 && base == noreg && imm == 0);
-    CODEGEN_ASSERT(addr.memSize == SizeX64::none);
+    constexpr OperandX64 operator[](OperandX64&& addr) const
+    {
+        CODEGEN_ASSERT(cat == CategoryX64::mem);
+        CODEGEN_ASSERT(index == noreg && scale == 1 && base == noreg && imm == 0);
+        CODEGEN_ASSERT(addr.memSize == SizeX64::none);
 
-    addr.cat = CategoryX64::mem;
-    addr.memSize = memSize;
-    return addr;
-  }
+        addr.cat = CategoryX64::mem;
+        addr.memSize = memSize;
+        return addr;
+    }
 };
 
 constexpr OperandX64 addr{SizeX64::none, noreg, 1, noreg, 0};
@@ -743,57 +781,64 @@ constexpr OperandX64 qword{SizeX64::qword, noreg, 1, noreg, 0};
 constexpr OperandX64 xmmword{SizeX64::xmmword, noreg, 1, noreg, 0};
 constexpr OperandX64 ymmword{SizeX64::ymmword, noreg, 1, noreg, 0};
 
-constexpr OperandX64 operator*(RegisterX64 reg, uint8_t scale) {
-  if (scale == 1)
-    return OperandX64(reg);
+constexpr OperandX64 operator*(RegisterX64 reg, uint8_t scale)
+{
+    if (scale == 1)
+        return OperandX64(reg);
 
-  CODEGEN_ASSERT(scale == 1 || scale == 2 || scale == 4 || scale == 8);
-  CODEGEN_ASSERT(reg.index != 0b100 && "can't scale SP");
+    CODEGEN_ASSERT(scale == 1 || scale == 2 || scale == 4 || scale == 8);
+    CODEGEN_ASSERT(reg.index != 0b100 && "can't scale SP");
 
-  return OperandX64(SizeX64::none, reg, scale, noreg, 0);
+    return OperandX64(SizeX64::none, reg, scale, noreg, 0);
 }
 
-constexpr OperandX64 operator+(RegisterX64 reg, int32_t disp) {
-  return OperandX64(SizeX64::none, noreg, 1, reg, disp);
+constexpr OperandX64 operator+(RegisterX64 reg, int32_t disp)
+{
+    return OperandX64(SizeX64::none, noreg, 1, reg, disp);
 }
 
-constexpr OperandX64 operator-(RegisterX64 reg, int32_t disp) {
-  return OperandX64(SizeX64::none, noreg, 1, reg, -disp);
+constexpr OperandX64 operator-(RegisterX64 reg, int32_t disp)
+{
+    return OperandX64(SizeX64::none, noreg, 1, reg, -disp);
 }
 
-constexpr OperandX64 operator+(RegisterX64 base, RegisterX64 index) {
-  CODEGEN_ASSERT(index.index != 4 && "sp cannot be used as index");
-  CODEGEN_ASSERT(base.size == index.size);
+constexpr OperandX64 operator+(RegisterX64 base, RegisterX64 index)
+{
+    CODEGEN_ASSERT(index.index != 4 && "sp cannot be used as index");
+    CODEGEN_ASSERT(base.size == index.size);
 
-  return OperandX64(SizeX64::none, index, 1, base, 0);
+    return OperandX64(SizeX64::none, index, 1, base, 0);
 }
 
-constexpr OperandX64 operator+(OperandX64 op, int32_t disp) {
-  CODEGEN_ASSERT(op.cat == CategoryX64::mem);
-  CODEGEN_ASSERT(op.memSize == SizeX64::none);
+constexpr OperandX64 operator+(OperandX64 op, int32_t disp)
+{
+    CODEGEN_ASSERT(op.cat == CategoryX64::mem);
+    CODEGEN_ASSERT(op.memSize == SizeX64::none);
 
-  op.imm += disp;
-  return op;
+    op.imm += disp;
+    return op;
 }
 
-constexpr OperandX64 operator+(OperandX64 op, RegisterX64 base) {
-  CODEGEN_ASSERT(op.cat == CategoryX64::mem);
-  CODEGEN_ASSERT(op.memSize == SizeX64::none);
-  CODEGEN_ASSERT(op.base == noreg);
-  CODEGEN_ASSERT(op.index == noreg || op.index.size == base.size);
+constexpr OperandX64 operator+(OperandX64 op, RegisterX64 base)
+{
+    CODEGEN_ASSERT(op.cat == CategoryX64::mem);
+    CODEGEN_ASSERT(op.memSize == SizeX64::none);
+    CODEGEN_ASSERT(op.base == noreg);
+    CODEGEN_ASSERT(op.index == noreg || op.index.size == base.size);
 
-  op.base = base;
-  return op;
+    op.base = base;
+    return op;
 }
 
-constexpr OperandX64 operator+(RegisterX64 base, OperandX64 op) {
-  CODEGEN_ASSERT(op.cat == CategoryX64::mem);
-  CODEGEN_ASSERT(op.memSize == SizeX64::none);
-  CODEGEN_ASSERT(op.base == noreg);
-  CODEGEN_ASSERT(op.index == noreg || op.index.size == base.size);
+constexpr OperandX64 operator+(RegisterX64 base, OperandX64 op)
+{
+    CODEGEN_ASSERT(op.cat == CategoryX64::mem);
+    CODEGEN_ASSERT(op.memSize == SizeX64::none);
+    CODEGEN_ASSERT(op.base == noreg);
+    CODEGEN_ASSERT(op.index == noreg || op.index.size == base.size);
 
-  op.base = base;
-  return op;
+    op.base = base;
+    return op;
 }
 
 } // namespace X64
@@ -807,290 +852,276 @@ constexpr OperandX64 operator+(RegisterX64 base, OperandX64 op) {
 
 // @@@@@ PACK.LUA : was already included! <vector>
 
-namespace Luau {
-namespace CodeGen {
-namespace X64 {
+namespace Luau
+{
+namespace CodeGen
+{
+namespace X64
+{
 
-enum class RoundingModeX64 {
-  RoundToNearestEven = 0b00,
-  RoundToNegativeInfinity = 0b01,
-  RoundToPositiveInfinity = 0b10,
-  RoundToZero = 0b11,
+enum class RoundingModeX64
+{
+    RoundToNearestEven = 0b00,
+    RoundToNegativeInfinity = 0b01,
+    RoundToPositiveInfinity = 0b10,
+    RoundToZero = 0b11,
 };
 
-enum class AlignmentDataX64 {
-  Nop,
-  Int3,
-  Ud2, // int3 will be used as a fall-back if it doesn't fit
+enum class AlignmentDataX64
+{
+    Nop,
+    Int3,
+    Ud2, // int3 will be used as a fall-back if it doesn't fit
 };
 
-enum class ABIX64 {
-  Windows,
-  SystemV,
+enum class ABIX64
+{
+    Windows,
+    SystemV,
 };
 
-class AssemblyBuilderX64 {
+class AssemblyBuilderX64
+{
 public:
-  explicit AssemblyBuilderX64(bool logText, ABIX64 abi);
-  explicit AssemblyBuilderX64(bool logText);
-  ~AssemblyBuilderX64();
+    explicit AssemblyBuilderX64(bool logText, ABIX64 abi);
+    explicit AssemblyBuilderX64(bool logText);
+    ~AssemblyBuilderX64();
 
-  // Base two operand instructions with 9 opcode selection
-  void add(OperandX64 lhs, OperandX64 rhs);
-  void sub(OperandX64 lhs, OperandX64 rhs);
-  void cmp(OperandX64 lhs, OperandX64 rhs);
-  void and_(OperandX64 lhs, OperandX64 rhs);
-  void or_(OperandX64 lhs, OperandX64 rhs);
-  void xor_(OperandX64 lhs, OperandX64 rhs);
+    // Base two operand instructions with 9 opcode selection
+    void add(OperandX64 lhs, OperandX64 rhs);
+    void sub(OperandX64 lhs, OperandX64 rhs);
+    void cmp(OperandX64 lhs, OperandX64 rhs);
+    void and_(OperandX64 lhs, OperandX64 rhs);
+    void or_(OperandX64 lhs, OperandX64 rhs);
+    void xor_(OperandX64 lhs, OperandX64 rhs);
 
-  // Binary shift instructions with special rhs handling
-  void sal(OperandX64 lhs, OperandX64 rhs);
-  void sar(OperandX64 lhs, OperandX64 rhs);
-  void shl(OperandX64 lhs, OperandX64 rhs);
-  void shr(OperandX64 lhs, OperandX64 rhs);
-  void rol(OperandX64 lhs, OperandX64 rhs);
-  void ror(OperandX64 lhs, OperandX64 rhs);
+    // Binary shift instructions with special rhs handling
+    void sal(OperandX64 lhs, OperandX64 rhs);
+    void sar(OperandX64 lhs, OperandX64 rhs);
+    void shl(OperandX64 lhs, OperandX64 rhs);
+    void shr(OperandX64 lhs, OperandX64 rhs);
+    void rol(OperandX64 lhs, OperandX64 rhs);
+    void ror(OperandX64 lhs, OperandX64 rhs);
 
-  // Two operand mov instruction has additional specialized encodings
-  void mov(OperandX64 lhs, OperandX64 rhs);
-  void mov64(RegisterX64 lhs, int64_t imm);
-  void movsx(RegisterX64 lhs, OperandX64 rhs);
-  void movzx(RegisterX64 lhs, OperandX64 rhs);
+    // Two operand mov instruction has additional specialized encodings
+    void mov(OperandX64 lhs, OperandX64 rhs);
+    void mov64(RegisterX64 lhs, int64_t imm);
+    void movsx(RegisterX64 lhs, OperandX64 rhs);
+    void movzx(RegisterX64 lhs, OperandX64 rhs);
 
-  // Base one operand instruction with 2 opcode selection
-  void div(OperandX64 op);
-  void idiv(OperandX64 op);
-  void mul(OperandX64 op);
-  void imul(OperandX64 op);
-  void neg(OperandX64 op);
-  void not_(OperandX64 op);
-  void dec(OperandX64 op);
-  void inc(OperandX64 op);
+    // Base one operand instruction with 2 opcode selection
+    void div(OperandX64 op);
+    void idiv(OperandX64 op);
+    void mul(OperandX64 op);
+    void imul(OperandX64 op);
+    void neg(OperandX64 op);
+    void not_(OperandX64 op);
+    void dec(OperandX64 op);
+    void inc(OperandX64 op);
 
-  // Additional forms of imul
-  void imul(OperandX64 lhs, OperandX64 rhs);
-  void imul(OperandX64 dst, OperandX64 lhs, int32_t rhs);
+    // Additional forms of imul
+    void imul(OperandX64 lhs, OperandX64 rhs);
+    void imul(OperandX64 dst, OperandX64 lhs, int32_t rhs);
 
-  void test(OperandX64 lhs, OperandX64 rhs);
-  void lea(OperandX64 lhs, OperandX64 rhs);
-  void setcc(ConditionX64 cond, OperandX64 op);
-  void cmov(ConditionX64 cond, RegisterX64 lhs, OperandX64 rhs);
+    void test(OperandX64 lhs, OperandX64 rhs);
+    void lea(OperandX64 lhs, OperandX64 rhs);
+    void setcc(ConditionX64 cond, OperandX64 op);
+    void cmov(ConditionX64 cond, RegisterX64 lhs, OperandX64 rhs);
 
-  void push(OperandX64 op);
-  void pop(OperandX64 op);
-  void ret();
+    void push(OperandX64 op);
+    void pop(OperandX64 op);
+    void ret();
 
-  // Control flow
-  void jcc(ConditionX64 cond, Label &label);
-  void jmp(Label &label);
-  void jmp(OperandX64 op);
+    // Control flow
+    void jcc(ConditionX64 cond, Label& label);
+    void jmp(Label& label);
+    void jmp(OperandX64 op);
 
-  void call(Label &label);
-  void call(OperandX64 op);
+    void call(Label& label);
+    void call(OperandX64 op);
 
-  void lea(RegisterX64 lhs, Label &label);
+    void lea(RegisterX64 lhs, Label& label);
 
-  void int3();
-  void ud2();
+    void int3();
+    void ud2();
 
-  void bsr(RegisterX64 dst, OperandX64 src);
-  void bsf(RegisterX64 dst, OperandX64 src);
-  void bswap(RegisterX64 dst);
+    void bsr(RegisterX64 dst, OperandX64 src);
+    void bsf(RegisterX64 dst, OperandX64 src);
+    void bswap(RegisterX64 dst);
 
-  // Code alignment
-  void nop(uint32_t length = 1);
-  void align(uint32_t alignment, AlignmentDataX64 data = AlignmentDataX64::Nop);
+    // Code alignment
+    void nop(uint32_t length = 1);
+    void align(uint32_t alignment, AlignmentDataX64 data = AlignmentDataX64::Nop);
 
-  // AVX
-  void vaddpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
-  void vaddps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
-  void vaddsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
-  void vaddss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    // AVX
+    void vaddpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vaddps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vaddsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vaddss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
 
-  void vsubsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
-  void vsubps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
-  void vmulsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
-  void vmulps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
-  void vdivsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
-  void vdivps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vsubsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vsubps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vmulsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vmulps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vdivsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vdivps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
 
-  void vandps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
-  void vandpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
-  void vandnpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vandps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vandpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vandnpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
 
-  void vxorpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
-  void vorps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
-  void vorpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vxorpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vorps(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vorpd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
 
-  void vucomisd(OperandX64 src1, OperandX64 src2);
+    void vucomisd(OperandX64 src1, OperandX64 src2);
 
-  void vcvttsd2si(OperandX64 dst, OperandX64 src);
-  void vcvtsi2sd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
-  void vcvtsd2ss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
-  void vcvtss2sd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vcvttsd2si(OperandX64 dst, OperandX64 src);
+    void vcvtsi2sd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vcvtsd2ss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vcvtss2sd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
 
-  void vroundsd(OperandX64 dst, OperandX64 src1, OperandX64 src2,
-                RoundingModeX64 roundingMode); // inexact
+    void vroundsd(OperandX64 dst, OperandX64 src1, OperandX64 src2, RoundingModeX64 roundingMode); // inexact
 
-  void vsqrtpd(OperandX64 dst, OperandX64 src);
-  void vsqrtps(OperandX64 dst, OperandX64 src);
-  void vsqrtsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
-  void vsqrtss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vsqrtpd(OperandX64 dst, OperandX64 src);
+    void vsqrtps(OperandX64 dst, OperandX64 src);
+    void vsqrtsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vsqrtss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
 
-  void vmovsd(OperandX64 dst, OperandX64 src);
-  void vmovsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
-  void vmovss(OperandX64 dst, OperandX64 src);
-  void vmovss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
-  void vmovapd(OperandX64 dst, OperandX64 src);
-  void vmovaps(OperandX64 dst, OperandX64 src);
-  void vmovupd(OperandX64 dst, OperandX64 src);
-  void vmovups(OperandX64 dst, OperandX64 src);
-  void vmovq(OperandX64 lhs, OperandX64 rhs);
+    void vmovsd(OperandX64 dst, OperandX64 src);
+    void vmovsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vmovss(OperandX64 dst, OperandX64 src);
+    void vmovss(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vmovapd(OperandX64 dst, OperandX64 src);
+    void vmovaps(OperandX64 dst, OperandX64 src);
+    void vmovupd(OperandX64 dst, OperandX64 src);
+    void vmovups(OperandX64 dst, OperandX64 src);
+    void vmovq(OperandX64 lhs, OperandX64 rhs);
 
-  void vmaxsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
-  void vminsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vmaxsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vminsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
 
-  void vcmpltsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
+    void vcmpltsd(OperandX64 dst, OperandX64 src1, OperandX64 src2);
 
-  void vblendvpd(RegisterX64 dst, RegisterX64 src1, OperandX64 mask,
-                 RegisterX64 src3);
+    void vblendvpd(RegisterX64 dst, RegisterX64 src1, OperandX64 mask, RegisterX64 src3);
 
-  void vpshufps(RegisterX64 dst, RegisterX64 src1, OperandX64 src2,
-                uint8_t shuffle);
-  void vpinsrd(RegisterX64 dst, RegisterX64 src1, OperandX64 src2,
-               uint8_t offset);
+    void vpshufps(RegisterX64 dst, RegisterX64 src1, OperandX64 src2, uint8_t shuffle);
+    void vpinsrd(RegisterX64 dst, RegisterX64 src1, OperandX64 src2, uint8_t offset);
 
-  // Run final checks
-  bool finalize();
+    // Run final checks
+    bool finalize();
 
-  // Places a label at current location and returns it
-  Label setLabel();
+    // Places a label at current location and returns it
+    Label setLabel();
 
-  // Assigns label position to the current location
-  void setLabel(Label &label);
+    // Assigns label position to the current location
+    void setLabel(Label& label);
 
-  // Extracts code offset (in bytes) from label
-  uint32_t getLabelOffset(const Label &label) {
-    CODEGEN_ASSERT(label.location != ~0u);
-    return label.location;
-  }
+    // Extracts code offset (in bytes) from label
+    uint32_t getLabelOffset(const Label& label)
+    {
+        CODEGEN_ASSERT(label.location != ~0u);
+        return label.location;
+    }
 
-  // Constant allocation (uses rip-relative addressing)
-  OperandX64 i32(int32_t value);
-  OperandX64 i64(int64_t value);
-  OperandX64 f32(float value);
-  OperandX64 f64(double value);
-  OperandX64 u32x4(uint32_t x, uint32_t y, uint32_t z, uint32_t w);
-  OperandX64 f32x4(float x, float y, float z, float w);
-  OperandX64 f64x2(double x, double y);
-  OperandX64 bytes(const void *ptr, size_t size, size_t align = 8);
+    // Constant allocation (uses rip-relative addressing)
+    OperandX64 i32(int32_t value);
+    OperandX64 i64(int64_t value);
+    OperandX64 f32(float value);
+    OperandX64 f64(double value);
+    OperandX64 u32x4(uint32_t x, uint32_t y, uint32_t z, uint32_t w);
+    OperandX64 f32x4(float x, float y, float z, float w);
+    OperandX64 f64x2(double x, double y);
+    OperandX64 bytes(const void* ptr, size_t size, size_t align = 8);
 
-  void logAppend(const char *fmt, ...) LUAU_PRINTF_ATTR(2, 3);
+    void logAppend(const char* fmt, ...) LUAU_PRINTF_ATTR(2, 3);
 
-  uint32_t getCodeSize() const;
+    uint32_t getCodeSize() const;
 
-  unsigned getInstructionCount() const;
+    unsigned getInstructionCount() const;
 
-  // Resulting data and code that need to be copied over one after the other
-  // The *end* of 'data' has to be aligned to 16 bytes, this will also align
-  // 'code'
-  std::vector<uint8_t> data;
-  std::vector<uint8_t> code;
+    // Resulting data and code that need to be copied over one after the other
+    // The *end* of 'data' has to be aligned to 16 bytes, this will also align 'code'
+    std::vector<uint8_t> data;
+    std::vector<uint8_t> code;
 
-  std::string text;
+    std::string text;
 
-  const bool logText = false;
+    const bool logText = false;
 
-  const ABIX64 abi;
+    const ABIX64 abi;
 
 private:
-  // Instruction archetypes
-  void placeBinary(const char *name, OperandX64 lhs, OperandX64 rhs,
-                   uint8_t codeimm8, uint8_t codeimm, uint8_t codeimmImm8,
-                   uint8_t code8rev, uint8_t coderev, uint8_t code8,
-                   uint8_t code, uint8_t opreg);
-  void placeBinaryRegMemAndImm(OperandX64 lhs, OperandX64 rhs, uint8_t code8,
-                               uint8_t code, uint8_t codeImm8, uint8_t opreg);
-  void placeBinaryRegAndRegMem(OperandX64 lhs, OperandX64 rhs, uint8_t code8,
-                               uint8_t code);
-  void placeBinaryRegMemAndReg(OperandX64 lhs, OperandX64 rhs, uint8_t code8,
-                               uint8_t code);
+    // Instruction archetypes
+    void placeBinary(const char* name, OperandX64 lhs, OperandX64 rhs, uint8_t codeimm8, uint8_t codeimm, uint8_t codeimmImm8, uint8_t code8rev,
+        uint8_t coderev, uint8_t code8, uint8_t code, uint8_t opreg);
+    void placeBinaryRegMemAndImm(OperandX64 lhs, OperandX64 rhs, uint8_t code8, uint8_t code, uint8_t codeImm8, uint8_t opreg);
+    void placeBinaryRegAndRegMem(OperandX64 lhs, OperandX64 rhs, uint8_t code8, uint8_t code);
+    void placeBinaryRegMemAndReg(OperandX64 lhs, OperandX64 rhs, uint8_t code8, uint8_t code);
 
-  void placeUnaryModRegMem(const char *name, OperandX64 op, uint8_t code8,
-                           uint8_t code, uint8_t opreg);
+    void placeUnaryModRegMem(const char* name, OperandX64 op, uint8_t code8, uint8_t code, uint8_t opreg);
 
-  void placeShift(const char *name, OperandX64 lhs, OperandX64 rhs,
-                  uint8_t opreg);
+    void placeShift(const char* name, OperandX64 lhs, OperandX64 rhs, uint8_t opreg);
 
-  void placeJcc(const char *name, Label &label, uint8_t cc);
+    void placeJcc(const char* name, Label& label, uint8_t cc);
 
-  void placeAvx(const char *name, OperandX64 dst, OperandX64 src, uint8_t code,
-                bool setW, uint8_t mode, uint8_t prefix);
-  void placeAvx(const char *name, OperandX64 dst, OperandX64 src, uint8_t code,
-                uint8_t coderev, bool setW, uint8_t mode, uint8_t prefix);
-  void placeAvx(const char *name, OperandX64 dst, OperandX64 src1,
-                OperandX64 src2, uint8_t code, bool setW, uint8_t mode,
-                uint8_t prefix);
-  void placeAvx(const char *name, OperandX64 dst, OperandX64 src1,
-                OperandX64 src2, uint8_t imm8, uint8_t code, bool setW,
-                uint8_t mode, uint8_t prefix);
+    void placeAvx(const char* name, OperandX64 dst, OperandX64 src, uint8_t code, bool setW, uint8_t mode, uint8_t prefix);
+    void placeAvx(const char* name, OperandX64 dst, OperandX64 src, uint8_t code, uint8_t coderev, bool setW, uint8_t mode, uint8_t prefix);
+    void placeAvx(const char* name, OperandX64 dst, OperandX64 src1, OperandX64 src2, uint8_t code, bool setW, uint8_t mode, uint8_t prefix);
+    void placeAvx(
+        const char* name, OperandX64 dst, OperandX64 src1, OperandX64 src2, uint8_t imm8, uint8_t code, bool setW, uint8_t mode, uint8_t prefix);
 
-  // Instruction components
-  void placeRegAndModRegMem(OperandX64 lhs, OperandX64 rhs,
-                            int32_t extraCodeBytes = 0);
-  void placeModRegMem(OperandX64 rhs, uint8_t regop,
-                      int32_t extraCodeBytes = 0);
-  void placeRex(RegisterX64 op);
-  void placeRex(OperandX64 op);
-  void placeRexNoW(OperandX64 op);
-  void placeRex(RegisterX64 lhs, OperandX64 rhs);
-  void placeVex(OperandX64 dst, OperandX64 src1, OperandX64 src2, bool setW,
-                uint8_t mode, uint8_t prefix);
-  void placeImm8Or32(int32_t imm);
-  void placeImm8(int32_t imm);
-  void placeImm16(int16_t imm);
-  void placeImm32(int32_t imm);
-  void placeImm64(int64_t imm);
-  void placeLabel(Label &label);
-  void place(uint8_t byte);
+    // Instruction components
+    void placeRegAndModRegMem(OperandX64 lhs, OperandX64 rhs, int32_t extraCodeBytes = 0);
+    void placeModRegMem(OperandX64 rhs, uint8_t regop, int32_t extraCodeBytes = 0);
+    void placeRex(RegisterX64 op);
+    void placeRex(OperandX64 op);
+    void placeRexNoW(OperandX64 op);
+    void placeRex(RegisterX64 lhs, OperandX64 rhs);
+    void placeVex(OperandX64 dst, OperandX64 src1, OperandX64 src2, bool setW, uint8_t mode, uint8_t prefix);
+    void placeImm8Or32(int32_t imm);
+    void placeImm8(int32_t imm);
+    void placeImm16(int16_t imm);
+    void placeImm32(int32_t imm);
+    void placeImm64(int64_t imm);
+    void placeLabel(Label& label);
+    void place(uint8_t byte);
 
-  void commit();
-  LUAU_NOINLINE void extend();
+    void commit();
+    LUAU_NOINLINE void extend();
 
-  // Data
-  size_t allocateData(size_t size, size_t align);
+    // Data
+    size_t allocateData(size_t size, size_t align);
 
-  // Logging of assembly in text form (Intel asm with VS disassembly formatting)
-  LUAU_NOINLINE void log(const char *opcode);
-  LUAU_NOINLINE void log(const char *opcode, OperandX64 op);
-  LUAU_NOINLINE void log(const char *opcode, OperandX64 op1, OperandX64 op2);
-  LUAU_NOINLINE void log(const char *opcode, OperandX64 op1, OperandX64 op2,
-                         OperandX64 op3);
-  LUAU_NOINLINE void log(const char *opcode, OperandX64 op1, OperandX64 op2,
-                         OperandX64 op3, OperandX64 op4);
-  LUAU_NOINLINE void log(Label label);
-  LUAU_NOINLINE void log(const char *opcode, Label label);
-  LUAU_NOINLINE void log(const char *opcode, RegisterX64 reg, Label label);
-  void log(OperandX64 op);
+    // Logging of assembly in text form (Intel asm with VS disassembly formatting)
+    LUAU_NOINLINE void log(const char* opcode);
+    LUAU_NOINLINE void log(const char* opcode, OperandX64 op);
+    LUAU_NOINLINE void log(const char* opcode, OperandX64 op1, OperandX64 op2);
+    LUAU_NOINLINE void log(const char* opcode, OperandX64 op1, OperandX64 op2, OperandX64 op3);
+    LUAU_NOINLINE void log(const char* opcode, OperandX64 op1, OperandX64 op2, OperandX64 op3, OperandX64 op4);
+    LUAU_NOINLINE void log(Label label);
+    LUAU_NOINLINE void log(const char* opcode, Label label);
+    LUAU_NOINLINE void log(const char* opcode, RegisterX64 reg, Label label);
+    void log(OperandX64 op);
 
-  const char *getSizeName(SizeX64 size) const;
-  const char *getRegisterName(RegisterX64 reg) const;
+    const char* getSizeName(SizeX64 size) const;
+    const char* getRegisterName(RegisterX64 reg) const;
 
-  uint32_t nextLabel = 1;
-  std::vector<Label> pendingLabels;
-  std::vector<uint32_t> labelLocations;
+    uint32_t nextLabel = 1;
+    std::vector<Label> pendingLabels;
+    std::vector<uint32_t> labelLocations;
 
-  DenseHashMap<uint32_t, int32_t> constCache32;
-  DenseHashMap<uint64_t, int32_t> constCache64;
+    DenseHashMap<uint32_t, int32_t> constCache32;
+    DenseHashMap<uint64_t, int32_t> constCache64;
 
-  bool finalized = false;
+    bool finalized = false;
 
-  size_t dataPos = 0;
+    size_t dataPos = 0;
 
-  uint8_t *codePos = nullptr;
-  uint8_t *codeEnd = nullptr;
+    uint8_t* codePos = nullptr;
+    uint8_t* codeEnd = nullptr;
 
-  unsigned instructionCount = 0;
+    unsigned instructionCount = 0;
 };
 
 } // namespace X64
@@ -1099,13 +1130,11 @@ private:
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrData.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
-#include "luau_common_int.hpp"
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// DONE : was aleready included <Luau/Bytecode.h>
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrAnalysis.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/CodeGenCommon.h>
 
 // @@@ PACK.lua : not found, likely and std header
@@ -1121,166 +1150,171 @@ private:
 
 // @@@@@ PACK.LUA : was already included! <stdint.h>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 struct IrBlock;
 struct IrFunction;
 
-void updateUseCounts(IrFunction &function);
+void updateUseCounts(IrFunction& function);
 
-void updateLastUseLocations(IrFunction &function,
-                            const std::vector<uint32_t> &sortedBlocks);
+void updateLastUseLocations(IrFunction& function, const std::vector<uint32_t>& sortedBlocks);
 
-uint32_t getNextInstUse(IrFunction &function, uint32_t targetInstIdx,
-                        uint32_t startInstIdx);
+uint32_t getNextInstUse(IrFunction& function, uint32_t targetInstIdx, uint32_t startInstIdx);
 
-// Returns how many values are coming into the block (live in) and how many are
-// coming out of the block (live out)
-std::pair<uint32_t, uint32_t> getLiveInOutValueCount(IrFunction &function,
-                                                     IrBlock &block);
-uint32_t getLiveInValueCount(IrFunction &function, IrBlock &block);
-uint32_t getLiveOutValueCount(IrFunction &function, IrBlock &block);
+// Returns how many values are coming into the block (live in) and how many are coming out of the block (live out)
+std::pair<uint32_t, uint32_t> getLiveInOutValueCount(IrFunction& function, IrBlock& block);
+uint32_t getLiveInValueCount(IrFunction& function, IrBlock& block);
+uint32_t getLiveOutValueCount(IrFunction& function, IrBlock& block);
 
-struct RegisterSet {
-  std::bitset<256> regs;
+struct RegisterSet
+{
+    std::bitset<256> regs;
 
-  // If variadic sequence is active, we track register from which it starts
-  bool varargSeq = false;
-  uint8_t varargStart = 0;
+    // If variadic sequence is active, we track register from which it starts
+    bool varargSeq = false;
+    uint8_t varargStart = 0;
 };
 
-void requireVariadicSequence(RegisterSet &sourceRs, const RegisterSet &defRs,
-                             uint8_t varargStart);
+void requireVariadicSequence(RegisterSet& sourceRs, const RegisterSet& defRs, uint8_t varargStart);
 
-struct BlockOrdering {
-  uint32_t depth = 0;
+struct BlockOrdering
+{
+    uint32_t depth = 0;
 
-  uint32_t preOrder = ~0u;
-  uint32_t postOrder = ~0u;
+    uint32_t preOrder = ~0u;
+    uint32_t postOrder = ~0u;
 
-  bool visited = false;
+    bool visited = false;
 };
 
-struct CfgInfo {
-  std::vector<uint32_t> predecessors;
-  std::vector<uint32_t> predecessorsOffsets;
+struct CfgInfo
+{
+    std::vector<uint32_t> predecessors;
+    std::vector<uint32_t> predecessorsOffsets;
 
-  std::vector<uint32_t> successors;
-  std::vector<uint32_t> successorsOffsets;
+    std::vector<uint32_t> successors;
+    std::vector<uint32_t> successorsOffsets;
 
-  // Immediate dominators (unique parent in the dominator tree)
-  std::vector<uint32_t> idoms;
+    // Immediate dominators (unique parent in the dominator tree)
+    std::vector<uint32_t> idoms;
 
-  // Children in the dominator tree
-  std::vector<uint32_t> domChildren;
-  std::vector<uint32_t> domChildrenOffsets;
+    // Children in the dominator tree
+    std::vector<uint32_t> domChildren;
+    std::vector<uint32_t> domChildrenOffsets;
 
-  std::vector<BlockOrdering> domOrdering;
+    std::vector<BlockOrdering> domOrdering;
 
-  // VM registers that are live when the block is entered
-  // Additionally, an active variadic sequence can exist at the entry of the
-  // block
-  std::vector<RegisterSet> in;
+    // VM registers that are live when the block is entered
+    // Additionally, an active variadic sequence can exist at the entry of the block
+    std::vector<RegisterSet> in;
 
-  // VM registers that are defined inside the block
-  // It can also contain a variadic sequence definition if that hasn't been
-  // consumed inside the block Note that this means that checking 'def' set
-  // might not be enough to say that register has not been written to
-  std::vector<RegisterSet> def;
+    // VM registers that are defined inside the block
+    // It can also contain a variadic sequence definition if that hasn't been consumed inside the block
+    // Note that this means that checking 'def' set might not be enough to say that register has not been written to
+    std::vector<RegisterSet> def;
 
-  // VM registers that are coming out from the block
-  // These might be registers that are defined inside the block or have been
-  // defined at the entry of the block Additionally, an active variadic sequence
-  // can exist at the exit of the block
-  std::vector<RegisterSet> out;
+    // VM registers that are coming out from the block
+    // These might be registers that are defined inside the block or have been defined at the entry of the block
+    // Additionally, an active variadic sequence can exist at the exit of the block
+    std::vector<RegisterSet> out;
 
-  // VM registers captured by nested closures
-  // This set can never have an active variadic sequence
-  RegisterSet captured;
+    // VM registers captured by nested closures
+    // This set can never have an active variadic sequence
+    RegisterSet captured;
 };
 
 // A quick refresher on dominance and dominator trees:
-// * If A is a dominator of B (A dom B), you can never execute B without
-// executing A first
-// * A is a strict dominator of B (A sdom B) is similar to previous one but A !=
-// B
+// * If A is a dominator of B (A dom B), you can never execute B without executing A first
+// * A is a strict dominator of B (A sdom B) is similar to previous one but A != B
 // * Immediate dominator node N (idom N) is a unique node T so that T sdom N,
 //   but T does not strictly dominate any other node that dominates N.
 // * Dominance frontier is a set of nodes where dominance of a node X ends.
-//   In practice this is where values established by node X might no longer hold
-//   because of join edges from other nodes coming in. This is also where PHI
-//   instructions in SSA are placed.
-void computeCfgImmediateDominators(IrFunction &function);
-void computeCfgDominanceTreeChildren(IrFunction &function);
+//   In practice this is where values established by node X might no longer hold because of join edges from other nodes coming in.
+//   This is also where PHI instructions in SSA are placed.
+void computeCfgImmediateDominators(IrFunction& function);
+void computeCfgDominanceTreeChildren(IrFunction& function);
 
-struct IdfContext {
-  struct BlockAndOrdering {
-    uint32_t blockIdx;
-    BlockOrdering ordering;
+struct IdfContext
+{
+    struct BlockAndOrdering
+    {
+        uint32_t blockIdx;
+        BlockOrdering ordering;
 
-    bool operator<(const BlockAndOrdering &rhs) const {
-      if (ordering.depth != rhs.ordering.depth)
-        return ordering.depth < rhs.ordering.depth;
+        bool operator<(const BlockAndOrdering& rhs) const
+        {
+            if (ordering.depth != rhs.ordering.depth)
+                return ordering.depth < rhs.ordering.depth;
 
-      return ordering.preOrder < rhs.ordering.preOrder;
-    }
-  };
+            return ordering.preOrder < rhs.ordering.preOrder;
+        }
+    };
 
-  // Using priority queue to work on nodes in the order from the bottom of the
-  // dominator tree to the top If the depth of keys is equal, DFS order is used
-  // to provide strong ordering
-  std::priority_queue<BlockAndOrdering> queue;
-  std::vector<uint32_t> worklist;
+    // Using priority queue to work on nodes in the order from the bottom of the dominator tree to the top
+    // If the depth of keys is equal, DFS order is used to provide strong ordering
+    std::priority_queue<BlockAndOrdering> queue;
+    std::vector<uint32_t> worklist;
 
-  struct IdfVisitMarks {
-    bool seenInQueue = false;
-    bool seenInWorklist = false;
-  };
+    struct IdfVisitMarks
+    {
+        bool seenInQueue = false;
+        bool seenInWorklist = false;
+    };
 
-  std::vector<IdfVisitMarks> visits;
+    std::vector<IdfVisitMarks> visits;
 
-  std::vector<uint32_t> idf;
+    std::vector<uint32_t> idf;
 };
 
-// Compute iterated dominance frontier (IDF or DF+) for a variable, given the
-// set of blocks where that variable is defined Providing a set of blocks where
-// the variable is a live-in at the entry helps produce a pruned SSA form
-// (inserted phi nodes will not be dead)
+// Compute iterated dominance frontier (IDF or DF+) for a variable, given the set of blocks where that variable is defined
+// Providing a set of blocks where the variable is a live-in at the entry helps produce a pruned SSA form (inserted phi nodes will not be dead)
 //
-// 'Iterated' comes from the definition where we recompute the IDFn+1 = DF(S)
-// while adding IDFn to S until a fixed point is reached Iterated dominance
-// frontier has been shown to be equal to the set of nodes where phi
-// instructions have to be inserted
+// 'Iterated' comes from the definition where we recompute the IDFn+1 = DF(S) while adding IDFn to S until a fixed point is reached
+// Iterated dominance frontier has been shown to be equal to the set of nodes where phi instructions have to be inserted
 void computeIteratedDominanceFrontierForDefs(
-    IdfContext &ctx, const IrFunction &function,
-    const std::vector<uint32_t> &defBlocks,
-    const std::vector<uint32_t> &liveInBlocks);
+    IdfContext& ctx, const IrFunction& function, const std::vector<uint32_t>& defBlocks, const std::vector<uint32_t>& liveInBlocks);
 
 // Function used to update all CFG data
-void computeCfgInfo(IrFunction &function);
+void computeCfgInfo(IrFunction& function);
 
-struct BlockIteratorWrapper {
-  const uint32_t *itBegin = nullptr;
-  const uint32_t *itEnd = nullptr;
+struct BlockIteratorWrapper
+{
+    const uint32_t* itBegin = nullptr;
+    const uint32_t* itEnd = nullptr;
 
-  bool empty() const { return itBegin == itEnd; }
+    bool empty() const
+    {
+        return itBegin == itEnd;
+    }
 
-  size_t size() const { return size_t(itEnd - itBegin); }
+    size_t size() const
+    {
+        return size_t(itEnd - itBegin);
+    }
 
-  const uint32_t *begin() const { return itBegin; }
+    const uint32_t* begin() const
+    {
+        return itBegin;
+    }
 
-  const uint32_t *end() const { return itEnd; }
+    const uint32_t* end() const
+    {
+        return itEnd;
+    }
 
-  uint32_t operator[](size_t pos) const {
-    CODEGEN_ASSERT(pos < size_t(itEnd - itBegin));
-    return itBegin[pos];
-  }
+    uint32_t operator[](size_t pos) const
+    {
+        CODEGEN_ASSERT(pos < size_t(itEnd - itBegin));
+        return itBegin[pos];
+    }
 };
 
-BlockIteratorWrapper predecessors(const CfgInfo &cfg, uint32_t blockIdx);
-BlockIteratorWrapper successors(const CfgInfo &cfg, uint32_t blockIdx);
-BlockIteratorWrapper domChildren(const CfgInfo &cfg, uint32_t blockIdx);
+BlockIteratorWrapper predecessors(const CfgInfo& cfg, uint32_t blockIdx);
+BlockIteratorWrapper successors(const CfgInfo& cfg, uint32_t blockIdx);
+BlockIteratorWrapper domChildren(const CfgInfo& cfg, uint32_t blockIdx);
 
 } // namespace CodeGen
 } // namespace Luau
@@ -1303,13 +1337,15 @@ BlockIteratorWrapper domChildren(const CfgInfo &cfg, uint32_t blockIdx);
 
 struct Proto;
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
-// IR extensions to LuauBuiltinFunction enum (these only exist inside IR, and
-// start from 256 to avoid collisions)
-enum {
-  LBF_IR_MATH_LOG2 = 256,
+// IR extensions to LuauBuiltinFunction enum (these only exist inside IR, and start from 256 to avoid collisions)
+enum
+{
+    LBF_IR_MATH_LOG2 = 256,
 };
 
 // IR instruction command.
@@ -1318,1137 +1354,1210 @@ enum {
 // * Kn - VM proto constant slot, n in 0..2^23-1
 // * UPn - VM function upvalue slot, n in 0..199
 // * A, B, C, D, E, F, G are instruction arguments
-enum class IrCmd : uint8_t {
-  NOP,
-
-  // Load a tag from TValue
-  // A: Rn or Kn
-  LOAD_TAG,
-
-  // Load a pointer (*) from TValue
-  // A: Rn or Kn
-  LOAD_POINTER,
-
-  // Load a double number from TValue
-  // A: Rn or Kn
-  LOAD_DOUBLE,
-
-  // Load an int from TValue
-  // A: Rn
-  LOAD_INT,
-
-  // Load a float field from vector as a double number
-  // A: Rn or Kn
-  // B: int (offset from the start of TValue)
-  LOAD_FLOAT,
-
-  // Load a TValue from memory
-  // A: Rn or Kn or pointer (TValue)
-  // B: int/none (optional 'A' pointer offset)
-  // C: tag/none (tag of the value being loaded)
-  LOAD_TVALUE,
-
-  // Load current environment table
-  LOAD_ENV,
-
-  // Get pointer (TValue) to table array at index
-  // A: pointer (Table)
-  // B: int
-  GET_ARR_ADDR,
-
-  // Get pointer (LuaNode) to table node element at the active cached slot index
-  // A: pointer (Table)
-  // B: unsigned int (pcpos)
-  // C: Kn
-  GET_SLOT_NODE_ADDR,
-
-  // Get pointer (LuaNode) to table node element at the main position of the
-  // specified key hash A: pointer (Table) B: unsigned int (hash)
-  GET_HASH_NODE_ADDR,
-
-  // Get pointer (TValue) to Closure upvalue.
-  // A: pointer or undef (Closure)
-  // B: UPn
-  // When undef is specified, uses current function Closure.
-  GET_CLOSURE_UPVAL_ADDR,
-
-  // Store a tag into TValue
-  // A: Rn
-  // B: tag
-  STORE_TAG,
-
-  // Store an integer into the extra field of the TValue
-  // A: Rn
-  // B: int
-  STORE_EXTRA,
-
-  // Store a pointer (*) into TValue
-  // A: Rn
-  // B: pointer
-  STORE_POINTER,
-
-  // Store a double number into TValue
-  // A: Rn
-  // B: double
-  STORE_DOUBLE,
-
-  // Store an int into TValue
-  // A: Rn
-  // B: int
-  STORE_INT,
-
-  // Store a vector into TValue
-  // A: Rn
-  // B: double (x)
-  // C: double (y)
-  // D: double (z)
-  STORE_VECTOR,
-
-  // Store a TValue into memory
-  // A: Rn or pointer (TValue)
-  // B: TValue
-  // C: int (optional 'A' pointer offset)
-  STORE_TVALUE,
-
-  // Store a pair of tag and value into memory
-  // A: Rn or pointer (TValue)
-  // B: tag (must be a constant)
-  // C: int/double/pointer
-  // D: int (optional 'A' pointer offset)
-  STORE_SPLIT_TVALUE,
-
-  // Add/Sub two integers together
-  // A, B: int
-  ADD_INT,
-  SUB_INT,
-
-  // Add/Sub/Mul/Div/Idiv/Mod two double numbers
-  // A, B: double
-  // In final x64 lowering, B can also be Rn or Kn
-  ADD_NUM,
-  SUB_NUM,
-  MUL_NUM,
-  DIV_NUM,
-  IDIV_NUM,
-  MOD_NUM,
-
-  // Get the minimum/maximum of two numbers
-  // If one of the values is NaN, 'B' is returned as the result
-  // A, B: double
-  // In final x64 lowering, B can also be Rn or Kn
-  MIN_NUM,
-  MAX_NUM,
-
-  // Negate a double number
-  // A: double
-  UNM_NUM,
-
-  // Round number to negative infinity (math.floor)
-  // A: double
-  FLOOR_NUM,
-
-  // Round number to positive infinity (math.ceil)
-  // A: double
-  CEIL_NUM,
-
-  // Round number to nearest integer number, rounding half-way cases away from
-  // zero (math.round) A: double
-  ROUND_NUM,
-
-  // Get square root of the argument (math.sqrt)
-  // A: double
-  SQRT_NUM,
-
-  // Get absolute value of the argument (math.abs)
-  // A: double
-  ABS_NUM,
-
-  // Get the sign of the argument (math.sign)
-  // A: double
-  SIGN_NUM,
-
-  // Add/Sub/Mul/Div/Idiv two vectors
-  // A, B: TValue
-  ADD_VEC,
-  SUB_VEC,
-  MUL_VEC,
-  DIV_VEC,
-
-  // Negate a vector
-  // A: TValue
-  UNM_VEC,
-
-  // Compute Luau 'not' operation on destructured TValue
-  // A: tag
-  // B: int (value)
-  NOT_ANY,
-
-  // Perform a TValue comparison, supported conditions are LessEqual, Less and
-  // Equal A, B: Rn C: condition
-  CMP_ANY,
-
-  // Unconditional jump
-  // A: block/vmexit/undef
-  JUMP,
-
-  // Jump if TValue is truthy
-  // A: Rn
-  // B: block (if true)
-  // C: block (if false)
-  JUMP_IF_TRUTHY,
-
-  // Jump if TValue is falsy
-  // A: Rn
-  // B: block (if true)
-  // C: block (if false)
-  JUMP_IF_FALSY,
-
-  // Jump if tags are equal
-  // A, B: tag
-  // C: block (if true)
-  // D: block (if false)
-  JUMP_EQ_TAG,
-
-  // Perform a conditional jump based on the result of integer comparison
-  // A, B: int
-  // C: condition
-  // D: block (if true)
-  // E: block (if false)
-  JUMP_CMP_INT,
-
-  // Jump if pointers are equal
-  // A, B: pointer (*)
-  // C: block (if true)
-  // D: block (if false)
-  JUMP_EQ_POINTER,
-
-  // Perform a conditional jump based on the result of double comparison
-  // A, B: double
-  // C: condition
-  // D: block (if true)
-  // E: block (if false)
-  JUMP_CMP_NUM,
-
-  // Perform jump based on a numerical loop condition (step > 0 ? idx <= limit :
-  // limit <= idx) A: double (index) B: double (limit) C: double (step) D: block
-  // (if true) E: block (if false)
-  JUMP_FORN_LOOP_COND,
-
-  // Perform a conditional jump based on cached table node slot matching the
-  // actual table node slot for a key A: pointer (LuaNode) B: Kn C: block (if
-  // matches) D: block (if it doesn't)
-  JUMP_SLOT_MATCH,
-
-  // Get table length
-  // A: pointer (Table)
-  TABLE_LEN,
-
-  // Get string length
-  // A: pointer (string)
-  STRING_LEN,
-
-  // Allocate new table
-  // A: unsigned int (array element count)
-  // B: unsigned int (node element count)
-  NEW_TABLE,
-
-  // Duplicate a table
-  // A: pointer (Table)
-  DUP_TABLE,
-
-  // Insert an integer key into a table and return the pointer to inserted value
-  // (TValue) A: pointer (Table) B: int (key)
-  TABLE_SETNUM,
-
-  // Try to convert a double number into a table index (int) or jump if it's not
-  // an integer A: double B: block
-  TRY_NUM_TO_INDEX,
-
-  // Try to get pointer to tag method TValue inside the table's metatable or
-  // jump if there is no such value or metatable A: table B: int (TMS enum) C:
-  // block
-  TRY_CALL_FASTGETTM,
-
-  // Create new tagged userdata
-  // A: int (size)
-  // B: int (tag)
-  NEW_USERDATA,
-
-  // Convert integer into a double number
-  // A: int
-  INT_TO_NUM,
-  UINT_TO_NUM,
-
-  // Converts a double number to an integer. 'A' may be any representable
-  // integer in a double. A: double
-  NUM_TO_INT,
-
-  // Converts a double number to an unsigned integer. For out-of-range values of
-  // 'A', the result is arch-specific. A: double
-  NUM_TO_UINT,
-
-  // Converts a double number to a vector with the value in X/Y/Z
-  // A: double
-  NUM_TO_VEC,
-
-  // Adds VECTOR type tag to a vector, preserving X/Y/Z components
-  // A: TValue
-  TAG_VECTOR,
-
-  // Adjust stack top (L->top) to point at 'B' TValues *after* the specified
-  // register This is used to return multiple values A: Rn B: int (offset)
-  ADJUST_STACK_TO_REG,
-
-  // Restore stack top (L->top) to point to the function stack top (L->ci->top)
-  // This is used to recover after calling a variadic function
-  ADJUST_STACK_TO_TOP,
-
-  // Execute fastcall builtin function with 1 argument in-place
-  // This is used for a few builtins that can have more than 1 result and cannot
-  // be represented as a regular instruction A: unsigned int (builtin id) B: Rn
-  // (result start) C: Rn (first argument) D: int (result count)
-  FASTCALL,
-
-  // Call the fastcall builtin function
-  // A: unsigned int (builtin id)
-  // B: Rn (result start)
-  // C: Rn (argument start)
-  // D: Rn or Kn or undef (optional second argument)
-  // E: Rn or Kn or undef (optional third argument)
-  // F: int (argument count or -1 to use all arguments up to stack top)
-  // G: int (result count or -1 to preserve all results and adjust stack top)
-  INVOKE_FASTCALL,
-
-  // Check that fastcall builtin function invocation was successful (negative
-  // result count jumps to fallback) A: int (result count) B: block (fallback)
-  CHECK_FASTCALL_RES,
-
-  // Fallback functions
-
-  // Perform an arithmetic operation on TValues of any type
-  // A: Rn (where to store the result)
-  // B: Rn (lhs)
-  // C: Rn or Kn (rhs)
-  // D: int (TMS enum with arithmetic type)
-  DO_ARITH,
-
-  // Get length of a TValue of any type
-  // A: Rn (where to store the result)
-  // B: Rn
-  DO_LEN,
-
-  // Lookup a value in TValue of any type using a key of any type
-  // A: Rn (where to store the result)
-  // B: Rn
-  // C: Rn or unsigned int (key)
-  GET_TABLE,
-
-  // Store a value into TValue of any type using a key of any type
-  // A: Rn (value to store)
-  // B: Rn
-  // C: Rn or unsigned int (key)
-  SET_TABLE,
-
-  // Lookup a value in the environment
-  // A: Rn (where to store the result)
-  // B: unsigned int (import path)
-  GET_IMPORT,
-
-  // Concatenate multiple TValues into a string
-  // A: Rn (value start)
-  // B: unsigned int (number of registers to go over)
-  // Note: result is stored in the register specified in 'A'
-  // Note: all referenced registers might be modified in the operation
-  CONCAT,
-
-  // Load function upvalue into stack slot
-  // A: Rn
-  // B: UPn
-  GET_UPVALUE,
-
-  // Store TValue from stack slot into a function upvalue
-  // A: UPn
-  // B: Rn
-  // C: tag/undef (tag of the value that was written)
-  SET_UPVALUE,
-
-  // Guards and checks (these instructions are not block terminators even though
-  // they jump to fallback)
-
-  // Guard against tag mismatch
-  // A, B: tag
-  // C: block/vmexit/undef
-  // In final x64 lowering, A can also be Rn
-  // When DebugLuauAbortingChecks flag is enabled, A can also be Rn
-  // When undef is specified instead of a block, execution is aborted on check
-  // failure
-  CHECK_TAG,
-
-  // Guard against a falsy tag+value
-  // A: tag
-  // B: value
-  // C: block/vmexit/undef
-  CHECK_TRUTHY,
-
-  // Guard against readonly table
-  // A: pointer (Table)
-  // B: block/vmexit/undef
-  // When undef is specified instead of a block, execution is aborted on check
-  // failure
-  CHECK_READONLY,
-
-  // Guard against table having a metatable
-  // A: pointer (Table)
-  // B: block/vmexit/undef
-  // When undef is specified instead of a block, execution is aborted on check
-  // failure
-  CHECK_NO_METATABLE,
-
-  // Guard against executing in unsafe environment, exits to VM on check failure
-  // A: vmexit/vmexit/undef
-  // When undef is specified, execution is aborted on check failure
-  CHECK_SAFE_ENV,
-
-  // Guard against index overflowing the table array size
-  // A: pointer (Table)
-  // B: int (index)
-  // C: block/vmexit/undef
-  // When undef is specified instead of a block, execution is aborted on check
-  // failure
-  CHECK_ARRAY_SIZE,
-
-  // Guard against cached table node slot not matching the actual table node
-  // slot for a key A: pointer (LuaNode) B: Kn C: block/undef When undef is
-  // specified instead of a block, execution is aborted on check failure
-  CHECK_SLOT_MATCH,
-
-  // Guard against table node with a linked next node to ensure that our lookup
-  // hits the main position of the key A: pointer (LuaNode) B:
-  // block/vmexit/undef When undef is specified instead of a block, execution is
-  // aborted on check failure
-  CHECK_NODE_NO_NEXT,
-
-  // Guard against table node with 'nil' value
-  // A: pointer (LuaNode)
-  // B: block/vmexit/undef
-  // When undef is specified instead of a block, execution is aborted on check
-  // failure
-  CHECK_NODE_VALUE,
-
-  // Guard against access at specified offset/size overflowing the buffer length
-  // A: pointer (buffer)
-  // B: int (offset)
-  // C: int (size)
-  // D: block/vmexit/undef
-  // When undef is specified instead of a block, execution is aborted on check
-  // failure
-  CHECK_BUFFER_LEN,
-
-  // Guard against userdata tag mismatch
-  // A: pointer (userdata)
-  // B: int (tag)
-  // C: block/vmexit/undef
-  // When undef is specified instead of a block, execution is aborted on check
-  // failure
-  CHECK_USERDATA_TAG,
-
-  // Special operations
-
-  // Check interrupt handler
-  // A: unsigned int (pcpos)
-  INTERRUPT,
-
-  // Check and run GC assist if necessary
-  CHECK_GC,
-
-  // Handle GC write barrier (forward)
-  // A: pointer (GCObject)
-  // B: Rn (TValue that was written to the object)
-  // C: tag/undef (tag of the value that was written)
-  BARRIER_OBJ,
-
-  // Handle GC write barrier (backwards) for a write into a table
-  // A: pointer (Table)
-  BARRIER_TABLE_BACK,
-
-  // Handle GC write barrier (forward) for a write into a table
-  // A: pointer (Table)
-  // B: Rn (TValue that was written to the object)
-  // C: tag/undef (tag of the value that was written)
-  BARRIER_TABLE_FORWARD,
-
-  // Update savedpc value
-  // A: unsigned int (pcpos)
-  SET_SAVEDPC,
-
-  // Close open upvalues for registers at specified index or higher
-  // A: Rn (starting register index)
-  CLOSE_UPVALS,
-
-  // While capture is a no-op right now, it might be useful to track
-  // register/upvalue lifetimes A: Rn or UPn B: unsigned int (1 for reference
-  // capture, 0 for value capture)
-  CAPTURE,
-
-  // Operations that don't have an IR representation yet
-
-  // Set a list of values to table in target register
-  // A: unsigned int (bytecode instruction index)
-  // B: Rn (target)
-  // C: Rn (source start)
-  // D: int (count or -1 to assign values up to stack top)
-  // E: unsigned int (table index to start from)
-  // F: undef/unsigned int (target table known size)
-  SETLIST,
-
-  // Call specified function
-  // A: Rn (function, followed by arguments)
-  // B: int (argument count or -1 to use all arguments up to stack top)
-  // C: int (result count or -1 to preserve all results and adjust stack top)
-  // Note: return values are placed starting from Rn specified in 'A'
-  CALL,
-
-  // Return specified values from the function
-  // A: Rn (value start)
-  // B: int (result count or -1 to return all values up to stack top)
-  RETURN,
-
-  // Adjust loop variables for one iteration of a generic for loop, jump back to
-  // the loop header if loop needs to continue A: Rn (loop variable start,
-  // updates Rn+2 and 'B' number of registers starting from Rn+3) B: int (loop
-  // variable count, if more than 2, registers starting from Rn+5 are set to
-  // nil) C: block (repeat) D: block (exit)
-  FORGLOOP,
-
-  // Handle LOP_FORGLOOP fallback when variable being iterated is not a table
-  // A: Rn (loop state start, updates Rn+2 and 'B' number of registers starting
-  // from Rn+3) B: int (loop variable count and a MSB set when it's an
-  // ipairs-like iteration loop) C: block (repeat) D: block (exit)
-  FORGLOOP_FALLBACK,
-
-  // Fallback for generic for loop preparation when iterating over builtin
-  // pairs/ipairs It raises an error if 'B' register is not a function A:
-  // unsigned int (bytecode instruction index) B: Rn C: block (forgloop
-  // location)
-  FORGPREP_XNEXT_FALLBACK,
-
-  // Increment coverage data (saturating 24 bit add)
-  // A: unsigned int (bytecode instruction index)
-  COVERAGE,
-
-  // Operations that have a translation, but use a full instruction fallback
-
-  // Load a value from global table at specified key
-  // A: unsigned int (bytecode instruction index)
-  // B: Rn (dest)
-  // C: Kn (key)
-  FALLBACK_GETGLOBAL,
-
-  // Store a value into global table at specified key
-  // A: unsigned int (bytecode instruction index)
-  // B: Rn (value)
-  // C: Kn (key)
-  FALLBACK_SETGLOBAL,
-
-  // Load a value from table at specified key
-  // A: unsigned int (bytecode instruction index)
-  // B: Rn (dest)
-  // C: Rn (table)
-  // D: Kn (key)
-  FALLBACK_GETTABLEKS,
-
-  // Store a value into a table at specified key
-  // A: unsigned int (bytecode instruction index)
-  // B: Rn (value)
-  // C: Rn (table)
-  // D: Kn (key)
-  FALLBACK_SETTABLEKS,
-
-  // Load function from source register using name into target register and
-  // copying source register into target register + 1 A: unsigned int (bytecode
-  // instruction index) B: Rn (target) C: Rn (source) D: Kn (name)
-  FALLBACK_NAMECALL,
-
-  // Operations that don't have assembly lowering at all
-
-  // Prepare stack for variadic functions so that GETVARARGS works correctly
-  // A: unsigned int (bytecode instruction index)
-  // B: int (numparams)
-  FALLBACK_PREPVARARGS,
-
-  // Copy variables into the target registers from vararg storage for current
-  // function A: unsigned int (bytecode instruction index) B: Rn (dest start) C:
-  // int (count)
-  FALLBACK_GETVARARGS,
-
-  // Create closure from a child proto
-  // A: unsigned int (nups)
-  // B: pointer (table)
-  // C: unsigned int (protoid)
-  NEWCLOSURE,
-
-  // Create closure from a pre-created function object (reusing it unless
-  // environments diverge) A: unsigned int (bytecode instruction index) B: Rn
-  // (dest) C: Kn (prototype)
-  FALLBACK_DUPCLOSURE,
-
-  // Prepare loop variables for a generic for loop, jump to the loop backedge
-  // unconditionally A: unsigned int (bytecode instruction index) B: Rn (loop
-  // state start, updates Rn Rn+1 Rn+2) C: block
-  FALLBACK_FORGPREP,
-
-  // Instruction that passes value through, it is produced by constant folding
-  // and users substitute it with the value
-  SUBSTITUTE,
-  // A: operand of any type
-
-  // Performs bitwise and/xor/or on two unsigned integers
-  // A, B: int
-  BITAND_UINT,
-  BITXOR_UINT,
-  BITOR_UINT,
-
-  // Performs bitwise not on an unsigned integer
-  // A: int
-  BITNOT_UINT,
-
-  // Performs bitwise shift/rotate on an unsigned integer
-  // A: int (source)
-  // B: int (shift amount)
-  BITLSHIFT_UINT,
-  BITRSHIFT_UINT,
-  BITARSHIFT_UINT,
-  BITLROTATE_UINT,
-  BITRROTATE_UINT,
-
-  // Returns the number of consecutive zero bits in A starting from the
-  // left-most (most significant) bit. A: int
-  BITCOUNTLZ_UINT,
-  BITCOUNTRZ_UINT,
-
-  // Swap byte order in A
-  // A: int
-  BYTESWAP_UINT,
-
-  // Calls native libm function with 1 or 2 arguments
-  // A: builtin function ID
-  // B: double
-  // C: double/int (optional, 2nd argument)
-  INVOKE_LIBM,
-
-  // Returns the string name of a type based on tag, alternative for type(x)
-  // A: tag
-  GET_TYPE,
-
-  // Returns the string name of a type either from a __type metatable field or
-  // just based on the tag, alternative for typeof(x) A: Rn
-  GET_TYPEOF,
-
-  // Find or create an upval at the given level
-  // A: Rn (level)
-  FINDUPVAL,
-
-  // Read i8 (sign-extended to int) from buffer storage at specified offset
-  // A: pointer (buffer)
-  // B: int (offset)
-  BUFFER_READI8,
-
-  // Read u8 (zero-extended to int) from buffer storage at specified offset
-  // A: pointer (buffer)
-  // B: int (offset)
-  BUFFER_READU8,
-
-  // Write i8/u8 value (int argument is truncated) to buffer storage at
-  // specified offset A: pointer (buffer) B: int (offset) C: int (value)
-  BUFFER_WRITEI8,
-
-  // Read i16 (sign-extended to int) from buffer storage at specified offset
-  // A: pointer (buffer)
-  // B: int (offset)
-  BUFFER_READI16,
-
-  // Read u16 (zero-extended to int) from buffer storage at specified offset
-  // A: pointer (buffer)
-  // B: int (offset)
-  BUFFER_READU16,
-
-  // Write i16/u16 value (int argument is truncated) to buffer storage at
-  // specified offset A: pointer (buffer) B: int (offset) C: int (value)
-  BUFFER_WRITEI16,
-
-  // Read i32 value from buffer storage at specified offset
-  // A: pointer (buffer)
-  // B: int (offset)
-  BUFFER_READI32,
-
-  // Write i32/u32 value to buffer storage at specified offset
-  // A: pointer (buffer)
-  // B: int (offset)
-  // C: int (value)
-  BUFFER_WRITEI32,
-
-  // Read float value (converted to double) from buffer storage at specified
-  // offset A: pointer (buffer) B: int (offset)
-  BUFFER_READF32,
-
-  // Write float value (converted from double) to buffer storage at specified
-  // offset A: pointer (buffer) B: int (offset) C: double (value)
-  BUFFER_WRITEF32,
-
-  // Read double value from buffer storage at specified offset
-  // A: pointer (buffer)
-  // B: int (offset)
-  BUFFER_READF64,
-
-  // Write double value to buffer storage at specified offset
-  // A: pointer (buffer)
-  // B: int (offset)
-  // C: double (value)
-  BUFFER_WRITEF64,
+enum class IrCmd : uint8_t
+{
+    NOP,
+
+    // Load a tag from TValue
+    // A: Rn or Kn
+    LOAD_TAG,
+
+    // Load a pointer (*) from TValue
+    // A: Rn or Kn
+    LOAD_POINTER,
+
+    // Load a double number from TValue
+    // A: Rn or Kn
+    LOAD_DOUBLE,
+
+    // Load an int from TValue
+    // A: Rn
+    LOAD_INT,
+
+    // Load a float field from vector as a double number
+    // A: Rn or Kn
+    // B: int (offset from the start of TValue)
+    LOAD_FLOAT,
+
+    // Load a TValue from memory
+    // A: Rn or Kn or pointer (TValue)
+    // B: int/none (optional 'A' pointer offset)
+    // C: tag/none (tag of the value being loaded)
+    LOAD_TVALUE,
+
+    // Load current environment table
+    LOAD_ENV,
+
+    // Get pointer (TValue) to table array at index
+    // A: pointer (Table)
+    // B: int
+    GET_ARR_ADDR,
+
+    // Get pointer (LuaNode) to table node element at the active cached slot index
+    // A: pointer (Table)
+    // B: unsigned int (pcpos)
+    // C: Kn
+    GET_SLOT_NODE_ADDR,
+
+    // Get pointer (LuaNode) to table node element at the main position of the specified key hash
+    // A: pointer (Table)
+    // B: unsigned int (hash)
+    GET_HASH_NODE_ADDR,
+
+    // Get pointer (TValue) to Closure upvalue.
+    // A: pointer or undef (Closure)
+    // B: UPn
+    // When undef is specified, uses current function Closure.
+    GET_CLOSURE_UPVAL_ADDR,
+
+    // Store a tag into TValue
+    // A: Rn
+    // B: tag
+    STORE_TAG,
+
+    // Store an integer into the extra field of the TValue
+    // A: Rn
+    // B: int
+    STORE_EXTRA,
+
+    // Store a pointer (*) into TValue
+    // A: Rn
+    // B: pointer
+    STORE_POINTER,
+
+    // Store a double number into TValue
+    // A: Rn
+    // B: double
+    STORE_DOUBLE,
+
+    // Store an int into TValue
+    // A: Rn
+    // B: int
+    STORE_INT,
+
+    // Store a vector into TValue
+    // A: Rn
+    // B: double (x)
+    // C: double (y)
+    // D: double (z)
+    STORE_VECTOR,
+
+    // Store a TValue into memory
+    // A: Rn or pointer (TValue)
+    // B: TValue
+    // C: int (optional 'A' pointer offset)
+    STORE_TVALUE,
+
+    // Store a pair of tag and value into memory
+    // A: Rn or pointer (TValue)
+    // B: tag (must be a constant)
+    // C: int/double/pointer
+    // D: int (optional 'A' pointer offset)
+    STORE_SPLIT_TVALUE,
+
+    // Add/Sub two integers together
+    // A, B: int
+    ADD_INT,
+    SUB_INT,
+
+    // Add/Sub/Mul/Div/Idiv/Mod two double numbers
+    // A, B: double
+    // In final x64 lowering, B can also be Rn or Kn
+    ADD_NUM,
+    SUB_NUM,
+    MUL_NUM,
+    DIV_NUM,
+    IDIV_NUM,
+    MOD_NUM,
+
+    // Get the minimum/maximum of two numbers
+    // If one of the values is NaN, 'B' is returned as the result
+    // A, B: double
+    // In final x64 lowering, B can also be Rn or Kn
+    MIN_NUM,
+    MAX_NUM,
+
+    // Negate a double number
+    // A: double
+    UNM_NUM,
+
+    // Round number to negative infinity (math.floor)
+    // A: double
+    FLOOR_NUM,
+
+    // Round number to positive infinity (math.ceil)
+    // A: double
+    CEIL_NUM,
+
+    // Round number to nearest integer number, rounding half-way cases away from zero (math.round)
+    // A: double
+    ROUND_NUM,
+
+    // Get square root of the argument (math.sqrt)
+    // A: double
+    SQRT_NUM,
+
+    // Get absolute value of the argument (math.abs)
+    // A: double
+    ABS_NUM,
+
+    // Get the sign of the argument (math.sign)
+    // A: double
+    SIGN_NUM,
+
+    // Add/Sub/Mul/Div/Idiv two vectors
+    // A, B: TValue
+    ADD_VEC,
+    SUB_VEC,
+    MUL_VEC,
+    DIV_VEC,
+
+    // Negate a vector
+    // A: TValue
+    UNM_VEC,
+
+    // Compute Luau 'not' operation on destructured TValue
+    // A: tag
+    // B: int (value)
+    NOT_ANY,
+
+    // Perform a TValue comparison, supported conditions are LessEqual, Less and Equal
+    // A, B: Rn
+    // C: condition
+    CMP_ANY,
+
+    // Unconditional jump
+    // A: block/vmexit/undef
+    JUMP,
+
+    // Jump if TValue is truthy
+    // A: Rn
+    // B: block (if true)
+    // C: block (if false)
+    JUMP_IF_TRUTHY,
+
+    // Jump if TValue is falsy
+    // A: Rn
+    // B: block (if true)
+    // C: block (if false)
+    JUMP_IF_FALSY,
+
+    // Jump if tags are equal
+    // A, B: tag
+    // C: block (if true)
+    // D: block (if false)
+    JUMP_EQ_TAG,
+
+    // Perform a conditional jump based on the result of integer comparison
+    // A, B: int
+    // C: condition
+    // D: block (if true)
+    // E: block (if false)
+    JUMP_CMP_INT,
+
+    // Jump if pointers are equal
+    // A, B: pointer (*)
+    // C: block (if true)
+    // D: block (if false)
+    JUMP_EQ_POINTER,
+
+    // Perform a conditional jump based on the result of double comparison
+    // A, B: double
+    // C: condition
+    // D: block (if true)
+    // E: block (if false)
+    JUMP_CMP_NUM,
+
+    // Perform jump based on a numerical loop condition (step > 0 ? idx <= limit : limit <= idx)
+    // A: double (index)
+    // B: double (limit)
+    // C: double (step)
+    // D: block (if true)
+    // E: block (if false)
+    JUMP_FORN_LOOP_COND,
+
+    // Perform a conditional jump based on cached table node slot matching the actual table node slot for a key
+    // A: pointer (LuaNode)
+    // B: Kn
+    // C: block (if matches)
+    // D: block (if it doesn't)
+    JUMP_SLOT_MATCH,
+
+    // Get table length
+    // A: pointer (Table)
+    TABLE_LEN,
+
+    // Get string length
+    // A: pointer (string)
+    STRING_LEN,
+
+    // Allocate new table
+    // A: unsigned int (array element count)
+    // B: unsigned int (node element count)
+    NEW_TABLE,
+
+    // Duplicate a table
+    // A: pointer (Table)
+    DUP_TABLE,
+
+    // Insert an integer key into a table and return the pointer to inserted value (TValue)
+    // A: pointer (Table)
+    // B: int (key)
+    TABLE_SETNUM,
+
+    // Try to convert a double number into a table index (int) or jump if it's not an integer
+    // A: double
+    // B: block
+    TRY_NUM_TO_INDEX,
+
+    // Try to get pointer to tag method TValue inside the table's metatable or jump if there is no such value or metatable
+    // A: table
+    // B: int (TMS enum)
+    // C: block
+    TRY_CALL_FASTGETTM,
+
+    // Create new tagged userdata
+    // A: int (size)
+    // B: int (tag)
+    NEW_USERDATA,
+
+    // Convert integer into a double number
+    // A: int
+    INT_TO_NUM,
+    UINT_TO_NUM,
+
+    // Converts a double number to an integer. 'A' may be any representable integer in a double.
+    // A: double
+    NUM_TO_INT,
+
+    // Converts a double number to an unsigned integer. For out-of-range values of 'A', the result is arch-specific.
+    // A: double
+    NUM_TO_UINT,
+
+    // Converts a double number to a vector with the value in X/Y/Z
+    // A: double
+    NUM_TO_VEC,
+
+    // Adds VECTOR type tag to a vector, preserving X/Y/Z components
+    // A: TValue
+    TAG_VECTOR,
+
+    // Adjust stack top (L->top) to point at 'B' TValues *after* the specified register
+    // This is used to return multiple values
+    // A: Rn
+    // B: int (offset)
+    ADJUST_STACK_TO_REG,
+
+    // Restore stack top (L->top) to point to the function stack top (L->ci->top)
+    // This is used to recover after calling a variadic function
+    ADJUST_STACK_TO_TOP,
+
+    // Execute fastcall builtin function with 1 argument in-place
+    // This is used for a few builtins that can have more than 1 result and cannot be represented as a regular instruction
+    // A: unsigned int (builtin id)
+    // B: Rn (result start)
+    // C: Rn (first argument)
+    // D: int (result count)
+    FASTCALL,
+
+    // Call the fastcall builtin function
+    // A: unsigned int (builtin id)
+    // B: Rn (result start)
+    // C: Rn (argument start)
+    // D: Rn or Kn or undef (optional second argument)
+    // E: Rn or Kn or undef (optional third argument)
+    // F: int (argument count or -1 to use all arguments up to stack top)
+    // G: int (result count or -1 to preserve all results and adjust stack top)
+    INVOKE_FASTCALL,
+
+    // Check that fastcall builtin function invocation was successful (negative result count jumps to fallback)
+    // A: int (result count)
+    // B: block (fallback)
+    CHECK_FASTCALL_RES,
+
+    // Fallback functions
+
+    // Perform an arithmetic operation on TValues of any type
+    // A: Rn (where to store the result)
+    // B: Rn (lhs)
+    // C: Rn or Kn (rhs)
+    // D: int (TMS enum with arithmetic type)
+    DO_ARITH,
+
+    // Get length of a TValue of any type
+    // A: Rn (where to store the result)
+    // B: Rn
+    DO_LEN,
+
+    // Lookup a value in TValue of any type using a key of any type
+    // A: Rn (where to store the result)
+    // B: Rn
+    // C: Rn or unsigned int (key)
+    GET_TABLE,
+
+    // Store a value into TValue of any type using a key of any type
+    // A: Rn (value to store)
+    // B: Rn
+    // C: Rn or unsigned int (key)
+    SET_TABLE,
+
+    // Lookup a value in the environment
+    // A: Rn (where to store the result)
+    // B: unsigned int (import path)
+    GET_IMPORT,
+
+    // Concatenate multiple TValues into a string
+    // A: Rn (value start)
+    // B: unsigned int (number of registers to go over)
+    // Note: result is stored in the register specified in 'A'
+    // Note: all referenced registers might be modified in the operation
+    CONCAT,
+
+    // Load function upvalue into stack slot
+    // A: Rn
+    // B: UPn
+    GET_UPVALUE,
+
+    // Store TValue from stack slot into a function upvalue
+    // A: UPn
+    // B: Rn
+    // C: tag/undef (tag of the value that was written)
+    SET_UPVALUE,
+
+    // Guards and checks (these instructions are not block terminators even though they jump to fallback)
+
+    // Guard against tag mismatch
+    // A, B: tag
+    // C: block/vmexit/undef
+    // In final x64 lowering, A can also be Rn
+    // When DebugLuauAbortingChecks flag is enabled, A can also be Rn
+    // When undef is specified instead of a block, execution is aborted on check failure
+    CHECK_TAG,
+
+    // Guard against a falsy tag+value
+    // A: tag
+    // B: value
+    // C: block/vmexit/undef
+    CHECK_TRUTHY,
+
+    // Guard against readonly table
+    // A: pointer (Table)
+    // B: block/vmexit/undef
+    // When undef is specified instead of a block, execution is aborted on check failure
+    CHECK_READONLY,
+
+    // Guard against table having a metatable
+    // A: pointer (Table)
+    // B: block/vmexit/undef
+    // When undef is specified instead of a block, execution is aborted on check failure
+    CHECK_NO_METATABLE,
+
+    // Guard against executing in unsafe environment, exits to VM on check failure
+    // A: vmexit/vmexit/undef
+    // When undef is specified, execution is aborted on check failure
+    CHECK_SAFE_ENV,
+
+    // Guard against index overflowing the table array size
+    // A: pointer (Table)
+    // B: int (index)
+    // C: block/vmexit/undef
+    // When undef is specified instead of a block, execution is aborted on check failure
+    CHECK_ARRAY_SIZE,
+
+    // Guard against cached table node slot not matching the actual table node slot for a key
+    // A: pointer (LuaNode)
+    // B: Kn
+    // C: block/undef
+    // When undef is specified instead of a block, execution is aborted on check failure
+    CHECK_SLOT_MATCH,
+
+    // Guard against table node with a linked next node to ensure that our lookup hits the main position of the key
+    // A: pointer (LuaNode)
+    // B: block/vmexit/undef
+    // When undef is specified instead of a block, execution is aborted on check failure
+    CHECK_NODE_NO_NEXT,
+
+    // Guard against table node with 'nil' value
+    // A: pointer (LuaNode)
+    // B: block/vmexit/undef
+    // When undef is specified instead of a block, execution is aborted on check failure
+    CHECK_NODE_VALUE,
+
+    // Guard against access at specified offset/size overflowing the buffer length
+    // A: pointer (buffer)
+    // B: int (offset)
+    // C: int (size)
+    // D: block/vmexit/undef
+    // When undef is specified instead of a block, execution is aborted on check failure
+    CHECK_BUFFER_LEN,
+
+    // Guard against userdata tag mismatch
+    // A: pointer (userdata)
+    // B: int (tag)
+    // C: block/vmexit/undef
+    // When undef is specified instead of a block, execution is aborted on check failure
+    CHECK_USERDATA_TAG,
+
+    // Special operations
+
+    // Check interrupt handler
+    // A: unsigned int (pcpos)
+    INTERRUPT,
+
+    // Check and run GC assist if necessary
+    CHECK_GC,
+
+    // Handle GC write barrier (forward)
+    // A: pointer (GCObject)
+    // B: Rn (TValue that was written to the object)
+    // C: tag/undef (tag of the value that was written)
+    BARRIER_OBJ,
+
+    // Handle GC write barrier (backwards) for a write into a table
+    // A: pointer (Table)
+    BARRIER_TABLE_BACK,
+
+    // Handle GC write barrier (forward) for a write into a table
+    // A: pointer (Table)
+    // B: Rn (TValue that was written to the object)
+    // C: tag/undef (tag of the value that was written)
+    BARRIER_TABLE_FORWARD,
+
+    // Update savedpc value
+    // A: unsigned int (pcpos)
+    SET_SAVEDPC,
+
+    // Close open upvalues for registers at specified index or higher
+    // A: Rn (starting register index)
+    CLOSE_UPVALS,
+
+    // While capture is a no-op right now, it might be useful to track register/upvalue lifetimes
+    // A: Rn or UPn
+    // B: unsigned int (1 for reference capture, 0 for value capture)
+    CAPTURE,
+
+    // Operations that don't have an IR representation yet
+
+    // Set a list of values to table in target register
+    // A: unsigned int (bytecode instruction index)
+    // B: Rn (target)
+    // C: Rn (source start)
+    // D: int (count or -1 to assign values up to stack top)
+    // E: unsigned int (table index to start from)
+    // F: undef/unsigned int (target table known size)
+    SETLIST,
+
+    // Call specified function
+    // A: Rn (function, followed by arguments)
+    // B: int (argument count or -1 to use all arguments up to stack top)
+    // C: int (result count or -1 to preserve all results and adjust stack top)
+    // Note: return values are placed starting from Rn specified in 'A'
+    CALL,
+
+    // Return specified values from the function
+    // A: Rn (value start)
+    // B: int (result count or -1 to return all values up to stack top)
+    RETURN,
+
+    // Adjust loop variables for one iteration of a generic for loop, jump back to the loop header if loop needs to continue
+    // A: Rn (loop variable start, updates Rn+2 and 'B' number of registers starting from Rn+3)
+    // B: int (loop variable count, if more than 2, registers starting from Rn+5 are set to nil)
+    // C: block (repeat)
+    // D: block (exit)
+    FORGLOOP,
+
+    // Handle LOP_FORGLOOP fallback when variable being iterated is not a table
+    // A: Rn (loop state start, updates Rn+2 and 'B' number of registers starting from Rn+3)
+    // B: int (loop variable count and a MSB set when it's an ipairs-like iteration loop)
+    // C: block (repeat)
+    // D: block (exit)
+    FORGLOOP_FALLBACK,
+
+    // Fallback for generic for loop preparation when iterating over builtin pairs/ipairs
+    // It raises an error if 'B' register is not a function
+    // A: unsigned int (bytecode instruction index)
+    // B: Rn
+    // C: block (forgloop location)
+    FORGPREP_XNEXT_FALLBACK,
+
+    // Increment coverage data (saturating 24 bit add)
+    // A: unsigned int (bytecode instruction index)
+    COVERAGE,
+
+    // Operations that have a translation, but use a full instruction fallback
+
+    // Load a value from global table at specified key
+    // A: unsigned int (bytecode instruction index)
+    // B: Rn (dest)
+    // C: Kn (key)
+    FALLBACK_GETGLOBAL,
+
+    // Store a value into global table at specified key
+    // A: unsigned int (bytecode instruction index)
+    // B: Rn (value)
+    // C: Kn (key)
+    FALLBACK_SETGLOBAL,
+
+    // Load a value from table at specified key
+    // A: unsigned int (bytecode instruction index)
+    // B: Rn (dest)
+    // C: Rn (table)
+    // D: Kn (key)
+    FALLBACK_GETTABLEKS,
+
+    // Store a value into a table at specified key
+    // A: unsigned int (bytecode instruction index)
+    // B: Rn (value)
+    // C: Rn (table)
+    // D: Kn (key)
+    FALLBACK_SETTABLEKS,
+
+    // Load function from source register using name into target register and copying source register into target register + 1
+    // A: unsigned int (bytecode instruction index)
+    // B: Rn (target)
+    // C: Rn (source)
+    // D: Kn (name)
+    FALLBACK_NAMECALL,
+
+    // Operations that don't have assembly lowering at all
+
+    // Prepare stack for variadic functions so that GETVARARGS works correctly
+    // A: unsigned int (bytecode instruction index)
+    // B: int (numparams)
+    FALLBACK_PREPVARARGS,
+
+    // Copy variables into the target registers from vararg storage for current function
+    // A: unsigned int (bytecode instruction index)
+    // B: Rn (dest start)
+    // C: int (count)
+    FALLBACK_GETVARARGS,
+
+    // Create closure from a child proto
+    // A: unsigned int (nups)
+    // B: pointer (table)
+    // C: unsigned int (protoid)
+    NEWCLOSURE,
+
+    // Create closure from a pre-created function object (reusing it unless environments diverge)
+    // A: unsigned int (bytecode instruction index)
+    // B: Rn (dest)
+    // C: Kn (prototype)
+    FALLBACK_DUPCLOSURE,
+
+    // Prepare loop variables for a generic for loop, jump to the loop backedge unconditionally
+    // A: unsigned int (bytecode instruction index)
+    // B: Rn (loop state start, updates Rn Rn+1 Rn+2)
+    // C: block
+    FALLBACK_FORGPREP,
+
+    // Instruction that passes value through, it is produced by constant folding and users substitute it with the value
+    SUBSTITUTE,
+    // A: operand of any type
+
+    // Performs bitwise and/xor/or on two unsigned integers
+    // A, B: int
+    BITAND_UINT,
+    BITXOR_UINT,
+    BITOR_UINT,
+
+    // Performs bitwise not on an unsigned integer
+    // A: int
+    BITNOT_UINT,
+
+    // Performs bitwise shift/rotate on an unsigned integer
+    // A: int (source)
+    // B: int (shift amount)
+    BITLSHIFT_UINT,
+    BITRSHIFT_UINT,
+    BITARSHIFT_UINT,
+    BITLROTATE_UINT,
+    BITRROTATE_UINT,
+
+    // Returns the number of consecutive zero bits in A starting from the left-most (most significant) bit.
+    // A: int
+    BITCOUNTLZ_UINT,
+    BITCOUNTRZ_UINT,
+
+    // Swap byte order in A
+    // A: int
+    BYTESWAP_UINT,
+
+    // Calls native libm function with 1 or 2 arguments
+    // A: builtin function ID
+    // B: double
+    // C: double/int (optional, 2nd argument)
+    INVOKE_LIBM,
+
+    // Returns the string name of a type based on tag, alternative for type(x)
+    // A: tag
+    GET_TYPE,
+
+    // Returns the string name of a type either from a __type metatable field or just based on the tag, alternative for typeof(x)
+    // A: Rn
+    GET_TYPEOF,
+
+    // Find or create an upval at the given level
+    // A: Rn (level)
+    FINDUPVAL,
+
+    // Read i8 (sign-extended to int) from buffer storage at specified offset
+    // A: pointer (buffer)
+    // B: int (offset)
+    BUFFER_READI8,
+
+    // Read u8 (zero-extended to int) from buffer storage at specified offset
+    // A: pointer (buffer)
+    // B: int (offset)
+    BUFFER_READU8,
+
+    // Write i8/u8 value (int argument is truncated) to buffer storage at specified offset
+    // A: pointer (buffer)
+    // B: int (offset)
+    // C: int (value)
+    BUFFER_WRITEI8,
+
+    // Read i16 (sign-extended to int) from buffer storage at specified offset
+    // A: pointer (buffer)
+    // B: int (offset)
+    BUFFER_READI16,
+
+    // Read u16 (zero-extended to int) from buffer storage at specified offset
+    // A: pointer (buffer)
+    // B: int (offset)
+    BUFFER_READU16,
+
+    // Write i16/u16 value (int argument is truncated) to buffer storage at specified offset
+    // A: pointer (buffer)
+    // B: int (offset)
+    // C: int (value)
+    BUFFER_WRITEI16,
+
+    // Read i32 value from buffer storage at specified offset
+    // A: pointer (buffer)
+    // B: int (offset)
+    BUFFER_READI32,
+
+    // Write i32/u32 value to buffer storage at specified offset
+    // A: pointer (buffer)
+    // B: int (offset)
+    // C: int (value)
+    BUFFER_WRITEI32,
+
+    // Read float value (converted to double) from buffer storage at specified offset
+    // A: pointer (buffer)
+    // B: int (offset)
+    BUFFER_READF32,
+
+    // Write float value (converted from double) to buffer storage at specified offset
+    // A: pointer (buffer)
+    // B: int (offset)
+    // C: double (value)
+    BUFFER_WRITEF32,
+
+    // Read double value from buffer storage at specified offset
+    // A: pointer (buffer)
+    // B: int (offset)
+    BUFFER_READF64,
+
+    // Write double value to buffer storage at specified offset
+    // A: pointer (buffer)
+    // B: int (offset)
+    // C: double (value)
+    BUFFER_WRITEF64,
 };
 
-enum class IrConstKind : uint8_t {
-  Int,
-  Uint,
-  Double,
-  Tag,
+enum class IrConstKind : uint8_t
+{
+    Int,
+    Uint,
+    Double,
+    Tag,
 };
 
-struct IrConst {
-  IrConstKind kind;
+struct IrConst
+{
+    IrConstKind kind;
 
-  union {
-    int valueInt;
-    unsigned valueUint;
-    double valueDouble;
-    uint8_t valueTag;
-  };
+    union
+    {
+        int valueInt;
+        unsigned valueUint;
+        double valueDouble;
+        uint8_t valueTag;
+    };
 };
 
-enum class IrCondition : uint8_t {
-  Equal,
-  NotEqual,
-  Less,
-  NotLess,
-  LessEqual,
-  NotLessEqual,
-  Greater,
-  NotGreater,
-  GreaterEqual,
-  NotGreaterEqual,
+enum class IrCondition : uint8_t
+{
+    Equal,
+    NotEqual,
+    Less,
+    NotLess,
+    LessEqual,
+    NotLessEqual,
+    Greater,
+    NotGreater,
+    GreaterEqual,
+    NotGreaterEqual,
 
-  UnsignedLess,
-  UnsignedLessEqual,
-  UnsignedGreater,
-  UnsignedGreaterEqual,
+    UnsignedLess,
+    UnsignedLessEqual,
+    UnsignedGreater,
+    UnsignedGreaterEqual,
 
-  Count
+    Count
 };
 
-enum class IrOpKind : uint32_t {
-  None,
+enum class IrOpKind : uint32_t
+{
+    None,
 
-  Undef,
+    Undef,
 
-  // To reference a constant value
-  Constant,
+    // To reference a constant value
+    Constant,
 
-  // To specify a condition code
-  Condition,
+    // To specify a condition code
+    Condition,
 
-  // To reference a result of a previous instruction
-  Inst,
+    // To reference a result of a previous instruction
+    Inst,
 
-  // To reference a basic block in control flow
-  Block,
+    // To reference a basic block in control flow
+    Block,
 
-  // To reference a VM register
-  VmReg,
+    // To reference a VM register
+    VmReg,
 
-  // To reference a VM constant
-  VmConst,
+    // To reference a VM constant
+    VmConst,
 
-  // To reference a VM upvalue
-  VmUpvalue,
+    // To reference a VM upvalue
+    VmUpvalue,
 
-  // To reference an exit to VM at specific PC pos
-  VmExit,
+    // To reference an exit to VM at specific PC pos
+    VmExit,
 };
 
 // VmExit uses a special value to indicate that pcpos update should be skipped
 // This is only used during type checking at function entry
 constexpr uint32_t kVmExitEntryGuardPc = (1u << 28) - 1;
 
-struct IrOp {
-  IrOpKind kind : 4;
-  uint32_t index : 28;
+struct IrOp
+{
+    IrOpKind kind : 4;
+    uint32_t index : 28;
 
-  IrOp() : kind(IrOpKind::None), index(0) {}
+    IrOp()
+        : kind(IrOpKind::None)
+        , index(0)
+    {
+    }
 
-  IrOp(IrOpKind kind, uint32_t index) : kind(kind), index(index) {}
+    IrOp(IrOpKind kind, uint32_t index)
+        : kind(kind)
+        , index(index)
+    {
+    }
 
-  bool operator==(const IrOp &rhs) const {
-    return kind == rhs.kind && index == rhs.index;
-  }
+    bool operator==(const IrOp& rhs) const
+    {
+        return kind == rhs.kind && index == rhs.index;
+    }
 
-  bool operator!=(const IrOp &rhs) const { return !(*this == rhs); }
+    bool operator!=(const IrOp& rhs) const
+    {
+        return !(*this == rhs);
+    }
 };
 
 static_assert(sizeof(IrOp) == 4);
 
-enum class IrValueKind : uint8_t {
-  Unknown, // Used by SUBSTITUTE, argument has to be checked to get type
-  None,
-  Tag,
-  Int,
-  Pointer,
-  Double,
-  Tvalue,
+enum class IrValueKind : uint8_t
+{
+    Unknown, // Used by SUBSTITUTE, argument has to be checked to get type
+    None,
+    Tag,
+    Int,
+    Pointer,
+    Double,
+    Tvalue,
 };
 
-struct IrInst {
-  IrCmd cmd;
+struct IrInst
+{
+    IrCmd cmd;
 
-  // Operands
-  IrOp a;
-  IrOp b;
-  IrOp c;
-  IrOp d;
-  IrOp e;
-  IrOp f;
-  IrOp g;
+    // Operands
+    IrOp a;
+    IrOp b;
+    IrOp c;
+    IrOp d;
+    IrOp e;
+    IrOp f;
+    IrOp g;
 
-  uint32_t lastUse = 0;
-  uint16_t useCount = 0;
+    uint32_t lastUse = 0;
+    uint16_t useCount = 0;
 
-  // Location of the result (optional)
-  X64::RegisterX64 regX64 = X64::noreg;
-  A64::RegisterA64 regA64 = A64::noreg;
-  bool reusedReg = false;
-  bool spilled = false;
-  bool needsReload = false;
+    // Location of the result (optional)
+    X64::RegisterX64 regX64 = X64::noreg;
+    A64::RegisterA64 regA64 = A64::noreg;
+    bool reusedReg = false;
+    bool spilled = false;
+    bool needsReload = false;
 };
 
-// When IrInst operands are used, current instruction index is often required to
-// track lifetime
+// When IrInst operands are used, current instruction index is often required to track lifetime
 constexpr uint32_t kInvalidInstIdx = ~0u;
 
-struct IrInstHash {
-  static const uint32_t m = 0x5bd1e995;
-  static const int r = 24;
-
-  static uint32_t mix(uint32_t h, uint32_t k) {
-    // MurmurHash2 step
-    k *= m;
-    k ^= k >> r;
-    k *= m;
-
-    h *= m;
-    h ^= k;
-
-    return h;
-  }
-
-  static uint32_t mix(uint32_t h, IrOp op) {
-    static_assert(sizeof(op) == sizeof(uint32_t));
-    uint32_t k;
-    memcpy(&k, &op, sizeof(op));
-
-    return mix(h, k);
-  }
-
-  size_t operator()(const IrInst &key) const {
-    // MurmurHash2 unrolled
-    uint32_t h = 25;
-
-    h = mix(h, uint32_t(key.cmd));
-    h = mix(h, key.a);
-    h = mix(h, key.b);
-    h = mix(h, key.c);
-    h = mix(h, key.d);
-    h = mix(h, key.e);
-    h = mix(h, key.f);
-    h = mix(h, key.g);
-
-    // MurmurHash2 tail
-    h ^= h >> 13;
-    h *= m;
-    h ^= h >> 15;
-
-    return h;
-  }
-};
-
-struct IrInstEq {
-  bool operator()(const IrInst &a, const IrInst &b) const {
-    return a.cmd == b.cmd && a.a == b.a && a.b == b.b && a.c == b.c &&
-           a.d == b.d && a.e == b.e && a.f == b.f && a.g == b.g;
-  }
-};
-
-enum class IrBlockKind : uint8_t {
-  Bytecode,
-  Fallback,
-  Internal,
-  Linearized,
-  Dead,
-};
-
-struct IrBlock {
-  IrBlockKind kind;
-
-  uint16_t useCount = 0;
-
-  // 'start' and 'finish' define an inclusive range of instructions which belong
-  // to this block inside the function When block has been constructed, 'finish'
-  // always points to the first and only terminating instruction
-  uint32_t start = ~0u;
-  uint32_t finish = ~0u;
-
-  uint32_t sortkey = ~0u;
-  uint32_t chainkey = 0;
-  uint32_t expectedNextBlock = ~0u;
-
-  Label label;
-};
-
-struct BytecodeMapping {
-  uint32_t irLocation;
-  uint32_t asmLocation;
-};
-
-struct BytecodeBlock {
-  // 'start' and 'finish' define an inclusive range of instructions which belong
-  // to the block
-  int startpc = -1;
-  int finishpc = -1;
-};
-
-struct BytecodeTypes {
-  uint8_t result = LBC_TYPE_ANY;
-  uint8_t a = LBC_TYPE_ANY;
-  uint8_t b = LBC_TYPE_ANY;
-  uint8_t c = LBC_TYPE_ANY;
-};
-
-struct BytecodeRegTypeInfo {
-  uint8_t type = LBC_TYPE_ANY;
-  uint8_t reg = 0; // Register slot where variable is stored
-  int startpc = 0; // First point where variable is alive (could be before
-                   // variable has been assigned a value)
-  int endpc = 0;   // First point where variable is dead
-};
-
-struct BytecodeTypeInfo {
-  std::vector<uint8_t> argumentTypes;
-  std::vector<BytecodeRegTypeInfo> regTypes;
-  std::vector<uint8_t> upvalueTypes;
-
-  // Offsets into regTypes for each individual register
-  // One extra element at the end contains the vector size for easier arr[Rn],
-  // arr[Rn + 1] range access
-  std::vector<uint32_t> regTypeOffsets;
-};
-
-struct IrFunction {
-  std::vector<IrBlock> blocks;
-  std::vector<IrInst> instructions;
-  std::vector<IrConst> constants;
-
-  std::vector<BytecodeBlock> bcBlocks;
-  std::vector<BytecodeTypes> bcTypes;
-
-  std::vector<BytecodeMapping> bcMapping;
-  uint32_t entryBlock = 0;
-  uint32_t entryLocation = 0;
-
-  // For each instruction, an operand that can be used to recompute the value
-  std::vector<IrOp> valueRestoreOps;
-  std::vector<uint32_t> validRestoreOpBlocks;
-
-  BytecodeTypeInfo bcTypeInfo;
-
-  Proto *proto = nullptr;
-  bool variadic = false;
-
-  CfgInfo cfg;
-
-  IrBlock &blockOp(IrOp op) {
-    CODEGEN_ASSERT(op.kind == IrOpKind::Block);
-    return blocks[op.index];
-  }
-
-  IrInst &instOp(IrOp op) {
-    CODEGEN_ASSERT(op.kind == IrOpKind::Inst);
-    return instructions[op.index];
-  }
-
-  IrInst *asInstOp(IrOp op) {
-    if (op.kind == IrOpKind::Inst)
-      return &instructions[op.index];
-
-    return nullptr;
-  }
-
-  IrConst &constOp(IrOp op) {
-    CODEGEN_ASSERT(op.kind == IrOpKind::Constant);
-    return constants[op.index];
-  }
-
-  uint8_t tagOp(IrOp op) {
-    IrConst &value = constOp(op);
-
-    CODEGEN_ASSERT(value.kind == IrConstKind::Tag);
-    return value.valueTag;
-  }
-
-  std::optional<uint8_t> asTagOp(IrOp op) {
-    if (op.kind != IrOpKind::Constant)
-      return std::nullopt;
-
-    IrConst &value = constOp(op);
-
-    if (value.kind != IrConstKind::Tag)
-      return std::nullopt;
-
-    return value.valueTag;
-  }
-
-  int intOp(IrOp op) {
-    IrConst &value = constOp(op);
-
-    CODEGEN_ASSERT(value.kind == IrConstKind::Int);
-    return value.valueInt;
-  }
-
-  std::optional<int> asIntOp(IrOp op) {
-    if (op.kind != IrOpKind::Constant)
-      return std::nullopt;
-
-    IrConst &value = constOp(op);
-
-    if (value.kind != IrConstKind::Int)
-      return std::nullopt;
-
-    return value.valueInt;
-  }
-
-  unsigned uintOp(IrOp op) {
-    IrConst &value = constOp(op);
-
-    CODEGEN_ASSERT(value.kind == IrConstKind::Uint);
-    return value.valueUint;
-  }
-
-  std::optional<unsigned> asUintOp(IrOp op) {
-    if (op.kind != IrOpKind::Constant)
-      return std::nullopt;
-
-    IrConst &value = constOp(op);
-
-    if (value.kind != IrConstKind::Uint)
-      return std::nullopt;
-
-    return value.valueUint;
-  }
-
-  double doubleOp(IrOp op) {
-    IrConst &value = constOp(op);
-
-    CODEGEN_ASSERT(value.kind == IrConstKind::Double);
-    return value.valueDouble;
-  }
-
-  std::optional<double> asDoubleOp(IrOp op) {
-    if (op.kind != IrOpKind::Constant)
-      return std::nullopt;
-
-    IrConst &value = constOp(op);
-
-    if (value.kind != IrConstKind::Double)
-      return std::nullopt;
-
-    return value.valueDouble;
-  }
-
-  uint32_t getBlockIndex(const IrBlock &block) const {
-    // Can only be called with blocks from our vector
-    CODEGEN_ASSERT(&block >= blocks.data() &&
-                   &block <= blocks.data() + blocks.size());
-    return uint32_t(&block - blocks.data());
-  }
-
-  uint32_t getInstIndex(const IrInst &inst) const {
-    // Can only be called with instructions from our vector
-    CODEGEN_ASSERT(&inst >= instructions.data() &&
-                   &inst <= instructions.data() + instructions.size());
-    return uint32_t(&inst - instructions.data());
-  }
-
-  void recordRestoreOp(uint32_t instIdx, IrOp location) {
-    if (instIdx >= valueRestoreOps.size())
-      valueRestoreOps.resize(instIdx + 1);
-
-    valueRestoreOps[instIdx] = location;
-  }
-
-  IrOp findRestoreOp(uint32_t instIdx, bool limitToCurrentBlock) const {
-    if (instIdx >= valueRestoreOps.size())
-      return {};
-
-    // When spilled, values can only reference restore operands in the current
-    // block chain
-    if (limitToCurrentBlock) {
-      for (uint32_t blockIdx : validRestoreOpBlocks) {
-        const IrBlock &block = blocks[blockIdx];
-
-        if (instIdx >= block.start && instIdx <= block.finish)
-          return valueRestoreOps[instIdx];
-      }
-
-      return {};
+struct IrInstHash
+{
+    static const uint32_t m = 0x5bd1e995;
+    static const int r = 24;
+
+    static uint32_t mix(uint32_t h, uint32_t k)
+    {
+        // MurmurHash2 step
+        k *= m;
+        k ^= k >> r;
+        k *= m;
+
+        h *= m;
+        h ^= k;
+
+        return h;
     }
 
-    return valueRestoreOps[instIdx];
-  }
+    static uint32_t mix(uint32_t h, IrOp op)
+    {
+        static_assert(sizeof(op) == sizeof(uint32_t));
+        uint32_t k;
+        memcpy(&k, &op, sizeof(op));
 
-  IrOp findRestoreOp(const IrInst &inst, bool limitToCurrentBlock) const {
-    return findRestoreOp(getInstIndex(inst), limitToCurrentBlock);
-  }
+        return mix(h, k);
+    }
 
-  BytecodeTypes getBytecodeTypesAt(int pcpos) const {
-    CODEGEN_ASSERT(pcpos >= 0);
+    size_t operator()(const IrInst& key) const
+    {
+        // MurmurHash2 unrolled
+        uint32_t h = 25;
 
-    if (size_t(pcpos) < bcTypes.size())
-      return bcTypes[pcpos];
+        h = mix(h, uint32_t(key.cmd));
+        h = mix(h, key.a);
+        h = mix(h, key.b);
+        h = mix(h, key.c);
+        h = mix(h, key.d);
+        h = mix(h, key.e);
+        h = mix(h, key.f);
+        h = mix(h, key.g);
 
-    return BytecodeTypes();
-  }
+        // MurmurHash2 tail
+        h ^= h >> 13;
+        h *= m;
+        h ^= h >> 15;
+
+        return h;
+    }
 };
 
-inline IrCondition conditionOp(IrOp op) {
-  CODEGEN_ASSERT(op.kind == IrOpKind::Condition);
-  return IrCondition(op.index);
+struct IrInstEq
+{
+    bool operator()(const IrInst& a, const IrInst& b) const
+    {
+        return a.cmd == b.cmd && a.a == b.a && a.b == b.b && a.c == b.c && a.d == b.d && a.e == b.e && a.f == b.f && a.g == b.g;
+    }
+};
+
+enum class IrBlockKind : uint8_t
+{
+    Bytecode,
+    Fallback,
+    Internal,
+    Linearized,
+    Dead,
+};
+
+struct IrBlock
+{
+    IrBlockKind kind;
+
+    uint16_t useCount = 0;
+
+    // 'start' and 'finish' define an inclusive range of instructions which belong to this block inside the function
+    // When block has been constructed, 'finish' always points to the first and only terminating instruction
+    uint32_t start = ~0u;
+    uint32_t finish = ~0u;
+
+    uint32_t sortkey = ~0u;
+    uint32_t chainkey = 0;
+    uint32_t expectedNextBlock = ~0u;
+
+    Label label;
+};
+
+struct BytecodeMapping
+{
+    uint32_t irLocation;
+    uint32_t asmLocation;
+};
+
+struct BytecodeBlock
+{
+    // 'start' and 'finish' define an inclusive range of instructions which belong to the block
+    int startpc = -1;
+    int finishpc = -1;
+};
+
+struct BytecodeTypes
+{
+    uint8_t result = LBC_TYPE_ANY;
+    uint8_t a = LBC_TYPE_ANY;
+    uint8_t b = LBC_TYPE_ANY;
+    uint8_t c = LBC_TYPE_ANY;
+};
+
+struct BytecodeRegTypeInfo
+{
+    uint8_t type = LBC_TYPE_ANY;
+    uint8_t reg = 0; // Register slot where variable is stored
+    int startpc = 0; // First point where variable is alive (could be before variable has been assigned a value)
+    int endpc = 0;   // First point where variable is dead
+};
+
+struct BytecodeTypeInfo
+{
+    std::vector<uint8_t> argumentTypes;
+    std::vector<BytecodeRegTypeInfo> regTypes;
+    std::vector<uint8_t> upvalueTypes;
+
+    // Offsets into regTypes for each individual register
+    // One extra element at the end contains the vector size for easier arr[Rn], arr[Rn + 1] range access
+    std::vector<uint32_t> regTypeOffsets;
+};
+
+struct IrFunction
+{
+    std::vector<IrBlock> blocks;
+    std::vector<IrInst> instructions;
+    std::vector<IrConst> constants;
+
+    std::vector<BytecodeBlock> bcBlocks;
+    std::vector<BytecodeTypes> bcTypes;
+
+    std::vector<BytecodeMapping> bcMapping;
+    uint32_t entryBlock = 0;
+    uint32_t entryLocation = 0;
+
+    // For each instruction, an operand that can be used to recompute the value
+    std::vector<IrOp> valueRestoreOps;
+    std::vector<uint32_t> validRestoreOpBlocks;
+
+    BytecodeTypeInfo bcTypeInfo;
+
+    Proto* proto = nullptr;
+    bool variadic = false;
+
+    CfgInfo cfg;
+
+    IrBlock& blockOp(IrOp op)
+    {
+        CODEGEN_ASSERT(op.kind == IrOpKind::Block);
+        return blocks[op.index];
+    }
+
+    IrInst& instOp(IrOp op)
+    {
+        CODEGEN_ASSERT(op.kind == IrOpKind::Inst);
+        return instructions[op.index];
+    }
+
+    IrInst* asInstOp(IrOp op)
+    {
+        if (op.kind == IrOpKind::Inst)
+            return &instructions[op.index];
+
+        return nullptr;
+    }
+
+    IrConst& constOp(IrOp op)
+    {
+        CODEGEN_ASSERT(op.kind == IrOpKind::Constant);
+        return constants[op.index];
+    }
+
+    uint8_t tagOp(IrOp op)
+    {
+        IrConst& value = constOp(op);
+
+        CODEGEN_ASSERT(value.kind == IrConstKind::Tag);
+        return value.valueTag;
+    }
+
+    std::optional<uint8_t> asTagOp(IrOp op)
+    {
+        if (op.kind != IrOpKind::Constant)
+            return std::nullopt;
+
+        IrConst& value = constOp(op);
+
+        if (value.kind != IrConstKind::Tag)
+            return std::nullopt;
+
+        return value.valueTag;
+    }
+
+    int intOp(IrOp op)
+    {
+        IrConst& value = constOp(op);
+
+        CODEGEN_ASSERT(value.kind == IrConstKind::Int);
+        return value.valueInt;
+    }
+
+    std::optional<int> asIntOp(IrOp op)
+    {
+        if (op.kind != IrOpKind::Constant)
+            return std::nullopt;
+
+        IrConst& value = constOp(op);
+
+        if (value.kind != IrConstKind::Int)
+            return std::nullopt;
+
+        return value.valueInt;
+    }
+
+    unsigned uintOp(IrOp op)
+    {
+        IrConst& value = constOp(op);
+
+        CODEGEN_ASSERT(value.kind == IrConstKind::Uint);
+        return value.valueUint;
+    }
+
+    std::optional<unsigned> asUintOp(IrOp op)
+    {
+        if (op.kind != IrOpKind::Constant)
+            return std::nullopt;
+
+        IrConst& value = constOp(op);
+
+        if (value.kind != IrConstKind::Uint)
+            return std::nullopt;
+
+        return value.valueUint;
+    }
+
+    double doubleOp(IrOp op)
+    {
+        IrConst& value = constOp(op);
+
+        CODEGEN_ASSERT(value.kind == IrConstKind::Double);
+        return value.valueDouble;
+    }
+
+    std::optional<double> asDoubleOp(IrOp op)
+    {
+        if (op.kind != IrOpKind::Constant)
+            return std::nullopt;
+
+        IrConst& value = constOp(op);
+
+        if (value.kind != IrConstKind::Double)
+            return std::nullopt;
+
+        return value.valueDouble;
+    }
+
+    uint32_t getBlockIndex(const IrBlock& block) const
+    {
+        // Can only be called with blocks from our vector
+        CODEGEN_ASSERT(&block >= blocks.data() && &block <= blocks.data() + blocks.size());
+        return uint32_t(&block - blocks.data());
+    }
+
+    uint32_t getInstIndex(const IrInst& inst) const
+    {
+        // Can only be called with instructions from our vector
+        CODEGEN_ASSERT(&inst >= instructions.data() && &inst <= instructions.data() + instructions.size());
+        return uint32_t(&inst - instructions.data());
+    }
+
+    void recordRestoreOp(uint32_t instIdx, IrOp location)
+    {
+        if (instIdx >= valueRestoreOps.size())
+            valueRestoreOps.resize(instIdx + 1);
+
+        valueRestoreOps[instIdx] = location;
+    }
+
+    IrOp findRestoreOp(uint32_t instIdx, bool limitToCurrentBlock) const
+    {
+        if (instIdx >= valueRestoreOps.size())
+            return {};
+
+        // When spilled, values can only reference restore operands in the current block chain
+        if (limitToCurrentBlock)
+        {
+            for (uint32_t blockIdx : validRestoreOpBlocks)
+            {
+                const IrBlock& block = blocks[blockIdx];
+
+                if (instIdx >= block.start && instIdx <= block.finish)
+                    return valueRestoreOps[instIdx];
+            }
+
+            return {};
+        }
+
+        return valueRestoreOps[instIdx];
+    }
+
+    IrOp findRestoreOp(const IrInst& inst, bool limitToCurrentBlock) const
+    {
+        return findRestoreOp(getInstIndex(inst), limitToCurrentBlock);
+    }
+
+    BytecodeTypes getBytecodeTypesAt(int pcpos) const
+    {
+        CODEGEN_ASSERT(pcpos >= 0);
+
+        if (size_t(pcpos) < bcTypes.size())
+            return bcTypes[pcpos];
+
+        return BytecodeTypes();
+    }
+};
+
+inline IrCondition conditionOp(IrOp op)
+{
+    CODEGEN_ASSERT(op.kind == IrOpKind::Condition);
+    return IrCondition(op.index);
 }
 
-inline int vmRegOp(IrOp op) {
-  CODEGEN_ASSERT(op.kind == IrOpKind::VmReg);
-  return op.index;
+inline int vmRegOp(IrOp op)
+{
+    CODEGEN_ASSERT(op.kind == IrOpKind::VmReg);
+    return op.index;
 }
 
-inline int vmConstOp(IrOp op) {
-  CODEGEN_ASSERT(op.kind == IrOpKind::VmConst);
-  return op.index;
+inline int vmConstOp(IrOp op)
+{
+    CODEGEN_ASSERT(op.kind == IrOpKind::VmConst);
+    return op.index;
 }
 
-inline int vmUpvalueOp(IrOp op) {
-  CODEGEN_ASSERT(op.kind == IrOpKind::VmUpvalue);
-  return op.index;
+inline int vmUpvalueOp(IrOp op)
+{
+    CODEGEN_ASSERT(op.kind == IrOpKind::VmUpvalue);
+    return op.index;
 }
 
-inline uint32_t vmExitOp(IrOp op) {
-  CODEGEN_ASSERT(op.kind == IrOpKind::VmExit);
-  return op.index;
+inline uint32_t vmExitOp(IrOp op)
+{
+    CODEGEN_ASSERT(op.kind == IrOpKind::VmExit);
+    return op.index;
 }
 
 } // namespace CodeGen
@@ -2461,74 +2570,75 @@ inline uint32_t vmExitOp(IrOp op) {
 // @@@ PACK.lua : not found, likely and std header
 #include <array>
 
-// TODO: call wrapper can be used to suggest target registers for ScopedRegX64
-// to compute data into argument registers directly
+// TODO: call wrapper can be used to suggest target registers for ScopedRegX64 to compute data into argument registers directly
 
-namespace Luau {
-namespace CodeGen {
-namespace X64 {
+namespace Luau
+{
+namespace CodeGen
+{
+namespace X64
+{
 
 struct IrRegAllocX64;
 struct ScopedRegX64;
 
-struct CallArgument {
-  SizeX64 targetSize = SizeX64::none;
+struct CallArgument
+{
+    SizeX64 targetSize = SizeX64::none;
 
-  OperandX64 source = noreg;
-  IrOp sourceOp;
+    OperandX64 source = noreg;
+    IrOp sourceOp;
 
-  OperandX64 target = noreg;
-  bool candidate = true;
+    OperandX64 target = noreg;
+    bool candidate = true;
 };
 
-class IrCallWrapperX64 {
+class IrCallWrapperX64
+{
 public:
-  IrCallWrapperX64(IrRegAllocX64 &regs, AssemblyBuilderX64 &build,
-                   uint32_t instIdx = kInvalidInstIdx);
+    IrCallWrapperX64(IrRegAllocX64& regs, AssemblyBuilderX64& build, uint32_t instIdx = kInvalidInstIdx);
 
-  void addArgument(SizeX64 targetSize, OperandX64 source, IrOp sourceOp = {});
-  void addArgument(SizeX64 targetSize, ScopedRegX64 &scopedReg);
+    void addArgument(SizeX64 targetSize, OperandX64 source, IrOp sourceOp = {});
+    void addArgument(SizeX64 targetSize, ScopedRegX64& scopedReg);
 
-  void call(const OperandX64 &func);
+    void call(const OperandX64& func);
 
-  RegisterX64 suggestNextArgumentRegister(SizeX64 size) const;
+    RegisterX64 suggestNextArgumentRegister(SizeX64 size) const;
 
-  IrRegAllocX64 &regs;
-  AssemblyBuilderX64 &build;
-  uint32_t instIdx = ~0u;
+    IrRegAllocX64& regs;
+    AssemblyBuilderX64& build;
+    uint32_t instIdx = ~0u;
 
 private:
-  OperandX64 getNextArgumentTarget(SizeX64 size) const;
-  void countRegisterUses();
-  CallArgument *findNonInterferingArgument();
-  bool interferesWithOperand(const OperandX64 &op, RegisterX64 reg) const;
-  bool interferesWithActiveSources(const CallArgument &targetArg,
-                                   int targetArgIndex) const;
-  bool interferesWithActiveTarget(RegisterX64 sourceReg) const;
-  void moveToTarget(CallArgument &arg);
-  void freeSourceRegisters(CallArgument &arg);
-  void renameRegister(RegisterX64 &target, RegisterX64 reg,
-                      RegisterX64 replacement);
-  void renameSourceRegisters(RegisterX64 reg, RegisterX64 replacement);
-  RegisterX64 findConflictingTarget() const;
-  void renameConflictingRegister(RegisterX64 conflict);
+    OperandX64 getNextArgumentTarget(SizeX64 size) const;
+    void countRegisterUses();
+    CallArgument* findNonInterferingArgument();
+    bool interferesWithOperand(const OperandX64& op, RegisterX64 reg) const;
+    bool interferesWithActiveSources(const CallArgument& targetArg, int targetArgIndex) const;
+    bool interferesWithActiveTarget(RegisterX64 sourceReg) const;
+    void moveToTarget(CallArgument& arg);
+    void freeSourceRegisters(CallArgument& arg);
+    void renameRegister(RegisterX64& target, RegisterX64 reg, RegisterX64 replacement);
+    void renameSourceRegisters(RegisterX64 reg, RegisterX64 replacement);
+    RegisterX64 findConflictingTarget() const;
+    void renameConflictingRegister(RegisterX64 conflict);
 
-  int getRegisterUses(RegisterX64 reg) const;
-  void addRegisterUse(RegisterX64 reg);
-  void removeRegisterUse(RegisterX64 reg);
+    int getRegisterUses(RegisterX64 reg) const;
+    void addRegisterUse(RegisterX64 reg);
+    void removeRegisterUse(RegisterX64 reg);
 
-  static const int kMaxCallArguments = 6;
-  std::array<CallArgument, kMaxCallArguments> args;
-  int argCount = 0;
+    static const int kMaxCallArguments = 6;
+    std::array<CallArgument, kMaxCallArguments> args;
+    int argCount = 0;
 
-  int gprPos = 0;
-  int xmmPos = 0;
+    int gprPos = 0;
+    int xmmPos = 0;
 
-  OperandX64 funcOp;
+    OperandX64 funcOp;
 
-  // Internal counters for remaining register use counts
-  std::array<uint8_t, 16> gprUses;
-  std::array<uint8_t, 16> xmmUses;
+    // Internal counters for remaining register use counts
+    std::array<uint8_t, 16> gprUses;
+    std::array<uint8_t, 16> xmmUses;
 };
 
 } // namespace X64
@@ -2537,52 +2647,60 @@ private:
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/AssemblyBuilderA64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/RegisterA64.h>
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/AddressA64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/RegisterA64.h>
 
 // @@@@@ PACK.LUA : was already included! <stddef.h>
 
-namespace Luau {
-namespace CodeGen {
-namespace A64 {
+namespace Luau
+{
+namespace CodeGen
+{
+namespace A64
+{
 
-enum class AddressKindA64 : uint8_t {
-  reg,  // reg + reg
-  imm,  // reg + imm
-  pre,  // reg + imm, reg += imm
-  post, // reg, reg += imm
+enum class AddressKindA64 : uint8_t
+{
+    reg,  // reg + reg
+    imm,  // reg + imm
+    pre,  // reg + imm, reg += imm
+    post, // reg, reg += imm
 };
 
-struct AddressA64 {
-  // This is a little misleading since AddressA64 can encode offsets up to
-  // 1023*size where size depends on the load/store size For example, ldr x0,
-  // [reg+imm] is limited to 8 KB offsets assuming imm is divisible by 8, but
-  // loading into w0 reduces the range to 4 KB
-  static constexpr size_t kMaxOffset = 1023;
+struct AddressA64
+{
+    // This is a little misleading since AddressA64 can encode offsets up to 1023*size where size depends on the load/store size
+    // For example, ldr x0, [reg+imm] is limited to 8 KB offsets assuming imm is divisible by 8, but loading into w0 reduces the range to 4 KB
+    static constexpr size_t kMaxOffset = 1023;
 
-  constexpr AddressA64(RegisterA64 base, int off = 0,
-                       AddressKindA64 kind = AddressKindA64::imm)
-      : kind(kind), base(base), offset(xzr), data(off) {
-    CODEGEN_ASSERT(base.kind == KindA64::x || base == sp);
-    CODEGEN_ASSERT(kind != AddressKindA64::reg);
-  }
+    constexpr AddressA64(RegisterA64 base, int off = 0, AddressKindA64 kind = AddressKindA64::imm)
+        : kind(kind)
+        , base(base)
+        , offset(xzr)
+        , data(off)
+    {
+        CODEGEN_ASSERT(base.kind == KindA64::x || base == sp);
+        CODEGEN_ASSERT(kind != AddressKindA64::reg);
+    }
 
-  constexpr AddressA64(RegisterA64 base, RegisterA64 offset)
-      : kind(AddressKindA64::reg), base(base), offset(offset), data(0) {
-    CODEGEN_ASSERT(base.kind == KindA64::x);
-    CODEGEN_ASSERT(offset.kind == KindA64::x);
-  }
+    constexpr AddressA64(RegisterA64 base, RegisterA64 offset)
+        : kind(AddressKindA64::reg)
+        , base(base)
+        , offset(offset)
+        , data(0)
+    {
+        CODEGEN_ASSERT(base.kind == KindA64::x);
+        CODEGEN_ASSERT(offset.kind == KindA64::x);
+    }
 
-  AddressKindA64 kind;
-  RegisterA64 base;
-  RegisterA64 offset;
-  int data;
+    AddressKindA64 kind;
+    RegisterA64 base;
+    RegisterA64 offset;
+    int data;
 };
 
 using mem = AddressA64;
@@ -2593,59 +2711,57 @@ using mem = AddressA64;
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/ConditionA64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 
-namespace Luau {
-namespace CodeGen {
-namespace A64 {
+namespace Luau
+{
+namespace CodeGen
+{
+namespace A64
+{
 
 // See Table C1-1 on page C1-229 of Arm ARM for A-profile architecture
-enum class ConditionA64 {
-  // EQ: integer (equal), floating-point (equal)
-  Equal,
-  // NE: integer (not equal), floating-point (not equal or unordered)
-  NotEqual,
+enum class ConditionA64
+{
+    // EQ: integer (equal), floating-point (equal)
+    Equal,
+    // NE: integer (not equal), floating-point (not equal or unordered)
+    NotEqual,
 
-  // CS: integer (carry set), unsigned integer (greater than, equal),
-  // floating-point (greater than, equal or unordered)
-  CarrySet,
-  // CC: integer (carry clear), unsigned integer (less than), floating-point
-  // (less than)
-  CarryClear,
+    // CS: integer (carry set), unsigned integer (greater than, equal), floating-point (greater than, equal or unordered)
+    CarrySet,
+    // CC: integer (carry clear), unsigned integer (less than), floating-point (less than)
+    CarryClear,
 
-  // MI: integer (negative), floating-point (less than)
-  Minus,
-  // PL: integer (positive or zero), floating-point (greater than, equal or
-  // unordered)
-  Plus,
+    // MI: integer (negative), floating-point (less than)
+    Minus,
+    // PL: integer (positive or zero), floating-point (greater than, equal or unordered)
+    Plus,
 
-  // VS: integer (overflow), floating-point (unordered)
-  Overflow,
-  // VC: integer (no overflow), floating-point (ordered)
-  NoOverflow,
+    // VS: integer (overflow), floating-point (unordered)
+    Overflow,
+    // VC: integer (no overflow), floating-point (ordered)
+    NoOverflow,
 
-  // HI: integer (unsigned higher), floating-point (greater than, or unordered)
-  UnsignedGreater,
-  // LS: integer (unsigned lower or same), floating-point (less than or equal)
-  UnsignedLessEqual,
+    // HI: integer (unsigned higher), floating-point (greater than, or unordered)
+    UnsignedGreater,
+    // LS: integer (unsigned lower or same), floating-point (less than or equal)
+    UnsignedLessEqual,
 
-  // GE: integer (signed greater than or equal), floating-point (greater than or
-  // equal)
-  GreaterEqual,
-  // LT: integer (signed less than), floating-point (less than, or unordered)
-  Less,
+    // GE: integer (signed greater than or equal), floating-point (greater than or equal)
+    GreaterEqual,
+    // LT: integer (signed less than), floating-point (less than, or unordered)
+    Less,
 
-  // GT: integer (signed greater than), floating-point (greater than)
-  Greater,
-  // LE: integer (signed less than or equal), floating-point (less than, equal
-  // or unordered)
-  LessEqual,
+    // GT: integer (signed greater than), floating-point (greater than)
+    Greater,
+    // LE: integer (signed less than or equal), floating-point (less than, equal or unordered)
+    LessEqual,
 
-  // AL: always
-  Always,
+    // AL: always
+    Always,
 
-  Count
+    Count
 };
 
 } // namespace A64
@@ -2658,305 +2774,282 @@ enum class ConditionA64 {
 
 // @@@@@ PACK.LUA : was already included! <vector>
 
-namespace Luau {
-namespace CodeGen {
-namespace A64 {
+namespace Luau
+{
+namespace CodeGen
+{
+namespace A64
+{
 
-enum FeaturesA64 {
-  Feature_JSCVT = 1 << 0,
+enum FeaturesA64
+{
+    Feature_JSCVT = 1 << 0,
 };
 
-class AssemblyBuilderA64 {
+class AssemblyBuilderA64
+{
 public:
-  explicit AssemblyBuilderA64(bool logText, unsigned int features = 0);
-  ~AssemblyBuilderA64();
+    explicit AssemblyBuilderA64(bool logText, unsigned int features = 0);
+    ~AssemblyBuilderA64();
 
-  // Moves
-  void mov(RegisterA64 dst, RegisterA64 src);
-  void mov(RegisterA64 dst, int src); // macro
+    // Moves
+    void mov(RegisterA64 dst, RegisterA64 src);
+    void mov(RegisterA64 dst, int src); // macro
 
-  // Moves of 32-bit immediates get decomposed into one or more of these
-  void movz(RegisterA64 dst, uint16_t src, int shift = 0);
-  void movn(RegisterA64 dst, uint16_t src, int shift = 0);
-  void movk(RegisterA64 dst, uint16_t src, int shift = 0);
+    // Moves of 32-bit immediates get decomposed into one or more of these
+    void movz(RegisterA64 dst, uint16_t src, int shift = 0);
+    void movn(RegisterA64 dst, uint16_t src, int shift = 0);
+    void movk(RegisterA64 dst, uint16_t src, int shift = 0);
 
-  // Arithmetics
-  void add(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
-  void add(RegisterA64 dst, RegisterA64 src1, uint16_t src2);
-  void sub(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
-  void sub(RegisterA64 dst, RegisterA64 src1, uint16_t src2);
-  void neg(RegisterA64 dst, RegisterA64 src);
+    // Arithmetics
+    void add(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
+    void add(RegisterA64 dst, RegisterA64 src1, uint16_t src2);
+    void sub(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
+    void sub(RegisterA64 dst, RegisterA64 src1, uint16_t src2);
+    void neg(RegisterA64 dst, RegisterA64 src);
 
-  // Comparisons
-  // Note: some arithmetic instructions also have versions that update flags
-  // (ADDS etc) but we aren't using them atm
-  void cmp(RegisterA64 src1, RegisterA64 src2);
-  void cmp(RegisterA64 src1, uint16_t src2);
-  void csel(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2,
-            ConditionA64 cond);
-  void cset(RegisterA64 dst, ConditionA64 cond);
+    // Comparisons
+    // Note: some arithmetic instructions also have versions that update flags (ADDS etc) but we aren't using them atm
+    void cmp(RegisterA64 src1, RegisterA64 src2);
+    void cmp(RegisterA64 src1, uint16_t src2);
+    void csel(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, ConditionA64 cond);
+    void cset(RegisterA64 dst, ConditionA64 cond);
 
-  // Bitwise
-  void and_(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
-  void orr(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
-  void eor(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
-  void bic(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
-  void tst(RegisterA64 src1, RegisterA64 src2, int shift = 0);
-  void mvn_(RegisterA64 dst, RegisterA64 src);
+    // Bitwise
+    void and_(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
+    void orr(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
+    void eor(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
+    void bic(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
+    void tst(RegisterA64 src1, RegisterA64 src2, int shift = 0);
+    void mvn_(RegisterA64 dst, RegisterA64 src);
 
-  // Bitwise with immediate
-  // Note: immediate must have a single contiguous sequence of 1 bits set of
-  // length 1..31
-  void and_(RegisterA64 dst, RegisterA64 src1, uint32_t src2);
-  void orr(RegisterA64 dst, RegisterA64 src1, uint32_t src2);
-  void eor(RegisterA64 dst, RegisterA64 src1, uint32_t src2);
-  void tst(RegisterA64 src1, uint32_t src2);
+    // Bitwise with immediate
+    // Note: immediate must have a single contiguous sequence of 1 bits set of length 1..31
+    void and_(RegisterA64 dst, RegisterA64 src1, uint32_t src2);
+    void orr(RegisterA64 dst, RegisterA64 src1, uint32_t src2);
+    void eor(RegisterA64 dst, RegisterA64 src1, uint32_t src2);
+    void tst(RegisterA64 src1, uint32_t src2);
 
-  // Shifts
-  void lsl(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
-  void lsr(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
-  void asr(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
-  void ror(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
-  void clz(RegisterA64 dst, RegisterA64 src);
-  void rbit(RegisterA64 dst, RegisterA64 src);
-  void rev(RegisterA64 dst, RegisterA64 src);
+    // Shifts
+    void lsl(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
+    void lsr(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
+    void asr(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
+    void ror(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
+    void clz(RegisterA64 dst, RegisterA64 src);
+    void rbit(RegisterA64 dst, RegisterA64 src);
+    void rev(RegisterA64 dst, RegisterA64 src);
 
-  // Shifts with immediates
-  // Note: immediate value must be in [0, 31] or [0, 63] range based on register
-  // type
-  void lsl(RegisterA64 dst, RegisterA64 src1, uint8_t src2);
-  void lsr(RegisterA64 dst, RegisterA64 src1, uint8_t src2);
-  void asr(RegisterA64 dst, RegisterA64 src1, uint8_t src2);
-  void ror(RegisterA64 dst, RegisterA64 src1, uint8_t src2);
+    // Shifts with immediates
+    // Note: immediate value must be in [0, 31] or [0, 63] range based on register type
+    void lsl(RegisterA64 dst, RegisterA64 src1, uint8_t src2);
+    void lsr(RegisterA64 dst, RegisterA64 src1, uint8_t src2);
+    void asr(RegisterA64 dst, RegisterA64 src1, uint8_t src2);
+    void ror(RegisterA64 dst, RegisterA64 src1, uint8_t src2);
 
-  // Bitfields
-  void ubfiz(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w);
-  void ubfx(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w);
-  void sbfiz(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w);
-  void sbfx(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w);
+    // Bitfields
+    void ubfiz(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w);
+    void ubfx(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w);
+    void sbfiz(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w);
+    void sbfx(RegisterA64 dst, RegisterA64 src, uint8_t f, uint8_t w);
 
-  // Load
-  // Note: paired loads are currently omitted for simplicity
-  void ldr(RegisterA64 dst, AddressA64 src);
-  void ldrb(RegisterA64 dst, AddressA64 src);
-  void ldrh(RegisterA64 dst, AddressA64 src);
-  void ldrsb(RegisterA64 dst, AddressA64 src);
-  void ldrsh(RegisterA64 dst, AddressA64 src);
-  void ldrsw(RegisterA64 dst, AddressA64 src);
-  void ldp(RegisterA64 dst1, RegisterA64 dst2, AddressA64 src);
+    // Load
+    // Note: paired loads are currently omitted for simplicity
+    void ldr(RegisterA64 dst, AddressA64 src);
+    void ldrb(RegisterA64 dst, AddressA64 src);
+    void ldrh(RegisterA64 dst, AddressA64 src);
+    void ldrsb(RegisterA64 dst, AddressA64 src);
+    void ldrsh(RegisterA64 dst, AddressA64 src);
+    void ldrsw(RegisterA64 dst, AddressA64 src);
+    void ldp(RegisterA64 dst1, RegisterA64 dst2, AddressA64 src);
 
-  // Store
-  void str(RegisterA64 src, AddressA64 dst);
-  void strb(RegisterA64 src, AddressA64 dst);
-  void strh(RegisterA64 src, AddressA64 dst);
-  void stp(RegisterA64 src1, RegisterA64 src2, AddressA64 dst);
+    // Store
+    void str(RegisterA64 src, AddressA64 dst);
+    void strb(RegisterA64 src, AddressA64 dst);
+    void strh(RegisterA64 src, AddressA64 dst);
+    void stp(RegisterA64 src1, RegisterA64 src2, AddressA64 dst);
 
-  // Control flow
-  void b(Label &label);
-  void bl(Label &label);
-  void br(RegisterA64 src);
-  void blr(RegisterA64 src);
-  void ret();
+    // Control flow
+    void b(Label& label);
+    void bl(Label& label);
+    void br(RegisterA64 src);
+    void blr(RegisterA64 src);
+    void ret();
 
-  // Conditional control flow
-  void b(ConditionA64 cond, Label &label);
-  void cbz(RegisterA64 src, Label &label);
-  void cbnz(RegisterA64 src, Label &label);
-  void tbz(RegisterA64 src, uint8_t bit, Label &label);
-  void tbnz(RegisterA64 src, uint8_t bit, Label &label);
+    // Conditional control flow
+    void b(ConditionA64 cond, Label& label);
+    void cbz(RegisterA64 src, Label& label);
+    void cbnz(RegisterA64 src, Label& label);
+    void tbz(RegisterA64 src, uint8_t bit, Label& label);
+    void tbnz(RegisterA64 src, uint8_t bit, Label& label);
 
-  // Address of embedded data
-  void adr(RegisterA64 dst, const void *ptr, size_t size);
-  void adr(RegisterA64 dst, uint64_t value);
-  void adr(RegisterA64 dst, double value);
+    // Address of embedded data
+    void adr(RegisterA64 dst, const void* ptr, size_t size);
+    void adr(RegisterA64 dst, uint64_t value);
+    void adr(RegisterA64 dst, double value);
 
-  // Address of code (label)
-  void adr(RegisterA64 dst, Label &label);
+    // Address of code (label)
+    void adr(RegisterA64 dst, Label& label);
 
-  // Floating-point scalar/vector moves
-  // Note: constant must be compatible with immediate floating point moves (see
-  // isFmovSupported)
-  void fmov(RegisterA64 dst, RegisterA64 src);
-  void fmov(RegisterA64 dst, double src);
+    // Floating-point scalar/vector moves
+    // Note: constant must be compatible with immediate floating point moves (see isFmovSupported)
+    void fmov(RegisterA64 dst, RegisterA64 src);
+    void fmov(RegisterA64 dst, double src);
 
-  // Floating-point scalar/vector math
-  void fabs(RegisterA64 dst, RegisterA64 src);
-  void fadd(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
-  void fdiv(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
-  void fmul(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
-  void fneg(RegisterA64 dst, RegisterA64 src);
-  void fsqrt(RegisterA64 dst, RegisterA64 src);
-  void fsub(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
+    // Floating-point scalar/vector math
+    void fabs(RegisterA64 dst, RegisterA64 src);
+    void fadd(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
+    void fdiv(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
+    void fmul(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
+    void fneg(RegisterA64 dst, RegisterA64 src);
+    void fsqrt(RegisterA64 dst, RegisterA64 src);
+    void fsub(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2);
 
-  // Vector component manipulation
-  void ins_4s(RegisterA64 dst, RegisterA64 src, uint8_t index);
-  void ins_4s(RegisterA64 dst, uint8_t dstIndex, RegisterA64 src,
-              uint8_t srcIndex);
-  void dup_4s(RegisterA64 dst, RegisterA64 src, uint8_t index);
+    // Vector component manipulation
+    void ins_4s(RegisterA64 dst, RegisterA64 src, uint8_t index);
+    void ins_4s(RegisterA64 dst, uint8_t dstIndex, RegisterA64 src, uint8_t srcIndex);
+    void dup_4s(RegisterA64 dst, RegisterA64 src, uint8_t index);
 
-  // Floating-point rounding and conversions
-  void frinta(RegisterA64 dst, RegisterA64 src);
-  void frintm(RegisterA64 dst, RegisterA64 src);
-  void frintp(RegisterA64 dst, RegisterA64 src);
-  void fcvt(RegisterA64 dst, RegisterA64 src);
-  void fcvtzs(RegisterA64 dst, RegisterA64 src);
-  void fcvtzu(RegisterA64 dst, RegisterA64 src);
-  void scvtf(RegisterA64 dst, RegisterA64 src);
-  void ucvtf(RegisterA64 dst, RegisterA64 src);
+    // Floating-point rounding and conversions
+    void frinta(RegisterA64 dst, RegisterA64 src);
+    void frintm(RegisterA64 dst, RegisterA64 src);
+    void frintp(RegisterA64 dst, RegisterA64 src);
+    void fcvt(RegisterA64 dst, RegisterA64 src);
+    void fcvtzs(RegisterA64 dst, RegisterA64 src);
+    void fcvtzu(RegisterA64 dst, RegisterA64 src);
+    void scvtf(RegisterA64 dst, RegisterA64 src);
+    void ucvtf(RegisterA64 dst, RegisterA64 src);
 
-  // Floating-point conversion to integer using JS rules (wrap around 2^32) and
-  // set Z flag note: this is part of ARM8.3 (JSCVT feature); support of this
-  // instruction needs to be checked at runtime
-  void fjcvtzs(RegisterA64 dst, RegisterA64 src);
+    // Floating-point conversion to integer using JS rules (wrap around 2^32) and set Z flag
+    // note: this is part of ARM8.3 (JSCVT feature); support of this instruction needs to be checked at runtime
+    void fjcvtzs(RegisterA64 dst, RegisterA64 src);
 
-  // Floating-point comparisons
-  void fcmp(RegisterA64 src1, RegisterA64 src2);
-  void fcmpz(RegisterA64 src);
-  void fcsel(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2,
-             ConditionA64 cond);
+    // Floating-point comparisons
+    void fcmp(RegisterA64 src1, RegisterA64 src2);
+    void fcmpz(RegisterA64 src);
+    void fcsel(RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, ConditionA64 cond);
 
-  void udf();
+    void udf();
 
-  // Run final checks
-  bool finalize();
+    // Run final checks
+    bool finalize();
 
-  // Places a label at current location and returns it
-  Label setLabel();
+    // Places a label at current location and returns it
+    Label setLabel();
 
-  // Assigns label position to the current location
-  void setLabel(Label &label);
+    // Assigns label position to the current location
+    void setLabel(Label& label);
 
-  // Extracts code offset (in bytes) from label
-  uint32_t getLabelOffset(const Label &label) {
-    CODEGEN_ASSERT(label.location != ~0u);
-    return label.location * 4;
-  }
+    // Extracts code offset (in bytes) from label
+    uint32_t getLabelOffset(const Label& label)
+    {
+        CODEGEN_ASSERT(label.location != ~0u);
+        return label.location * 4;
+    }
 
-  void logAppend(const char *fmt, ...) LUAU_PRINTF_ATTR(2, 3);
+    void logAppend(const char* fmt, ...) LUAU_PRINTF_ATTR(2, 3);
 
-  uint32_t getCodeSize() const;
+    uint32_t getCodeSize() const;
 
-  unsigned getInstructionCount() const;
+    unsigned getInstructionCount() const;
 
-  // Resulting data and code that need to be copied over one after the other
-  // The *end* of 'data' has to be aligned to 16 bytes, this will also align
-  // 'code'
-  std::vector<uint8_t> data;
-  std::vector<uint32_t> code;
+    // Resulting data and code that need to be copied over one after the other
+    // The *end* of 'data' has to be aligned to 16 bytes, this will also align 'code'
+    std::vector<uint8_t> data;
+    std::vector<uint32_t> code;
 
-  std::string text;
+    std::string text;
 
-  const bool logText = false;
-  const unsigned int features = 0;
+    const bool logText = false;
+    const unsigned int features = 0;
 
-  // Maximum immediate argument to functions like add/sub/cmp
-  static constexpr size_t kMaxImmediate = (1 << 12) - 1;
+    // Maximum immediate argument to functions like add/sub/cmp
+    static constexpr size_t kMaxImmediate = (1 << 12) - 1;
 
-  // Check if immediate mode mask is supported for bitwise operations
-  // (and/or/xor)
-  static bool isMaskSupported(uint32_t mask);
+    // Check if immediate mode mask is supported for bitwise operations (and/or/xor)
+    static bool isMaskSupported(uint32_t mask);
 
-  // Check if fmov can be used to synthesize a constant
-  static bool isFmovSupported(double value);
+    // Check if fmov can be used to synthesize a constant
+    static bool isFmovSupported(double value);
 
 private:
-  // Instruction archetypes
-  void place0(const char *name, uint32_t word);
-  void placeSR3(const char *name, RegisterA64 dst, RegisterA64 src1,
-                RegisterA64 src2, uint8_t op, int shift = 0, int N = 0);
-  void placeSR2(const char *name, RegisterA64 dst, RegisterA64 src, uint8_t op,
-                uint8_t op2 = 0);
-  void placeR3(const char *name, RegisterA64 dst, RegisterA64 src1,
-               RegisterA64 src2, uint8_t op, uint8_t op2);
-  void placeR1(const char *name, RegisterA64 dst, RegisterA64 src, uint32_t op);
-  void placeI12(const char *name, RegisterA64 dst, RegisterA64 src1, int src2,
-                uint8_t op);
-  void placeI16(const char *name, RegisterA64 dst, int src, uint8_t op,
-                int shift = 0);
-  void placeA(const char *name, RegisterA64 dst, AddressA64 src,
-              uint16_t opsize, int sizelog);
-  void placeB(const char *name, Label &label, uint8_t op);
-  void placeBC(const char *name, Label &label, uint8_t op, uint8_t cond);
-  void placeBCR(const char *name, Label &label, uint8_t op, RegisterA64 cond);
-  void placeBR(const char *name, RegisterA64 src, uint32_t op);
-  void placeBTR(const char *name, Label &label, uint8_t op, RegisterA64 cond,
-                uint8_t bit);
-  void placeADR(const char *name, RegisterA64 src, uint8_t op);
-  void placeADR(const char *name, RegisterA64 src, uint8_t op, Label &label);
-  void placeP(const char *name, RegisterA64 dst1, RegisterA64 dst2,
-              AddressA64 src, uint8_t op, uint8_t opc, int sizelog);
-  void placeCS(const char *name, RegisterA64 dst, RegisterA64 src1,
-               RegisterA64 src2, ConditionA64 cond, uint8_t op, uint8_t opc,
-               int invert = 0);
-  void placeFCMP(const char *name, RegisterA64 src1, RegisterA64 src2,
-                 uint8_t op, uint8_t opc);
-  void placeFMOV(const char *name, RegisterA64 dst, double src, uint32_t op);
-  void placeBM(const char *name, RegisterA64 dst, RegisterA64 src1,
-               uint32_t src2, uint8_t op);
-  void placeBFM(const char *name, RegisterA64 dst, RegisterA64 src1, int src2,
-                uint8_t op, int immr, int imms);
-  void placeER(const char *name, RegisterA64 dst, RegisterA64 src1,
-               RegisterA64 src2, uint8_t op, int shift);
-  void placeVR(const char *name, RegisterA64 dst, RegisterA64 src1,
-               RegisterA64 src2, uint16_t op, uint8_t op2);
+    // Instruction archetypes
+    void place0(const char* name, uint32_t word);
+    void placeSR3(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint8_t op, int shift = 0, int N = 0);
+    void placeSR2(const char* name, RegisterA64 dst, RegisterA64 src, uint8_t op, uint8_t op2 = 0);
+    void placeR3(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint8_t op, uint8_t op2);
+    void placeR1(const char* name, RegisterA64 dst, RegisterA64 src, uint32_t op);
+    void placeI12(const char* name, RegisterA64 dst, RegisterA64 src1, int src2, uint8_t op);
+    void placeI16(const char* name, RegisterA64 dst, int src, uint8_t op, int shift = 0);
+    void placeA(const char* name, RegisterA64 dst, AddressA64 src, uint16_t opsize, int sizelog);
+    void placeB(const char* name, Label& label, uint8_t op);
+    void placeBC(const char* name, Label& label, uint8_t op, uint8_t cond);
+    void placeBCR(const char* name, Label& label, uint8_t op, RegisterA64 cond);
+    void placeBR(const char* name, RegisterA64 src, uint32_t op);
+    void placeBTR(const char* name, Label& label, uint8_t op, RegisterA64 cond, uint8_t bit);
+    void placeADR(const char* name, RegisterA64 src, uint8_t op);
+    void placeADR(const char* name, RegisterA64 src, uint8_t op, Label& label);
+    void placeP(const char* name, RegisterA64 dst1, RegisterA64 dst2, AddressA64 src, uint8_t op, uint8_t opc, int sizelog);
+    void placeCS(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, ConditionA64 cond, uint8_t op, uint8_t opc, int invert = 0);
+    void placeFCMP(const char* name, RegisterA64 src1, RegisterA64 src2, uint8_t op, uint8_t opc);
+    void placeFMOV(const char* name, RegisterA64 dst, double src, uint32_t op);
+    void placeBM(const char* name, RegisterA64 dst, RegisterA64 src1, uint32_t src2, uint8_t op);
+    void placeBFM(const char* name, RegisterA64 dst, RegisterA64 src1, int src2, uint8_t op, int immr, int imms);
+    void placeER(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint8_t op, int shift);
+    void placeVR(const char* name, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, uint16_t op, uint8_t op2);
 
-  void place(uint32_t word);
+    void place(uint32_t word);
 
-  struct Patch {
-    enum Kind {
-      Imm26,
-      Imm19,
-      Imm14,
+    struct Patch
+    {
+        enum Kind
+        {
+            Imm26,
+            Imm19,
+            Imm14,
+        };
+
+        Kind kind : 2;
+        uint32_t label : 30;
+        uint32_t location;
     };
 
-    Kind kind : 2;
-    uint32_t label : 30;
-    uint32_t location;
-  };
+    void patchLabel(Label& label, Patch::Kind kind);
+    void patchOffset(uint32_t location, int value, Patch::Kind kind);
 
-  void patchLabel(Label &label, Patch::Kind kind);
-  void patchOffset(uint32_t location, int value, Patch::Kind kind);
+    void commit();
+    LUAU_NOINLINE void extend();
 
-  void commit();
-  LUAU_NOINLINE void extend();
+    // Data
+    size_t allocateData(size_t size, size_t align);
 
-  // Data
-  size_t allocateData(size_t size, size_t align);
+    // Logging of assembly in text form
+    LUAU_NOINLINE void log(const char* opcode);
+    LUAU_NOINLINE void log(const char* opcode, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, int shift = 0);
+    LUAU_NOINLINE void log(const char* opcode, RegisterA64 dst, RegisterA64 src1, int src2);
+    LUAU_NOINLINE void log(const char* opcode, RegisterA64 dst, RegisterA64 src);
+    LUAU_NOINLINE void log(const char* opcode, RegisterA64 dst, int src, int shift = 0);
+    LUAU_NOINLINE void log(const char* opcode, RegisterA64 dst, double src);
+    LUAU_NOINLINE void log(const char* opcode, RegisterA64 dst, AddressA64 src);
+    LUAU_NOINLINE void log(const char* opcode, RegisterA64 dst1, RegisterA64 dst2, AddressA64 src);
+    LUAU_NOINLINE void log(const char* opcode, RegisterA64 src, Label label, int imm = -1);
+    LUAU_NOINLINE void log(const char* opcode, RegisterA64 src);
+    LUAU_NOINLINE void log(const char* opcode, Label label);
+    LUAU_NOINLINE void log(const char* opcode, RegisterA64 dst, RegisterA64 src1, RegisterA64 src2, ConditionA64 cond);
+    LUAU_NOINLINE void log(Label label);
+    LUAU_NOINLINE void log(RegisterA64 reg);
+    LUAU_NOINLINE void log(AddressA64 addr);
 
-  // Logging of assembly in text form
-  LUAU_NOINLINE void log(const char *opcode);
-  LUAU_NOINLINE void log(const char *opcode, RegisterA64 dst, RegisterA64 src1,
-                         RegisterA64 src2, int shift = 0);
-  LUAU_NOINLINE void log(const char *opcode, RegisterA64 dst, RegisterA64 src1,
-                         int src2);
-  LUAU_NOINLINE void log(const char *opcode, RegisterA64 dst, RegisterA64 src);
-  LUAU_NOINLINE void log(const char *opcode, RegisterA64 dst, int src,
-                         int shift = 0);
-  LUAU_NOINLINE void log(const char *opcode, RegisterA64 dst, double src);
-  LUAU_NOINLINE void log(const char *opcode, RegisterA64 dst, AddressA64 src);
-  LUAU_NOINLINE void log(const char *opcode, RegisterA64 dst1, RegisterA64 dst2,
-                         AddressA64 src);
-  LUAU_NOINLINE void log(const char *opcode, RegisterA64 src, Label label,
-                         int imm = -1);
-  LUAU_NOINLINE void log(const char *opcode, RegisterA64 src);
-  LUAU_NOINLINE void log(const char *opcode, Label label);
-  LUAU_NOINLINE void log(const char *opcode, RegisterA64 dst, RegisterA64 src1,
-                         RegisterA64 src2, ConditionA64 cond);
-  LUAU_NOINLINE void log(Label label);
-  LUAU_NOINLINE void log(RegisterA64 reg);
-  LUAU_NOINLINE void log(AddressA64 addr);
+    uint32_t nextLabel = 1;
+    std::vector<Patch> pendingLabels;
+    std::vector<uint32_t> labelLocations;
 
-  uint32_t nextLabel = 1;
-  std::vector<Patch> pendingLabels;
-  std::vector<uint32_t> labelLocations;
+    bool finalized = false;
+    bool overflowed = false;
 
-  bool finalized = false;
-  bool overflowed = false;
+    size_t dataPos = 0;
 
-  size_t dataPos = 0;
-
-  uint32_t *codePos = nullptr;
-  uint32_t *codeEnd = nullptr;
+    uint32_t* codePos = nullptr;
+    uint32_t* codeEnd = nullptr;
 };
 
 } // namespace A64
@@ -2965,8 +3058,7 @@ private:
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrRegAllocX64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/AssemblyBuilderX64.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/IrData.h>
@@ -2977,118 +3069,120 @@ private:
 
 // @@@@@ PACK.LUA : was already included! <initializer_list>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 struct LoweringStats;
 
-namespace X64 {
+namespace X64
+{
 
 constexpr uint8_t kNoStackSlot = 0xff;
 
-struct IrSpillX64 {
-  uint32_t instIdx = 0;
-  IrValueKind valueKind = IrValueKind::Unknown;
+struct IrSpillX64
+{
+    uint32_t instIdx = 0;
+    IrValueKind valueKind = IrValueKind::Unknown;
 
-  unsigned spillId = 0;
+    unsigned spillId = 0;
 
-  // Spill location can be a stack location or be empty
-  // When it's empty, it means that instruction value can be rematerialized
-  uint8_t stackSlot = kNoStackSlot;
+    // Spill location can be a stack location or be empty
+    // When it's empty, it means that instruction value can be rematerialized
+    uint8_t stackSlot = kNoStackSlot;
 
-  RegisterX64 originalLoc = noreg;
+    RegisterX64 originalLoc = noreg;
 };
 
-struct IrRegAllocX64 {
-  IrRegAllocX64(AssemblyBuilderX64 &build, IrFunction &function,
-                LoweringStats *stats);
+struct IrRegAllocX64
+{
+    IrRegAllocX64(AssemblyBuilderX64& build, IrFunction& function, LoweringStats* stats);
 
-  RegisterX64 allocReg(SizeX64 size, uint32_t instIdx);
-  RegisterX64 allocRegOrReuse(SizeX64 size, uint32_t instIdx,
-                              std::initializer_list<IrOp> oprefs);
-  RegisterX64 takeReg(RegisterX64 reg, uint32_t instIdx);
+    RegisterX64 allocReg(SizeX64 size, uint32_t instIdx);
+    RegisterX64 allocRegOrReuse(SizeX64 size, uint32_t instIdx, std::initializer_list<IrOp> oprefs);
+    RegisterX64 takeReg(RegisterX64 reg, uint32_t instIdx);
 
-  bool canTakeReg(RegisterX64 reg) const;
+    bool canTakeReg(RegisterX64 reg) const;
 
-  void freeReg(RegisterX64 reg);
-  void freeLastUseReg(IrInst &target, uint32_t instIdx);
-  void freeLastUseRegs(const IrInst &inst, uint32_t instIdx);
+    void freeReg(RegisterX64 reg);
+    void freeLastUseReg(IrInst& target, uint32_t instIdx);
+    void freeLastUseRegs(const IrInst& inst, uint32_t instIdx);
 
-  bool isLastUseReg(const IrInst &target, uint32_t instIdx) const;
+    bool isLastUseReg(const IrInst& target, uint32_t instIdx) const;
 
-  bool shouldFreeGpr(RegisterX64 reg) const;
+    bool shouldFreeGpr(RegisterX64 reg) const;
 
-  unsigned findSpillStackSlot(IrValueKind valueKind);
+    unsigned findSpillStackSlot(IrValueKind valueKind);
 
-  IrOp getRestoreOp(const IrInst &inst) const;
-  bool hasRestoreOp(const IrInst &inst) const;
-  OperandX64 getRestoreAddress(const IrInst &inst, IrOp restoreOp);
+    IrOp getRestoreOp(const IrInst& inst) const;
+    bool hasRestoreOp(const IrInst& inst) const;
+    OperandX64 getRestoreAddress(const IrInst& inst, IrOp restoreOp);
 
-  // Register used by instruction is about to be freed, have to find a way to
-  // restore value later
-  void preserve(IrInst &inst);
+    // Register used by instruction is about to be freed, have to find a way to restore value later
+    void preserve(IrInst& inst);
 
-  void restore(IrInst &inst, bool intoOriginalLocation);
+    void restore(IrInst& inst, bool intoOriginalLocation);
 
-  void preserveAndFreeInstValues();
+    void preserveAndFreeInstValues();
 
-  uint32_t findInstructionWithFurthestNextUse(
-      const std::array<uint32_t, 16> &regInstUsers) const;
+    uint32_t findInstructionWithFurthestNextUse(const std::array<uint32_t, 16>& regInstUsers) const;
 
-  void assertFree(RegisterX64 reg) const;
-  void assertAllFree() const;
-  void assertNoSpills() const;
+    void assertFree(RegisterX64 reg) const;
+    void assertAllFree() const;
+    void assertNoSpills() const;
 
-  AssemblyBuilderX64 &build;
-  IrFunction &function;
-  LoweringStats *stats = nullptr;
+    AssemblyBuilderX64& build;
+    IrFunction& function;
+    LoweringStats* stats = nullptr;
 
-  uint32_t currInstIdx = ~0u;
+    uint32_t currInstIdx = ~0u;
 
-  std::array<bool, 16> freeGprMap;
-  std::array<uint32_t, 16> gprInstUsers;
-  std::array<bool, 16> freeXmmMap;
-  std::array<uint32_t, 16> xmmInstUsers;
-  uint8_t usableXmmRegCount = 0;
+    std::array<bool, 16> freeGprMap;
+    std::array<uint32_t, 16> gprInstUsers;
+    std::array<bool, 16> freeXmmMap;
+    std::array<uint32_t, 16> xmmInstUsers;
+    uint8_t usableXmmRegCount = 0;
 
-  std::bitset<256> usedSpillSlots;
-  unsigned maxUsedSlot = 0;
-  unsigned nextSpillId = 1;
-  std::vector<IrSpillX64> spills;
+    std::bitset<256> usedSpillSlots;
+    unsigned maxUsedSlot = 0;
+    unsigned nextSpillId = 1;
+    std::vector<IrSpillX64> spills;
 };
 
-struct ScopedRegX64 {
-  explicit ScopedRegX64(IrRegAllocX64 &owner);
-  ScopedRegX64(IrRegAllocX64 &owner, SizeX64 size);
-  ScopedRegX64(IrRegAllocX64 &owner, RegisterX64 reg);
-  ~ScopedRegX64();
+struct ScopedRegX64
+{
+    explicit ScopedRegX64(IrRegAllocX64& owner);
+    ScopedRegX64(IrRegAllocX64& owner, SizeX64 size);
+    ScopedRegX64(IrRegAllocX64& owner, RegisterX64 reg);
+    ~ScopedRegX64();
 
-  ScopedRegX64(const ScopedRegX64 &) = delete;
-  ScopedRegX64 &operator=(const ScopedRegX64 &) = delete;
+    ScopedRegX64(const ScopedRegX64&) = delete;
+    ScopedRegX64& operator=(const ScopedRegX64&) = delete;
 
-  void take(RegisterX64 reg);
-  void alloc(SizeX64 size);
-  void free();
+    void take(RegisterX64 reg);
+    void alloc(SizeX64 size);
+    void free();
 
-  RegisterX64 release();
+    RegisterX64 release();
 
-  IrRegAllocX64 &owner;
-  RegisterX64 reg;
+    IrRegAllocX64& owner;
+    RegisterX64 reg;
 };
 
-// When IR instruction makes a call under a condition that's not reflected as a
-// real branch in IR, spilled values have to be restored to their exact original
-// locations, so that both after a call and after the skip, values are found in
-// the same place
-struct ScopedSpills {
-  explicit ScopedSpills(IrRegAllocX64 &owner);
-  ~ScopedSpills();
+// When IR instruction makes a call under a condition that's not reflected as a real branch in IR,
+// spilled values have to be restored to their exact original locations, so that both after a call
+// and after the skip, values are found in the same place
+struct ScopedSpills
+{
+    explicit ScopedSpills(IrRegAllocX64& owner);
+    ~ScopedSpills();
 
-  ScopedSpills(const ScopedSpills &) = delete;
-  ScopedSpills &operator=(const ScopedSpills &) = delete;
+    ScopedSpills(const ScopedSpills&) = delete;
+    ScopedSpills& operator=(const ScopedSpills&) = delete;
 
-  IrRegAllocX64 &owner;
-  unsigned startSpillId = 0;
+    IrRegAllocX64& owner;
+    unsigned startSpillId = 0;
 };
 
 } // namespace X64
@@ -3101,8 +3195,7 @@ struct ScopedSpills {
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/BytecodeSummary.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/CodeGenCommon.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Bytecode.h>
@@ -3116,327 +3209,347 @@ struct ScopedSpills {
 struct lua_State;
 struct Proto;
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
-class FunctionBytecodeSummary {
+class FunctionBytecodeSummary
+{
 public:
-  FunctionBytecodeSummary(std::string source, std::string name, const int line,
-                          unsigned nestingLimit);
+    FunctionBytecodeSummary(std::string source, std::string name, const int line, unsigned nestingLimit);
 
-  const std::string &getSource() const { return source; }
+    const std::string& getSource() const
+    {
+        return source;
+    }
 
-  const std::string &getName() const { return name; }
+    const std::string& getName() const
+    {
+        return name;
+    }
 
-  int getLine() const { return line; }
+    int getLine() const
+    {
+        return line;
+    }
 
-  const unsigned getNestingLimit() const { return nestingLimit; }
+    const unsigned getNestingLimit() const
+    {
+        return nestingLimit;
+    }
 
-  const unsigned getOpLimit() const { return LOP__COUNT; }
+    const unsigned getOpLimit() const
+    {
+        return LOP__COUNT;
+    }
 
-  void incCount(unsigned nesting, uint8_t op) {
-    CODEGEN_ASSERT(nesting <= getNestingLimit());
-    CODEGEN_ASSERT(op < getOpLimit());
-    ++counts[nesting][op];
-  }
+    void incCount(unsigned nesting, uint8_t op)
+    {
+        CODEGEN_ASSERT(nesting <= getNestingLimit());
+        CODEGEN_ASSERT(op < getOpLimit());
+        ++counts[nesting][op];
+    }
 
-  unsigned getCount(unsigned nesting, uint8_t op) const {
-    CODEGEN_ASSERT(nesting <= getNestingLimit());
-    CODEGEN_ASSERT(op < getOpLimit());
-    return counts[nesting][op];
-  }
+    unsigned getCount(unsigned nesting, uint8_t op) const
+    {
+        CODEGEN_ASSERT(nesting <= getNestingLimit());
+        CODEGEN_ASSERT(op < getOpLimit());
+        return counts[nesting][op];
+    }
 
-  const std::vector<unsigned> &getCounts(unsigned nesting) const {
-    CODEGEN_ASSERT(nesting <= getNestingLimit());
-    return counts[nesting];
-  }
+    const std::vector<unsigned>& getCounts(unsigned nesting) const
+    {
+        CODEGEN_ASSERT(nesting <= getNestingLimit());
+        return counts[nesting];
+    }
 
-  static FunctionBytecodeSummary fromProto(Proto *proto, unsigned nestingLimit);
+    static FunctionBytecodeSummary fromProto(Proto* proto, unsigned nestingLimit);
 
 private:
-  std::string source;
-  std::string name;
-  int line;
-  unsigned nestingLimit;
-  std::vector<std::vector<unsigned>> counts;
+    std::string source;
+    std::string name;
+    int line;
+    unsigned nestingLimit;
+    std::vector<std::vector<unsigned>> counts;
 };
 
-std::vector<FunctionBytecodeSummary> summarizeBytecode(lua_State *L, int idx,
-                                                       unsigned nestingLimit);
+std::vector<FunctionBytecodeSummary> summarizeBytecode(lua_State* L, int idx, unsigned nestingLimit);
 
 } // namespace CodeGen
 } // namespace Luau
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrVisitUseDef.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/IrData.h>
 
 LUAU_FASTFLAG(LuauCodegenFastcall3)
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
-template <typename T>
-static void visitVmRegDefsUses(T &visitor, IrFunction &function,
-                               const IrInst &inst) {
-  // For correct analysis, all instruction uses must be handled before handling
-  // the definitions
-  switch (inst.cmd) {
-  case IrCmd::LOAD_TAG:
-  case IrCmd::LOAD_POINTER:
-  case IrCmd::LOAD_DOUBLE:
-  case IrCmd::LOAD_INT:
-  case IrCmd::LOAD_FLOAT:
-  case IrCmd::LOAD_TVALUE:
-    visitor.maybeUse(inst.a); // Argument can also be a VmConst
-    break;
-  case IrCmd::STORE_TAG:
-  case IrCmd::STORE_EXTRA:
-  case IrCmd::STORE_POINTER:
-  case IrCmd::STORE_DOUBLE:
-  case IrCmd::STORE_INT:
-  case IrCmd::STORE_VECTOR:
-  case IrCmd::STORE_TVALUE:
-  case IrCmd::STORE_SPLIT_TVALUE:
-    visitor.maybeDef(inst.a); // Argument can also be a pointer value
-    break;
-  case IrCmd::CMP_ANY:
-    visitor.use(inst.a);
-    visitor.use(inst.b);
-    break;
-  case IrCmd::JUMP_IF_TRUTHY:
-  case IrCmd::JUMP_IF_FALSY:
-    visitor.use(inst.a);
-    break;
-    // A <- B, C
-  case IrCmd::DO_ARITH:
-    visitor.maybeUse(inst.b); // Argument can also be a VmConst
-    visitor.maybeUse(inst.c); // Argument can also be a VmConst
+template<typename T>
+static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrInst& inst)
+{
+    // For correct analysis, all instruction uses must be handled before handling the definitions
+    switch (inst.cmd)
+    {
+    case IrCmd::LOAD_TAG:
+    case IrCmd::LOAD_POINTER:
+    case IrCmd::LOAD_DOUBLE:
+    case IrCmd::LOAD_INT:
+    case IrCmd::LOAD_FLOAT:
+    case IrCmd::LOAD_TVALUE:
+        visitor.maybeUse(inst.a); // Argument can also be a VmConst
+        break;
+    case IrCmd::STORE_TAG:
+    case IrCmd::STORE_EXTRA:
+    case IrCmd::STORE_POINTER:
+    case IrCmd::STORE_DOUBLE:
+    case IrCmd::STORE_INT:
+    case IrCmd::STORE_VECTOR:
+    case IrCmd::STORE_TVALUE:
+    case IrCmd::STORE_SPLIT_TVALUE:
+        visitor.maybeDef(inst.a); // Argument can also be a pointer value
+        break;
+    case IrCmd::CMP_ANY:
+        visitor.use(inst.a);
+        visitor.use(inst.b);
+        break;
+    case IrCmd::JUMP_IF_TRUTHY:
+    case IrCmd::JUMP_IF_FALSY:
+        visitor.use(inst.a);
+        break;
+        // A <- B, C
+    case IrCmd::DO_ARITH:
+        visitor.maybeUse(inst.b); // Argument can also be a VmConst
+        visitor.maybeUse(inst.c); // Argument can also be a VmConst
 
-    visitor.def(inst.a);
-    break;
-  case IrCmd::GET_TABLE:
-    visitor.use(inst.b);
-    visitor.maybeUse(inst.c); // Argument can also be a VmConst
+        visitor.def(inst.a);
+        break;
+    case IrCmd::GET_TABLE:
+        visitor.use(inst.b);
+        visitor.maybeUse(inst.c); // Argument can also be a VmConst
 
-    visitor.def(inst.a);
-    break;
-  case IrCmd::SET_TABLE:
-    visitor.use(inst.a);
-    visitor.use(inst.b);
-    visitor.maybeUse(inst.c); // Argument can also be a VmConst
-    break;
-    // A <- B
-  case IrCmd::DO_LEN:
-    visitor.use(inst.b);
+        visitor.def(inst.a);
+        break;
+    case IrCmd::SET_TABLE:
+        visitor.use(inst.a);
+        visitor.use(inst.b);
+        visitor.maybeUse(inst.c); // Argument can also be a VmConst
+        break;
+        // A <- B
+    case IrCmd::DO_LEN:
+        visitor.use(inst.b);
 
-    visitor.def(inst.a);
-    break;
-  case IrCmd::GET_IMPORT:
-    visitor.def(inst.a);
-    break;
-  case IrCmd::CONCAT:
-    visitor.useRange(vmRegOp(inst.a), function.uintOp(inst.b));
+        visitor.def(inst.a);
+        break;
+    case IrCmd::GET_IMPORT:
+        visitor.def(inst.a);
+        break;
+    case IrCmd::CONCAT:
+        visitor.useRange(vmRegOp(inst.a), function.uintOp(inst.b));
 
-    visitor.defRange(vmRegOp(inst.a), function.uintOp(inst.b));
-    break;
-  case IrCmd::GET_UPVALUE:
-    visitor.def(inst.a);
-    break;
-  case IrCmd::SET_UPVALUE:
-    visitor.use(inst.b);
-    break;
-  case IrCmd::INTERRUPT:
-    break;
-  case IrCmd::BARRIER_OBJ:
-  case IrCmd::BARRIER_TABLE_FORWARD:
-    visitor.maybeUse(inst.b);
-    break;
-  case IrCmd::CLOSE_UPVALS:
-    // Closing an upvalue should be counted as a register use (it copies the
-    // fresh register value) But we lack the required information about the
-    // specific set of registers that are affected Because we don't plan to
-    // optimize captured registers atm, we skip full dataflow analysis for them
-    // right now
-    break;
-  case IrCmd::CAPTURE:
-    visitor.maybeUse(inst.a);
+        visitor.defRange(vmRegOp(inst.a), function.uintOp(inst.b));
+        break;
+    case IrCmd::GET_UPVALUE:
+        visitor.def(inst.a);
+        break;
+    case IrCmd::SET_UPVALUE:
+        visitor.use(inst.b);
+        break;
+    case IrCmd::INTERRUPT:
+        break;
+    case IrCmd::BARRIER_OBJ:
+    case IrCmd::BARRIER_TABLE_FORWARD:
+        visitor.maybeUse(inst.b);
+        break;
+    case IrCmd::CLOSE_UPVALS:
+        // Closing an upvalue should be counted as a register use (it copies the fresh register value)
+        // But we lack the required information about the specific set of registers that are affected
+        // Because we don't plan to optimize captured registers atm, we skip full dataflow analysis for them right now
+        break;
+    case IrCmd::CAPTURE:
+        visitor.maybeUse(inst.a);
 
-    if (function.uintOp(inst.b) == 1)
-      visitor.capture(vmRegOp(inst.a));
-    break;
-  case IrCmd::SETLIST:
-    visitor.use(inst.b);
-    visitor.useRange(vmRegOp(inst.c), function.intOp(inst.d));
-    break;
-  case IrCmd::CALL:
-    visitor.use(inst.a);
-    visitor.useRange(vmRegOp(inst.a) + 1, function.intOp(inst.b));
+        if (function.uintOp(inst.b) == 1)
+            visitor.capture(vmRegOp(inst.a));
+        break;
+    case IrCmd::SETLIST:
+        visitor.use(inst.b);
+        visitor.useRange(vmRegOp(inst.c), function.intOp(inst.d));
+        break;
+    case IrCmd::CALL:
+        visitor.use(inst.a);
+        visitor.useRange(vmRegOp(inst.a) + 1, function.intOp(inst.b));
 
-    visitor.defRange(vmRegOp(inst.a), function.intOp(inst.c));
-    break;
-  case IrCmd::RETURN:
-    visitor.useRange(vmRegOp(inst.a), function.intOp(inst.b));
-    break;
+        visitor.defRange(vmRegOp(inst.a), function.intOp(inst.c));
+        break;
+    case IrCmd::RETURN:
+        visitor.useRange(vmRegOp(inst.a), function.intOp(inst.b));
+        break;
 
-  case IrCmd::FASTCALL:
-    if (FFlag::LuauCodegenFastcall3) {
-      visitor.use(inst.c);
-
-      if (int nresults = function.intOp(inst.d); nresults != -1)
-        visitor.defRange(vmRegOp(inst.b), nresults);
-    } else {
-      if (int count = function.intOp(inst.e); count != -1) {
-        if (count >= 3) {
-          CODEGEN_ASSERT(inst.d.kind == IrOpKind::VmReg &&
-                         vmRegOp(inst.d) == vmRegOp(inst.c) + 1);
-
-          visitor.useRange(vmRegOp(inst.c), count);
-        } else {
-          if (count >= 1)
+    case IrCmd::FASTCALL:
+        if (FFlag::LuauCodegenFastcall3)
+        {
             visitor.use(inst.c);
 
-          if (count >= 2)
-            visitor.maybeUse(inst.d); // Argument can also be a VmConst
+            if (int nresults = function.intOp(inst.d); nresults != -1)
+                visitor.defRange(vmRegOp(inst.b), nresults);
         }
-      } else {
-        visitor.useVarargs(vmRegOp(inst.c));
-      }
+        else
+        {
+            if (int count = function.intOp(inst.e); count != -1)
+            {
+                if (count >= 3)
+                {
+                    CODEGEN_ASSERT(inst.d.kind == IrOpKind::VmReg && vmRegOp(inst.d) == vmRegOp(inst.c) + 1);
 
-      // Multiple return sequences (count == -1) are defined by
-      // ADJUST_STACK_TO_REG
-      if (int count = function.intOp(inst.f); count != -1)
-        visitor.defRange(vmRegOp(inst.b), count);
+                    visitor.useRange(vmRegOp(inst.c), count);
+                }
+                else
+                {
+                    if (count >= 1)
+                        visitor.use(inst.c);
+
+                    if (count >= 2)
+                        visitor.maybeUse(inst.d); // Argument can also be a VmConst
+                }
+            }
+            else
+            {
+                visitor.useVarargs(vmRegOp(inst.c));
+            }
+
+            // Multiple return sequences (count == -1) are defined by ADJUST_STACK_TO_REG
+            if (int count = function.intOp(inst.f); count != -1)
+                visitor.defRange(vmRegOp(inst.b), count);
+        }
+        break;
+    case IrCmd::INVOKE_FASTCALL:
+        if (int count = function.intOp(FFlag::LuauCodegenFastcall3 ? inst.f : inst.e); count != -1)
+        {
+            // Only LOP_FASTCALL3 lowering is allowed to have third optional argument
+            if (count >= 3 && (!FFlag::LuauCodegenFastcall3 || inst.e.kind == IrOpKind::Undef))
+            {
+                CODEGEN_ASSERT(inst.d.kind == IrOpKind::VmReg && vmRegOp(inst.d) == vmRegOp(inst.c) + 1);
+
+                visitor.useRange(vmRegOp(inst.c), count);
+            }
+            else
+            {
+                if (count >= 1)
+                    visitor.use(inst.c);
+
+                if (count >= 2)
+                    visitor.maybeUse(inst.d); // Argument can also be a VmConst
+
+                if (FFlag::LuauCodegenFastcall3 && count >= 3)
+                    visitor.maybeUse(inst.e); // Argument can also be a VmConst
+            }
+        }
+        else
+        {
+            visitor.useVarargs(vmRegOp(inst.c));
+        }
+
+        // Multiple return sequences (count == -1) are defined by ADJUST_STACK_TO_REG
+        if (int count = function.intOp(FFlag::LuauCodegenFastcall3 ? inst.g : inst.f); count != -1)
+            visitor.defRange(vmRegOp(inst.b), count);
+        break;
+    case IrCmd::FORGLOOP:
+        // First register is not used by instruction, we check that it's still 'nil' with CHECK_TAG
+        visitor.use(inst.a, 1);
+        visitor.use(inst.a, 2);
+
+        visitor.def(inst.a, 2);
+        visitor.defRange(vmRegOp(inst.a) + 3, function.intOp(inst.b));
+        break;
+    case IrCmd::FORGLOOP_FALLBACK:
+        visitor.useRange(vmRegOp(inst.a), 3);
+
+        visitor.def(inst.a, 2);
+        visitor.defRange(vmRegOp(inst.a) + 3, uint8_t(function.intOp(inst.b))); // ignore most significant bit
+        break;
+    case IrCmd::FORGPREP_XNEXT_FALLBACK:
+        visitor.use(inst.b);
+        break;
+    case IrCmd::FALLBACK_GETGLOBAL:
+        visitor.def(inst.b);
+        break;
+    case IrCmd::FALLBACK_SETGLOBAL:
+        visitor.use(inst.b);
+        break;
+    case IrCmd::FALLBACK_GETTABLEKS:
+        visitor.use(inst.c);
+
+        visitor.def(inst.b);
+        break;
+    case IrCmd::FALLBACK_SETTABLEKS:
+        visitor.use(inst.b);
+        visitor.use(inst.c);
+        break;
+    case IrCmd::FALLBACK_NAMECALL:
+        visitor.use(inst.c);
+
+        visitor.defRange(vmRegOp(inst.b), 2);
+        break;
+    case IrCmd::FALLBACK_PREPVARARGS:
+        // No effect on explicitly referenced registers
+        break;
+    case IrCmd::FALLBACK_GETVARARGS:
+        visitor.defRange(vmRegOp(inst.b), function.intOp(inst.c));
+        break;
+    case IrCmd::FALLBACK_DUPCLOSURE:
+        visitor.def(inst.b);
+        break;
+    case IrCmd::FALLBACK_FORGPREP:
+        // This instruction doesn't always redefine Rn, Rn+1, Rn+2, so we have to mark it as implicit use
+        visitor.useRange(vmRegOp(inst.b), 3);
+
+        visitor.defRange(vmRegOp(inst.b), 3);
+        break;
+    case IrCmd::ADJUST_STACK_TO_REG:
+        visitor.defRange(vmRegOp(inst.a), -1);
+        break;
+    case IrCmd::ADJUST_STACK_TO_TOP:
+        // While this can be considered to be a vararg consumer, it is already handled in fastcall instructions
+        break;
+    case IrCmd::GET_TYPEOF:
+        visitor.use(inst.a);
+        break;
+
+    case IrCmd::FINDUPVAL:
+        visitor.use(inst.a);
+        break;
+
+    default:
+        // All instructions which reference registers have to be handled explicitly
+        CODEGEN_ASSERT(inst.a.kind != IrOpKind::VmReg);
+        CODEGEN_ASSERT(inst.b.kind != IrOpKind::VmReg);
+        CODEGEN_ASSERT(inst.c.kind != IrOpKind::VmReg);
+        CODEGEN_ASSERT(inst.d.kind != IrOpKind::VmReg);
+        CODEGEN_ASSERT(inst.e.kind != IrOpKind::VmReg);
+        CODEGEN_ASSERT(inst.f.kind != IrOpKind::VmReg);
+        CODEGEN_ASSERT(inst.g.kind != IrOpKind::VmReg);
+        break;
     }
-    break;
-  case IrCmd::INVOKE_FASTCALL:
-    if (int count =
-            function.intOp(FFlag::LuauCodegenFastcall3 ? inst.f : inst.e);
-        count != -1) {
-      // Only LOP_FASTCALL3 lowering is allowed to have third optional argument
-      if (count >= 3 &&
-          (!FFlag::LuauCodegenFastcall3 || inst.e.kind == IrOpKind::Undef)) {
-        CODEGEN_ASSERT(inst.d.kind == IrOpKind::VmReg &&
-                       vmRegOp(inst.d) == vmRegOp(inst.c) + 1);
-
-        visitor.useRange(vmRegOp(inst.c), count);
-      } else {
-        if (count >= 1)
-          visitor.use(inst.c);
-
-        if (count >= 2)
-          visitor.maybeUse(inst.d); // Argument can also be a VmConst
-
-        if (FFlag::LuauCodegenFastcall3 && count >= 3)
-          visitor.maybeUse(inst.e); // Argument can also be a VmConst
-      }
-    } else {
-      visitor.useVarargs(vmRegOp(inst.c));
-    }
-
-    // Multiple return sequences (count == -1) are defined by
-    // ADJUST_STACK_TO_REG
-    if (int count =
-            function.intOp(FFlag::LuauCodegenFastcall3 ? inst.g : inst.f);
-        count != -1)
-      visitor.defRange(vmRegOp(inst.b), count);
-    break;
-  case IrCmd::FORGLOOP:
-    // First register is not used by instruction, we check that it's still 'nil'
-    // with CHECK_TAG
-    visitor.use(inst.a, 1);
-    visitor.use(inst.a, 2);
-
-    visitor.def(inst.a, 2);
-    visitor.defRange(vmRegOp(inst.a) + 3, function.intOp(inst.b));
-    break;
-  case IrCmd::FORGLOOP_FALLBACK:
-    visitor.useRange(vmRegOp(inst.a), 3);
-
-    visitor.def(inst.a, 2);
-    visitor.defRange(
-        vmRegOp(inst.a) + 3,
-        uint8_t(function.intOp(inst.b))); // ignore most significant bit
-    break;
-  case IrCmd::FORGPREP_XNEXT_FALLBACK:
-    visitor.use(inst.b);
-    break;
-  case IrCmd::FALLBACK_GETGLOBAL:
-    visitor.def(inst.b);
-    break;
-  case IrCmd::FALLBACK_SETGLOBAL:
-    visitor.use(inst.b);
-    break;
-  case IrCmd::FALLBACK_GETTABLEKS:
-    visitor.use(inst.c);
-
-    visitor.def(inst.b);
-    break;
-  case IrCmd::FALLBACK_SETTABLEKS:
-    visitor.use(inst.b);
-    visitor.use(inst.c);
-    break;
-  case IrCmd::FALLBACK_NAMECALL:
-    visitor.use(inst.c);
-
-    visitor.defRange(vmRegOp(inst.b), 2);
-    break;
-  case IrCmd::FALLBACK_PREPVARARGS:
-    // No effect on explicitly referenced registers
-    break;
-  case IrCmd::FALLBACK_GETVARARGS:
-    visitor.defRange(vmRegOp(inst.b), function.intOp(inst.c));
-    break;
-  case IrCmd::FALLBACK_DUPCLOSURE:
-    visitor.def(inst.b);
-    break;
-  case IrCmd::FALLBACK_FORGPREP:
-    // This instruction doesn't always redefine Rn, Rn+1, Rn+2, so we have to
-    // mark it as implicit use
-    visitor.useRange(vmRegOp(inst.b), 3);
-
-    visitor.defRange(vmRegOp(inst.b), 3);
-    break;
-  case IrCmd::ADJUST_STACK_TO_REG:
-    visitor.defRange(vmRegOp(inst.a), -1);
-    break;
-  case IrCmd::ADJUST_STACK_TO_TOP:
-    // While this can be considered to be a vararg consumer, it is already
-    // handled in fastcall instructions
-    break;
-  case IrCmd::GET_TYPEOF:
-    visitor.use(inst.a);
-    break;
-
-  case IrCmd::FINDUPVAL:
-    visitor.use(inst.a);
-    break;
-
-  default:
-    // All instructions which reference registers have to be handled explicitly
-    CODEGEN_ASSERT(inst.a.kind != IrOpKind::VmReg);
-    CODEGEN_ASSERT(inst.b.kind != IrOpKind::VmReg);
-    CODEGEN_ASSERT(inst.c.kind != IrOpKind::VmReg);
-    CODEGEN_ASSERT(inst.d.kind != IrOpKind::VmReg);
-    CODEGEN_ASSERT(inst.e.kind != IrOpKind::VmReg);
-    CODEGEN_ASSERT(inst.f.kind != IrOpKind::VmReg);
-    CODEGEN_ASSERT(inst.g.kind != IrOpKind::VmReg);
-    break;
-  }
 }
 
-template <typename T>
-static void visitVmRegDefsUses(T &visitor, IrFunction &function,
-                               const IrBlock &block) {
-  for (uint32_t instIdx = block.start; instIdx <= block.finish; instIdx++) {
-    IrInst &inst = function.instructions[instIdx];
+template<typename T>
+static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrBlock& block)
+{
+    for (uint32_t instIdx = block.start; instIdx <= block.finish; instIdx++)
+    {
+        IrInst& inst = function.instructions[instIdx];
 
-    visitVmRegDefsUses(visitor, function, inst);
-  }
+        visitVmRegDefsUses(visitor, function, inst);
+    }
 }
 
 } // namespace CodeGen
@@ -3444,12 +3557,9 @@ static void visitVmRegDefsUses(T &visitor, IrFunction &function,
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/SharedCodeAllocator.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined
-// <CodeGen/include/Luau/CodeGen.h>
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/CodeGen.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@ PACK.lua : not found, likely and std header
 #include <algorithm>
 
@@ -3474,388 +3584,377 @@ struct lua_State;
 #define CODEGEN_TARGET_A64
 #endif
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
-enum CodeGenFlags {
-  // Only run native codegen for modules that have been marked with --!native
-  CodeGen_OnlyNativeModules = 1 << 0,
-  // Run native codegen for functions that the compiler considers not profitable
-  CodeGen_ColdFunctions = 1 << 1,
+enum CodeGenFlags
+{
+    // Only run native codegen for modules that have been marked with --!native
+    CodeGen_OnlyNativeModules = 1 << 0,
+    // Run native codegen for functions that the compiler considers not profitable
+    CodeGen_ColdFunctions = 1 << 1,
 };
 
 // These enum values can be reported through telemetry.
 // To ensure consistency, changes should be additive.
-enum class CodeGenCompilationResult {
-  Success = 0,          // Successfully generated code for at least one function
-  NothingToCompile = 1, // There were no new functions to compile
-  NotNativeModule = 2,  // Module does not have `--!native` comment
+enum class CodeGenCompilationResult
+{
+    Success = 0,          // Successfully generated code for at least one function
+    NothingToCompile = 1, // There were no new functions to compile
+    NotNativeModule = 2,  // Module does not have `--!native` comment
 
-  CodeGenNotInitialized = 3, // Native codegen system is not initialized
-  CodeGenOverflowInstructionLimit = 4,      // Instruction limit overflow
-  CodeGenOverflowBlockLimit = 5,            // Block limit overflow
-  CodeGenOverflowBlockInstructionLimit = 6, // Block instruction limit overflow
-  CodeGenAssemblerFinalizationFailure =
-      7,                      // Failure during assembler finalization
-  CodeGenLoweringFailure = 8, // Lowering failed
-  AllocationFailed = 9, // Native codegen failed due to an allocation error
+    CodeGenNotInitialized = 3,                // Native codegen system is not initialized
+    CodeGenOverflowInstructionLimit = 4,      // Instruction limit overflow
+    CodeGenOverflowBlockLimit = 5,            // Block limit overflow
+    CodeGenOverflowBlockInstructionLimit = 6, // Block instruction limit overflow
+    CodeGenAssemblerFinalizationFailure = 7,  // Failure during assembler finalization
+    CodeGenLoweringFailure = 8,               // Lowering failed
+    AllocationFailed = 9,                     // Native codegen failed due to an allocation error
 
-  Count = 10,
+    Count = 10,
 };
 
-std::string toString(const CodeGenCompilationResult &result);
+std::string toString(const CodeGenCompilationResult& result);
 
-struct ProtoCompilationFailure {
-  CodeGenCompilationResult result = CodeGenCompilationResult::Success;
+struct ProtoCompilationFailure
+{
+    CodeGenCompilationResult result = CodeGenCompilationResult::Success;
 
-  std::string debugname;
-  int line = -1;
+    std::string debugname;
+    int line = -1;
 };
 
-struct CompilationResult {
-  CodeGenCompilationResult result = CodeGenCompilationResult::Success;
+struct CompilationResult
+{
+    CodeGenCompilationResult result = CodeGenCompilationResult::Success;
 
-  std::vector<ProtoCompilationFailure> protoFailures;
+    std::vector<ProtoCompilationFailure> protoFailures;
 
-  [[nodiscard]] bool hasErrors() const {
-    return result != CodeGenCompilationResult::Success ||
-           !protoFailures.empty();
-  }
+    [[nodiscard]] bool hasErrors() const
+    {
+        return result != CodeGenCompilationResult::Success || !protoFailures.empty();
+    }
 };
 
 struct IrBuilder;
 struct IrOp;
 
-using HostVectorOperationBytecodeType = uint8_t (*)(const char *member,
-                                                    size_t memberLength);
-using HostVectorAccessHandler = bool (*)(IrBuilder &builder, const char *member,
-                                         size_t memberLength, int resultReg,
-                                         int sourceReg, int pcpos);
-using HostVectorNamecallHandler = bool (*)(IrBuilder &builder,
-                                           const char *member,
-                                           size_t memberLength, int argResReg,
-                                           int sourceReg, int params,
-                                           int results, int pcpos);
+using HostVectorOperationBytecodeType = uint8_t (*)(const char* member, size_t memberLength);
+using HostVectorAccessHandler = bool (*)(IrBuilder& builder, const char* member, size_t memberLength, int resultReg, int sourceReg, int pcpos);
+using HostVectorNamecallHandler = bool (*)(
+    IrBuilder& builder, const char* member, size_t memberLength, int argResReg, int sourceReg, int params, int results, int pcpos);
 
-enum class HostMetamethod {
-  Add,
-  Sub,
-  Mul,
-  Div,
-  Idiv,
-  Mod,
-  Pow,
-  Minus,
-  Equal,
-  LessThan,
-  LessEqual,
-  Length,
-  Concat,
+enum class HostMetamethod
+{
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Idiv,
+    Mod,
+    Pow,
+    Minus,
+    Equal,
+    LessThan,
+    LessEqual,
+    Length,
+    Concat,
 };
 
-using HostUserdataOperationBytecodeType = uint8_t (*)(uint8_t type,
-                                                      const char *member,
-                                                      size_t memberLength);
-using HostUserdataMetamethodBytecodeType = uint8_t (*)(uint8_t lhsTy,
-                                                       uint8_t rhsTy,
-                                                       HostMetamethod method);
-using HostUserdataAccessHandler = bool (*)(IrBuilder &builder, uint8_t type,
-                                           const char *member,
-                                           size_t memberLength, int resultReg,
-                                           int sourceReg, int pcpos);
-using HostUserdataMetamethodHandler = bool (*)(IrBuilder &builder,
-                                               uint8_t lhsTy, uint8_t rhsTy,
-                                               int resultReg, IrOp lhs,
-                                               IrOp rhs, HostMetamethod method,
-                                               int pcpos);
-using HostUserdataNamecallHandler = bool (*)(IrBuilder &builder, uint8_t type,
-                                             const char *member,
-                                             size_t memberLength, int argResReg,
-                                             int sourceReg, int params,
-                                             int results, int pcpos);
+using HostUserdataOperationBytecodeType = uint8_t (*)(uint8_t type, const char* member, size_t memberLength);
+using HostUserdataMetamethodBytecodeType = uint8_t (*)(uint8_t lhsTy, uint8_t rhsTy, HostMetamethod method);
+using HostUserdataAccessHandler = bool (*)(
+    IrBuilder& builder, uint8_t type, const char* member, size_t memberLength, int resultReg, int sourceReg, int pcpos);
+using HostUserdataMetamethodHandler = bool (*)(
+    IrBuilder& builder, uint8_t lhsTy, uint8_t rhsTy, int resultReg, IrOp lhs, IrOp rhs, HostMetamethod method, int pcpos);
+using HostUserdataNamecallHandler = bool (*)(
+    IrBuilder& builder, uint8_t type, const char* member, size_t memberLength, int argResReg, int sourceReg, int params, int results, int pcpos);
 
-struct HostIrHooks {
-  // Suggest result type of a vector field access
-  HostVectorOperationBytecodeType vectorAccessBytecodeType = nullptr;
+struct HostIrHooks
+{
+    // Suggest result type of a vector field access
+    HostVectorOperationBytecodeType vectorAccessBytecodeType = nullptr;
 
-  // Suggest result type of a vector function namecall
-  HostVectorOperationBytecodeType vectorNamecallBytecodeType = nullptr;
+    // Suggest result type of a vector function namecall
+    HostVectorOperationBytecodeType vectorNamecallBytecodeType = nullptr;
 
-  // Handle vector value field access
-  // 'sourceReg' is guaranteed to be a vector
-  // Guards should take a VM exit to 'pcpos'
-  HostVectorAccessHandler vectorAccess = nullptr;
+    // Handle vector value field access
+    // 'sourceReg' is guaranteed to be a vector
+    // Guards should take a VM exit to 'pcpos'
+    HostVectorAccessHandler vectorAccess = nullptr;
 
-  // Handle namecall performed on a vector value
-  // 'sourceReg' (self argument) is guaranteed to be a vector
-  // All other arguments can be of any type
-  // Guards should take a VM exit to 'pcpos'
-  HostVectorNamecallHandler vectorNamecall = nullptr;
+    // Handle namecall performed on a vector value
+    // 'sourceReg' (self argument) is guaranteed to be a vector
+    // All other arguments can be of any type
+    // Guards should take a VM exit to 'pcpos'
+    HostVectorNamecallHandler vectorNamecall = nullptr;
 
-  // Suggest result type of a userdata field access
-  HostUserdataOperationBytecodeType userdataAccessBytecodeType = nullptr;
+    // Suggest result type of a userdata field access
+    HostUserdataOperationBytecodeType userdataAccessBytecodeType = nullptr;
 
-  // Suggest result type of a metamethod call
-  HostUserdataMetamethodBytecodeType userdataMetamethodBytecodeType = nullptr;
+    // Suggest result type of a metamethod call
+    HostUserdataMetamethodBytecodeType userdataMetamethodBytecodeType = nullptr;
 
-  // Suggest result type of a userdata namecall
-  HostUserdataOperationBytecodeType userdataNamecallBytecodeType = nullptr;
+    // Suggest result type of a userdata namecall
+    HostUserdataOperationBytecodeType userdataNamecallBytecodeType = nullptr;
 
-  // Handle userdata value field access
-  // 'sourceReg' is guaranteed to be a userdata, but tag has to be checked
-  // Write to 'resultReg' might invalidate 'sourceReg'
-  // Guards should take a VM exit to 'pcpos'
-  HostUserdataAccessHandler userdataAccess = nullptr;
+    // Handle userdata value field access
+    // 'sourceReg' is guaranteed to be a userdata, but tag has to be checked
+    // Write to 'resultReg' might invalidate 'sourceReg'
+    // Guards should take a VM exit to 'pcpos'
+    HostUserdataAccessHandler userdataAccess = nullptr;
 
-  // Handle metamethod operation on a userdata value
-  // 'lhs' and 'rhs' operands can be VM registers of constants
-  // Operand types have to be checked and userdata operand tags have to be
-  // checked Write to 'resultReg' might invalidate source operands Guards should
-  // take a VM exit to 'pcpos'
-  HostUserdataMetamethodHandler userdataMetamethod = nullptr;
+    // Handle metamethod operation on a userdata value
+    // 'lhs' and 'rhs' operands can be VM registers of constants
+    // Operand types have to be checked and userdata operand tags have to be checked
+    // Write to 'resultReg' might invalidate source operands
+    // Guards should take a VM exit to 'pcpos'
+    HostUserdataMetamethodHandler userdataMetamethod = nullptr;
 
-  // Handle namecall performed on a userdata value
-  // 'sourceReg' (self argument) is guaranteed to be a userdata, but tag has to
-  // be checked All other arguments can be of any type Guards should take a VM
-  // exit to 'pcpos'
-  HostUserdataNamecallHandler userdataNamecall = nullptr;
+    // Handle namecall performed on a userdata value
+    // 'sourceReg' (self argument) is guaranteed to be a userdata, but tag has to be checked
+    // All other arguments can be of any type
+    // Guards should take a VM exit to 'pcpos'
+    HostUserdataNamecallHandler userdataNamecall = nullptr;
 };
 
-struct CompilationOptions {
-  unsigned int flags = 0;
-  HostIrHooks hooks;
+struct CompilationOptions
+{
+    unsigned int flags = 0;
+    HostIrHooks hooks;
 
-  // null-terminated array of userdata types names that might have custom
-  // lowering
-  const char *const *userdataTypes = nullptr;
+    // null-terminated array of userdata types names that might have custom lowering
+    const char* const* userdataTypes = nullptr;
 };
 
-struct CompilationStats {
-  size_t bytecodeSizeBytes = 0;
-  size_t nativeCodeSizeBytes = 0;
-  size_t nativeDataSizeBytes = 0;
-  size_t nativeMetadataSizeBytes = 0;
+struct CompilationStats
+{
+    size_t bytecodeSizeBytes = 0;
+    size_t nativeCodeSizeBytes = 0;
+    size_t nativeDataSizeBytes = 0;
+    size_t nativeMetadataSizeBytes = 0;
 
-  uint32_t functionsTotal = 0;
-  uint32_t functionsCompiled = 0;
-  uint32_t functionsBound = 0;
+    uint32_t functionsTotal = 0;
+    uint32_t functionsCompiled = 0;
+    uint32_t functionsBound = 0;
 };
 
-using AllocationCallback = void(void *context, void *oldPointer, size_t oldSize,
-                                void *newPointer, size_t newSize);
+using AllocationCallback = void(void* context, void* oldPointer, size_t oldSize, void* newPointer, size_t newSize);
 
 bool isSupported();
 
 class SharedCodeGenContext;
 
-struct SharedCodeGenContextDeleter {
-  void operator()(const SharedCodeGenContext *context) const noexcept;
+struct SharedCodeGenContextDeleter
+{
+    void operator()(const SharedCodeGenContext* context) const noexcept;
 };
 
-using UniqueSharedCodeGenContext =
-    std::unique_ptr<SharedCodeGenContext, SharedCodeGenContextDeleter>;
+using UniqueSharedCodeGenContext = std::unique_ptr<SharedCodeGenContext, SharedCodeGenContextDeleter>;
 
 // Creates a new SharedCodeGenContext that can be used by multiple Luau VMs
 // concurrently, using either the default allocator parameters or custom
 // allocator parameters.
 [[nodiscard]] UniqueSharedCodeGenContext createSharedCodeGenContext();
 
-[[nodiscard]] UniqueSharedCodeGenContext
-createSharedCodeGenContext(AllocationCallback *allocationCallback,
-                           void *allocationCallbackContext);
+[[nodiscard]] UniqueSharedCodeGenContext createSharedCodeGenContext(AllocationCallback* allocationCallback, void* allocationCallbackContext);
 
-[[nodiscard]] UniqueSharedCodeGenContext
-createSharedCodeGenContext(size_t blockSize, size_t maxTotalSize,
-                           AllocationCallback *allocationCallback,
-                           void *allocationCallbackContext);
+[[nodiscard]] UniqueSharedCodeGenContext createSharedCodeGenContext(
+    size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext);
 
 // Destroys the provided SharedCodeGenContext.  All Luau VMs using the
 // SharedCodeGenContext must be destroyed before this function is called.
-void destroySharedCodeGenContext(
-    const SharedCodeGenContext *codeGenContext) noexcept;
+void destroySharedCodeGenContext(const SharedCodeGenContext* codeGenContext) noexcept;
 
 // Initializes native code-gen on the provided Luau VM, using a VM-specific
 // code-gen context and either the default allocator parameters or custom
 // allocator parameters.
-void create(lua_State *L);
-void create(lua_State *L, AllocationCallback *allocationCallback,
-            void *allocationCallbackContext);
-void create(lua_State *L, size_t blockSize, size_t maxTotalSize,
-            AllocationCallback *allocationCallback,
-            void *allocationCallbackContext);
+void create(lua_State* L);
+void create(lua_State* L, AllocationCallback* allocationCallback, void* allocationCallbackContext);
+void create(lua_State* L, size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext);
 
 // Initializes native code-gen on the provided Luau VM, using the provided
 // SharedCodeGenContext.  Note that after this function is called, the
 // SharedCodeGenContext must not be destroyed until after the Luau VM L is
 // destroyed via lua_close.
-void create(lua_State *L, SharedCodeGenContext *codeGenContext);
+void create(lua_State* L, SharedCodeGenContext* codeGenContext);
 
 // Check if native execution is enabled
-[[nodiscard]] bool isNativeExecutionEnabled(lua_State *L);
+[[nodiscard]] bool isNativeExecutionEnabled(lua_State* L);
 
 // Enable or disable native execution according to `enabled` argument
-void setNativeExecutionEnabled(lua_State *L, bool enabled);
+void setNativeExecutionEnabled(lua_State* L, bool enabled);
 
-// Given a name, this function must return the index of the type which matches
-// the type array used all CompilationOptions and AssemblyOptions If the type is
-// unknown, 0xff has to be returned
-using UserdataRemapperCallback = uint8_t(void *context, const char *name,
-                                         size_t nameLength);
+// Given a name, this function must return the index of the type which matches the type array used all CompilationOptions and AssemblyOptions
+// If the type is unknown, 0xff has to be returned
+using UserdataRemapperCallback = uint8_t(void* context, const char* name, size_t nameLength);
 
-void setUserdataRemapper(lua_State *L, void *context,
-                         UserdataRemapperCallback cb);
+void setUserdataRemapper(lua_State* L, void* context, UserdataRemapperCallback cb);
 
 using ModuleId = std::array<uint8_t, 16>;
 
 // Builds target function and all inner functions
-CompilationResult compile(lua_State *L, int idx, unsigned int flags,
-                          CompilationStats *stats = nullptr);
-CompilationResult compile(const ModuleId &moduleId, lua_State *L, int idx,
-                          unsigned int flags,
-                          CompilationStats *stats = nullptr);
+CompilationResult compile(lua_State* L, int idx, unsigned int flags, CompilationStats* stats = nullptr);
+CompilationResult compile(const ModuleId& moduleId, lua_State* L, int idx, unsigned int flags, CompilationStats* stats = nullptr);
 
-CompilationResult compile(lua_State *L, int idx,
-                          const CompilationOptions &options,
-                          CompilationStats *stats = nullptr);
-CompilationResult compile(const ModuleId &moduleId, lua_State *L, int idx,
-                          const CompilationOptions &options,
-                          CompilationStats *stats = nullptr);
+CompilationResult compile(lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats = nullptr);
+CompilationResult compile(const ModuleId& moduleId, lua_State* L, int idx, const CompilationOptions& options, CompilationStats* stats = nullptr);
 
-using AnnotatorFn = void (*)(void *context, std::string &result, int fid,
-                             int instpos);
+using AnnotatorFn = void (*)(void* context, std::string& result, int fid, int instpos);
 
 // Output "#" before IR blocks and instructions
-enum class IncludeIrPrefix { No, Yes };
+enum class IncludeIrPrefix
+{
+    No,
+    Yes
+};
 
 // Output user count and last use information of blocks and instructions
-enum class IncludeUseInfo { No, Yes };
+enum class IncludeUseInfo
+{
+    No,
+    Yes
+};
 
 // Output CFG informations like block predecessors, successors and etc
-enum class IncludeCfgInfo { No, Yes };
+enum class IncludeCfgInfo
+{
+    No,
+    Yes
+};
 
 // Output VM register live in/out information for blocks
-enum class IncludeRegFlowInfo { No, Yes };
-
-struct AssemblyOptions {
-  enum Target {
-    Host,
-    A64,
-    A64_NoFeatures,
-    X64_Windows,
-    X64_SystemV,
-  };
-
-  Target target = Host;
-
-  CompilationOptions compilationOptions;
-
-  bool outputBinary = false;
-
-  bool includeAssembly = false;
-  bool includeIr = false;
-  bool includeOutlinedCode = false;
-  bool includeIrTypes = false;
-
-  IncludeIrPrefix includeIrPrefix = IncludeIrPrefix::Yes;
-  IncludeUseInfo includeUseInfo = IncludeUseInfo::Yes;
-  IncludeCfgInfo includeCfgInfo = IncludeCfgInfo::Yes;
-  IncludeRegFlowInfo includeRegFlowInfo = IncludeRegFlowInfo::Yes;
-
-  // Optional annotator function can be provided to describe each instruction,
-  // it takes function id and sequential instruction id
-  AnnotatorFn annotator = nullptr;
-  void *annotatorContext = nullptr;
+enum class IncludeRegFlowInfo
+{
+    No,
+    Yes
 };
 
-struct BlockLinearizationStats {
-  unsigned int constPropInstructionCount = 0;
-  double timeSeconds = 0.0;
+struct AssemblyOptions
+{
+    enum Target
+    {
+        Host,
+        A64,
+        A64_NoFeatures,
+        X64_Windows,
+        X64_SystemV,
+    };
 
-  BlockLinearizationStats &operator+=(const BlockLinearizationStats &that) {
-    this->constPropInstructionCount += that.constPropInstructionCount;
-    this->timeSeconds += that.timeSeconds;
+    Target target = Host;
 
-    return *this;
-  }
+    CompilationOptions compilationOptions;
 
-  BlockLinearizationStats
-  operator+(const BlockLinearizationStats &other) const {
-    BlockLinearizationStats result(*this);
-    result += other;
-    return result;
-  }
+    bool outputBinary = false;
+
+    bool includeAssembly = false;
+    bool includeIr = false;
+    bool includeOutlinedCode = false;
+    bool includeIrTypes = false;
+
+    IncludeIrPrefix includeIrPrefix = IncludeIrPrefix::Yes;
+    IncludeUseInfo includeUseInfo = IncludeUseInfo::Yes;
+    IncludeCfgInfo includeCfgInfo = IncludeCfgInfo::Yes;
+    IncludeRegFlowInfo includeRegFlowInfo = IncludeRegFlowInfo::Yes;
+
+    // Optional annotator function can be provided to describe each instruction, it takes function id and sequential instruction id
+    AnnotatorFn annotator = nullptr;
+    void* annotatorContext = nullptr;
 };
 
-enum FunctionStatsFlags {
-  // Enable stats collection per function
-  FunctionStats_Enable = 1 << 0,
-  // Compute function bytecode summary
-  FunctionStats_BytecodeSummary = 1 << 1,
+struct BlockLinearizationStats
+{
+    unsigned int constPropInstructionCount = 0;
+    double timeSeconds = 0.0;
+
+    BlockLinearizationStats& operator+=(const BlockLinearizationStats& that)
+    {
+        this->constPropInstructionCount += that.constPropInstructionCount;
+        this->timeSeconds += that.timeSeconds;
+
+        return *this;
+    }
+
+    BlockLinearizationStats operator+(const BlockLinearizationStats& other) const
+    {
+        BlockLinearizationStats result(*this);
+        result += other;
+        return result;
+    }
 };
 
-struct FunctionStats {
-  std::string name;
-  int line = -1;
-  unsigned bcodeCount = 0;
-  unsigned irCount = 0;
-  unsigned asmCount = 0;
-  unsigned asmSize = 0;
-  std::vector<std::vector<unsigned>> bytecodeSummary;
+enum FunctionStatsFlags
+{
+    // Enable stats collection per function
+    FunctionStats_Enable = 1 << 0,
+    // Compute function bytecode summary
+    FunctionStats_BytecodeSummary = 1 << 1,
 };
 
-struct LoweringStats {
-  unsigned totalFunctions = 0;
-  unsigned skippedFunctions = 0;
-  int spillsToSlot = 0;
-  int spillsToRestore = 0;
-  unsigned maxSpillSlotsUsed = 0;
-  unsigned blocksPreOpt = 0;
-  unsigned blocksPostOpt = 0;
-  unsigned maxBlockInstructions = 0;
+struct FunctionStats
+{
+    std::string name;
+    int line = -1;
+    unsigned bcodeCount = 0;
+    unsigned irCount = 0;
+    unsigned asmCount = 0;
+    unsigned asmSize = 0;
+    std::vector<std::vector<unsigned>> bytecodeSummary;
+};
 
-  int regAllocErrors = 0;
-  int loweringErrors = 0;
+struct LoweringStats
+{
+    unsigned totalFunctions = 0;
+    unsigned skippedFunctions = 0;
+    int spillsToSlot = 0;
+    int spillsToRestore = 0;
+    unsigned maxSpillSlotsUsed = 0;
+    unsigned blocksPreOpt = 0;
+    unsigned blocksPostOpt = 0;
+    unsigned maxBlockInstructions = 0;
 
-  BlockLinearizationStats blockLinearizationStats;
+    int regAllocErrors = 0;
+    int loweringErrors = 0;
 
-  unsigned functionStatsFlags = 0;
-  std::vector<FunctionStats> functions;
+    BlockLinearizationStats blockLinearizationStats;
 
-  LoweringStats operator+(const LoweringStats &other) const {
-    LoweringStats result(*this);
-    result += other;
-    return result;
-  }
+    unsigned functionStatsFlags = 0;
+    std::vector<FunctionStats> functions;
 
-  LoweringStats &operator+=(const LoweringStats &that) {
-    this->totalFunctions += that.totalFunctions;
-    this->skippedFunctions += that.skippedFunctions;
-    this->spillsToSlot += that.spillsToSlot;
-    this->spillsToRestore += that.spillsToRestore;
-    this->maxSpillSlotsUsed =
-        std::max(this->maxSpillSlotsUsed, that.maxSpillSlotsUsed);
-    this->blocksPreOpt += that.blocksPreOpt;
-    this->blocksPostOpt += that.blocksPostOpt;
-    this->maxBlockInstructions =
-        std::max(this->maxBlockInstructions, that.maxBlockInstructions);
-    this->regAllocErrors += that.regAllocErrors;
-    this->loweringErrors += that.loweringErrors;
-    this->blockLinearizationStats += that.blockLinearizationStats;
-    if (this->functionStatsFlags & FunctionStats_Enable)
-      this->functions.insert(this->functions.end(), that.functions.begin(),
-                             that.functions.end());
-    return *this;
-  }
+    LoweringStats operator+(const LoweringStats& other) const
+    {
+        LoweringStats result(*this);
+        result += other;
+        return result;
+    }
+
+    LoweringStats& operator+=(const LoweringStats& that)
+    {
+        this->totalFunctions += that.totalFunctions;
+        this->skippedFunctions += that.skippedFunctions;
+        this->spillsToSlot += that.spillsToSlot;
+        this->spillsToRestore += that.spillsToRestore;
+        this->maxSpillSlotsUsed = std::max(this->maxSpillSlotsUsed, that.maxSpillSlotsUsed);
+        this->blocksPreOpt += that.blocksPreOpt;
+        this->blocksPostOpt += that.blocksPostOpt;
+        this->maxBlockInstructions = std::max(this->maxBlockInstructions, that.maxBlockInstructions);
+        this->regAllocErrors += that.regAllocErrors;
+        this->loweringErrors += that.loweringErrors;
+        this->blockLinearizationStats += that.blockLinearizationStats;
+        if (this->functionStatsFlags & FunctionStats_Enable)
+            this->functions.insert(this->functions.end(), that.functions.begin(), that.functions.end());
+        return *this;
+    }
 };
 
 // Generates assembly for target function and all inner functions
-std::string getAssembly(lua_State *L, int idx, AssemblyOptions options = {},
-                        LoweringStats *stats = nullptr);
+std::string getAssembly(lua_State* L, int idx, AssemblyOptions options = {}, LoweringStats* stats = nullptr);
 
-using PerfLogFn = void (*)(void *context, uintptr_t addr, unsigned size,
-                           const char *symbol);
+using PerfLogFn = void (*)(void* context, uintptr_t addr, unsigned size, const char* symbol);
 
-void setPerfLog(void *context, PerfLogFn logFn);
+void setPerfLog(void* context, PerfLogFn logFn);
 
 } // namespace CodeGen
 } // namespace Luau
@@ -3863,61 +3962,59 @@ void setPerfLog(void *context, PerfLogFn logFn);
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/NativeProtoExecData.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : was already included! <memory>
 
 // @@@@@ PACK.LUA : was already included! <stdint.h>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 // The NativeProtoExecData is constant metadata associated with a NativeProto.
-// We generally refer to the NativeProtoExecData via a pointer to the
-// instruction offsets array because this makes the logic in the entry gate
-// simpler.
+// We generally refer to the NativeProtoExecData via a pointer to the instruction
+// offsets array because this makes the logic in the entry gate simpler.
 
 class NativeModule;
 
-struct NativeProtoExecDataHeader {
-  // The NativeModule that owns this NativeProto.  This is initialized
-  // when the NativeProto is bound to the NativeModule via assignToModule().
-  NativeModule *nativeModule = nullptr;
+struct NativeProtoExecDataHeader
+{
+    // The NativeModule that owns this NativeProto.  This is initialized
+    // when the NativeProto is bound to the NativeModule via assignToModule().
+    NativeModule* nativeModule = nullptr;
 
-  // We store the native code offset until the code is allocated in executable
-  // pages, after which point we store the actual address.
-  const uint8_t *entryOffsetOrAddress = nullptr;
+    // We store the native code offset until the code is allocated in executable
+    // pages, after which point we store the actual address.
+    const uint8_t* entryOffsetOrAddress = nullptr;
 
-  // The bytecode id of the proto
-  uint32_t bytecodeId = 0;
+    // The bytecode id of the proto
+    uint32_t bytecodeId = 0;
 
-  // The number of bytecode instructions in the proto.  This is the number of
-  // elements in the instruction offsets array following this header.
-  uint32_t bytecodeInstructionCount = 0;
+    // The number of bytecode instructions in the proto.  This is the number of
+    // elements in the instruction offsets array following this header.
+    uint32_t bytecodeInstructionCount = 0;
 
-  // The size of the native code for this NativeProto, in bytes.
-  size_t nativeCodeSize = 0;
+    // The size of the native code for this NativeProto, in bytes.
+    size_t nativeCodeSize = 0;
 };
 
 // Make sure that the instruction offsets array following the header will be
 // correctly aligned:
 static_assert(sizeof(NativeProtoExecDataHeader) % sizeof(uint32_t) == 0);
 
-struct NativeProtoExecDataDeleter {
-  void operator()(const uint32_t *instructionOffsets) const noexcept;
+struct NativeProtoExecDataDeleter
+{
+    void operator()(const uint32_t* instructionOffsets) const noexcept;
 };
 
-using NativeProtoExecDataPtr =
-    std::unique_ptr<uint32_t[], NativeProtoExecDataDeleter>;
+using NativeProtoExecDataPtr = std::unique_ptr<uint32_t[], NativeProtoExecDataDeleter>;
 
-[[nodiscard]] NativeProtoExecDataPtr
-createNativeProtoExecData(uint32_t bytecodeInstructionCount);
-void destroyNativeProtoExecData(const uint32_t *instructionOffsets) noexcept;
+[[nodiscard]] NativeProtoExecDataPtr createNativeProtoExecData(uint32_t bytecodeInstructionCount);
+void destroyNativeProtoExecData(const uint32_t* instructionOffsets) noexcept;
 
-[[nodiscard]] NativeProtoExecDataHeader &
-getNativeProtoExecDataHeader(uint32_t *instructionOffsets) noexcept;
-[[nodiscard]] const NativeProtoExecDataHeader &
-getNativeProtoExecDataHeader(const uint32_t *instructionOffsets) noexcept;
+[[nodiscard]] NativeProtoExecDataHeader& getNativeProtoExecDataHeader(uint32_t* instructionOffsets) noexcept;
+[[nodiscard]] const NativeProtoExecDataHeader& getNativeProtoExecDataHeader(const uint32_t* instructionOffsets) noexcept;
 
 } // namespace CodeGen
 } // namespace Luau
@@ -3941,8 +4038,10 @@ getNativeProtoExecDataHeader(const uint32_t *instructionOffsets) noexcept;
 
 // @@@@@ PACK.LUA : was already included! <vector>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 // SharedCodeAllocator is a native executable code allocator that provides
 // shared ownership of the native code.  Code is allocated on a per-module
@@ -3962,135 +4061,126 @@ class SharedCodeAllocator;
 // the unit of shared ownership and is thus where the reference count is
 // maintained.  It owns a set of NativeProtos, with associated native exec data,
 // and the allocated native data and code.
-class NativeModule {
+class NativeModule
+{
 public:
-  NativeModule(SharedCodeAllocator *allocator,
-               const std::optional<ModuleId> &moduleId,
-               const uint8_t *moduleBaseAddress,
-               std::vector<NativeProtoExecDataPtr> nativeProtos) noexcept;
+    NativeModule(SharedCodeAllocator* allocator, const std::optional<ModuleId>& moduleId, const uint8_t* moduleBaseAddress,
+        std::vector<NativeProtoExecDataPtr> nativeProtos) noexcept;
 
-  NativeModule(const NativeModule &) = delete;
-  NativeModule(NativeModule &&) = delete;
-  NativeModule &operator=(const NativeModule &) = delete;
-  NativeModule &operator=(NativeModule &&) = delete;
+    NativeModule(const NativeModule&) = delete;
+    NativeModule(NativeModule&&) = delete;
+    NativeModule& operator=(const NativeModule&) = delete;
+    NativeModule& operator=(NativeModule&&) = delete;
 
-  // The NativeModule must not be destroyed if there are any outstanding
-  // references.  It should thus only be destroyed by a call to release()
-  // that releases the last reference.
-  ~NativeModule() noexcept;
+    // The NativeModule must not be destroyed if there are any outstanding
+    // references.  It should thus only be destroyed by a call to release()
+    // that releases the last reference.
+    ~NativeModule() noexcept;
 
-  size_t addRef() const noexcept;
-  size_t addRefs(size_t count) const noexcept;
-  size_t release() const noexcept;
-  [[nodiscard]] size_t getRefcount() const noexcept;
+    size_t addRef() const noexcept;
+    size_t addRefs(size_t count) const noexcept;
+    size_t release() const noexcept;
+    [[nodiscard]] size_t getRefcount() const noexcept;
 
-  [[nodiscard]] const std::optional<ModuleId> &getModuleId() const noexcept;
+    [[nodiscard]] const std::optional<ModuleId>& getModuleId() const noexcept;
 
-  // Gets the base address of the executable native code for the module.
-  [[nodiscard]] const uint8_t *getModuleBaseAddress() const noexcept;
+    // Gets the base address of the executable native code for the module.
+    [[nodiscard]] const uint8_t* getModuleBaseAddress() const noexcept;
 
-  // Attempts to find the NativeProto with the given bytecode id.  If no
-  // NativeProto for that bytecode id exists, a null pointer is returned.
-  [[nodiscard]] const uint32_t *
-  tryGetNativeProto(uint32_t bytecodeId) const noexcept;
+    // Attempts to find the NativeProto with the given bytecode id.  If no
+    // NativeProto for that bytecode id exists, a null pointer is returned.
+    [[nodiscard]] const uint32_t* tryGetNativeProto(uint32_t bytecodeId) const noexcept;
 
-  [[nodiscard]] const std::vector<NativeProtoExecDataPtr> &
-  getNativeProtos() const noexcept;
+    [[nodiscard]] const std::vector<NativeProtoExecDataPtr>& getNativeProtos() const noexcept;
 
 private:
-  mutable std::atomic<size_t> refcount = 0;
+    mutable std::atomic<size_t> refcount = 0;
 
-  SharedCodeAllocator *allocator = nullptr;
-  std::optional<ModuleId> moduleId = {};
-  const uint8_t *moduleBaseAddress = nullptr;
+    SharedCodeAllocator* allocator = nullptr;
+    std::optional<ModuleId> moduleId = {};
+    const uint8_t* moduleBaseAddress = nullptr;
 
-  std::vector<NativeProtoExecDataPtr> nativeProtos = {};
+    std::vector<NativeProtoExecDataPtr> nativeProtos = {};
 };
 
 // A NativeModuleRef is an owning reference to a NativeModule.  (Note:  We do
 // not use shared_ptr, to avoid complex state management in the Luau GC Proto
 // object.)
-class NativeModuleRef {
+class NativeModuleRef
+{
 public:
-  NativeModuleRef() noexcept = default;
-  NativeModuleRef(const NativeModule *nativeModule) noexcept;
+    NativeModuleRef() noexcept = default;
+    NativeModuleRef(const NativeModule* nativeModule) noexcept;
 
-  NativeModuleRef(const NativeModuleRef &other) noexcept;
-  NativeModuleRef(NativeModuleRef &&other) noexcept;
-  NativeModuleRef &operator=(NativeModuleRef other) noexcept;
+    NativeModuleRef(const NativeModuleRef& other) noexcept;
+    NativeModuleRef(NativeModuleRef&& other) noexcept;
+    NativeModuleRef& operator=(NativeModuleRef other) noexcept;
 
-  ~NativeModuleRef() noexcept;
+    ~NativeModuleRef() noexcept;
 
-  void reset() noexcept;
-  void swap(NativeModuleRef &other) noexcept;
+    void reset() noexcept;
+    void swap(NativeModuleRef& other) noexcept;
 
-  [[nodiscard]] bool empty() const noexcept;
-  explicit operator bool() const noexcept;
+    [[nodiscard]] bool empty() const noexcept;
+    explicit operator bool() const noexcept;
 
-  [[nodiscard]] const NativeModule *get() const noexcept;
-  [[nodiscard]] const NativeModule *operator->() const noexcept;
-  [[nodiscard]] const NativeModule &operator*() const noexcept;
+    [[nodiscard]] const NativeModule* get() const noexcept;
+    [[nodiscard]] const NativeModule* operator->() const noexcept;
+    [[nodiscard]] const NativeModule& operator*() const noexcept;
 
 private:
-  const NativeModule *nativeModule = nullptr;
+    const NativeModule* nativeModule = nullptr;
 };
 
-class SharedCodeAllocator {
+class SharedCodeAllocator
+{
 public:
-  SharedCodeAllocator(CodeAllocator *codeAllocator) noexcept;
+    SharedCodeAllocator(CodeAllocator* codeAllocator) noexcept;
 
-  SharedCodeAllocator(const SharedCodeAllocator &) = delete;
-  SharedCodeAllocator(SharedCodeAllocator &&) = delete;
-  SharedCodeAllocator &operator=(const SharedCodeAllocator &) = delete;
-  SharedCodeAllocator &operator=(SharedCodeAllocator &&) = delete;
+    SharedCodeAllocator(const SharedCodeAllocator&) = delete;
+    SharedCodeAllocator(SharedCodeAllocator&&) = delete;
+    SharedCodeAllocator& operator=(const SharedCodeAllocator&) = delete;
+    SharedCodeAllocator& operator=(SharedCodeAllocator&&) = delete;
 
-  ~SharedCodeAllocator() noexcept;
+    ~SharedCodeAllocator() noexcept;
 
-  // If we have a NativeModule for the given ModuleId, an owning reference to
-  // it is returned.  Otherwise, an empty NativeModuleRef is returned.
-  [[nodiscard]] NativeModuleRef
-  tryGetNativeModule(const ModuleId &moduleId) const noexcept;
+    // If we have a NativeModule for the given ModuleId, an owning reference to
+    // it is returned.  Otherwise, an empty NativeModuleRef is returned.
+    [[nodiscard]] NativeModuleRef tryGetNativeModule(const ModuleId& moduleId) const noexcept;
 
-  // If we have a NativeModule for the given ModuleId, an owning reference to
-  // it is returned.  Otherwise, a new NativeModule is created for that ModuleId
-  // using the provided NativeProtos, data, and code (space is allocated for the
-  // data and code such that it can be executed).  Like std::map::insert, the
-  // bool result is true if a new module was created; false if an existing
-  // module is being returned.
-  std::pair<NativeModuleRef, bool>
-  getOrInsertNativeModule(const ModuleId &moduleId,
-                          std::vector<NativeProtoExecDataPtr> nativeProtos,
-                          const uint8_t *data, size_t dataSize,
-                          const uint8_t *code, size_t codeSize);
+    // If we have a NativeModule for the given ModuleId, an owning reference to
+    // it is returned.  Otherwise, a new NativeModule is created for that ModuleId
+    // using the provided NativeProtos, data, and code (space is allocated for the
+    // data and code such that it can be executed).  Like std::map::insert, the
+    // bool result is true if a new module was created; false if an existing
+    // module is being returned.
+    std::pair<NativeModuleRef, bool> getOrInsertNativeModule(const ModuleId& moduleId, std::vector<NativeProtoExecDataPtr> nativeProtos,
+        const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize);
 
-  NativeModuleRef
-  insertAnonymousNativeModule(std::vector<NativeProtoExecDataPtr> nativeProtos,
-                              const uint8_t *data, size_t dataSize,
-                              const uint8_t *code, size_t codeSize);
+    NativeModuleRef insertAnonymousNativeModule(
+        std::vector<NativeProtoExecDataPtr> nativeProtos, const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize);
 
-  // If a NativeModule exists for the given ModuleId and that NativeModule
-  // is no longer referenced, the NativeModule is destroyed.  This should
-  // usually only be called by NativeModule::release() when the reference
-  // count becomes zero
-  void eraseNativeModuleIfUnreferenced(const NativeModule &nativeModule);
+    // If a NativeModule exists for the given ModuleId and that NativeModule
+    // is no longer referenced, the NativeModule is destroyed.  This should
+    // usually only be called by NativeModule::release() when the reference
+    // count becomes zero
+    void eraseNativeModuleIfUnreferenced(const NativeModule& nativeModule);
 
 private:
-  struct ModuleIdHash {
-    [[nodiscard]] size_t operator()(const ModuleId &moduleId) const noexcept;
-  };
+    struct ModuleIdHash
+    {
+        [[nodiscard]] size_t operator()(const ModuleId& moduleId) const noexcept;
+    };
 
-  [[nodiscard]] NativeModuleRef
-  tryGetNativeModuleWithLockHeld(const ModuleId &moduleId) const noexcept;
+    [[nodiscard]] NativeModuleRef tryGetNativeModuleWithLockHeld(const ModuleId& moduleId) const noexcept;
 
-  mutable std::mutex mutex;
+    mutable std::mutex mutex;
 
-  std::unordered_map<ModuleId, std::unique_ptr<NativeModule>, ModuleIdHash,
-                     std::equal_to<>>
-      identifiedModules;
+    std::unordered_map<ModuleId, std::unique_ptr<NativeModule>, ModuleIdHash, std::equal_to<>> identifiedModules;
 
-  std::atomic<size_t> anonymousModuleCount = 0;
+    std::atomic<size_t> anonymousModuleCount = 0;
 
-  CodeAllocator *codeAllocator = nullptr;
+    CodeAllocator* codeAllocator = nullptr;
 };
 
 } // namespace CodeGen
@@ -4102,19 +4192,19 @@ private:
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/CodeBlockUnwind.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : was already included! <stddef.h>
 
 // @@@@@ PACK.LUA : was already included! <stdint.h>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 // context must be an UnwindBuilder
-void *createBlockUnwindInfo(void *context, uint8_t *block, size_t blockSize,
-                            size_t &startOffset);
-void destroyBlockUnwindInfo(void *context, void *unwindData);
+void* createBlockUnwindInfo(void* context, uint8_t* block, size_t blockSize, size_t& startOffset);
+void destroyBlockUnwindInfo(void* context, void* unwindData);
 
 bool isUnwindSupported();
 
@@ -4123,78 +4213,77 @@ bool isUnwindSupported();
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/OptimizeConstProp.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/IrData.h>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 struct IrBuilder;
 
-void constPropInBlockChains(IrBuilder &build, bool useValueNumbering);
-void createLinearBlocks(IrBuilder &build, bool useValueNumbering);
+void constPropInBlockChains(IrBuilder& build, bool useValueNumbering);
+void createLinearBlocks(IrBuilder& build, bool useValueNumbering);
 
 } // namespace CodeGen
 } // namespace Luau
 
 // @@@@@ PACK.LUA : was already included! <CodeGen/include/Luau/UnwindBuilder.h>
 
-// @@@@@ PACK.LUA : was already included!
-// <CodeGen/include/Luau/AssemblyBuilderX64.h>
+// @@@@@ PACK.LUA : was already included! <CodeGen/include/Luau/AssemblyBuilderX64.h>
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/UnwindBuilderDwarf2.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/RegisterX64.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <UnwindBuilder.h>
 
 // @@@@@ PACK.LUA : was already included! <vector>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
-struct UnwindFunctionDwarf2 {
-  uint32_t beginOffset;
-  uint32_t endOffset;
-  uint32_t fdeEntryStartPos;
+struct UnwindFunctionDwarf2
+{
+    uint32_t beginOffset;
+    uint32_t endOffset;
+    uint32_t fdeEntryStartPos;
 };
 
-class UnwindBuilderDwarf2 : public UnwindBuilder {
+class UnwindBuilderDwarf2 : public UnwindBuilder
+{
 public:
-  void setBeginOffset(size_t beginOffset) override;
-  size_t getBeginOffset() const override;
+    void setBeginOffset(size_t beginOffset) override;
+    size_t getBeginOffset() const override;
 
-  void startInfo(Arch arch) override;
-  void startFunction() override;
-  void finishFunction(uint32_t beginOffset, uint32_t endOffset) override;
-  void finishInfo() override;
+    void startInfo(Arch arch) override;
+    void startFunction() override;
+    void finishFunction(uint32_t beginOffset, uint32_t endOffset) override;
+    void finishInfo() override;
 
-  void prologueA64(uint32_t prologueSize, uint32_t stackSize,
-                   std::initializer_list<A64::RegisterA64> regs) override;
-  void prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame,
-                   std::initializer_list<X64::RegisterX64> gpr,
-                   const std::vector<X64::RegisterX64> &simd) override;
+    void prologueA64(uint32_t prologueSize, uint32_t stackSize, std::initializer_list<A64::RegisterA64> regs) override;
+    void prologueX64(uint32_t prologueSize, uint32_t stackSize, bool setupFrame, std::initializer_list<X64::RegisterX64> gpr,
+        const std::vector<X64::RegisterX64>& simd) override;
 
-  size_t getUnwindInfoSize(size_t blockSize = 0) const override;
+    size_t getUnwindInfoSize(size_t blockSize = 0) const override;
 
-  size_t finalize(char *target, size_t offset, void *funcAddress,
-                  size_t blockSize) const override;
+    size_t finalize(char* target, size_t offset, void* funcAddress, size_t blockSize) const override;
 
 private:
-  size_t beginOffset = 0;
+    size_t beginOffset = 0;
 
-  std::vector<UnwindFunctionDwarf2> unwindFunctions;
+    std::vector<UnwindFunctionDwarf2> unwindFunctions;
 
-  static const unsigned kRawDataLimit = 1024;
-  uint8_t rawData[kRawDataLimit];
-  uint8_t *pos = rawData;
+    static const unsigned kRawDataLimit = 1024;
+    uint8_t rawData[kRawDataLimit];
+    uint8_t* pos = rawData;
 
-  // We will remember the FDE location to write some of the fields like entry
-  // length, function start and size later
-  uint8_t *fdeEntryStart = nullptr;
+    // We will remember the FDE location to write some of the fields like entry length, function start and size later
+    uint8_t* fdeEntryStart = nullptr;
 };
 
 } // namespace CodeGen
@@ -4204,15 +4293,13 @@ private:
 
 // @@@@@ PACK.LUA : was already included! <CodeGen/include/Luau/IrData.h>
 
-// @@@@@ PACK.LUA : was already included!
-// <CodeGen/include/Luau/NativeProtoExecData.h>
+// @@@@@ PACK.LUA : was already included! <CodeGen/include/Luau/NativeProtoExecData.h>
 
 // @@@@@ PACK.LUA : was already included! <CodeGen/include/Luau/ConditionX64.h>
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrBuilder.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Bytecode.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
@@ -4226,122 +4313,124 @@ private:
 struct Proto;
 typedef uint32_t Instruction;
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 struct HostIrHooks;
 
-struct IrBuilder {
-  IrBuilder(const HostIrHooks &hostHooks);
+struct IrBuilder
+{
+    IrBuilder(const HostIrHooks& hostHooks);
 
-  void buildFunctionIr(Proto *proto);
+    void buildFunctionIr(Proto* proto);
 
-  void rebuildBytecodeBasicBlocks(Proto *proto);
-  void translateInst(LuauOpcode op, const Instruction *pc, int i);
-  void handleFastcallFallback(IrOp fallbackOrUndef, const Instruction *pc,
-                              int i);
+    void rebuildBytecodeBasicBlocks(Proto* proto);
+    void translateInst(LuauOpcode op, const Instruction* pc, int i);
+    void handleFastcallFallback(IrOp fallbackOrUndef, const Instruction* pc, int i);
 
-  bool isInternalBlock(IrOp block);
-  void beginBlock(IrOp block);
+    bool isInternalBlock(IrOp block);
+    void beginBlock(IrOp block);
 
-  void loadAndCheckTag(IrOp loc, uint8_t tag, IrOp fallback);
+    void loadAndCheckTag(IrOp loc, uint8_t tag, IrOp fallback);
 
-  // Clones all instructions into the current block
-  // Source block that is cloned cannot use values coming in from a predecessor
-  void clone(const IrBlock &source, bool removeCurrentTerminator);
+    // Clones all instructions into the current block
+    // Source block that is cloned cannot use values coming in from a predecessor
+    void clone(const IrBlock& source, bool removeCurrentTerminator);
 
-  IrOp undef();
+    IrOp undef();
 
-  IrOp constInt(int value);
-  IrOp constUint(unsigned value);
-  IrOp constDouble(double value);
-  IrOp constTag(uint8_t value);
-  IrOp constAny(IrConst constant, uint64_t asCommonKey);
+    IrOp constInt(int value);
+    IrOp constUint(unsigned value);
+    IrOp constDouble(double value);
+    IrOp constTag(uint8_t value);
+    IrOp constAny(IrConst constant, uint64_t asCommonKey);
 
-  IrOp cond(IrCondition cond);
+    IrOp cond(IrCondition cond);
 
-  IrOp inst(IrCmd cmd);
-  IrOp inst(IrCmd cmd, IrOp a);
-  IrOp inst(IrCmd cmd, IrOp a, IrOp b);
-  IrOp inst(IrCmd cmd, IrOp a, IrOp b, IrOp c);
-  IrOp inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d);
-  IrOp inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e);
-  IrOp inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e, IrOp f);
-  IrOp inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e, IrOp f, IrOp g);
+    IrOp inst(IrCmd cmd);
+    IrOp inst(IrCmd cmd, IrOp a);
+    IrOp inst(IrCmd cmd, IrOp a, IrOp b);
+    IrOp inst(IrCmd cmd, IrOp a, IrOp b, IrOp c);
+    IrOp inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d);
+    IrOp inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e);
+    IrOp inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e, IrOp f);
+    IrOp inst(IrCmd cmd, IrOp a, IrOp b, IrOp c, IrOp d, IrOp e, IrOp f, IrOp g);
 
-  IrOp block(IrBlockKind kind); // Requested kind can be ignored if we are in an
-                                // outlined sequence
-  IrOp blockAtInst(uint32_t index);
+    IrOp block(IrBlockKind kind); // Requested kind can be ignored if we are in an outlined sequence
+    IrOp blockAtInst(uint32_t index);
 
-  IrOp vmReg(uint8_t index);
-  IrOp vmConst(uint32_t index);
-  IrOp vmUpvalue(uint8_t index);
+    IrOp vmReg(uint8_t index);
+    IrOp vmConst(uint32_t index);
+    IrOp vmUpvalue(uint8_t index);
 
-  IrOp vmExit(uint32_t pcpos);
+    IrOp vmExit(uint32_t pcpos);
 
-  const HostIrHooks &hostHooks;
+    const HostIrHooks& hostHooks;
 
-  bool inTerminatedBlock = false;
+    bool inTerminatedBlock = false;
 
-  bool interruptRequested = false;
+    bool interruptRequested = false;
 
-  bool activeFastcallFallback = false;
-  IrOp fastcallFallbackReturn;
+    bool activeFastcallFallback = false;
+    IrOp fastcallFallbackReturn;
 
-  // Force builder to skip source commands
-  int cmdSkipTarget = -1;
+    // Force builder to skip source commands
+    int cmdSkipTarget = -1;
 
-  IrFunction function;
+    IrFunction function;
 
-  uint32_t activeBlockIdx = ~0u;
+    uint32_t activeBlockIdx = ~0u;
 
-  std::vector<uint32_t>
-      instIndexToBlock; // Block index at the bytecode instruction
+    std::vector<uint32_t> instIndexToBlock; // Block index at the bytecode instruction
 
-  struct LoopInfo {
-    IrOp step;
-    int startpc = 0;
-  };
+    struct LoopInfo
+    {
+        IrOp step;
+        int startpc = 0;
+    };
 
-  std::vector<LoopInfo> numericLoopStack;
+    std::vector<LoopInfo> numericLoopStack;
 
-  // Similar to BytecodeBuilder, duplicate constants are removed used the same
-  // method
-  struct ConstantKey {
-    IrConstKind kind;
-    // Note: this stores value* from IrConst; when kind is Double, this stores
-    // the same bits as double does but in uint64_t.
-    uint64_t value;
+    // Similar to BytecodeBuilder, duplicate constants are removed used the same method
+    struct ConstantKey
+    {
+        IrConstKind kind;
+        // Note: this stores value* from IrConst; when kind is Double, this stores the same bits as double does but in uint64_t.
+        uint64_t value;
 
-    bool operator==(const ConstantKey &key) const {
-      return kind == key.kind && value == key.value;
-    }
-  };
+        bool operator==(const ConstantKey& key) const
+        {
+            return kind == key.kind && value == key.value;
+        }
+    };
 
-  struct ConstantKeyHash {
-    size_t operator()(const ConstantKey &key) const {
-      // finalizer from MurmurHash64B
-      const uint32_t m = 0x5bd1e995;
+    struct ConstantKeyHash
+    {
+        size_t operator()(const ConstantKey& key) const
+        {
+            // finalizer from MurmurHash64B
+            const uint32_t m = 0x5bd1e995;
 
-      uint32_t h1 = uint32_t(key.value);
-      uint32_t h2 = uint32_t(key.value >> 32) ^ (int(key.kind) * m);
+            uint32_t h1 = uint32_t(key.value);
+            uint32_t h2 = uint32_t(key.value >> 32) ^ (int(key.kind) * m);
 
-      h1 ^= h2 >> 18;
-      h1 *= m;
-      h2 ^= h1 >> 22;
-      h2 *= m;
-      h1 ^= h2 >> 17;
-      h1 *= m;
-      h2 ^= h1 >> 19;
-      h2 *= m;
+            h1 ^= h2 >> 18;
+            h1 *= m;
+            h2 ^= h1 >> 22;
+            h2 *= m;
+            h1 ^= h2 >> 17;
+            h1 *= m;
+            h2 ^= h1 >> 19;
+            h2 *= m;
 
-      // ... truncated to 32-bit output (normally hash is equal to (uint64_t(h1)
-      // << 32) | h2, but we only really need the lower 32-bit half)
-      return size_t(h2);
-    }
-  };
+            // ... truncated to 32-bit output (normally hash is equal to (uint64_t(h1) << 32) | h2, but we only really need the lower 32-bit half)
+            return size_t(h2);
+        }
+    };
 
-  DenseHashMap<ConstantKey, uint32_t, ConstantKeyHash> constantMap;
+    DenseHashMap<ConstantKey, uint32_t, ConstantKeyHash> constantMap;
 };
 
 } // namespace CodeGen
@@ -4351,16 +4440,17 @@ struct IrBuilder {
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/OptimizeDeadStore.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/IrData.h>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 struct IrBuilder;
 
-void markDeadStoresInBlockChains(IrBuilder &build);
+void markDeadStoresInBlockChains(IrBuilder& build);
 
 } // namespace CodeGen
 } // namespace Luau
@@ -4371,8 +4461,7 @@ void markDeadStoresInBlockChains(IrBuilder &build);
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/CodeAllocator.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/CodeGen.h>
 
 // @@@@@ PACK.LUA : was already included! <vector>
@@ -4381,63 +4470,58 @@ void markDeadStoresInBlockChains(IrBuilder &build);
 
 // @@@@@ PACK.LUA : was already included! <stdint.h>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 constexpr uint32_t kCodeAlignment = 32;
 
-struct CodeAllocator {
-  CodeAllocator(size_t blockSize, size_t maxTotalSize);
-  CodeAllocator(size_t blockSize, size_t maxTotalSize,
-                AllocationCallback *allocationCallback,
-                void *allocationCallbackContext);
-  ~CodeAllocator();
+struct CodeAllocator
+{
+    CodeAllocator(size_t blockSize, size_t maxTotalSize);
+    CodeAllocator(size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext);
+    ~CodeAllocator();
 
-  // Places data and code into the executable page area
-  // To allow allocation while previously allocated code is already running,
-  // allocation has page granularity It's important to group functions together
-  // so that page alignment won't result in a lot of wasted space
-  bool allocate(const uint8_t *data, size_t dataSize, const uint8_t *code,
-                size_t codeSize, uint8_t *&result, size_t &resultSize,
-                uint8_t *&resultCodeStart);
+    // Places data and code into the executable page area
+    // To allow allocation while previously allocated code is already running, allocation has page granularity
+    // It's important to group functions together so that page alignment won't result in a lot of wasted space
+    bool allocate(
+        const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize, uint8_t*& result, size_t& resultSize, uint8_t*& resultCodeStart);
 
-  // Provided to unwind info callbacks
-  void *context = nullptr;
+    // Provided to unwind info callbacks
+    void* context = nullptr;
 
-  // Called when new block is created to create and setup the unwinding
-  // information for all the code in the block 'startOffset' reserves space for
-  // data at the beginning of the page
-  void *(*createBlockUnwindInfo)(void *context, uint8_t *block,
-                                 size_t blockSize,
-                                 size_t &startOffset) = nullptr;
+    // Called when new block is created to create and setup the unwinding information for all the code in the block
+    // 'startOffset' reserves space for data at the beginning of the page
+    void* (*createBlockUnwindInfo)(void* context, uint8_t* block, size_t blockSize, size_t& startOffset) = nullptr;
 
-  // Called to destroy unwinding information returned by 'createBlockUnwindInfo'
-  void (*destroyBlockUnwindInfo)(void *context, void *unwindData) = nullptr;
+    // Called to destroy unwinding information returned by 'createBlockUnwindInfo'
+    void (*destroyBlockUnwindInfo)(void* context, void* unwindData) = nullptr;
 
 private:
-  // Unwind information can be placed inside the block with some
-  // implementation-specific reservations at the beginning But to simplify block
-  // space checks, we limit the max size of all that data
-  static const size_t kMaxReservedDataSize = 256;
+    // Unwind information can be placed inside the block with some implementation-specific reservations at the beginning
+    // But to simplify block space checks, we limit the max size of all that data
+    static const size_t kMaxReservedDataSize = 256;
 
-  bool allocateNewBlock(size_t &unwindInfoSize);
+    bool allocateNewBlock(size_t& unwindInfoSize);
 
-  uint8_t *allocatePages(size_t size) const;
-  void freePages(uint8_t *mem, size_t size) const;
+    uint8_t* allocatePages(size_t size) const;
+    void freePages(uint8_t* mem, size_t size) const;
 
-  // Current block we use for allocations
-  uint8_t *blockPos = nullptr;
-  uint8_t *blockEnd = nullptr;
+    // Current block we use for allocations
+    uint8_t* blockPos = nullptr;
+    uint8_t* blockEnd = nullptr;
 
-  // All allocated blocks
-  std::vector<uint8_t *> blocks;
-  std::vector<void *> unwindInfos;
+    // All allocated blocks
+    std::vector<uint8_t*> blocks;
+    std::vector<void*> unwindInfos;
 
-  size_t blockSize = 0;
-  size_t maxTotalSize = 0;
+    size_t blockSize = 0;
+    size_t maxTotalSize = 0;
 
-  AllocationCallback *allocationCallback = nullptr;
-  void *allocationCallbackContext = nullptr;
+    AllocationCallback* allocationCallback = nullptr;
+    void* allocationCallbackContext = nullptr;
 };
 
 } // namespace CodeGen
@@ -4445,22 +4529,22 @@ private:
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/OptimizeFinalX64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/IrData.h>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
-void optimizeMemoryOperandsX64(IrFunction &function);
+void optimizeMemoryOperandsX64(IrFunction& function);
 
 } // namespace CodeGen
 } // namespace Luau
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrDump.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/IrData.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/CodeGen.h>
@@ -4469,50 +4553,48 @@ void optimizeMemoryOperandsX64(IrFunction &function);
 
 // @@@@@ PACK.LUA : was already included! <vector>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 struct CfgInfo;
 
-const char *getCmdName(IrCmd cmd);
-const char *getBlockKindName(IrBlockKind kind);
+const char* getCmdName(IrCmd cmd);
+const char* getBlockKindName(IrBlockKind kind);
 
-struct IrToStringContext {
-  std::string &result;
-  const std::vector<IrBlock> &blocks;
-  const std::vector<IrConst> &constants;
-  const CfgInfo &cfg;
+struct IrToStringContext
+{
+    std::string& result;
+    const std::vector<IrBlock>& blocks;
+    const std::vector<IrConst>& constants;
+    const CfgInfo& cfg;
 };
 
-void toString(IrToStringContext &ctx, const IrInst &inst, uint32_t index);
-void toString(IrToStringContext &ctx, const IrBlock &block,
-              uint32_t index); // Block title
-void toString(IrToStringContext &ctx, IrOp op);
+void toString(IrToStringContext& ctx, const IrInst& inst, uint32_t index);
+void toString(IrToStringContext& ctx, const IrBlock& block, uint32_t index); // Block title
+void toString(IrToStringContext& ctx, IrOp op);
 
-void toString(std::string &result, IrConst constant);
+void toString(std::string& result, IrConst constant);
 
-const char *getBytecodeTypeName(uint8_t type, const char *const *userdataTypes);
+const char* getBytecodeTypeName(uint8_t type, const char* const* userdataTypes);
 
-void toString(std::string &result, const BytecodeTypes &bcTypes,
-              const char *const *userdataTypes);
+void toString(std::string& result, const BytecodeTypes& bcTypes, const char* const* userdataTypes);
 
-void toStringDetailed(IrToStringContext &ctx, const IrBlock &block,
-                      uint32_t blockIdx, const IrInst &inst, uint32_t instIdx,
-                      IncludeUseInfo includeUseInfo);
-void toStringDetailed(IrToStringContext &ctx, const IrBlock &block,
-                      uint32_t blockIdx, IncludeUseInfo includeUseInfo,
-                      IncludeCfgInfo includeCfgInfo,
-                      IncludeRegFlowInfo includeRegFlowInfo);
+void toStringDetailed(
+    IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, const IrInst& inst, uint32_t instIdx, IncludeUseInfo includeUseInfo);
+void toStringDetailed(IrToStringContext& ctx, const IrBlock& block, uint32_t blockIdx, IncludeUseInfo includeUseInfo, IncludeCfgInfo includeCfgInfo,
+    IncludeRegFlowInfo includeRegFlowInfo);
 
-std::string toString(const IrFunction &function, IncludeUseInfo includeUseInfo);
+std::string toString(const IrFunction& function, IncludeUseInfo includeUseInfo);
 
-std::string dump(const IrFunction &function);
+std::string dump(const IrFunction& function);
 
-std::string toDot(const IrFunction &function, bool includeInst);
-std::string toDotCfg(const IrFunction &function);
-std::string toDotDjGraph(const IrFunction &function);
+std::string toDot(const IrFunction& function, bool includeInst);
+std::string toDotCfg(const IrFunction& function);
+std::string toDotDjGraph(const IrFunction& function);
 
-std::string dumpDot(const IrFunction &function, bool includeInst);
+std::string dumpDot(const IrFunction& function, bool includeInst);
 
 } // namespace CodeGen
 } // namespace Luau
@@ -4521,369 +4603,373 @@ std::string dumpDot(const IrFunction &function, bool includeInst);
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/BytecodeAnalysis.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
 
 // @@@@@ PACK.LUA : was already included! <vector>
 
 // @@@@@ PACK.LUA : was already included! <stdint.h>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 struct IrFunction;
 struct HostIrHooks;
 
-void loadBytecodeTypeInfo(IrFunction &function);
-void buildBytecodeBlocks(IrFunction &function,
-                         const std::vector<uint8_t> &jumpTargets);
-void analyzeBytecodeTypes(IrFunction &function, const HostIrHooks &hostHooks);
+void loadBytecodeTypeInfo(IrFunction& function);
+void buildBytecodeBlocks(IrFunction& function, const std::vector<uint8_t>& jumpTargets);
+void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks);
 
 } // namespace CodeGen
 } // namespace Luau
 
 // @@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrUtils.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Bytecode.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/IrData.h>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 struct IrBuilder;
 enum class HostMetamethod;
 
-inline bool isJumpD(LuauOpcode op) {
-  switch (op) {
-  case LOP_JUMP:
-  case LOP_JUMPIF:
-  case LOP_JUMPIFNOT:
-  case LOP_JUMPIFEQ:
-  case LOP_JUMPIFLE:
-  case LOP_JUMPIFLT:
-  case LOP_JUMPIFNOTEQ:
-  case LOP_JUMPIFNOTLE:
-  case LOP_JUMPIFNOTLT:
-  case LOP_FORNPREP:
-  case LOP_FORNLOOP:
-  case LOP_FORGPREP:
-  case LOP_FORGLOOP:
-  case LOP_FORGPREP_INEXT:
-  case LOP_FORGPREP_NEXT:
-  case LOP_JUMPBACK:
-  case LOP_JUMPXEQKNIL:
-  case LOP_JUMPXEQKB:
-  case LOP_JUMPXEQKN:
-  case LOP_JUMPXEQKS:
-    return true;
+inline bool isJumpD(LuauOpcode op)
+{
+    switch (op)
+    {
+    case LOP_JUMP:
+    case LOP_JUMPIF:
+    case LOP_JUMPIFNOT:
+    case LOP_JUMPIFEQ:
+    case LOP_JUMPIFLE:
+    case LOP_JUMPIFLT:
+    case LOP_JUMPIFNOTEQ:
+    case LOP_JUMPIFNOTLE:
+    case LOP_JUMPIFNOTLT:
+    case LOP_FORNPREP:
+    case LOP_FORNLOOP:
+    case LOP_FORGPREP:
+    case LOP_FORGLOOP:
+    case LOP_FORGPREP_INEXT:
+    case LOP_FORGPREP_NEXT:
+    case LOP_JUMPBACK:
+    case LOP_JUMPXEQKNIL:
+    case LOP_JUMPXEQKB:
+    case LOP_JUMPXEQKN:
+    case LOP_JUMPXEQKS:
+        return true;
 
-  default:
+    default:
+        return false;
+    }
+}
+
+inline bool isSkipC(LuauOpcode op)
+{
+    switch (op)
+    {
+    case LOP_LOADB:
+        return true;
+
+    default:
+        return false;
+    }
+}
+
+inline bool isFastCall(LuauOpcode op)
+{
+    switch (op)
+    {
+    case LOP_FASTCALL:
+    case LOP_FASTCALL1:
+    case LOP_FASTCALL2:
+    case LOP_FASTCALL2K:
+    case LOP_FASTCALL3:
+        return true;
+
+    default:
+        return false;
+    }
+}
+
+inline int getJumpTarget(uint32_t insn, uint32_t pc)
+{
+    LuauOpcode op = LuauOpcode(LUAU_INSN_OP(insn));
+
+    if (isJumpD(op))
+        return int(pc + LUAU_INSN_D(insn) + 1);
+    else if (isFastCall(op))
+        return int(pc + LUAU_INSN_C(insn) + 2);
+    else if (isSkipC(op) && LUAU_INSN_C(insn))
+        return int(pc + LUAU_INSN_C(insn) + 1);
+    else if (op == LOP_JUMPX)
+        return int(pc + LUAU_INSN_E(insn) + 1);
+    else
+        return -1;
+}
+
+inline bool isBlockTerminator(IrCmd cmd)
+{
+    switch (cmd)
+    {
+    case IrCmd::JUMP:
+    case IrCmd::JUMP_IF_TRUTHY:
+    case IrCmd::JUMP_IF_FALSY:
+    case IrCmd::JUMP_EQ_TAG:
+    case IrCmd::JUMP_CMP_INT:
+    case IrCmd::JUMP_EQ_POINTER:
+    case IrCmd::JUMP_CMP_NUM:
+    case IrCmd::JUMP_FORN_LOOP_COND:
+    case IrCmd::JUMP_SLOT_MATCH:
+    case IrCmd::RETURN:
+    case IrCmd::FORGLOOP:
+    case IrCmd::FORGLOOP_FALLBACK:
+    case IrCmd::FORGPREP_XNEXT_FALLBACK:
+    case IrCmd::FALLBACK_FORGPREP:
+        return true;
+    default:
+        break;
+    }
+
     return false;
-  }
 }
 
-inline bool isSkipC(LuauOpcode op) {
-  switch (op) {
-  case LOP_LOADB:
-    return true;
+inline bool isNonTerminatingJump(IrCmd cmd)
+{
+    switch (cmd)
+    {
+    case IrCmd::TRY_NUM_TO_INDEX:
+    case IrCmd::TRY_CALL_FASTGETTM:
+    case IrCmd::CHECK_FASTCALL_RES:
+    case IrCmd::CHECK_TAG:
+    case IrCmd::CHECK_TRUTHY:
+    case IrCmd::CHECK_READONLY:
+    case IrCmd::CHECK_NO_METATABLE:
+    case IrCmd::CHECK_SAFE_ENV:
+    case IrCmd::CHECK_ARRAY_SIZE:
+    case IrCmd::CHECK_SLOT_MATCH:
+    case IrCmd::CHECK_NODE_NO_NEXT:
+    case IrCmd::CHECK_NODE_VALUE:
+    case IrCmd::CHECK_BUFFER_LEN:
+    case IrCmd::CHECK_USERDATA_TAG:
+        return true;
+    default:
+        break;
+    }
 
-  default:
     return false;
-  }
 }
 
-inline bool isFastCall(LuauOpcode op) {
-  switch (op) {
-  case LOP_FASTCALL:
-  case LOP_FASTCALL1:
-  case LOP_FASTCALL2:
-  case LOP_FASTCALL2K:
-  case LOP_FASTCALL3:
-    return true;
+inline bool hasResult(IrCmd cmd)
+{
+    switch (cmd)
+    {
+    case IrCmd::LOAD_TAG:
+    case IrCmd::LOAD_POINTER:
+    case IrCmd::LOAD_DOUBLE:
+    case IrCmd::LOAD_INT:
+    case IrCmd::LOAD_FLOAT:
+    case IrCmd::LOAD_TVALUE:
+    case IrCmd::LOAD_ENV:
+    case IrCmd::GET_ARR_ADDR:
+    case IrCmd::GET_SLOT_NODE_ADDR:
+    case IrCmd::GET_HASH_NODE_ADDR:
+    case IrCmd::GET_CLOSURE_UPVAL_ADDR:
+    case IrCmd::ADD_INT:
+    case IrCmd::SUB_INT:
+    case IrCmd::ADD_NUM:
+    case IrCmd::SUB_NUM:
+    case IrCmd::MUL_NUM:
+    case IrCmd::DIV_NUM:
+    case IrCmd::IDIV_NUM:
+    case IrCmd::MOD_NUM:
+    case IrCmd::MIN_NUM:
+    case IrCmd::MAX_NUM:
+    case IrCmd::UNM_NUM:
+    case IrCmd::FLOOR_NUM:
+    case IrCmd::CEIL_NUM:
+    case IrCmd::ROUND_NUM:
+    case IrCmd::SQRT_NUM:
+    case IrCmd::ABS_NUM:
+    case IrCmd::SIGN_NUM:
+    case IrCmd::ADD_VEC:
+    case IrCmd::SUB_VEC:
+    case IrCmd::MUL_VEC:
+    case IrCmd::DIV_VEC:
+    case IrCmd::UNM_VEC:
+    case IrCmd::NOT_ANY:
+    case IrCmd::CMP_ANY:
+    case IrCmd::TABLE_LEN:
+    case IrCmd::TABLE_SETNUM:
+    case IrCmd::STRING_LEN:
+    case IrCmd::NEW_TABLE:
+    case IrCmd::DUP_TABLE:
+    case IrCmd::TRY_NUM_TO_INDEX:
+    case IrCmd::TRY_CALL_FASTGETTM:
+    case IrCmd::NEW_USERDATA:
+    case IrCmd::INT_TO_NUM:
+    case IrCmd::UINT_TO_NUM:
+    case IrCmd::NUM_TO_INT:
+    case IrCmd::NUM_TO_UINT:
+    case IrCmd::NUM_TO_VEC:
+    case IrCmd::TAG_VECTOR:
+    case IrCmd::SUBSTITUTE:
+    case IrCmd::INVOKE_FASTCALL:
+    case IrCmd::BITAND_UINT:
+    case IrCmd::BITXOR_UINT:
+    case IrCmd::BITOR_UINT:
+    case IrCmd::BITNOT_UINT:
+    case IrCmd::BITLSHIFT_UINT:
+    case IrCmd::BITRSHIFT_UINT:
+    case IrCmd::BITARSHIFT_UINT:
+    case IrCmd::BITLROTATE_UINT:
+    case IrCmd::BITRROTATE_UINT:
+    case IrCmd::BITCOUNTLZ_UINT:
+    case IrCmd::BITCOUNTRZ_UINT:
+    case IrCmd::INVOKE_LIBM:
+    case IrCmd::GET_TYPE:
+    case IrCmd::GET_TYPEOF:
+    case IrCmd::NEWCLOSURE:
+    case IrCmd::FINDUPVAL:
+    case IrCmd::BUFFER_READI8:
+    case IrCmd::BUFFER_READU8:
+    case IrCmd::BUFFER_READI16:
+    case IrCmd::BUFFER_READU16:
+    case IrCmd::BUFFER_READI32:
+    case IrCmd::BUFFER_READF32:
+    case IrCmd::BUFFER_READF64:
+        return true;
+    default:
+        break;
+    }
 
-  default:
     return false;
-  }
 }
 
-inline int getJumpTarget(uint32_t insn, uint32_t pc) {
-  LuauOpcode op = LuauOpcode(LUAU_INSN_OP(insn));
+inline bool hasSideEffects(IrCmd cmd)
+{
+    if (cmd == IrCmd::INVOKE_FASTCALL)
+        return true;
 
-  if (isJumpD(op))
-    return int(pc + LUAU_INSN_D(insn) + 1);
-  else if (isFastCall(op))
-    return int(pc + LUAU_INSN_C(insn) + 2);
-  else if (isSkipC(op) && LUAU_INSN_C(insn))
-    return int(pc + LUAU_INSN_C(insn) + 1);
-  else if (op == LOP_JUMPX)
-    return int(pc + LUAU_INSN_E(insn) + 1);
-  else
-    return -1;
+    // Instructions that don't produce a result most likely have other side-effects to make them useful
+    // Right now, a full switch would mirror the 'hasResult' function, so we use this simple condition
+    return !hasResult(cmd);
 }
 
-inline bool isBlockTerminator(IrCmd cmd) {
-  switch (cmd) {
-  case IrCmd::JUMP:
-  case IrCmd::JUMP_IF_TRUTHY:
-  case IrCmd::JUMP_IF_FALSY:
-  case IrCmd::JUMP_EQ_TAG:
-  case IrCmd::JUMP_CMP_INT:
-  case IrCmd::JUMP_EQ_POINTER:
-  case IrCmd::JUMP_CMP_NUM:
-  case IrCmd::JUMP_FORN_LOOP_COND:
-  case IrCmd::JUMP_SLOT_MATCH:
-  case IrCmd::RETURN:
-  case IrCmd::FORGLOOP:
-  case IrCmd::FORGLOOP_FALLBACK:
-  case IrCmd::FORGPREP_XNEXT_FALLBACK:
-  case IrCmd::FALLBACK_FORGPREP:
-    return true;
-  default:
-    break;
-  }
-
-  return false;
-}
-
-inline bool isNonTerminatingJump(IrCmd cmd) {
-  switch (cmd) {
-  case IrCmd::TRY_NUM_TO_INDEX:
-  case IrCmd::TRY_CALL_FASTGETTM:
-  case IrCmd::CHECK_FASTCALL_RES:
-  case IrCmd::CHECK_TAG:
-  case IrCmd::CHECK_TRUTHY:
-  case IrCmd::CHECK_READONLY:
-  case IrCmd::CHECK_NO_METATABLE:
-  case IrCmd::CHECK_SAFE_ENV:
-  case IrCmd::CHECK_ARRAY_SIZE:
-  case IrCmd::CHECK_SLOT_MATCH:
-  case IrCmd::CHECK_NODE_NO_NEXT:
-  case IrCmd::CHECK_NODE_VALUE:
-  case IrCmd::CHECK_BUFFER_LEN:
-  case IrCmd::CHECK_USERDATA_TAG:
-    return true;
-  default:
-    break;
-  }
-
-  return false;
-}
-
-inline bool hasResult(IrCmd cmd) {
-  switch (cmd) {
-  case IrCmd::LOAD_TAG:
-  case IrCmd::LOAD_POINTER:
-  case IrCmd::LOAD_DOUBLE:
-  case IrCmd::LOAD_INT:
-  case IrCmd::LOAD_FLOAT:
-  case IrCmd::LOAD_TVALUE:
-  case IrCmd::LOAD_ENV:
-  case IrCmd::GET_ARR_ADDR:
-  case IrCmd::GET_SLOT_NODE_ADDR:
-  case IrCmd::GET_HASH_NODE_ADDR:
-  case IrCmd::GET_CLOSURE_UPVAL_ADDR:
-  case IrCmd::ADD_INT:
-  case IrCmd::SUB_INT:
-  case IrCmd::ADD_NUM:
-  case IrCmd::SUB_NUM:
-  case IrCmd::MUL_NUM:
-  case IrCmd::DIV_NUM:
-  case IrCmd::IDIV_NUM:
-  case IrCmd::MOD_NUM:
-  case IrCmd::MIN_NUM:
-  case IrCmd::MAX_NUM:
-  case IrCmd::UNM_NUM:
-  case IrCmd::FLOOR_NUM:
-  case IrCmd::CEIL_NUM:
-  case IrCmd::ROUND_NUM:
-  case IrCmd::SQRT_NUM:
-  case IrCmd::ABS_NUM:
-  case IrCmd::SIGN_NUM:
-  case IrCmd::ADD_VEC:
-  case IrCmd::SUB_VEC:
-  case IrCmd::MUL_VEC:
-  case IrCmd::DIV_VEC:
-  case IrCmd::UNM_VEC:
-  case IrCmd::NOT_ANY:
-  case IrCmd::CMP_ANY:
-  case IrCmd::TABLE_LEN:
-  case IrCmd::TABLE_SETNUM:
-  case IrCmd::STRING_LEN:
-  case IrCmd::NEW_TABLE:
-  case IrCmd::DUP_TABLE:
-  case IrCmd::TRY_NUM_TO_INDEX:
-  case IrCmd::TRY_CALL_FASTGETTM:
-  case IrCmd::NEW_USERDATA:
-  case IrCmd::INT_TO_NUM:
-  case IrCmd::UINT_TO_NUM:
-  case IrCmd::NUM_TO_INT:
-  case IrCmd::NUM_TO_UINT:
-  case IrCmd::NUM_TO_VEC:
-  case IrCmd::TAG_VECTOR:
-  case IrCmd::SUBSTITUTE:
-  case IrCmd::INVOKE_FASTCALL:
-  case IrCmd::BITAND_UINT:
-  case IrCmd::BITXOR_UINT:
-  case IrCmd::BITOR_UINT:
-  case IrCmd::BITNOT_UINT:
-  case IrCmd::BITLSHIFT_UINT:
-  case IrCmd::BITRSHIFT_UINT:
-  case IrCmd::BITARSHIFT_UINT:
-  case IrCmd::BITLROTATE_UINT:
-  case IrCmd::BITRROTATE_UINT:
-  case IrCmd::BITCOUNTLZ_UINT:
-  case IrCmd::BITCOUNTRZ_UINT:
-  case IrCmd::INVOKE_LIBM:
-  case IrCmd::GET_TYPE:
-  case IrCmd::GET_TYPEOF:
-  case IrCmd::NEWCLOSURE:
-  case IrCmd::FINDUPVAL:
-  case IrCmd::BUFFER_READI8:
-  case IrCmd::BUFFER_READU8:
-  case IrCmd::BUFFER_READI16:
-  case IrCmd::BUFFER_READU16:
-  case IrCmd::BUFFER_READI32:
-  case IrCmd::BUFFER_READF32:
-  case IrCmd::BUFFER_READF64:
-    return true;
-  default:
-    break;
-  }
-
-  return false;
-}
-
-inline bool hasSideEffects(IrCmd cmd) {
-  if (cmd == IrCmd::INVOKE_FASTCALL)
-    return true;
-
-  // Instructions that don't produce a result most likely have other
-  // side-effects to make them useful Right now, a full switch would mirror the
-  // 'hasResult' function, so we use this simple condition
-  return !hasResult(cmd);
-}
-
-inline bool isPseudo(IrCmd cmd) {
-  // Instructions that are used for internal needs and are not a part of final
-  // lowering
-  return cmd == IrCmd::NOP || cmd == IrCmd::SUBSTITUTE;
+inline bool isPseudo(IrCmd cmd)
+{
+    // Instructions that are used for internal needs and are not a part of final lowering
+    return cmd == IrCmd::NOP || cmd == IrCmd::SUBSTITUTE;
 }
 
 IrValueKind getCmdValueKind(IrCmd cmd);
 
 bool isGCO(uint8_t tag);
 
-// Optional bit has to be cleared at call site, otherwise, this will return
-// 'false' for 'userdata?'
+// Optional bit has to be cleared at call site, otherwise, this will return 'false' for 'userdata?'
 bool isUserdataBytecodeType(uint8_t ty);
 bool isCustomUserdataBytecodeType(uint8_t ty);
 
 HostMetamethod tmToHostMetamethod(int tm);
 
 // Manually add or remove use of an operand
-void addUse(IrFunction &function, IrOp op);
-void removeUse(IrFunction &function, IrOp op);
+void addUse(IrFunction& function, IrOp op);
+void removeUse(IrFunction& function, IrOp op);
 
 // Remove a single instruction
-void kill(IrFunction &function, IrInst &inst);
+void kill(IrFunction& function, IrInst& inst);
 
 // Remove a range of instructions
-void kill(IrFunction &function, uint32_t start, uint32_t end);
+void kill(IrFunction& function, uint32_t start, uint32_t end);
 
 // Remove a block, including all instructions inside
-void kill(IrFunction &function, IrBlock &block);
+void kill(IrFunction& function, IrBlock& block);
 
-// Replace a single operand and update use counts (can cause chain removal of
-// dead code)
-void replace(IrFunction &function, IrOp &original, IrOp replacement);
+// Replace a single operand and update use counts (can cause chain removal of dead code)
+void replace(IrFunction& function, IrOp& original, IrOp replacement);
 
 // Replace a single instruction
-// Target instruction index instead of reference is used to handle introduction
-// of a new block terminator
-void replace(IrFunction &function, IrBlock &block, uint32_t instIdx,
-             IrInst replacement);
+// Target instruction index instead of reference is used to handle introduction of a new block terminator
+void replace(IrFunction& function, IrBlock& block, uint32_t instIdx, IrInst replacement);
 
 // Replace instruction with a different value (using IrCmd::SUBSTITUTE)
-void substitute(IrFunction &function, IrInst &inst, IrOp replacement);
+void substitute(IrFunction& function, IrInst& inst, IrOp replacement);
 
 // Replace instruction arguments that point to substitutions with target values
-void applySubstitutions(IrFunction &function, IrOp &op);
-void applySubstitutions(IrFunction &function, IrInst &inst);
+void applySubstitutions(IrFunction& function, IrOp& op);
+void applySubstitutions(IrFunction& function, IrInst& inst);
 
 // Compare numbers using IR condition value
 bool compare(double a, double b, IrCondition cond);
 
 // Perform constant folding on instruction at index
 // For most instructions, successful folding results in a IrCmd::SUBSTITUTE
-// But it can also be successful on conditional control-flow, replacing it with
-// an unconditional IrCmd::JUMP
-void foldConstants(IrBuilder &build, IrFunction &function, IrBlock &block,
-                   uint32_t instIdx);
+// But it can also be successful on conditional control-flow, replacing it with an unconditional IrCmd::JUMP
+void foldConstants(IrBuilder& build, IrFunction& function, IrBlock& block, uint32_t instIdx);
 
 uint32_t getNativeContextOffset(int bfid);
 
 // Cleans up blocks that were created with no users
-void killUnusedBlocks(IrFunction &function);
+void killUnusedBlocks(IrFunction& function);
 
-// Get blocks in order that tries to maximize fallthrough between them during
-// lowering We want to mostly preserve build order with fallbacks outlined But
-// we also use hints from optimization passes that chain blocks together where
-// there's only one out-in edge between them
-std::vector<uint32_t> getSortedBlockOrder(IrFunction &function);
+// Get blocks in order that tries to maximize fallthrough between them during lowering
+// We want to mostly preserve build order with fallbacks outlined
+// But we also use hints from optimization passes that chain blocks together where there's only one out-in edge between them
+std::vector<uint32_t> getSortedBlockOrder(IrFunction& function);
 
-// Returns first non-dead block that comes after block at index 'i' in the
-// sorted blocks array 'dummy' block is returned if the end of array was reached
-IrBlock &getNextBlock(IrFunction &function,
-                      const std::vector<uint32_t> &sortedBlocks, IrBlock &dummy,
-                      size_t i);
+// Returns first non-dead block that comes after block at index 'i' in the sorted blocks array
+// 'dummy' block is returned if the end of array was reached
+IrBlock& getNextBlock(IrFunction& function, const std::vector<uint32_t>& sortedBlocks, IrBlock& dummy, size_t i);
 
 } // namespace CodeGen
 } // namespace Luau
 
 // @@@ PACK.lua : done, inlined <CodeGen/src/EmitCommonX64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/AssemblyBuilderX64.h>
 // @@@ PACK.lua : done, inlined <CodeGen/src/EmitCommon.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Label.h>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 constexpr unsigned kTValueSizeLog2 = 4;
 constexpr unsigned kLuaNodeSizeLog2 = 5;
 
 // TKey.tt and TKey.next are packed together in a bitfield
-constexpr unsigned kOffsetOfTKeyTagNext =
-    12; // offsetof cannot be used on a bit field
+constexpr unsigned kOffsetOfTKeyTagNext = 12; // offsetof cannot be used on a bit field
 constexpr unsigned kTKeyTagBits = 4;
 constexpr unsigned kTKeyTagMask = (1 << kTKeyTagBits) - 1;
 
 constexpr unsigned kOffsetOfInstructionC = 3;
 
-// Leaf functions that are placed in every module to perform common instruction
-// sequences
-struct ModuleHelpers {
-  // A64/X64
-  Label exitContinueVm;
-  Label exitNoContinueVm;
-  Label exitContinueVmClearNativeFlag;
-  Label updatePcAndContinueInVm; // no reentry
-  Label return_;
-  Label interrupt;
+// Leaf functions that are placed in every module to perform common instruction sequences
+struct ModuleHelpers
+{
+    // A64/X64
+    Label exitContinueVm;
+    Label exitNoContinueVm;
+    Label exitContinueVmClearNativeFlag;
+    Label updatePcAndContinueInVm; // no reentry
+    Label return_;
+    Label interrupt;
 
-  // A64
-  Label continueCall; // x0: closure
+    // A64
+    Label continueCall; // x0: closure
 };
 
 } // namespace CodeGen
@@ -4891,7 +4977,7 @@ struct ModuleHelpers {
 
 #include "luau_vm_int.hpp"
 
-#include "luau_vm_int.hpp"
+// DONE : was aleready included <ltm.h>
 
 // MS x64 ABI reminder:
 // Arguments: rcx, rdx, r8, r9 ('overlapped' with xmm0-xmm3)
@@ -4905,13 +4991,16 @@ struct ModuleHelpers {
 // Nonvolatile: r12-r15, rbx, rbp
 // SIMD: all volatile
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 enum class IrCondition : uint8_t;
 struct IrOp;
 
-namespace X64 {
+namespace X64
+{
 
 struct IrRegAllocX64;
 
@@ -4923,203 +5012,187 @@ constexpr RegisterX64 rBase = r14;          // StkId base
 constexpr RegisterX64 rNativeContext = r13; // NativeContext* context
 constexpr RegisterX64 rConstants = r12;     // TValue* k
 
-constexpr unsigned kExtraLocals =
-    3; // Number of 8 byte slots available for specialized local variables
-       // specified below
-constexpr unsigned kSpillSlots = 13; // Number of 8 byte slots available for
-                                     // register allocator to spill data into
-static_assert((kExtraLocals + kSpillSlots) * 8 % 16 == 0,
-              "locals have to preserve 16 byte alignment");
+constexpr unsigned kExtraLocals = 3; // Number of 8 byte slots available for specialized local variables specified below
+constexpr unsigned kSpillSlots = 13; // Number of 8 byte slots available for register allocator to spill data into
+static_assert((kExtraLocals + kSpillSlots) * 8 % 16 == 0, "locals have to preserve 16 byte alignment");
 
 constexpr uint8_t kWindowsFirstNonVolXmmReg = 6;
 
-constexpr uint8_t kWindowsUsableXmmRegs =
-    10; // Some xmm regs are non-volatile, we have to balance how many we want
-        // to use/preserve
+constexpr uint8_t kWindowsUsableXmmRegs = 10; // Some xmm regs are non-volatile, we have to balance how many we want to use/preserve
 constexpr uint8_t kSystemVUsableXmmRegs = 16; // All xmm regs are volatile
 
-inline uint8_t getXmmRegisterCount(ABIX64 abi) {
-  return abi == ABIX64::SystemV ? kSystemVUsableXmmRegs : kWindowsUsableXmmRegs;
+inline uint8_t getXmmRegisterCount(ABIX64 abi)
+{
+    return abi == ABIX64::SystemV ? kSystemVUsableXmmRegs : kWindowsUsableXmmRegs;
 }
 
-// Native code is as stackless as the interpreter, so we can place some data on
-// the stack once and have it accessible at any point Stack is separated into
-// sections for different data. See CodeGenX64.cpp for layout overview
-constexpr unsigned kStackAlign =
-    8; // Bytes we need to align the stack for non-vol xmm register storage
+// Native code is as stackless as the interpreter, so we can place some data on the stack once and have it accessible at any point
+// Stack is separated into sections for different data. See CodeGenX64.cpp for layout overview
+constexpr unsigned kStackAlign = 8; // Bytes we need to align the stack for non-vol xmm register storage
 constexpr unsigned kStackLocalStorage = 8 * kExtraLocals;
 constexpr unsigned kStackSpillStorage = 8 * kSpillSlots;
-constexpr unsigned kStackExtraArgumentStorage =
-    2 *
-    8; // Bytes for 5th and 6th function call arguments used under Windows ABI
-constexpr unsigned kStackRegHomeStorage =
-    4 * 8; // Register 'home' locations that can be used by callees under
-           // Windows ABI
+constexpr unsigned kStackExtraArgumentStorage = 2 * 8; // Bytes for 5th and 6th function call arguments used under Windows ABI
+constexpr unsigned kStackRegHomeStorage = 4 * 8;       // Register 'home' locations that can be used by callees under Windows ABI
 
-inline unsigned getNonVolXmmStorageSize(ABIX64 abi, uint8_t xmmRegCount) {
-  if (abi == ABIX64::SystemV)
-    return 0;
+inline unsigned getNonVolXmmStorageSize(ABIX64 abi, uint8_t xmmRegCount)
+{
+    if (abi == ABIX64::SystemV)
+        return 0;
 
-  // First 6 are volatile
-  if (xmmRegCount <= kWindowsFirstNonVolXmmReg)
-    return 0;
+    // First 6 are volatile
+    if (xmmRegCount <= kWindowsFirstNonVolXmmReg)
+        return 0;
 
-  CODEGEN_ASSERT(xmmRegCount <= 16);
-  return (xmmRegCount - kWindowsFirstNonVolXmmReg) * 16;
+    CODEGEN_ASSERT(xmmRegCount <= 16);
+    return (xmmRegCount - kWindowsFirstNonVolXmmReg) * 16;
 }
 
 // Useful offsets to specific parts
-constexpr unsigned kStackOffsetToLocals =
-    kStackExtraArgumentStorage + kStackRegHomeStorage;
-constexpr unsigned kStackOffsetToSpillSlots =
-    kStackOffsetToLocals + kStackLocalStorage;
+constexpr unsigned kStackOffsetToLocals = kStackExtraArgumentStorage + kStackRegHomeStorage;
+constexpr unsigned kStackOffsetToSpillSlots = kStackOffsetToLocals + kStackLocalStorage;
 
-inline unsigned getFullStackSize(ABIX64 abi, uint8_t xmmRegCount) {
-  return kStackOffsetToSpillSlots + kStackSpillStorage +
-         getNonVolXmmStorageSize(abi, xmmRegCount) + kStackAlign;
+inline unsigned getFullStackSize(ABIX64 abi, uint8_t xmmRegCount)
+{
+    return kStackOffsetToSpillSlots + kStackSpillStorage + getNonVolXmmStorageSize(abi, xmmRegCount) + kStackAlign;
 }
 
-constexpr OperandX64 sClosure =
-    qword[rsp + kStackOffsetToLocals + 0]; // Closure* cl
-constexpr OperandX64 sCode =
-    qword[rsp + kStackOffsetToLocals + 8]; // Instruction* code
+constexpr OperandX64 sClosure = qword[rsp + kStackOffsetToLocals + 0]; // Closure* cl
+constexpr OperandX64 sCode = qword[rsp + kStackOffsetToLocals + 8];    // Instruction* code
 constexpr OperandX64 sTemporarySlot = addr[rsp + kStackOffsetToLocals + 16];
 
 constexpr OperandX64 sSpillArea = addr[rsp + kStackOffsetToSpillSlots];
 
-inline OperandX64 luauReg(int ri) {
-  return xmmword[rBase + ri * sizeof(TValue)];
+inline OperandX64 luauReg(int ri)
+{
+    return xmmword[rBase + ri * sizeof(TValue)];
 }
 
-inline OperandX64 luauRegAddress(int ri) {
-  return addr[rBase + ri * sizeof(TValue)];
+inline OperandX64 luauRegAddress(int ri)
+{
+    return addr[rBase + ri * sizeof(TValue)];
 }
 
-inline OperandX64 luauRegValue(int ri) {
-  return qword[rBase + ri * sizeof(TValue) + offsetof(TValue, value)];
+inline OperandX64 luauRegValue(int ri)
+{
+    return qword[rBase + ri * sizeof(TValue) + offsetof(TValue, value)];
 }
 
-inline OperandX64 luauRegTag(int ri) {
-  return dword[rBase + ri * sizeof(TValue) + offsetof(TValue, tt)];
+inline OperandX64 luauRegTag(int ri)
+{
+    return dword[rBase + ri * sizeof(TValue) + offsetof(TValue, tt)];
 }
 
-inline OperandX64 luauRegExtra(int ri) {
-  return dword[rBase + ri * sizeof(TValue) + offsetof(TValue, extra)];
+inline OperandX64 luauRegExtra(int ri)
+{
+    return dword[rBase + ri * sizeof(TValue) + offsetof(TValue, extra)];
 }
 
-inline OperandX64 luauRegValueInt(int ri) {
-  return dword[rBase + ri * sizeof(TValue) + offsetof(TValue, value)];
+inline OperandX64 luauRegValueInt(int ri)
+{
+    return dword[rBase + ri * sizeof(TValue) + offsetof(TValue, value)];
 }
 
-inline OperandX64 luauRegValueVector(int ri, int index) {
-  return dword[rBase + ri * sizeof(TValue) + offsetof(TValue, value) +
-               (sizeof(float) * index)];
+inline OperandX64 luauRegValueVector(int ri, int index)
+{
+    return dword[rBase + ri * sizeof(TValue) + offsetof(TValue, value) + (sizeof(float) * index)];
 }
 
-inline OperandX64 luauConstant(int ki) {
-  return xmmword[rConstants + ki * sizeof(TValue)];
+inline OperandX64 luauConstant(int ki)
+{
+    return xmmword[rConstants + ki * sizeof(TValue)];
 }
 
-inline OperandX64 luauConstantAddress(int ki) {
-  return addr[rConstants + ki * sizeof(TValue)];
+inline OperandX64 luauConstantAddress(int ki)
+{
+    return addr[rConstants + ki * sizeof(TValue)];
 }
 
-inline OperandX64 luauConstantTag(int ki) {
-  return dword[rConstants + ki * sizeof(TValue) + offsetof(TValue, tt)];
+inline OperandX64 luauConstantTag(int ki)
+{
+    return dword[rConstants + ki * sizeof(TValue) + offsetof(TValue, tt)];
 }
 
-inline OperandX64 luauConstantValue(int ki) {
-  return qword[rConstants + ki * sizeof(TValue) + offsetof(TValue, value)];
+inline OperandX64 luauConstantValue(int ki)
+{
+    return qword[rConstants + ki * sizeof(TValue) + offsetof(TValue, value)];
 }
 
-inline OperandX64 luauNodeKeyValue(RegisterX64 node) {
-  return qword[node + offsetof(LuaNode, key) + offsetof(TKey, value)];
+inline OperandX64 luauNodeKeyValue(RegisterX64 node)
+{
+    return qword[node + offsetof(LuaNode, key) + offsetof(TKey, value)];
 }
 
 // Note: tag has dirty upper bits
-inline OperandX64 luauNodeKeyTag(RegisterX64 node) {
-  return dword[node + offsetof(LuaNode, key) + kOffsetOfTKeyTagNext];
+inline OperandX64 luauNodeKeyTag(RegisterX64 node)
+{
+    return dword[node + offsetof(LuaNode, key) + kOffsetOfTKeyTagNext];
 }
 
-inline void setLuauReg(AssemblyBuilderX64 &build, RegisterX64 tmp, int ri,
-                       OperandX64 op) {
-  CODEGEN_ASSERT(op.cat == CategoryX64::mem);
+inline void setLuauReg(AssemblyBuilderX64& build, RegisterX64 tmp, int ri, OperandX64 op)
+{
+    CODEGEN_ASSERT(op.cat == CategoryX64::mem);
 
-  build.vmovups(tmp, op);
-  build.vmovups(luauReg(ri), tmp);
+    build.vmovups(tmp, op);
+    build.vmovups(luauReg(ri), tmp);
 }
 
-inline void jumpIfTagIs(AssemblyBuilderX64 &build, int ri, lua_Type tag,
-                        Label &label) {
-  build.cmp(luauRegTag(ri), tag);
-  build.jcc(ConditionX64::Equal, label);
+inline void jumpIfTagIs(AssemblyBuilderX64& build, int ri, lua_Type tag, Label& label)
+{
+    build.cmp(luauRegTag(ri), tag);
+    build.jcc(ConditionX64::Equal, label);
 }
 
-inline void jumpIfTagIsNot(AssemblyBuilderX64 &build, int ri, lua_Type tag,
-                           Label &label) {
-  build.cmp(luauRegTag(ri), tag);
-  build.jcc(ConditionX64::NotEqual, label);
-}
-
-// Note: fallthrough label should be placed after this condition
-inline void jumpIfFalsy(AssemblyBuilderX64 &build, int ri, Label &target,
-                        Label &fallthrough) {
-  jumpIfTagIs(build, ri, LUA_TNIL, target); // false if nil
-  jumpIfTagIsNot(build, ri, LUA_TBOOLEAN,
-                 fallthrough); // true if not nil or boolean
-
-  build.cmp(luauRegValueInt(ri), 0);
-  build.jcc(ConditionX64::Equal, target); // true if boolean value is 'true'
+inline void jumpIfTagIsNot(AssemblyBuilderX64& build, int ri, lua_Type tag, Label& label)
+{
+    build.cmp(luauRegTag(ri), tag);
+    build.jcc(ConditionX64::NotEqual, label);
 }
 
 // Note: fallthrough label should be placed after this condition
-inline void jumpIfTruthy(AssemblyBuilderX64 &build, int ri, Label &target,
-                         Label &fallthrough) {
-  jumpIfTagIs(build, ri, LUA_TNIL, fallthrough);   // false if nil
-  jumpIfTagIsNot(build, ri, LUA_TBOOLEAN, target); // true if not nil or boolean
+inline void jumpIfFalsy(AssemblyBuilderX64& build, int ri, Label& target, Label& fallthrough)
+{
+    jumpIfTagIs(build, ri, LUA_TNIL, target);             // false if nil
+    jumpIfTagIsNot(build, ri, LUA_TBOOLEAN, fallthrough); // true if not nil or boolean
 
-  build.cmp(luauRegValueInt(ri), 0);
-  build.jcc(ConditionX64::NotEqual, target); // true if boolean value is 'true'
+    build.cmp(luauRegValueInt(ri), 0);
+    build.jcc(ConditionX64::Equal, target); // true if boolean value is 'true'
 }
 
-void jumpOnNumberCmp(AssemblyBuilderX64 &build, RegisterX64 tmp, OperandX64 lhs,
-                     OperandX64 rhs, IrCondition cond, Label &label);
+// Note: fallthrough label should be placed after this condition
+inline void jumpIfTruthy(AssemblyBuilderX64& build, int ri, Label& target, Label& fallthrough)
+{
+    jumpIfTagIs(build, ri, LUA_TNIL, fallthrough);   // false if nil
+    jumpIfTagIsNot(build, ri, LUA_TBOOLEAN, target); // true if not nil or boolean
+
+    build.cmp(luauRegValueInt(ri), 0);
+    build.jcc(ConditionX64::NotEqual, target); // true if boolean value is 'true'
+}
+
+void jumpOnNumberCmp(AssemblyBuilderX64& build, RegisterX64 tmp, OperandX64 lhs, OperandX64 rhs, IrCondition cond, Label& label);
 
 ConditionX64 getConditionInt(IrCondition cond);
 
-void getTableNodeAtCachedSlot(AssemblyBuilderX64 &build, RegisterX64 tmp,
-                              RegisterX64 node, RegisterX64 table, int pcpos);
-void convertNumberToIndexOrJump(AssemblyBuilderX64 &build, RegisterX64 tmp,
-                                RegisterX64 numd, RegisterX64 numi,
-                                Label &label);
+void getTableNodeAtCachedSlot(AssemblyBuilderX64& build, RegisterX64 tmp, RegisterX64 node, RegisterX64 table, int pcpos);
+void convertNumberToIndexOrJump(AssemblyBuilderX64& build, RegisterX64 tmp, RegisterX64 numd, RegisterX64 numi, Label& label);
 
-void callArithHelper(IrRegAllocX64 &regs, AssemblyBuilderX64 &build, int ra,
-                     OperandX64 b, OperandX64 c, TMS tm);
-void callLengthHelper(IrRegAllocX64 &regs, AssemblyBuilderX64 &build, int ra,
-                      int rb);
-void callGetTable(IrRegAllocX64 &regs, AssemblyBuilderX64 &build, int rb,
-                  OperandX64 c, int ra);
-void callSetTable(IrRegAllocX64 &regs, AssemblyBuilderX64 &build, int rb,
-                  OperandX64 c, int ra);
-void checkObjectBarrierConditions(AssemblyBuilderX64 &build, RegisterX64 tmp,
-                                  RegisterX64 object, IrOp ra, int ratag,
-                                  Label &skip);
-void callBarrierObject(IrRegAllocX64 &regs, AssemblyBuilderX64 &build,
-                       RegisterX64 object, IrOp objectOp, IrOp ra, int ratag);
-void callBarrierTableFast(IrRegAllocX64 &regs, AssemblyBuilderX64 &build,
-                          RegisterX64 table, IrOp tableOp);
-void callStepGc(IrRegAllocX64 &regs, AssemblyBuilderX64 &build);
+void callArithHelper(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, OperandX64 b, OperandX64 c, TMS tm);
+void callLengthHelper(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, int rb);
+void callGetTable(IrRegAllocX64& regs, AssemblyBuilderX64& build, int rb, OperandX64 c, int ra);
+void callSetTable(IrRegAllocX64& regs, AssemblyBuilderX64& build, int rb, OperandX64 c, int ra);
+void checkObjectBarrierConditions(AssemblyBuilderX64& build, RegisterX64 tmp, RegisterX64 object, IrOp ra, int ratag, Label& skip);
+void callBarrierObject(IrRegAllocX64& regs, AssemblyBuilderX64& build, RegisterX64 object, IrOp objectOp, IrOp ra, int ratag);
+void callBarrierTableFast(IrRegAllocX64& regs, AssemblyBuilderX64& build, RegisterX64 table, IrOp tableOp);
+void callStepGc(IrRegAllocX64& regs, AssemblyBuilderX64& build);
 
-void emitClearNativeFlag(AssemblyBuilderX64 &build);
-void emitExit(AssemblyBuilderX64 &build, bool continueInVm);
-void emitUpdateBase(AssemblyBuilderX64 &build);
-void emitInterrupt(AssemblyBuilderX64 &build);
-void emitFallback(IrRegAllocX64 &regs, AssemblyBuilderX64 &build, int offset,
-                  int pcpos);
+void emitClearNativeFlag(AssemblyBuilderX64& build);
+void emitExit(AssemblyBuilderX64& build, bool continueInVm);
+void emitUpdateBase(AssemblyBuilderX64& build);
+void emitInterrupt(AssemblyBuilderX64& build);
+void emitFallback(IrRegAllocX64& regs, AssemblyBuilderX64& build, int offset, int pcpos);
 
-void emitUpdatePcForExit(AssemblyBuilderX64 &build);
+void emitUpdatePcForExit(AssemblyBuilderX64& build);
 
-void emitReturn(AssemblyBuilderX64 &build, ModuleHelpers &helpers);
+void emitReturn(AssemblyBuilderX64& build, ModuleHelpers& helpers);
 
 } // namespace X64
 } // namespace CodeGen
@@ -5127,86 +5200,78 @@ void emitReturn(AssemblyBuilderX64 &build, ModuleHelpers &helpers);
 
 // @@@ PACK.lua : done, inlined <CodeGen/src/IrTranslateBuiltins.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 struct IrBuilder;
 struct IrOp;
 
-enum class BuiltinImplType {
-  None,
-  UsesFallback, // Uses fallback for unsupported cases
-  Full,         // Is either implemented in full, or exits to VM
+enum class BuiltinImplType
+{
+    None,
+    UsesFallback, // Uses fallback for unsupported cases
+    Full,         // Is either implemented in full, or exits to VM
 };
 
-struct BuiltinImplResult {
-  BuiltinImplType type;
-  int actualResultCount;
+struct BuiltinImplResult
+{
+    BuiltinImplType type;
+    int actualResultCount;
 };
 
-BuiltinImplResult translateBuiltin(IrBuilder &build, int bfid, int ra, int arg,
-                                   IrOp args, IrOp arg3, int nparams,
-                                   int nresults, IrOp fallback, int pcpos);
+BuiltinImplResult translateBuiltin(
+    IrBuilder& build, int bfid, int ra, int arg, IrOp args, IrOp arg3, int nparams, int nresults, IrOp fallback, int pcpos);
 
 } // namespace CodeGen
 } // namespace Luau
 
 // @@@ PACK.lua : done, inlined <CodeGen/src/CodeGenUtils.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <lobject.h>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
-bool forgLoopTableIter(lua_State *L, Table *h, int index, TValue *ra);
-bool forgLoopNodeIter(lua_State *L, Table *h, int index, TValue *ra);
-bool forgLoopNonTableFallback(lua_State *L, int insnA, int aux);
+bool forgLoopTableIter(lua_State* L, Table* h, int index, TValue* ra);
+bool forgLoopNodeIter(lua_State* L, Table* h, int index, TValue* ra);
+bool forgLoopNonTableFallback(lua_State* L, int insnA, int aux);
 
-void forgPrepXnextFallback(lua_State *L, TValue *ra, int pc);
+void forgPrepXnextFallback(lua_State* L, TValue* ra, int pc);
 
-Closure *callProlog(lua_State *L, TValue *ra, StkId argtop, int nresults);
-void callEpilogC(lua_State *L, int nresults, int n);
+Closure* callProlog(lua_State* L, TValue* ra, StkId argtop, int nresults);
+void callEpilogC(lua_State* L, int nresults, int n);
 
-Udata *newUserdata(lua_State *L, size_t s, int tag);
+Udata* newUserdata(lua_State* L, size_t s, int tag);
 
 #define CALL_FALLBACK_YIELD 1
 
-Closure *callFallback(lua_State *L, StkId ra, StkId argtop, int nresults);
+Closure* callFallback(lua_State* L, StkId ra, StkId argtop, int nresults);
 
-const Instruction *executeGETGLOBAL(lua_State *L, const Instruction *pc,
-                                    StkId base, TValue *k);
-const Instruction *executeSETGLOBAL(lua_State *L, const Instruction *pc,
-                                    StkId base, TValue *k);
-const Instruction *executeGETTABLEKS(lua_State *L, const Instruction *pc,
-                                     StkId base, TValue *k);
-const Instruction *executeSETTABLEKS(lua_State *L, const Instruction *pc,
-                                     StkId base, TValue *k);
-const Instruction *executeNAMECALL(lua_State *L, const Instruction *pc,
-                                   StkId base, TValue *k);
-const Instruction *executeSETLIST(lua_State *L, const Instruction *pc,
-                                  StkId base, TValue *k);
-const Instruction *executeFORGPREP(lua_State *L, const Instruction *pc,
-                                   StkId base, TValue *k);
-void executeGETVARARGSMultRet(lua_State *L, const Instruction *pc, StkId base,
-                              int rai);
-void executeGETVARARGSConst(lua_State *L, StkId base, int rai, int b);
-const Instruction *executeDUPCLOSURE(lua_State *L, const Instruction *pc,
-                                     StkId base, TValue *k);
-const Instruction *executePREPVARARGS(lua_State *L, const Instruction *pc,
-                                      StkId base, TValue *k);
+const Instruction* executeGETGLOBAL(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executeSETGLOBAL(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executeGETTABLEKS(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executeSETTABLEKS(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executeNAMECALL(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executeSETLIST(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executeFORGPREP(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+void executeGETVARARGSMultRet(lua_State* L, const Instruction* pc, StkId base, int rai);
+void executeGETVARARGSConst(lua_State* L, StkId base, int rai, int b);
+const Instruction* executeDUPCLOSURE(lua_State* L, const Instruction* pc, StkId base, TValue* k);
+const Instruction* executePREPVARARGS(lua_State* L, const Instruction* pc, StkId base, TValue* k);
 
 } // namespace CodeGen
 } // namespace Luau
 
 // @@@ PACK.lua : done, inlined <CodeGen/src/BitUtils.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : was already included! <stdint.h>
 
 #ifdef _MSC_VER
@@ -5215,42 +5280,48 @@ const Instruction *executePREPVARARGS(lua_State *L, const Instruction *pc,
 
 #endif
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
-inline int countlz(uint32_t n) {
+inline int countlz(uint32_t n)
+{
 #ifdef _MSC_VER
-  unsigned long rl;
-  return _BitScanReverse(&rl, n) ? 31 - int(rl) : 32;
+    unsigned long rl;
+    return _BitScanReverse(&rl, n) ? 31 - int(rl) : 32;
 #else
-  return n == 0 ? 32 : __builtin_clz(n);
+    return n == 0 ? 32 : __builtin_clz(n);
 #endif
 }
 
-inline int countrz(uint32_t n) {
+inline int countrz(uint32_t n)
+{
 #ifdef _MSC_VER
-  unsigned long rl;
-  return _BitScanForward(&rl, n) ? int(rl) : 32;
+    unsigned long rl;
+    return _BitScanForward(&rl, n) ? int(rl) : 32;
 #else
-  return n == 0 ? 32 : __builtin_ctz(n);
+    return n == 0 ? 32 : __builtin_ctz(n);
 #endif
 }
 
-inline int lrotate(uint32_t u, int s) {
-  // MSVC doesn't recognize the rotate form that is UB-safe
+inline int lrotate(uint32_t u, int s)
+{
+    // MSVC doesn't recognize the rotate form that is UB-safe
 #ifdef _MSC_VER
-  return _rotl(u, s);
+    return _rotl(u, s);
 #else
-  return (u << (s & 31)) | (u >> ((32 - s) & 31));
+    return (u << (s & 31)) | (u >> ((32 - s) & 31));
 #endif
 }
 
-inline int rrotate(uint32_t u, int s) {
-  // MSVC doesn't recognize the rotate form that is UB-safe
+inline int rrotate(uint32_t u, int s)
+{
+    // MSVC doesn't recognize the rotate form that is UB-safe
 #ifdef _MSC_VER
-  return _rotr(u, s);
+    return _rotr(u, s);
 #else
-  return (u >> (s & 31)) | (u << ((32 - s) & 31));
+    return (u >> (s & 31)) | (u << ((32 - s) & 31));
 #endif
 }
 
@@ -5259,38 +5330,38 @@ inline int rrotate(uint32_t u, int s) {
 
 // @@@ PACK.lua : done, inlined <CodeGen/src/IrValueLocationTracking.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/IrData.h>
 
 // @@@@@ PACK.LUA : was already included! <array>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
-struct IrValueLocationTracking {
-  IrValueLocationTracking(IrFunction &function);
+struct IrValueLocationTracking
+{
+    IrValueLocationTracking(IrFunction& function);
 
-  void setRestoreCallack(void *context,
-                         void (*callback)(void *context, IrInst &inst));
+    void setRestoreCallack(void* context, void (*callback)(void* context, IrInst& inst));
 
-  void beforeInstLowering(IrInst &inst);
-  void afterInstLowering(IrInst &inst, uint32_t instIdx);
+    void beforeInstLowering(IrInst& inst);
+    void afterInstLowering(IrInst& inst, uint32_t instIdx);
 
-  void recordRestoreOp(uint32_t instIdx, IrOp location);
-  void invalidateRestoreOp(IrOp location, bool skipValueInvalidation);
-  void invalidateRestoreVmRegs(int start, int count);
+    void recordRestoreOp(uint32_t instIdx, IrOp location);
+    void invalidateRestoreOp(IrOp location, bool skipValueInvalidation);
+    void invalidateRestoreVmRegs(int start, int count);
 
-  IrFunction &function;
+    IrFunction& function;
 
-  std::array<uint32_t, 256> vmRegValue;
+    std::array<uint32_t, 256> vmRegValue;
 
-  // For range/full invalidations, we only want to visit a limited number of
-  // data that we have recorded
-  int maxReg = 0;
+    // For range/full invalidations, we only want to visit a limited number of data that we have recorded
+    int maxReg = 0;
 
-  void *restoreCallbackCtx = nullptr;
-  void (*restoreCallback)(void *context, IrInst &inst) = nullptr;
+    void* restoreCallbackCtx = nullptr;
+    void (*restoreCallback)(void* context, IrInst& inst) = nullptr;
 };
 
 } // namespace CodeGen
@@ -5298,9 +5369,8 @@ struct IrValueLocationTracking {
 
 // @@@ PACK.lua : done, inlined <CodeGen/src/EmitCommonA64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details DONE : was aleready inlined
-// <Luau/AssemblyBuilderA64.h>
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// DONE : was aleready inlined <Luau/AssemblyBuilderA64.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <EmitCommon.h>
 
@@ -5308,23 +5378,23 @@ struct IrValueLocationTracking {
 
 // @@@@@ PACK.LUA : unknown was already included! <ltm.h>
 
-#include "luau_vm_int.hpp"
+// DONE : was aleready included <lstate.h>
 
 // AArch64 ABI reminder:
 // Arguments: x0-x7, v0-v7
 // Return: x0, v0 (or x8 that points to the address of the resulting structure)
 // Volatile: x9-x15, v16-v31 ("caller-saved", any call may change them)
-// Intra-procedure-call temporary: x16-x17 (any call or relocated jump may
-// change them, as linker may point branches to veneers to perform long jumps)
-// Non-volatile: x19-x28, v8-v15 ("callee-saved", preserved after calls, only
-// bottom half of SIMD registers is preserved!) Reserved: x18: reserved for
-// platform use; x29: frame pointer (unless omitted); x30: link register; x31:
-// stack pointer
+// Intra-procedure-call temporary: x16-x17 (any call or relocated jump may change them, as linker may point branches to veneers to perform long jumps)
+// Non-volatile: x19-x28, v8-v15 ("callee-saved", preserved after calls, only bottom half of SIMD registers is preserved!)
+// Reserved: x18: reserved for platform use; x29: frame pointer (unless omitted); x30: link register; x31: stack pointer
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
-namespace A64 {
+namespace A64
+{
 
 // Data that is very common to access is placed in non-volatile registers:
 // 1. Constant registers (only loaded during codegen entry)
@@ -5332,16 +5402,14 @@ constexpr RegisterA64 rState = x19;         // lua_State* L
 constexpr RegisterA64 rNativeContext = x20; // NativeContext* context
 constexpr RegisterA64 rGlobalState = x21;   // global_State* L->global
 
-// 2. Frame registers (reloaded when call frame changes; rBase is also reloaded
-// after all calls that may reallocate stack)
+// 2. Frame registers (reloaded when call frame changes; rBase is also reloaded after all calls that may reallocate stack)
 constexpr RegisterA64 rConstants = x22; // TValue* k
 constexpr RegisterA64 rClosure = x23;   // Closure* cl
 constexpr RegisterA64 rCode = x24;      // Instruction* code
 constexpr RegisterA64 rBase = x25;      // StkId base
 
-// Native code is as stackless as the interpreter, so we can place some data on
-// the stack once and have it accessible at any point See CodeGenA64.cpp for
-// layout
+// Native code is as stackless as the interpreter, so we can place some data on the stack once and have it accessible at any point
+// See CodeGenA64.cpp for layout
 constexpr unsigned kStashSlots = 9;  // stashed non-volatile registers
 constexpr unsigned kTempSlots = 1;   // 8 bytes of temporary space, such luxury!
 constexpr unsigned kSpillSlots = 22; // slots for spilling temporary registers
@@ -5351,8 +5419,9 @@ constexpr unsigned kStackSize = (kStashSlots + kTempSlots + kSpillSlots) * 8;
 constexpr AddressA64 sSpillArea = mem(sp, (kStashSlots + kTempSlots) * 8);
 constexpr AddressA64 sTemporary = mem(sp, kStashSlots * 8);
 
-inline void emitUpdateBase(AssemblyBuilderA64 &build) {
-  build.ldr(rBase, mem(rState, offsetof(lua_State, base)));
+inline void emitUpdateBase(AssemblyBuilderA64& build)
+{
+    build.ldr(rBase, mem(rState, offsetof(lua_State, base)));
 }
 
 } // namespace A64
@@ -5361,29 +5430,27 @@ inline void emitUpdateBase(AssemblyBuilderA64 &build) {
 
 // @@@ PACK.lua : done, inlined <CodeGen/src/EmitInstructionX64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : was already included! <stdint.h>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 struct Label;
 struct ModuleHelpers;
 
-namespace X64 {
+namespace X64
+{
 
 class AssemblyBuilderX64;
 struct IrRegAllocX64;
 
-void emitInstCall(AssemblyBuilderX64 &build, ModuleHelpers &helpers, int ra,
-                  int nparams, int nresults);
-void emitInstReturn(AssemblyBuilderX64 &build, ModuleHelpers &helpers, int ra,
-                    int actualResults, bool functionVariadic);
-void emitInstSetList(IrRegAllocX64 &regs, AssemblyBuilderX64 &build, int ra,
-                     int rb, int count, uint32_t index, int knownSize);
-void emitInstForGLoop(AssemblyBuilderX64 &build, int ra, int aux,
-                      Label &loopRepeat);
+void emitInstCall(AssemblyBuilderX64& build, ModuleHelpers& helpers, int ra, int nparams, int nresults);
+void emitInstReturn(AssemblyBuilderX64& build, ModuleHelpers& helpers, int ra, int actualResults, bool functionVariadic);
+void emitInstSetList(IrRegAllocX64& regs, AssemblyBuilderX64& build, int ra, int rb, int count, uint32_t index, int knownSize);
+void emitInstForGLoop(AssemblyBuilderX64& build, int ra, int aux, Label& loopRepeat);
 
 } // namespace X64
 } // namespace CodeGen
@@ -5391,8 +5458,7 @@ void emitInstForGLoop(AssemblyBuilderX64 &build, int ra, int aux,
 
 // @@@ PACK.lua : done, inlined <CodeGen/src/IrLoweringA64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/AssemblyBuilderA64.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/DenseHash.h>
@@ -5400,8 +5466,7 @@ void emitInstForGLoop(AssemblyBuilderX64 &build, int ra, int aux,
 // @@@@@ PACK.LUA : unknown was already included! <Luau/IrData.h>
 // @@@ PACK.lua : done, inlined <CodeGen/src/IrRegAllocA64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/IrData.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/RegisterA64.h>
@@ -5412,82 +5477,79 @@ void emitInstForGLoop(AssemblyBuilderX64 &build, int ra, int aux,
 
 // @@@@@ PACK.LUA : was already included! <vector>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 struct LoweringStats;
 
-namespace A64 {
+namespace A64
+{
 
 class AssemblyBuilderA64;
 
-struct IrRegAllocA64 {
-  IrRegAllocA64(
-      IrFunction &function, LoweringStats *stats,
-      std::initializer_list<std::pair<RegisterA64, RegisterA64>> regs);
+struct IrRegAllocA64
+{
+    IrRegAllocA64(IrFunction& function, LoweringStats* stats, std::initializer_list<std::pair<RegisterA64, RegisterA64>> regs);
 
-  RegisterA64 allocReg(KindA64 kind, uint32_t index);
-  RegisterA64 allocTemp(KindA64 kind);
-  RegisterA64 allocReuse(KindA64 kind, uint32_t index,
-                         std::initializer_list<IrOp> oprefs);
+    RegisterA64 allocReg(KindA64 kind, uint32_t index);
+    RegisterA64 allocTemp(KindA64 kind);
+    RegisterA64 allocReuse(KindA64 kind, uint32_t index, std::initializer_list<IrOp> oprefs);
 
-  RegisterA64 takeReg(RegisterA64 reg, uint32_t index);
+    RegisterA64 takeReg(RegisterA64 reg, uint32_t index);
 
-  void freeReg(RegisterA64 reg);
+    void freeReg(RegisterA64 reg);
 
-  void freeLastUseReg(IrInst &target, uint32_t index);
-  void freeLastUseRegs(const IrInst &inst, uint32_t index);
+    void freeLastUseReg(IrInst& target, uint32_t index);
+    void freeLastUseRegs(const IrInst& inst, uint32_t index);
 
-  void freeTempRegs();
+    void freeTempRegs();
 
-  // Spills all live registers that outlive current instruction; all allocated
-  // registers are assumed to be undefined
-  size_t spill(AssemblyBuilderA64 &build, uint32_t index,
-               std::initializer_list<RegisterA64> live = {});
+    // Spills all live registers that outlive current instruction; all allocated registers are assumed to be undefined
+    size_t spill(AssemblyBuilderA64& build, uint32_t index, std::initializer_list<RegisterA64> live = {});
 
-  // Restores registers starting from the offset returned by spill(); all spills
-  // will be restored to the original registers
-  void restore(AssemblyBuilderA64 &build, size_t start);
+    // Restores registers starting from the offset returned by spill(); all spills will be restored to the original registers
+    void restore(AssemblyBuilderA64& build, size_t start);
 
-  // Restores register for a single instruction; may not assign the previously
-  // used register!
-  void restoreReg(AssemblyBuilderA64 &build, IrInst &inst);
+    // Restores register for a single instruction; may not assign the previously used register!
+    void restoreReg(AssemblyBuilderA64& build, IrInst& inst);
 
-  struct Set {
-    // which registers are in the set that the allocator manages (initialized at
-    // construction)
-    uint32_t base = 0;
+    struct Set
+    {
+        // which registers are in the set that the allocator manages (initialized at construction)
+        uint32_t base = 0;
 
-    // which subset of initial set is free
-    uint32_t free = 0;
+        // which subset of initial set is free
+        uint32_t free = 0;
 
-    // which subset of initial set is allocated as temporary
-    uint32_t temp = 0;
+        // which subset of initial set is allocated as temporary
+        uint32_t temp = 0;
 
-    // which instruction is defining which register (for spilling); only valid
-    // if not free and not temp
-    uint32_t defs[32];
-  };
+        // which instruction is defining which register (for spilling); only valid if not free and not temp
+        uint32_t defs[32];
+    };
 
-  struct Spill {
-    uint32_t inst;
+    struct Spill
+    {
+        uint32_t inst;
 
-    RegisterA64 origin;
-    int8_t slot;
-  };
+        RegisterA64 origin;
+        int8_t slot;
+    };
 
-  Set &getSet(KindA64 kind);
+    Set& getSet(KindA64 kind);
 
-  IrFunction &function;
-  LoweringStats *stats = nullptr;
-  Set gpr, simd;
+    IrFunction& function;
+    LoweringStats* stats = nullptr;
+    Set gpr, simd;
 
-  std::vector<Spill> spills;
+    std::vector<Spill> spills;
 
-  // which 8-byte slots are free
-  uint32_t freeSpillSlots = 0;
+    // which 8-byte slots are free
+    uint32_t freeSpillSlots = 0;
 
-  bool error = false;
+    bool error = false;
 };
 
 } // namespace A64
@@ -5498,78 +5560,83 @@ struct IrRegAllocA64 {
 
 // @@@@@ PACK.LUA : was already included! <vector>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 struct ModuleHelpers;
 struct AssemblyOptions;
 struct LoweringStats;
 
-namespace A64 {
+namespace A64
+{
 
-struct IrLoweringA64 {
-  IrLoweringA64(AssemblyBuilderA64 &build, ModuleHelpers &helpers,
-                IrFunction &function, LoweringStats *stats);
+struct IrLoweringA64
+{
+    IrLoweringA64(AssemblyBuilderA64& build, ModuleHelpers& helpers, IrFunction& function, LoweringStats* stats);
 
-  void lowerInst(IrInst &inst, uint32_t index, const IrBlock &next);
-  void finishBlock(const IrBlock &curr, const IrBlock &next);
-  void finishFunction();
+    void lowerInst(IrInst& inst, uint32_t index, const IrBlock& next);
+    void finishBlock(const IrBlock& curr, const IrBlock& next);
+    void finishFunction();
 
-  bool hasError() const;
+    bool hasError() const;
 
-  bool isFallthroughBlock(const IrBlock &target, const IrBlock &next);
-  void jumpOrFallthrough(IrBlock &target, const IrBlock &next);
+    bool isFallthroughBlock(const IrBlock& target, const IrBlock& next);
+    void jumpOrFallthrough(IrBlock& target, const IrBlock& next);
 
-  Label &getTargetLabel(IrOp op, Label &fresh);
-  void finalizeTargetLabel(IrOp op, Label &fresh);
+    Label& getTargetLabel(IrOp op, Label& fresh);
+    void finalizeTargetLabel(IrOp op, Label& fresh);
 
-  // Operand data build helpers
-  // May emit data/address synthesis instructions
-  RegisterA64 tempDouble(IrOp op);
-  RegisterA64 tempInt(IrOp op);
-  RegisterA64 tempUint(IrOp op);
-  AddressA64 tempAddr(IrOp op, int offset);
-  AddressA64 tempAddrBuffer(IrOp bufferOp, IrOp indexOp, uint8_t tag);
+    // Operand data build helpers
+    // May emit data/address synthesis instructions
+    RegisterA64 tempDouble(IrOp op);
+    RegisterA64 tempInt(IrOp op);
+    RegisterA64 tempUint(IrOp op);
+    AddressA64 tempAddr(IrOp op, int offset);
+    AddressA64 tempAddrBuffer(IrOp bufferOp, IrOp indexOp, uint8_t tag);
 
-  // May emit restore instructions
-  RegisterA64 regOp(IrOp op);
+    // May emit restore instructions
+    RegisterA64 regOp(IrOp op);
 
-  // Operand data lookup helpers
-  IrConst constOp(IrOp op) const;
-  uint8_t tagOp(IrOp op) const;
-  int intOp(IrOp op) const;
-  unsigned uintOp(IrOp op) const;
-  double doubleOp(IrOp op) const;
+    // Operand data lookup helpers
+    IrConst constOp(IrOp op) const;
+    uint8_t tagOp(IrOp op) const;
+    int intOp(IrOp op) const;
+    unsigned uintOp(IrOp op) const;
+    double doubleOp(IrOp op) const;
 
-  IrBlock &blockOp(IrOp op) const;
-  Label &labelOp(IrOp op) const;
+    IrBlock& blockOp(IrOp op) const;
+    Label& labelOp(IrOp op) const;
 
-  struct InterruptHandler {
-    Label self;
-    unsigned int pcpos;
-    Label next;
-  };
+    struct InterruptHandler
+    {
+        Label self;
+        unsigned int pcpos;
+        Label next;
+    };
 
-  struct ExitHandler {
-    Label self;
-    unsigned int pcpos;
-  };
+    struct ExitHandler
+    {
+        Label self;
+        unsigned int pcpos;
+    };
 
-  AssemblyBuilderA64 &build;
-  ModuleHelpers &helpers;
+    AssemblyBuilderA64& build;
+    ModuleHelpers& helpers;
 
-  IrFunction &function;
-  LoweringStats *stats = nullptr;
+    IrFunction& function;
+    LoweringStats* stats = nullptr;
 
-  IrRegAllocA64 regs;
+    IrRegAllocA64 regs;
 
-  IrValueLocationTracking valueTracker;
+    IrValueLocationTracking valueTracker;
 
-  std::vector<InterruptHandler> interruptHandlers;
-  std::vector<ExitHandler> exitHandlers;
-  DenseHashMap<uint32_t, uint32_t> exitHandlerMap;
+    std::vector<InterruptHandler> interruptHandlers;
+    std::vector<ExitHandler> exitHandlers;
+    DenseHashMap<uint32_t, uint32_t> exitHandlerMap;
 
-  bool error = false;
+    bool error = false;
 };
 
 } // namespace A64
@@ -5578,111 +5645,98 @@ struct IrLoweringA64 {
 
 // @@@ PACK.lua : done, inlined <CodeGen/src/IrTranslation.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : was already included! <stdint.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <ltm.h>
 
 typedef uint32_t Instruction;
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 enum class IrCondition : uint8_t;
 struct IrOp;
 struct IrBuilder;
 enum class IrCmd : uint8_t;
 
-void translateInstLoadNil(IrBuilder &build, const Instruction *pc);
-void translateInstLoadB(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstLoadN(IrBuilder &build, const Instruction *pc);
-void translateInstLoadK(IrBuilder &build, const Instruction *pc);
-void translateInstLoadKX(IrBuilder &build, const Instruction *pc);
-void translateInstMove(IrBuilder &build, const Instruction *pc);
-void translateInstJump(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstJumpBack(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstJumpIf(IrBuilder &build, const Instruction *pc, int pcpos,
-                         bool not_);
-void translateInstJumpIfEq(IrBuilder &build, const Instruction *pc, int pcpos,
-                           bool not_);
-void translateInstJumpIfCond(IrBuilder &build, const Instruction *pc, int pcpos,
-                             IrCondition cond);
-void translateInstJumpX(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstJumpxEqNil(IrBuilder &build, const Instruction *pc,
-                             int pcpos);
-void translateInstJumpxEqB(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstJumpxEqN(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstJumpxEqS(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstBinary(IrBuilder &build, const Instruction *pc, int pcpos,
-                         TMS tm);
-void translateInstBinaryK(IrBuilder &build, const Instruction *pc, int pcpos,
-                          TMS tm);
-void translateInstBinaryRK(IrBuilder &build, const Instruction *pc, int pcpos,
-                           TMS tm);
-void translateInstNot(IrBuilder &build, const Instruction *pc);
-void translateInstMinus(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstLength(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstNewTable(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstDupTable(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstGetUpval(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstSetUpval(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstCloseUpvals(IrBuilder &build, const Instruction *pc);
-IrOp translateFastCallN(IrBuilder &build, const Instruction *pc, int pcpos,
-                        bool customParams, int customParamCount,
-                        IrOp customArgs, IrOp customArg3);
-void translateInstForNPrep(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstForNLoop(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstForGPrepNext(IrBuilder &build, const Instruction *pc,
-                               int pcpos);
-void translateInstForGPrepInext(IrBuilder &build, const Instruction *pc,
-                                int pcpos);
-void translateInstForGLoopIpairs(IrBuilder &build, const Instruction *pc,
-                                 int pcpos);
-void translateInstGetTableN(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstSetTableN(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstGetTable(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstSetTable(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstGetImport(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstGetTableKS(IrBuilder &build, const Instruction *pc,
-                             int pcpos);
-void translateInstSetTableKS(IrBuilder &build, const Instruction *pc,
-                             int pcpos);
-void translateInstGetGlobal(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstSetGlobal(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstConcat(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstCapture(IrBuilder &build, const Instruction *pc, int pcpos);
-bool translateInstNamecall(IrBuilder &build, const Instruction *pc, int pcpos);
-void translateInstAndX(IrBuilder &build, const Instruction *pc, int pcpos,
-                       IrOp c);
-void translateInstOrX(IrBuilder &build, const Instruction *pc, int pcpos,
-                      IrOp c);
-void translateInstNewClosure(IrBuilder &build, const Instruction *pc,
-                             int pcpos);
+void translateInstLoadNil(IrBuilder& build, const Instruction* pc);
+void translateInstLoadB(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstLoadN(IrBuilder& build, const Instruction* pc);
+void translateInstLoadK(IrBuilder& build, const Instruction* pc);
+void translateInstLoadKX(IrBuilder& build, const Instruction* pc);
+void translateInstMove(IrBuilder& build, const Instruction* pc);
+void translateInstJump(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstJumpBack(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstJumpIf(IrBuilder& build, const Instruction* pc, int pcpos, bool not_);
+void translateInstJumpIfEq(IrBuilder& build, const Instruction* pc, int pcpos, bool not_);
+void translateInstJumpIfCond(IrBuilder& build, const Instruction* pc, int pcpos, IrCondition cond);
+void translateInstJumpX(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstJumpxEqNil(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstJumpxEqB(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstJumpxEqN(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstJumpxEqS(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstBinary(IrBuilder& build, const Instruction* pc, int pcpos, TMS tm);
+void translateInstBinaryK(IrBuilder& build, const Instruction* pc, int pcpos, TMS tm);
+void translateInstBinaryRK(IrBuilder& build, const Instruction* pc, int pcpos, TMS tm);
+void translateInstNot(IrBuilder& build, const Instruction* pc);
+void translateInstMinus(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstLength(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstNewTable(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstDupTable(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstGetUpval(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstSetUpval(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstCloseUpvals(IrBuilder& build, const Instruction* pc);
+IrOp translateFastCallN(
+    IrBuilder& build, const Instruction* pc, int pcpos, bool customParams, int customParamCount, IrOp customArgs, IrOp customArg3);
+void translateInstForNPrep(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstForNLoop(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstForGPrepNext(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstForGPrepInext(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstForGLoopIpairs(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstGetTableN(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstSetTableN(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstGetTable(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstSetTable(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstGetImport(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstGetTableKS(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstSetTableKS(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstGetGlobal(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstSetGlobal(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstConcat(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstCapture(IrBuilder& build, const Instruction* pc, int pcpos);
+bool translateInstNamecall(IrBuilder& build, const Instruction* pc, int pcpos);
+void translateInstAndX(IrBuilder& build, const Instruction* pc, int pcpos, IrOp c);
+void translateInstOrX(IrBuilder& build, const Instruction* pc, int pcpos, IrOp c);
+void translateInstNewClosure(IrBuilder& build, const Instruction* pc, int pcpos);
 
-void beforeInstForNPrep(IrBuilder &build, const Instruction *pc, int pcpos);
-void afterInstForNLoop(IrBuilder &build, const Instruction *pc);
+void beforeInstForNPrep(IrBuilder& build, const Instruction* pc, int pcpos);
+void afterInstForNLoop(IrBuilder& build, const Instruction* pc);
 
 } // namespace CodeGen
 } // namespace Luau
 
 // @@@ PACK.lua : done, inlined <CodeGen/src/CodeGenA64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 class BaseCodeGenContext;
 struct ModuleHelpers;
 
-namespace A64 {
+namespace A64
+{
 
 class AssemblyBuilderA64;
 
-bool initHeaderFunctions(BaseCodeGenContext &codeGenContext);
-void assembleHelpers(AssemblyBuilderA64 &build, ModuleHelpers &helpers);
+bool initHeaderFunctions(BaseCodeGenContext& codeGenContext);
+void assembleHelpers(AssemblyBuilderA64& build, ModuleHelpers& helpers);
 
 } // namespace A64
 } // namespace CodeGen
@@ -5692,8 +5746,7 @@ void assembleHelpers(AssemblyBuilderA64 &build, ModuleHelpers &helpers);
 
 // @@@ PACK.lua : done, inlined <CodeGen/src/CodeGenLower.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/AssemblyBuilderA64.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/AssemblyBuilderX64.h>
@@ -5717,8 +5770,7 @@ void assembleHelpers(AssemblyBuilderA64 &build, ModuleHelpers &helpers);
 // DONE : was aleready inlined <IrLoweringA64.h>
 // @@@ PACK.lua : done, inlined <CodeGen/src/IrLoweringX64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/AssemblyBuilderX64.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/DenseHash.h>
@@ -5733,82 +5785,87 @@ void assembleHelpers(AssemblyBuilderA64 &build, ModuleHelpers &helpers);
 
 struct Proto;
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 struct ModuleHelpers;
 struct AssemblyOptions;
 struct LoweringStats;
 
-namespace X64 {
+namespace X64
+{
 
-struct IrLoweringX64 {
-  IrLoweringX64(AssemblyBuilderX64 &build, ModuleHelpers &helpers,
-                IrFunction &function, LoweringStats *stats);
+struct IrLoweringX64
+{
+    IrLoweringX64(AssemblyBuilderX64& build, ModuleHelpers& helpers, IrFunction& function, LoweringStats* stats);
 
-  void lowerInst(IrInst &inst, uint32_t index, const IrBlock &next);
-  void finishBlock(const IrBlock &curr, const IrBlock &next);
-  void finishFunction();
+    void lowerInst(IrInst& inst, uint32_t index, const IrBlock& next);
+    void finishBlock(const IrBlock& curr, const IrBlock& next);
+    void finishFunction();
 
-  bool hasError() const;
+    bool hasError() const;
 
-  bool isFallthroughBlock(const IrBlock &target, const IrBlock &next);
-  void jumpOrFallthrough(IrBlock &target, const IrBlock &next);
+    bool isFallthroughBlock(const IrBlock& target, const IrBlock& next);
+    void jumpOrFallthrough(IrBlock& target, const IrBlock& next);
 
-  Label &getTargetLabel(IrOp op, Label &fresh);
-  void finalizeTargetLabel(IrOp op, Label &fresh);
+    Label& getTargetLabel(IrOp op, Label& fresh);
+    void finalizeTargetLabel(IrOp op, Label& fresh);
 
-  void jumpOrAbortOnUndef(ConditionX64 cond, IrOp target, const IrBlock &next);
-  void jumpOrAbortOnUndef(IrOp target, const IrBlock &next);
+    void jumpOrAbortOnUndef(ConditionX64 cond, IrOp target, const IrBlock& next);
+    void jumpOrAbortOnUndef(IrOp target, const IrBlock& next);
 
-  void storeDoubleAsFloat(OperandX64 dst, IrOp src);
+    void storeDoubleAsFloat(OperandX64 dst, IrOp src);
 
-  // Operand data lookup helpers
-  OperandX64 memRegDoubleOp(IrOp op);
-  OperandX64 memRegUintOp(IrOp op);
-  OperandX64 memRegTagOp(IrOp op);
-  RegisterX64 regOp(IrOp op);
-  OperandX64 bufferAddrOp(IrOp bufferOp, IrOp indexOp, uint8_t tag);
-  RegisterX64 vecOp(IrOp op, ScopedRegX64 &tmp);
+    // Operand data lookup helpers
+    OperandX64 memRegDoubleOp(IrOp op);
+    OperandX64 memRegUintOp(IrOp op);
+    OperandX64 memRegTagOp(IrOp op);
+    RegisterX64 regOp(IrOp op);
+    OperandX64 bufferAddrOp(IrOp bufferOp, IrOp indexOp, uint8_t tag);
+    RegisterX64 vecOp(IrOp op, ScopedRegX64& tmp);
 
-  IrConst constOp(IrOp op) const;
-  uint8_t tagOp(IrOp op) const;
-  int intOp(IrOp op) const;
-  unsigned uintOp(IrOp op) const;
-  double doubleOp(IrOp op) const;
+    IrConst constOp(IrOp op) const;
+    uint8_t tagOp(IrOp op) const;
+    int intOp(IrOp op) const;
+    unsigned uintOp(IrOp op) const;
+    double doubleOp(IrOp op) const;
 
-  IrBlock &blockOp(IrOp op) const;
-  Label &labelOp(IrOp op) const;
+    IrBlock& blockOp(IrOp op) const;
+    Label& labelOp(IrOp op) const;
 
-  OperandX64 vectorAndMaskOp();
+    OperandX64 vectorAndMaskOp();
 
-  struct InterruptHandler {
-    Label self;
-    unsigned int pcpos;
-    Label next;
-  };
+    struct InterruptHandler
+    {
+        Label self;
+        unsigned int pcpos;
+        Label next;
+    };
 
-  struct ExitHandler {
-    Label self;
-    unsigned int pcpos;
-  };
+    struct ExitHandler
+    {
+        Label self;
+        unsigned int pcpos;
+    };
 
-  AssemblyBuilderX64 &build;
-  ModuleHelpers &helpers;
+    AssemblyBuilderX64& build;
+    ModuleHelpers& helpers;
 
-  IrFunction &function;
-  LoweringStats *stats = nullptr;
+    IrFunction& function;
+    LoweringStats* stats = nullptr;
 
-  IrRegAllocX64 regs;
+    IrRegAllocX64 regs;
 
-  IrValueLocationTracking valueTracker;
+    IrValueLocationTracking valueTracker;
 
-  std::vector<InterruptHandler> interruptHandlers;
-  std::vector<ExitHandler> exitHandlers;
-  DenseHashMap<uint32_t, uint32_t> exitHandlerMap;
+    std::vector<InterruptHandler> interruptHandlers;
+    std::vector<ExitHandler> exitHandlers;
+    DenseHashMap<uint32_t, uint32_t> exitHandlerMap;
 
-  OperandX64 vectorAndMask = noreg;
-  OperandX64 vectorOrMask = noreg;
+    OperandX64 vectorAndMask = noreg;
+    OperandX64 vectorOrMask = noreg;
 };
 
 } // namespace X64
@@ -5831,357 +5888,342 @@ LUAU_FASTINT(CodegenHeuristicsBlockLimit)
 LUAU_FASTINT(CodegenHeuristicsBlockInstructionLimit)
 LUAU_FASTFLAG(LuauNativeAttribute)
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
-inline void gatherFunctions_DEPRECATED(std::vector<Proto *> &results,
-                                       Proto *proto, unsigned int flags) {
-  if (results.size() <= size_t(proto->bytecodeid))
-    results.resize(proto->bytecodeid + 1);
+inline void gatherFunctions_DEPRECATED(std::vector<Proto*>& results, Proto* proto, unsigned int flags)
+{
+    if (results.size() <= size_t(proto->bytecodeid))
+        results.resize(proto->bytecodeid + 1);
 
-  // Skip protos that we've already compiled in this run: this happens because
-  // at -O2, inlined functions get their protos reused
-  if (results[proto->bytecodeid])
-    return;
+    // Skip protos that we've already compiled in this run: this happens because at -O2, inlined functions get their protos reused
+    if (results[proto->bytecodeid])
+        return;
 
-  // Only compile cold functions if requested
-  if ((proto->flags & LPF_NATIVE_COLD) == 0 ||
-      (flags & CodeGen_ColdFunctions) != 0)
-    results[proto->bytecodeid] = proto;
+    // Only compile cold functions if requested
+    if ((proto->flags & LPF_NATIVE_COLD) == 0 || (flags & CodeGen_ColdFunctions) != 0)
+        results[proto->bytecodeid] = proto;
 
-  // Recursively traverse child protos even if we aren't compiling this one
-  for (int i = 0; i < proto->sizep; i++)
-    gatherFunctions_DEPRECATED(results, proto->p[i], flags);
+    // Recursively traverse child protos even if we aren't compiling this one
+    for (int i = 0; i < proto->sizep; i++)
+        gatherFunctions_DEPRECATED(results, proto->p[i], flags);
 }
 
-inline void gatherFunctionsHelper(std::vector<Proto *> &results, Proto *proto,
-                                  const unsigned int flags,
-                                  const bool hasNativeFunctions,
-                                  const bool root) {
-  if (results.size() <= size_t(proto->bytecodeid))
-    results.resize(proto->bytecodeid + 1);
+inline void gatherFunctionsHelper(
+    std::vector<Proto*>& results, Proto* proto, const unsigned int flags, const bool hasNativeFunctions, const bool root)
+{
+    if (results.size() <= size_t(proto->bytecodeid))
+        results.resize(proto->bytecodeid + 1);
 
-  // Skip protos that we've already compiled in this run: this happens because
-  // at -O2, inlined functions get their protos reused
-  if (results[proto->bytecodeid])
-    return;
+    // Skip protos that we've already compiled in this run: this happens because at -O2, inlined functions get their protos reused
+    if (results[proto->bytecodeid])
+        return;
 
-  // if native module, compile cold functions if requested
-  // if not native module, compile function if it has native attribute and is
-  // not root
-  bool shouldGather = hasNativeFunctions
-                          ? (!root && (proto->flags & LPF_NATIVE_FUNCTION) != 0)
-                          : ((proto->flags & LPF_NATIVE_COLD) == 0 ||
-                             (flags & CodeGen_ColdFunctions) != 0);
+    // if native module, compile cold functions if requested
+    // if not native module, compile function if it has native attribute and is not root
+    bool shouldGather = hasNativeFunctions ? (!root && (proto->flags & LPF_NATIVE_FUNCTION) != 0)
+                                           : ((proto->flags & LPF_NATIVE_COLD) == 0 || (flags & CodeGen_ColdFunctions) != 0);
 
-  if (shouldGather)
-    results[proto->bytecodeid] = proto;
+    if (shouldGather)
+        results[proto->bytecodeid] = proto;
 
-  // Recursively traverse child protos even if we aren't compiling this one
-  for (int i = 0; i < proto->sizep; i++)
-    gatherFunctionsHelper(results, proto->p[i], flags, hasNativeFunctions,
-                          false);
+    // Recursively traverse child protos even if we aren't compiling this one
+    for (int i = 0; i < proto->sizep; i++)
+        gatherFunctionsHelper(results, proto->p[i], flags, hasNativeFunctions, false);
 }
 
-inline void gatherFunctions(std::vector<Proto *> &results, Proto *root,
-                            const unsigned int flags,
-                            const bool hasNativeFunctions = false) {
-  LUAU_ASSERT(FFlag::LuauNativeAttribute);
-  gatherFunctionsHelper(results, root, flags, hasNativeFunctions, true);
+inline void gatherFunctions(std::vector<Proto*>& results, Proto* root, const unsigned int flags, const bool hasNativeFunctions = false)
+{
+    LUAU_ASSERT(FFlag::LuauNativeAttribute);
+    gatherFunctionsHelper(results, root, flags, hasNativeFunctions, true);
 }
 
-inline unsigned getInstructionCount(const std::vector<IrInst> &instructions,
-                                    IrCmd cmd) {
-  return unsigned(
-      std::count_if(instructions.begin(), instructions.end(),
-                    [&cmd](const IrInst &inst) { return inst.cmd == cmd; }));
+inline unsigned getInstructionCount(const std::vector<IrInst>& instructions, IrCmd cmd)
+{
+    return unsigned(std::count_if(instructions.begin(), instructions.end(), [&cmd](const IrInst& inst) {
+        return inst.cmd == cmd;
+    }));
 }
 
-template <typename AssemblyBuilder, typename IrLowering>
-inline bool lowerImpl(AssemblyBuilder &build, IrLowering &lowering,
-                      IrFunction &function,
-                      const std::vector<uint32_t> &sortedBlocks, int bytecodeid,
-                      AssemblyOptions options) {
-  // For each IR instruction that begins a bytecode instruction, which bytecode
-  // instruction is it?
-  std::vector<uint32_t> bcLocations(function.instructions.size() + 1, ~0u);
+template<typename AssemblyBuilder, typename IrLowering>
+inline bool lowerImpl(AssemblyBuilder& build, IrLowering& lowering, IrFunction& function, const std::vector<uint32_t>& sortedBlocks, int bytecodeid,
+    AssemblyOptions options)
+{
+    // For each IR instruction that begins a bytecode instruction, which bytecode instruction is it?
+    std::vector<uint32_t> bcLocations(function.instructions.size() + 1, ~0u);
 
-  for (size_t i = 0; i < function.bcMapping.size(); ++i) {
-    uint32_t irLocation = function.bcMapping[i].irLocation;
+    for (size_t i = 0; i < function.bcMapping.size(); ++i)
+    {
+        uint32_t irLocation = function.bcMapping[i].irLocation;
 
-    if (irLocation != ~0u)
-      bcLocations[irLocation] = uint32_t(i);
-  }
-
-  bool outputEnabled = options.includeAssembly || options.includeIr;
-
-  IrToStringContext ctx{build.text, function.blocks, function.constants,
-                        function.cfg};
-
-  // We use this to skip outlined fallback blocks from IR/asm text output
-  size_t textSize = build.text.length();
-  uint32_t codeSize = build.getCodeSize();
-  bool seenFallback = false;
-
-  IrBlock dummy;
-  dummy.start = ~0u;
-
-  // Make sure entry block is first
-  CODEGEN_ASSERT(sortedBlocks[0] == 0);
-
-  for (size_t i = 0; i < sortedBlocks.size(); ++i) {
-    uint32_t blockIndex = sortedBlocks[i];
-    IrBlock &block = function.blocks[blockIndex];
-
-    if (block.kind == IrBlockKind::Dead)
-      continue;
-
-    CODEGEN_ASSERT(block.start != ~0u);
-    CODEGEN_ASSERT(block.finish != ~0u);
-
-    // If we want to skip fallback code IR/asm, we'll record when those blocks
-    // start once we see them
-    if (block.kind == IrBlockKind::Fallback && !seenFallback) {
-      textSize = build.text.length();
-      codeSize = build.getCodeSize();
-      seenFallback = true;
+        if (irLocation != ~0u)
+            bcLocations[irLocation] = uint32_t(i);
     }
 
-    if (options.includeIr) {
-      if (options.includeIrPrefix == IncludeIrPrefix::Yes)
-        build.logAppend("# ");
+    bool outputEnabled = options.includeAssembly || options.includeIr;
 
-      toStringDetailed(ctx, block, blockIndex, options.includeUseInfo,
-                       options.includeCfgInfo, options.includeRegFlowInfo);
-    }
+    IrToStringContext ctx{build.text, function.blocks, function.constants, function.cfg};
 
-    // Values can only reference restore operands in the current block chain
-    function.validRestoreOpBlocks.push_back(blockIndex);
+    // We use this to skip outlined fallback blocks from IR/asm text output
+    size_t textSize = build.text.length();
+    uint32_t codeSize = build.getCodeSize();
+    bool seenFallback = false;
 
-    build.setLabel(block.label);
+    IrBlock dummy;
+    dummy.start = ~0u;
 
-    if (blockIndex == function.entryBlock) {
-      function.entryLocation = build.getLabelOffset(block.label);
-    }
+    // Make sure entry block is first
+    CODEGEN_ASSERT(sortedBlocks[0] == 0);
 
-    IrBlock &nextBlock = getNextBlock(function, sortedBlocks, dummy, i);
+    for (size_t i = 0; i < sortedBlocks.size(); ++i)
+    {
+        uint32_t blockIndex = sortedBlocks[i];
+        IrBlock& block = function.blocks[blockIndex];
 
-    // Optimizations often propagate information between blocks
-    // To make sure the register and spill state is correct when blocks are
-    // lowered, we check that sorted block order matches the expected one
-    if (block.expectedNextBlock != ~0u)
-      CODEGEN_ASSERT(function.getBlockIndex(nextBlock) ==
-                     block.expectedNextBlock);
+        if (block.kind == IrBlockKind::Dead)
+            continue;
 
-    for (uint32_t index = block.start; index <= block.finish; index++) {
-      CODEGEN_ASSERT(index < function.instructions.size());
+        CODEGEN_ASSERT(block.start != ~0u);
+        CODEGEN_ASSERT(block.finish != ~0u);
 
-      uint32_t bcLocation = bcLocations[index];
-
-      // If IR instruction is the first one for the original bytecode, we can
-      // annotate it with source code text
-      if (outputEnabled && options.annotator && bcLocation != ~0u) {
-        options.annotator(options.annotatorContext, build.text, bytecodeid,
-                          bcLocation);
-
-        // If available, report inferred register tags
-        BytecodeTypes bcTypes = function.getBytecodeTypesAt(bcLocation);
-
-        if (bcTypes.result != LBC_TYPE_ANY || bcTypes.a != LBC_TYPE_ANY ||
-            bcTypes.b != LBC_TYPE_ANY || bcTypes.c != LBC_TYPE_ANY) {
-          toString(ctx.result, bcTypes,
-                   options.compilationOptions.userdataTypes);
-
-          build.logAppend("\n");
-        }
-      }
-
-      // If bytecode needs the location of this instruction for jumps, record it
-      if (bcLocation != ~0u) {
-        Label label = (index == block.start) ? block.label : build.setLabel();
-        function.bcMapping[bcLocation].asmLocation =
-            build.getLabelOffset(label);
-      }
-
-      IrInst &inst = function.instructions[index];
-
-      // Skip pseudo instructions, but make sure they are not used at this stage
-      // This also prevents them from getting into text output when that's
-      // enabled
-      if (isPseudo(inst.cmd)) {
-        CODEGEN_ASSERT(inst.useCount == 0);
-        continue;
-      }
-
-      // Either instruction result value is not referenced or the use count is
-      // not zero
-      CODEGEN_ASSERT(inst.lastUse == 0 || inst.useCount != 0);
-
-      if (options.includeIr) {
-        if (options.includeIrPrefix == IncludeIrPrefix::Yes)
-          build.logAppend("# ");
-
-        toStringDetailed(ctx, block, blockIndex, inst, index,
-                         options.includeUseInfo);
-      }
-
-      lowering.lowerInst(inst, index, nextBlock);
-
-      if (lowering.hasError()) {
-        // Place labels for all blocks that we're skipping
-        // This is needed to avoid AssemblyBuilder assertions about jumps in
-        // earlier blocks with unplaced labels
-        for (size_t j = i + 1; j < sortedBlocks.size(); ++j) {
-          IrBlock &abandoned = function.blocks[sortedBlocks[j]];
-
-          build.setLabel(abandoned.label);
+        // If we want to skip fallback code IR/asm, we'll record when those blocks start once we see them
+        if (block.kind == IrBlockKind::Fallback && !seenFallback)
+        {
+            textSize = build.text.length();
+            codeSize = build.getCodeSize();
+            seenFallback = true;
         }
 
-        lowering.finishFunction();
+        if (options.includeIr)
+        {
+            if (options.includeIrPrefix == IncludeIrPrefix::Yes)
+                build.logAppend("# ");
 
+            toStringDetailed(ctx, block, blockIndex, options.includeUseInfo, options.includeCfgInfo, options.includeRegFlowInfo);
+        }
+
+        // Values can only reference restore operands in the current block chain
+        function.validRestoreOpBlocks.push_back(blockIndex);
+
+        build.setLabel(block.label);
+
+        if (blockIndex == function.entryBlock)
+        {
+            function.entryLocation = build.getLabelOffset(block.label);
+        }
+
+        IrBlock& nextBlock = getNextBlock(function, sortedBlocks, dummy, i);
+
+        // Optimizations often propagate information between blocks
+        // To make sure the register and spill state is correct when blocks are lowered, we check that sorted block order matches the expected one
+        if (block.expectedNextBlock != ~0u)
+            CODEGEN_ASSERT(function.getBlockIndex(nextBlock) == block.expectedNextBlock);
+
+        for (uint32_t index = block.start; index <= block.finish; index++)
+        {
+            CODEGEN_ASSERT(index < function.instructions.size());
+
+            uint32_t bcLocation = bcLocations[index];
+
+            // If IR instruction is the first one for the original bytecode, we can annotate it with source code text
+            if (outputEnabled && options.annotator && bcLocation != ~0u)
+            {
+                options.annotator(options.annotatorContext, build.text, bytecodeid, bcLocation);
+
+                // If available, report inferred register tags
+                BytecodeTypes bcTypes = function.getBytecodeTypesAt(bcLocation);
+
+                if (bcTypes.result != LBC_TYPE_ANY || bcTypes.a != LBC_TYPE_ANY || bcTypes.b != LBC_TYPE_ANY || bcTypes.c != LBC_TYPE_ANY)
+                {
+                    toString(ctx.result, bcTypes, options.compilationOptions.userdataTypes);
+
+                    build.logAppend("\n");
+                }
+            }
+
+            // If bytecode needs the location of this instruction for jumps, record it
+            if (bcLocation != ~0u)
+            {
+                Label label = (index == block.start) ? block.label : build.setLabel();
+                function.bcMapping[bcLocation].asmLocation = build.getLabelOffset(label);
+            }
+
+            IrInst& inst = function.instructions[index];
+
+            // Skip pseudo instructions, but make sure they are not used at this stage
+            // This also prevents them from getting into text output when that's enabled
+            if (isPseudo(inst.cmd))
+            {
+                CODEGEN_ASSERT(inst.useCount == 0);
+                continue;
+            }
+
+            // Either instruction result value is not referenced or the use count is not zero
+            CODEGEN_ASSERT(inst.lastUse == 0 || inst.useCount != 0);
+
+            if (options.includeIr)
+            {
+                if (options.includeIrPrefix == IncludeIrPrefix::Yes)
+                    build.logAppend("# ");
+
+                toStringDetailed(ctx, block, blockIndex, inst, index, options.includeUseInfo);
+            }
+
+            lowering.lowerInst(inst, index, nextBlock);
+
+            if (lowering.hasError())
+            {
+                // Place labels for all blocks that we're skipping
+                // This is needed to avoid AssemblyBuilder assertions about jumps in earlier blocks with unplaced labels
+                for (size_t j = i + 1; j < sortedBlocks.size(); ++j)
+                {
+                    IrBlock& abandoned = function.blocks[sortedBlocks[j]];
+
+                    build.setLabel(abandoned.label);
+                }
+
+                lowering.finishFunction();
+
+                return false;
+            }
+        }
+
+        lowering.finishBlock(block, nextBlock);
+
+        if (options.includeIr && options.includeIrPrefix == IncludeIrPrefix::Yes)
+            build.logAppend("#\n");
+
+        if (block.expectedNextBlock == ~0u)
+            function.validRestoreOpBlocks.clear();
+    }
+
+    if (!seenFallback)
+    {
+        textSize = build.text.length();
+        codeSize = build.getCodeSize();
+    }
+
+    lowering.finishFunction();
+
+    if (outputEnabled && !options.includeOutlinedCode && textSize < build.text.size())
+    {
+        build.text.resize(textSize);
+
+        if (options.includeAssembly)
+            build.logAppend("; skipping %u bytes of outlined code\n", unsigned((build.getCodeSize() - codeSize) * sizeof(build.code[0])));
+    }
+
+    return true;
+}
+
+inline bool lowerIr(X64::AssemblyBuilderX64& build, IrBuilder& ir, const std::vector<uint32_t>& sortedBlocks, ModuleHelpers& helpers, Proto* proto,
+    AssemblyOptions options, LoweringStats* stats)
+{
+    optimizeMemoryOperandsX64(ir.function);
+
+    X64::IrLoweringX64 lowering(build, helpers, ir.function, stats);
+
+    return lowerImpl(build, lowering, ir.function, sortedBlocks, proto->bytecodeid, options);
+}
+
+inline bool lowerIr(A64::AssemblyBuilderA64& build, IrBuilder& ir, const std::vector<uint32_t>& sortedBlocks, ModuleHelpers& helpers, Proto* proto,
+    AssemblyOptions options, LoweringStats* stats)
+{
+    A64::IrLoweringA64 lowering(build, helpers, ir.function, stats);
+
+    return lowerImpl(build, lowering, ir.function, sortedBlocks, proto->bytecodeid, options);
+}
+
+template<typename AssemblyBuilder>
+inline bool lowerFunction(IrBuilder& ir, AssemblyBuilder& build, ModuleHelpers& helpers, Proto* proto, AssemblyOptions options, LoweringStats* stats,
+    CodeGenCompilationResult& codeGenCompilationResult)
+{
+    killUnusedBlocks(ir.function);
+
+    unsigned preOptBlockCount = 0;
+    unsigned maxBlockInstructions = 0;
+
+    for (const IrBlock& block : ir.function.blocks)
+    {
+        preOptBlockCount += (block.kind != IrBlockKind::Dead);
+        unsigned blockInstructions = block.finish - block.start;
+        maxBlockInstructions = std::max(maxBlockInstructions, blockInstructions);
+    }
+
+    // we update stats before checking the heuristic so that even if we bail out
+    // our stats include information about the limit that was exceeded.
+    if (stats)
+    {
+        stats->blocksPreOpt += preOptBlockCount;
+        stats->maxBlockInstructions = maxBlockInstructions;
+    }
+
+    if (preOptBlockCount >= unsigned(FInt::CodegenHeuristicsBlockLimit.value))
+    {
+        codeGenCompilationResult = CodeGenCompilationResult::CodeGenOverflowBlockLimit;
         return false;
-      }
     }
 
-    lowering.finishBlock(block, nextBlock);
-
-    if (options.includeIr && options.includeIrPrefix == IncludeIrPrefix::Yes)
-      build.logAppend("#\n");
-
-    if (block.expectedNextBlock == ~0u)
-      function.validRestoreOpBlocks.clear();
-  }
-
-  if (!seenFallback) {
-    textSize = build.text.length();
-    codeSize = build.getCodeSize();
-  }
-
-  lowering.finishFunction();
-
-  if (outputEnabled && !options.includeOutlinedCode &&
-      textSize < build.text.size()) {
-    build.text.resize(textSize);
-
-    if (options.includeAssembly)
-      build.logAppend(
-          "; skipping %u bytes of outlined code\n",
-          unsigned((build.getCodeSize() - codeSize) * sizeof(build.code[0])));
-  }
-
-  return true;
-}
-
-inline bool lowerIr(X64::AssemblyBuilderX64 &build, IrBuilder &ir,
-                    const std::vector<uint32_t> &sortedBlocks,
-                    ModuleHelpers &helpers, Proto *proto,
-                    AssemblyOptions options, LoweringStats *stats) {
-  optimizeMemoryOperandsX64(ir.function);
-
-  X64::IrLoweringX64 lowering(build, helpers, ir.function, stats);
-
-  return lowerImpl(build, lowering, ir.function, sortedBlocks,
-                   proto->bytecodeid, options);
-}
-
-inline bool lowerIr(A64::AssemblyBuilderA64 &build, IrBuilder &ir,
-                    const std::vector<uint32_t> &sortedBlocks,
-                    ModuleHelpers &helpers, Proto *proto,
-                    AssemblyOptions options, LoweringStats *stats) {
-  A64::IrLoweringA64 lowering(build, helpers, ir.function, stats);
-
-  return lowerImpl(build, lowering, ir.function, sortedBlocks,
-                   proto->bytecodeid, options);
-}
-
-template <typename AssemblyBuilder>
-inline bool lowerFunction(IrBuilder &ir, AssemblyBuilder &build,
-                          ModuleHelpers &helpers, Proto *proto,
-                          AssemblyOptions options, LoweringStats *stats,
-                          CodeGenCompilationResult &codeGenCompilationResult) {
-  killUnusedBlocks(ir.function);
-
-  unsigned preOptBlockCount = 0;
-  unsigned maxBlockInstructions = 0;
-
-  for (const IrBlock &block : ir.function.blocks) {
-    preOptBlockCount += (block.kind != IrBlockKind::Dead);
-    unsigned blockInstructions = block.finish - block.start;
-    maxBlockInstructions = std::max(maxBlockInstructions, blockInstructions);
-  }
-
-  // we update stats before checking the heuristic so that even if we bail out
-  // our stats include information about the limit that was exceeded.
-  if (stats) {
-    stats->blocksPreOpt += preOptBlockCount;
-    stats->maxBlockInstructions = maxBlockInstructions;
-  }
-
-  if (preOptBlockCount >= unsigned(FInt::CodegenHeuristicsBlockLimit.value)) {
-    codeGenCompilationResult =
-        CodeGenCompilationResult::CodeGenOverflowBlockLimit;
-    return false;
-  }
-
-  if (maxBlockInstructions >=
-      unsigned(FInt::CodegenHeuristicsBlockInstructionLimit.value)) {
-    codeGenCompilationResult =
-        CodeGenCompilationResult::CodeGenOverflowBlockInstructionLimit;
-    return false;
-  }
-
-  computeCfgInfo(ir.function);
-
-  if (!FFlag::DebugCodegenNoOpt) {
-    bool useValueNumbering = !FFlag::DebugCodegenSkipNumbering;
-
-    constPropInBlockChains(ir, useValueNumbering);
-
-    if (!FFlag::DebugCodegenOptSize) {
-      double startTime = 0.0;
-      unsigned constPropInstructionCount = 0;
-
-      if (stats) {
-        constPropInstructionCount =
-            getInstructionCount(ir.function.instructions, IrCmd::SUBSTITUTE);
-        startTime = lua_clock();
-      }
-
-      createLinearBlocks(ir, useValueNumbering);
-
-      if (stats) {
-        stats->blockLinearizationStats.timeSeconds += lua_clock() - startTime;
-        constPropInstructionCount =
-            getInstructionCount(ir.function.instructions, IrCmd::SUBSTITUTE) -
-            constPropInstructionCount;
-        stats->blockLinearizationStats.constPropInstructionCount +=
-            constPropInstructionCount;
-      }
+    if (maxBlockInstructions >= unsigned(FInt::CodegenHeuristicsBlockInstructionLimit.value))
+    {
+        codeGenCompilationResult = CodeGenCompilationResult::CodeGenOverflowBlockInstructionLimit;
+        return false;
     }
 
-    markDeadStoresInBlockChains(ir);
-  }
+    computeCfgInfo(ir.function);
 
-  std::vector<uint32_t> sortedBlocks = getSortedBlockOrder(ir.function);
+    if (!FFlag::DebugCodegenNoOpt)
+    {
+        bool useValueNumbering = !FFlag::DebugCodegenSkipNumbering;
 
-  // In order to allocate registers during lowering, we need to know where
-  // instruction results are last used
-  updateLastUseLocations(ir.function, sortedBlocks);
+        constPropInBlockChains(ir, useValueNumbering);
 
-  if (stats) {
-    for (const IrBlock &block : ir.function.blocks) {
-      if (block.kind != IrBlockKind::Dead)
-        ++stats->blocksPostOpt;
+        if (!FFlag::DebugCodegenOptSize)
+        {
+            double startTime = 0.0;
+            unsigned constPropInstructionCount = 0;
+
+            if (stats)
+            {
+                constPropInstructionCount = getInstructionCount(ir.function.instructions, IrCmd::SUBSTITUTE);
+                startTime = lua_clock();
+            }
+
+            createLinearBlocks(ir, useValueNumbering);
+
+            if (stats)
+            {
+                stats->blockLinearizationStats.timeSeconds += lua_clock() - startTime;
+                constPropInstructionCount = getInstructionCount(ir.function.instructions, IrCmd::SUBSTITUTE) - constPropInstructionCount;
+                stats->blockLinearizationStats.constPropInstructionCount += constPropInstructionCount;
+            }
+        }
+
+        markDeadStoresInBlockChains(ir);
     }
-  }
 
-  bool result =
-      lowerIr(build, ir, sortedBlocks, helpers, proto, options, stats);
+    std::vector<uint32_t> sortedBlocks = getSortedBlockOrder(ir.function);
 
-  if (!result)
-    codeGenCompilationResult = CodeGenCompilationResult::CodeGenLoweringFailure;
+    // In order to allocate registers during lowering, we need to know where instruction results are last used
+    updateLastUseLocations(ir.function, sortedBlocks);
 
-  return result;
+    if (stats)
+    {
+        for (const IrBlock& block : ir.function.blocks)
+        {
+            if (block.kind != IrBlockKind::Dead)
+                ++stats->blocksPostOpt;
+        }
+    }
+
+    bool result = lowerIr(build, ir, sortedBlocks, helpers, proto, options, stats);
+
+    if (!result)
+        codeGenCompilationResult = CodeGenCompilationResult::CodeGenLoweringFailure;
+
+    return result;
 }
 
 } // namespace CodeGen
@@ -6189,23 +6231,24 @@ inline bool lowerFunction(IrBuilder &ir, AssemblyBuilder &build,
 
 // @@@ PACK.lua : done, inlined <CodeGen/src/EmitBuiltinsX64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 struct Label;
 struct IrOp;
 
-namespace X64 {
+namespace X64
+{
 
 class AssemblyBuilderX64;
 struct OperandX64;
 struct IrRegAllocX64;
 
-void emitBuiltin(IrRegAllocX64 &regs, AssemblyBuilderX64 &build, int bfid,
-                 int ra, int arg, int nresults);
+void emitBuiltin(IrRegAllocX64& regs, AssemblyBuilderX64& build, int bfid, int ra, int arg, int nresults);
 
 } // namespace X64
 } // namespace CodeGen
@@ -6213,8 +6256,7 @@ void emitBuiltin(IrRegAllocX64 &regs, AssemblyBuilderX64 &build, int bfid,
 
 // @@@ PACK.lua : done, inlined <CodeGen/src/ByteUtils.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
 
 #if defined(LUAU_BIG_ENDIAN)
@@ -6224,84 +6266,89 @@ void emitBuiltin(IrRegAllocX64 &regs, AssemblyBuilderX64 &build, int bfid,
 #endif
 // @@@@@ PACK.LUA : was already included! <string.h>
 
-inline uint8_t *writeu8(uint8_t *target, uint8_t value) {
-  *target = value;
-  return target + sizeof(value);
+inline uint8_t* writeu8(uint8_t* target, uint8_t value)
+{
+    *target = value;
+    return target + sizeof(value);
 }
 
-inline uint8_t *writeu16(uint8_t *target, uint16_t value) {
+inline uint8_t* writeu16(uint8_t* target, uint16_t value)
+{
 #if defined(LUAU_BIG_ENDIAN)
-  value = htole16(value);
+    value = htole16(value);
 #endif
 
-  memcpy(target, &value, sizeof(value));
-  return target + sizeof(value);
+    memcpy(target, &value, sizeof(value));
+    return target + sizeof(value);
 }
 
-inline uint8_t *writeu32(uint8_t *target, uint32_t value) {
+inline uint8_t* writeu32(uint8_t* target, uint32_t value)
+{
 #if defined(LUAU_BIG_ENDIAN)
-  value = htole32(value);
+    value = htole32(value);
 #endif
 
-  memcpy(target, &value, sizeof(value));
-  return target + sizeof(value);
+    memcpy(target, &value, sizeof(value));
+    return target + sizeof(value);
 }
 
-inline uint8_t *writeu64(uint8_t *target, uint64_t value) {
+inline uint8_t* writeu64(uint8_t* target, uint64_t value)
+{
 #if defined(LUAU_BIG_ENDIAN)
-  value = htole64(value);
+    value = htole64(value);
 #endif
 
-  memcpy(target, &value, sizeof(value));
-  return target + sizeof(value);
+    memcpy(target, &value, sizeof(value));
+    return target + sizeof(value);
 }
 
-inline uint8_t *writeuleb128(uint8_t *target, uint64_t value) {
-  do {
-    uint8_t byte = value & 0x7f;
-    value >>= 7;
+inline uint8_t* writeuleb128(uint8_t* target, uint64_t value)
+{
+    do
+    {
+        uint8_t byte = value & 0x7f;
+        value >>= 7;
 
-    if (value)
-      byte |= 0x80;
+        if (value)
+            byte |= 0x80;
 
-    *target++ = byte;
-  } while (value);
+        *target++ = byte;
+    } while (value);
 
-  return target;
+    return target;
 }
 
-inline uint8_t *writef32(uint8_t *target, float value) {
+inline uint8_t* writef32(uint8_t* target, float value)
+{
 #if defined(LUAU_BIG_ENDIAN)
-  static_assert(sizeof(float) == sizeof(uint32_t),
-                "type size must match to reinterpret data");
-  uint32_t data;
-  memcpy(&data, &value, sizeof(value));
-  writeu32(target, data);
+    static_assert(sizeof(float) == sizeof(uint32_t), "type size must match to reinterpret data");
+    uint32_t data;
+    memcpy(&data, &value, sizeof(value));
+    writeu32(target, data);
 #else
-  memcpy(target, &value, sizeof(value));
+    memcpy(target, &value, sizeof(value));
 #endif
 
-  return target + sizeof(value);
+    return target + sizeof(value);
 }
 
-inline uint8_t *writef64(uint8_t *target, double value) {
+inline uint8_t* writef64(uint8_t* target, double value)
+{
 #if defined(LUAU_BIG_ENDIAN)
-  static_assert(sizeof(double) == sizeof(uint64_t),
-                "type size must match to reinterpret data");
-  uint64_t data;
-  memcpy(&data, &value, sizeof(value));
-  writeu64(target, data);
+    static_assert(sizeof(double) == sizeof(uint64_t), "type size must match to reinterpret data");
+    uint64_t data;
+    memcpy(&data, &value, sizeof(value));
+    writeu64(target, data);
 #else
-  memcpy(target, &value, sizeof(value));
+    memcpy(target, &value, sizeof(value));
 #endif
 
-  return target + sizeof(value);
+    return target + sizeof(value);
 }
 
 // @@@ PACK.lua : done, inlined <CodeGen/src/NativeState.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Bytecode.h>
 
 // DONE : was aleready inlined <Luau/CodeAllocator.h>
@@ -6312,7 +6359,7 @@ inline uint8_t *writef64(uint8_t *target, double value) {
 
 // @@@@@ PACK.LUA : was already included! <stdint.h>
 
-#include "luau_vm_int.hpp"
+// DONE : was aleready included <ldebug.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <lobject.h>
 
@@ -6320,161 +6367,132 @@ inline uint8_t *writef64(uint8_t *target, double value) {
 
 // @@@@@ PACK.LUA : unknown was already included! <lstate.h>
 
-typedef int (*luau_FastFunction)(lua_State *L, StkId res, TValue *arg0,
-                                 int nresults, StkId args, int nparams);
+typedef int (*luau_FastFunction)(lua_State* L, StkId res, TValue* arg0, int nresults, StkId args, int nparams);
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 class UnwindBuilder;
 
-struct NativeContext {
-  // Gateway (C => native transition) entry & exit, compiled at runtime
-  uint8_t *gateEntry = nullptr;
-  uint8_t *gateExit = nullptr;
+struct NativeContext
+{
+    // Gateway (C => native transition) entry & exit, compiled at runtime
+    uint8_t* gateEntry = nullptr;
+    uint8_t* gateExit = nullptr;
 
-  // Helper functions, implemented in C
-  int (*luaV_lessthan)(lua_State *L, const TValue *l,
-                       const TValue *r) = nullptr;
-  int (*luaV_lessequal)(lua_State *L, const TValue *l,
-                        const TValue *r) = nullptr;
-  int (*luaV_equalval)(lua_State *L, const TValue *t1,
-                       const TValue *t2) = nullptr;
-  void (*luaV_doarithadd)(lua_State *L, StkId ra, const TValue *rb,
-                          const TValue *rc) = nullptr;
-  void (*luaV_doarithsub)(lua_State *L, StkId ra, const TValue *rb,
-                          const TValue *rc) = nullptr;
-  void (*luaV_doarithmul)(lua_State *L, StkId ra, const TValue *rb,
-                          const TValue *rc) = nullptr;
-  void (*luaV_doarithdiv)(lua_State *L, StkId ra, const TValue *rb,
-                          const TValue *rc) = nullptr;
-  void (*luaV_doarithidiv)(lua_State *L, StkId ra, const TValue *rb,
-                           const TValue *rc) = nullptr;
-  void (*luaV_doarithmod)(lua_State *L, StkId ra, const TValue *rb,
-                          const TValue *rc) = nullptr;
-  void (*luaV_doarithpow)(lua_State *L, StkId ra, const TValue *rb,
-                          const TValue *rc) = nullptr;
-  void (*luaV_doarithunm)(lua_State *L, StkId ra, const TValue *rb,
-                          const TValue *rc) = nullptr;
-  void (*luaV_dolen)(lua_State *L, StkId ra, const TValue *rb) = nullptr;
-  void (*luaV_gettable)(lua_State *L, const TValue *t, TValue *key,
-                        StkId val) = nullptr;
-  void (*luaV_settable)(lua_State *L, const TValue *t, TValue *key,
-                        StkId val) = nullptr;
-  void (*luaV_getimport)(lua_State *L, Table *env, TValue *k, StkId res,
-                         uint32_t id, bool propagatenil) = nullptr;
-  void (*luaV_concat)(lua_State *L, int total, int last) = nullptr;
+    // Helper functions, implemented in C
+    int (*luaV_lessthan)(lua_State* L, const TValue* l, const TValue* r) = nullptr;
+    int (*luaV_lessequal)(lua_State* L, const TValue* l, const TValue* r) = nullptr;
+    int (*luaV_equalval)(lua_State* L, const TValue* t1, const TValue* t2) = nullptr;
+    void (*luaV_doarithadd)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc) = nullptr;
+    void (*luaV_doarithsub)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc) = nullptr;
+    void (*luaV_doarithmul)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc) = nullptr;
+    void (*luaV_doarithdiv)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc) = nullptr;
+    void (*luaV_doarithidiv)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc) = nullptr;
+    void (*luaV_doarithmod)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc) = nullptr;
+    void (*luaV_doarithpow)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc) = nullptr;
+    void (*luaV_doarithunm)(lua_State* L, StkId ra, const TValue* rb, const TValue* rc) = nullptr;
+    void (*luaV_dolen)(lua_State* L, StkId ra, const TValue* rb) = nullptr;
+    void (*luaV_gettable)(lua_State* L, const TValue* t, TValue* key, StkId val) = nullptr;
+    void (*luaV_settable)(lua_State* L, const TValue* t, TValue* key, StkId val) = nullptr;
+    void (*luaV_getimport)(lua_State* L, Table* env, TValue* k, StkId res, uint32_t id, bool propagatenil) = nullptr;
+    void (*luaV_concat)(lua_State* L, int total, int last) = nullptr;
 
-  int (*luaH_getn)(Table *t) = nullptr;
-  Table *(*luaH_new)(lua_State *L, int narray, int lnhash) = nullptr;
-  Table *(*luaH_clone)(lua_State *L, Table *tt) = nullptr;
-  void (*luaH_resizearray)(lua_State *L, Table *t, int nasize) = nullptr;
-  TValue *(*luaH_setnum)(lua_State *L, Table *t, int key);
+    int (*luaH_getn)(Table* t) = nullptr;
+    Table* (*luaH_new)(lua_State* L, int narray, int lnhash) = nullptr;
+    Table* (*luaH_clone)(lua_State* L, Table* tt) = nullptr;
+    void (*luaH_resizearray)(lua_State* L, Table* t, int nasize) = nullptr;
+    TValue* (*luaH_setnum)(lua_State* L, Table* t, int key);
 
-  void (*luaC_barriertable)(lua_State *L, Table *t, GCObject *v) = nullptr;
-  void (*luaC_barrierf)(lua_State *L, GCObject *o, GCObject *v) = nullptr;
-  void (*luaC_barrierback)(lua_State *L, GCObject *o,
-                           GCObject **gclist) = nullptr;
-  size_t (*luaC_step)(lua_State *L, bool assist) = nullptr;
+    void (*luaC_barriertable)(lua_State* L, Table* t, GCObject* v) = nullptr;
+    void (*luaC_barrierf)(lua_State* L, GCObject* o, GCObject* v) = nullptr;
+    void (*luaC_barrierback)(lua_State* L, GCObject* o, GCObject** gclist) = nullptr;
+    size_t (*luaC_step)(lua_State* L, bool assist) = nullptr;
 
-  void (*luaF_close)(lua_State *L, StkId level) = nullptr;
-  UpVal *(*luaF_findupval)(lua_State *L, StkId level) = nullptr;
-  Closure *(*luaF_newLclosure)(lua_State *L, int nelems, Table *e,
-                               Proto *p) = nullptr;
+    void (*luaF_close)(lua_State* L, StkId level) = nullptr;
+    UpVal* (*luaF_findupval)(lua_State* L, StkId level) = nullptr;
+    Closure* (*luaF_newLclosure)(lua_State* L, int nelems, Table* e, Proto* p) = nullptr;
 
-  const TValue *(*luaT_gettm)(Table *events, TMS event,
-                              TString *ename) = nullptr;
-  const TString *(*luaT_objtypenamestr)(lua_State *L,
-                                        const TValue *o) = nullptr;
+    const TValue* (*luaT_gettm)(Table* events, TMS event, TString* ename) = nullptr;
+    const TString* (*luaT_objtypenamestr)(lua_State* L, const TValue* o) = nullptr;
 
-  double (*libm_exp)(double) = nullptr;
-  double (*libm_pow)(double, double) = nullptr;
-  double (*libm_fmod)(double, double) = nullptr;
-  double (*libm_asin)(double) = nullptr;
-  double (*libm_sin)(double) = nullptr;
-  double (*libm_sinh)(double) = nullptr;
-  double (*libm_acos)(double) = nullptr;
-  double (*libm_cos)(double) = nullptr;
-  double (*libm_cosh)(double) = nullptr;
-  double (*libm_atan)(double) = nullptr;
-  double (*libm_atan2)(double, double) = nullptr;
-  double (*libm_tan)(double) = nullptr;
-  double (*libm_tanh)(double) = nullptr;
-  double (*libm_log)(double) = nullptr;
-  double (*libm_log2)(double) = nullptr;
-  double (*libm_log10)(double) = nullptr;
-  double (*libm_ldexp)(double, int) = nullptr;
-  double (*libm_round)(double) = nullptr;
-  double (*libm_frexp)(double, int *) = nullptr;
-  double (*libm_modf)(double, double *) = nullptr;
+    double (*libm_exp)(double) = nullptr;
+    double (*libm_pow)(double, double) = nullptr;
+    double (*libm_fmod)(double, double) = nullptr;
+    double (*libm_asin)(double) = nullptr;
+    double (*libm_sin)(double) = nullptr;
+    double (*libm_sinh)(double) = nullptr;
+    double (*libm_acos)(double) = nullptr;
+    double (*libm_cos)(double) = nullptr;
+    double (*libm_cosh)(double) = nullptr;
+    double (*libm_atan)(double) = nullptr;
+    double (*libm_atan2)(double, double) = nullptr;
+    double (*libm_tan)(double) = nullptr;
+    double (*libm_tanh)(double) = nullptr;
+    double (*libm_log)(double) = nullptr;
+    double (*libm_log2)(double) = nullptr;
+    double (*libm_log10)(double) = nullptr;
+    double (*libm_ldexp)(double, int) = nullptr;
+    double (*libm_round)(double) = nullptr;
+    double (*libm_frexp)(double, int*) = nullptr;
+    double (*libm_modf)(double, double*) = nullptr;
 
-  // Helper functions
-  bool (*forgLoopTableIter)(lua_State *L, Table *h, int index,
-                            TValue *ra) = nullptr;
-  bool (*forgLoopNodeIter)(lua_State *L, Table *h, int index,
-                           TValue *ra) = nullptr;
-  bool (*forgLoopNonTableFallback)(lua_State *L, int insnA, int aux) = nullptr;
-  void (*forgPrepXnextFallback)(lua_State *L, TValue *ra, int pc) = nullptr;
-  Closure *(*callProlog)(lua_State *L, TValue *ra, StkId argtop,
-                         int nresults) = nullptr;
-  void (*callEpilogC)(lua_State *L, int nresults, int n) = nullptr;
-  Udata *(*newUserdata)(lua_State *L, size_t s, int tag) = nullptr;
+    // Helper functions
+    bool (*forgLoopTableIter)(lua_State* L, Table* h, int index, TValue* ra) = nullptr;
+    bool (*forgLoopNodeIter)(lua_State* L, Table* h, int index, TValue* ra) = nullptr;
+    bool (*forgLoopNonTableFallback)(lua_State* L, int insnA, int aux) = nullptr;
+    void (*forgPrepXnextFallback)(lua_State* L, TValue* ra, int pc) = nullptr;
+    Closure* (*callProlog)(lua_State* L, TValue* ra, StkId argtop, int nresults) = nullptr;
+    void (*callEpilogC)(lua_State* L, int nresults, int n) = nullptr;
+    Udata* (*newUserdata)(lua_State* L, size_t s, int tag) = nullptr;
 
-  Closure *(*callFallback)(lua_State *L, StkId ra, StkId argtop,
-                           int nresults) = nullptr;
+    Closure* (*callFallback)(lua_State* L, StkId ra, StkId argtop, int nresults) = nullptr;
 
-  // Opcode fallbacks, implemented in C
-  const Instruction *(*executeGETGLOBAL)(lua_State *L, const Instruction *pc,
-                                         StkId base, TValue *k) = nullptr;
-  const Instruction *(*executeSETGLOBAL)(lua_State *L, const Instruction *pc,
-                                         StkId base, TValue *k) = nullptr;
-  const Instruction *(*executeGETTABLEKS)(lua_State *L, const Instruction *pc,
-                                          StkId base, TValue *k) = nullptr;
-  const Instruction *(*executeSETTABLEKS)(lua_State *L, const Instruction *pc,
-                                          StkId base, TValue *k) = nullptr;
-  const Instruction *(*executeNAMECALL)(lua_State *L, const Instruction *pc,
-                                        StkId base, TValue *k) = nullptr;
-  const Instruction *(*executeSETLIST)(lua_State *L, const Instruction *pc,
-                                       StkId base, TValue *k) = nullptr;
-  const Instruction *(*executeFORGPREP)(lua_State *L, const Instruction *pc,
-                                        StkId base, TValue *k) = nullptr;
-  void (*executeGETVARARGSMultRet)(lua_State *L, const Instruction *pc,
-                                   StkId base, int rai) = nullptr;
-  void (*executeGETVARARGSConst)(lua_State *L, StkId base, int rai,
-                                 int b) = nullptr;
-  const Instruction *(*executeDUPCLOSURE)(lua_State *L, const Instruction *pc,
-                                          StkId base, TValue *k) = nullptr;
-  const Instruction *(*executePREPVARARGS)(lua_State *L, const Instruction *pc,
-                                           StkId base, TValue *k) = nullptr;
+    // Opcode fallbacks, implemented in C
+    const Instruction* (*executeGETGLOBAL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+    const Instruction* (*executeSETGLOBAL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+    const Instruction* (*executeGETTABLEKS)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+    const Instruction* (*executeSETTABLEKS)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+    const Instruction* (*executeNAMECALL)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+    const Instruction* (*executeSETLIST)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+    const Instruction* (*executeFORGPREP)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+    void (*executeGETVARARGSMultRet)(lua_State* L, const Instruction* pc, StkId base, int rai) = nullptr;
+    void (*executeGETVARARGSConst)(lua_State* L, StkId base, int rai, int b) = nullptr;
+    const Instruction* (*executeDUPCLOSURE)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
+    const Instruction* (*executePREPVARARGS)(lua_State* L, const Instruction* pc, StkId base, TValue* k) = nullptr;
 
-  // Fast call methods, implemented in C
-  luau_FastFunction luauF_table[256] = {};
+    // Fast call methods, implemented in C
+    luau_FastFunction luauF_table[256] = {};
 };
 
-using GateFn = int (*)(lua_State *, Proto *, uintptr_t, NativeContext *);
+using GateFn = int (*)(lua_State*, Proto*, uintptr_t, NativeContext*);
 
-void initFunctions(NativeContext &context);
+void initFunctions(NativeContext& context);
 
 } // namespace CodeGen
 } // namespace Luau
 
 // @@@ PACK.lua : done, inlined <CodeGen/src/CodeGenX64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 class BaseCodeGenContext;
 struct ModuleHelpers;
 
-namespace X64 {
+namespace X64
+{
 
 class AssemblyBuilderX64;
 
-bool initHeaderFunctions(BaseCodeGenContext &codeGenContext);
-void assembleHelpers(AssemblyBuilderX64 &build, ModuleHelpers &helpers);
+bool initHeaderFunctions(BaseCodeGenContext& codeGenContext);
+void assembleHelpers(AssemblyBuilderX64& build, ModuleHelpers& helpers);
 
 } // namespace X64
 } // namespace CodeGen
@@ -6482,9 +6500,8 @@ void assembleHelpers(AssemblyBuilderX64 &build, ModuleHelpers &helpers);
 
 // @@@ PACK.lua : done, inlined <CodeGen/src/CodeGenContext.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details DONE : was aleready inlined
-// <Luau/SharedCodeAllocator.h>
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// DONE : was aleready inlined <Luau/SharedCodeAllocator.h>
 
 // DONE : was aleready inlined <NativeState.h>
 
@@ -6494,8 +6511,10 @@ void assembleHelpers(AssemblyBuilderX64 &build, ModuleHelpers &helpers);
 
 // @@@@@ PACK.LUA : was already included! <stdint.h>
 
-namespace Luau {
-namespace CodeGen {
+namespace Luau
+{
+namespace CodeGen
+{
 
 // The "code-gen context" maintains the native code-gen state.  There are two
 // implementations.  The StandaloneCodeGenContext is a VM-specific context type.
@@ -6504,91 +6523,74 @@ namespace CodeGen {
 // multiple Luau VMs concurrently, and allows for sharing of executable native
 // code and related metadata.
 
-struct ModuleBindResult {
-  CodeGenCompilationResult compilationResult = {};
+struct ModuleBindResult
+{
+    CodeGenCompilationResult compilationResult = {};
 
-  uint32_t functionsBound = 0;
+    uint32_t functionsBound = 0;
 };
 
-class BaseCodeGenContext {
+class BaseCodeGenContext
+{
 public:
-  BaseCodeGenContext(size_t blockSize, size_t maxTotalSize,
-                     AllocationCallback *allocationCallback,
-                     void *allocationCallbackContext);
+    BaseCodeGenContext(size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext);
 
-  [[nodiscard]] bool initHeaderFunctions();
+    [[nodiscard]] bool initHeaderFunctions();
 
-  [[nodiscard]] virtual std::optional<ModuleBindResult>
-  tryBindExistingModule(const ModuleId &moduleId,
-                        const std::vector<Proto *> &moduleProtos) = 0;
+    [[nodiscard]] virtual std::optional<ModuleBindResult> tryBindExistingModule(
+        const ModuleId& moduleId, const std::vector<Proto*>& moduleProtos) = 0;
 
-  [[nodiscard]] virtual ModuleBindResult
-  bindModule(const std::optional<ModuleId> &moduleId,
-             const std::vector<Proto *> &moduleProtos,
-             std::vector<NativeProtoExecDataPtr> nativeExecDatas,
-             const uint8_t *data, size_t dataSize, const uint8_t *code,
-             size_t codeSize) = 0;
+    [[nodiscard]] virtual ModuleBindResult bindModule(const std::optional<ModuleId>& moduleId, const std::vector<Proto*>& moduleProtos,
+        std::vector<NativeProtoExecDataPtr> nativeExecDatas, const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize) = 0;
 
-  virtual void onCloseState() noexcept = 0;
-  virtual void onDestroyFunction(void *execdata) noexcept = 0;
+    virtual void onCloseState() noexcept = 0;
+    virtual void onDestroyFunction(void* execdata) noexcept = 0;
 
-  CodeAllocator codeAllocator;
-  std::unique_ptr<UnwindBuilder> unwindBuilder;
+    CodeAllocator codeAllocator;
+    std::unique_ptr<UnwindBuilder> unwindBuilder;
 
-  uint8_t *gateData = nullptr;
-  size_t gateDataSize = 0;
+    uint8_t* gateData = nullptr;
+    size_t gateDataSize = 0;
 
-  void *userdataRemappingContext = nullptr;
-  UserdataRemapperCallback *userdataRemapper = nullptr;
+    void* userdataRemappingContext = nullptr;
+    UserdataRemapperCallback* userdataRemapper = nullptr;
 
-  NativeContext context;
+    NativeContext context;
 };
 
-class StandaloneCodeGenContext final : public BaseCodeGenContext {
+class StandaloneCodeGenContext final : public BaseCodeGenContext
+{
 public:
-  StandaloneCodeGenContext(size_t blockSize, size_t maxTotalSize,
-                           AllocationCallback *allocationCallback,
-                           void *allocationCallbackContext);
+    StandaloneCodeGenContext(size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext);
 
-  [[nodiscard]] virtual std::optional<ModuleBindResult>
-  tryBindExistingModule(const ModuleId &moduleId,
-                        const std::vector<Proto *> &moduleProtos) override;
+    [[nodiscard]] virtual std::optional<ModuleBindResult> tryBindExistingModule(
+        const ModuleId& moduleId, const std::vector<Proto*>& moduleProtos) override;
 
-  [[nodiscard]] virtual ModuleBindResult
-  bindModule(const std::optional<ModuleId> &moduleId,
-             const std::vector<Proto *> &moduleProtos,
-             std::vector<NativeProtoExecDataPtr> nativeExecDatas,
-             const uint8_t *data, size_t dataSize, const uint8_t *code,
-             size_t codeSize) override;
+    [[nodiscard]] virtual ModuleBindResult bindModule(const std::optional<ModuleId>& moduleId, const std::vector<Proto*>& moduleProtos,
+        std::vector<NativeProtoExecDataPtr> nativeExecDatas, const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize) override;
 
-  virtual void onCloseState() noexcept override;
-  virtual void onDestroyFunction(void *execdata) noexcept override;
+    virtual void onCloseState() noexcept override;
+    virtual void onDestroyFunction(void* execdata) noexcept override;
 
 private:
 };
 
-class SharedCodeGenContext final : public BaseCodeGenContext {
+class SharedCodeGenContext final : public BaseCodeGenContext
+{
 public:
-  SharedCodeGenContext(size_t blockSize, size_t maxTotalSize,
-                       AllocationCallback *allocationCallback,
-                       void *allocationCallbackContext);
+    SharedCodeGenContext(size_t blockSize, size_t maxTotalSize, AllocationCallback* allocationCallback, void* allocationCallbackContext);
 
-  [[nodiscard]] virtual std::optional<ModuleBindResult>
-  tryBindExistingModule(const ModuleId &moduleId,
-                        const std::vector<Proto *> &moduleProtos) override;
+    [[nodiscard]] virtual std::optional<ModuleBindResult> tryBindExistingModule(
+        const ModuleId& moduleId, const std::vector<Proto*>& moduleProtos) override;
 
-  [[nodiscard]] virtual ModuleBindResult
-  bindModule(const std::optional<ModuleId> &moduleId,
-             const std::vector<Proto *> &moduleProtos,
-             std::vector<NativeProtoExecDataPtr> nativeExecDatas,
-             const uint8_t *data, size_t dataSize, const uint8_t *code,
-             size_t codeSize) override;
+    [[nodiscard]] virtual ModuleBindResult bindModule(const std::optional<ModuleId>& moduleId, const std::vector<Proto*>& moduleProtos,
+        std::vector<NativeProtoExecDataPtr> nativeExecDatas, const uint8_t* data, size_t dataSize, const uint8_t* code, size_t codeSize) override;
 
-  virtual void onCloseState() noexcept override;
-  virtual void onDestroyFunction(void *execdata) noexcept override;
+    virtual void onCloseState() noexcept override;
+    virtual void onDestroyFunction(void* execdata) noexcept override;
 
 private:
-  SharedCodeAllocator sharedAllocator;
+    SharedCodeAllocator sharedAllocator;
 };
 
 } // namespace CodeGen

@@ -7,17 +7,17 @@
  *
  * Copyright (c) 2019-2024 Roblox Corporation
  * Copyright (c) 1994–2019 Lua.org, PUC-Rio.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+ * of the Software, and to permit persons to whom the Software is furnished to do
+ * so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -27,521 +27,526 @@
  * SOFTWARE.
  */
 
-#include "luau_compiler.hpp"
+#include"luau_compiler.hpp"
 
+//only once
 #pragma once
 // @@@ PACK.lua : done, inlined <Compiler/include/Luau/BytecodeBuilder.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 #include "luau_common_int.hpp"
 
-#include "luau_common_int.hpp"
+// DONE : was aleready included <Luau/DenseHash.h>
 
 #include "luau_ast_int.hpp"
 
 // @@@ PACK.lua : not found, likely and std header
 #include <string>
 
-namespace Luau {
+namespace Luau
+{
 
-class BytecodeEncoder {
+class BytecodeEncoder
+{
 public:
-  virtual ~BytecodeEncoder() {}
+    virtual ~BytecodeEncoder() {}
 
-  virtual void encode(uint32_t *data, size_t count) = 0;
+    virtual void encode(uint32_t* data, size_t count) = 0;
 };
 
-class BytecodeBuilder {
+class BytecodeBuilder
+{
 public:
-  // BytecodeBuilder does *not* copy the data passed via StringRef; instead, it
-  // keeps the ref around until finalize() Please be careful with the lifetime
-  // of the data that's being passed because of this. The safe and correct
-  // pattern is to only build StringRefs out of pieces of AST (AstName or
-  // AstArray<>) that are backed by AstAllocator. Note that you must finalize()
-  // the builder before the Allocator backing the Ast is destroyed.
-  struct StringRef {
-    // To construct a StringRef, use sref() from Compiler.cpp.
-    const char *data = nullptr;
-    size_t length = 0;
+    // BytecodeBuilder does *not* copy the data passed via StringRef; instead, it keeps the ref around until finalize()
+    // Please be careful with the lifetime of the data that's being passed because of this.
+    // The safe and correct pattern is to only build StringRefs out of pieces of AST (AstName or AstArray<>) that are backed by AstAllocator.
+    // Note that you must finalize() the builder before the Allocator backing the Ast is destroyed.
+    struct StringRef
+    {
+        // To construct a StringRef, use sref() from Compiler.cpp.
+        const char* data = nullptr;
+        size_t length = 0;
 
-    bool operator==(const StringRef &other) const;
-  };
+        bool operator==(const StringRef& other) const;
+    };
 
-  struct TableShape {
-    static const unsigned int kMaxLength = 32;
+    struct TableShape
+    {
+        static const unsigned int kMaxLength = 32;
 
-    int32_t keys[kMaxLength];
-    unsigned int length = 0;
+        int32_t keys[kMaxLength];
+        unsigned int length = 0;
 
-    bool operator==(const TableShape &other) const;
-  };
+        bool operator==(const TableShape& other) const;
+    };
 
-  BytecodeBuilder(BytecodeEncoder *encoder = 0);
+    BytecodeBuilder(BytecodeEncoder* encoder = 0);
 
-  uint32_t beginFunction(uint8_t numparams, bool isvararg = false);
-  void endFunction(uint8_t maxstacksize, uint8_t numupvalues,
-                   uint8_t flags = 0);
+    uint32_t beginFunction(uint8_t numparams, bool isvararg = false);
+    void endFunction(uint8_t maxstacksize, uint8_t numupvalues, uint8_t flags = 0);
 
-  void setMainFunction(uint32_t fid);
+    void setMainFunction(uint32_t fid);
 
-  int32_t addConstantNil();
-  int32_t addConstantBoolean(bool value);
-  int32_t addConstantNumber(double value);
-  int32_t addConstantVector(float x, float y, float z, float w);
-  int32_t addConstantString(StringRef value);
-  int32_t addImport(uint32_t iid);
-  int32_t addConstantTable(const TableShape &shape);
-  int32_t addConstantClosure(uint32_t fid);
+    int32_t addConstantNil();
+    int32_t addConstantBoolean(bool value);
+    int32_t addConstantNumber(double value);
+    int32_t addConstantVector(float x, float y, float z, float w);
+    int32_t addConstantString(StringRef value);
+    int32_t addImport(uint32_t iid);
+    int32_t addConstantTable(const TableShape& shape);
+    int32_t addConstantClosure(uint32_t fid);
 
-  int16_t addChildFunction(uint32_t fid);
+    int16_t addChildFunction(uint32_t fid);
 
-  void emitABC(LuauOpcode op, uint8_t a, uint8_t b, uint8_t c);
-  void emitAD(LuauOpcode op, uint8_t a, int16_t d);
-  void emitE(LuauOpcode op, int32_t e);
-  void emitAux(uint32_t aux);
+    void emitABC(LuauOpcode op, uint8_t a, uint8_t b, uint8_t c);
+    void emitAD(LuauOpcode op, uint8_t a, int16_t d);
+    void emitE(LuauOpcode op, int32_t e);
+    void emitAux(uint32_t aux);
 
-  size_t emitLabel();
+    size_t emitLabel();
 
-  [[nodiscard]] bool patchJumpD(size_t jumpLabel, size_t targetLabel);
-  [[nodiscard]] bool patchSkipC(size_t jumpLabel, size_t targetLabel);
+    [[nodiscard]] bool patchJumpD(size_t jumpLabel, size_t targetLabel);
+    [[nodiscard]] bool patchSkipC(size_t jumpLabel, size_t targetLabel);
 
-  void foldJumps();
-  void expandJumps();
+    void foldJumps();
+    void expandJumps();
 
-  void setFunctionTypeInfo(std::string value);
-  void pushLocalTypeInfo(LuauBytecodeType type, uint8_t reg, uint32_t startpc,
-                         uint32_t endpc);
-  void pushUpvalTypeInfo(LuauBytecodeType type);
+    void setFunctionTypeInfo(std::string value);
+    void pushLocalTypeInfo(LuauBytecodeType type, uint8_t reg, uint32_t startpc, uint32_t endpc);
+    void pushUpvalTypeInfo(LuauBytecodeType type);
 
-  uint32_t addUserdataType(const char *name);
-  void useUserdataType(uint32_t index);
+    uint32_t addUserdataType(const char* name);
+    void useUserdataType(uint32_t index);
 
-  void setDebugFunctionName(StringRef name);
-  void setDebugFunctionLineDefined(int line);
-  void setDebugLine(int line);
-  void pushDebugLocal(StringRef name, uint8_t reg, uint32_t startpc,
-                      uint32_t endpc);
-  void pushDebugUpval(StringRef name);
+    void setDebugFunctionName(StringRef name);
+    void setDebugFunctionLineDefined(int line);
+    void setDebugLine(int line);
+    void pushDebugLocal(StringRef name, uint8_t reg, uint32_t startpc, uint32_t endpc);
+    void pushDebugUpval(StringRef name);
 
-  size_t getInstructionCount() const;
-  size_t getTotalInstructionCount() const;
-  uint32_t getDebugPC() const;
+    size_t getInstructionCount() const;
+    size_t getTotalInstructionCount() const;
+    uint32_t getDebugPC() const;
 
-  void addDebugRemark(const char *format, ...) LUAU_PRINTF_ATTR(2, 3);
+    void addDebugRemark(const char* format, ...) LUAU_PRINTF_ATTR(2, 3);
 
-  void finalize();
+    void finalize();
 
-  enum DumpFlags {
-    Dump_Code = 1 << 0,
-    Dump_Lines = 1 << 1,
-    Dump_Source = 1 << 2,
-    Dump_Locals = 1 << 3,
-    Dump_Remarks = 1 << 4,
-    Dump_Types = 1 << 5,
-  };
+    enum DumpFlags
+    {
+        Dump_Code = 1 << 0,
+        Dump_Lines = 1 << 1,
+        Dump_Source = 1 << 2,
+        Dump_Locals = 1 << 3,
+        Dump_Remarks = 1 << 4,
+        Dump_Types = 1 << 5,
+    };
 
-  void setDumpFlags(uint32_t flags) {
-    dumpFlags = flags;
-    dumpFunctionPtr = &BytecodeBuilder::dumpCurrentFunction;
-  }
+    void setDumpFlags(uint32_t flags)
+    {
+        dumpFlags = flags;
+        dumpFunctionPtr = &BytecodeBuilder::dumpCurrentFunction;
+    }
 
-  void setDumpSource(const std::string &source);
+    void setDumpSource(const std::string& source);
 
-  bool needsDebugRemarks() const { return (dumpFlags & Dump_Remarks) != 0; }
+    bool needsDebugRemarks() const
+    {
+        return (dumpFlags & Dump_Remarks) != 0;
+    }
 
-  const std::string &getBytecode() const {
-    LUAU_ASSERT(!bytecode.empty()); // did you forget to call finalize?
-    return bytecode;
-  }
+    const std::string& getBytecode() const
+    {
+        LUAU_ASSERT(!bytecode.empty()); // did you forget to call finalize?
+        return bytecode;
+    }
 
-  std::string dumpFunction(uint32_t id) const;
-  std::string dumpEverything() const;
-  std::string dumpSourceRemarks() const;
-  std::string dumpTypeInfo() const;
+    std::string dumpFunction(uint32_t id) const;
+    std::string dumpEverything() const;
+    std::string dumpSourceRemarks() const;
+    std::string dumpTypeInfo() const;
 
-  void annotateInstruction(std::string &result, uint32_t fid,
-                           uint32_t instpos) const;
+    void annotateInstruction(std::string& result, uint32_t fid, uint32_t instpos) const;
 
-  static uint32_t getImportId(int32_t id0);
-  static uint32_t getImportId(int32_t id0, int32_t id1);
-  static uint32_t getImportId(int32_t id0, int32_t id1, int32_t id2);
+    static uint32_t getImportId(int32_t id0);
+    static uint32_t getImportId(int32_t id0, int32_t id1);
+    static uint32_t getImportId(int32_t id0, int32_t id1, int32_t id2);
 
-  static int decomposeImportId(uint32_t ids, int32_t &id0, int32_t &id1,
-                               int32_t &id2);
+    static int decomposeImportId(uint32_t ids, int32_t& id0, int32_t& id1, int32_t& id2);
 
-  static uint32_t getStringHash(StringRef key);
+    static uint32_t getStringHash(StringRef key);
 
-  static std::string getError(const std::string &message);
+    static std::string getError(const std::string& message);
 
-  static uint8_t getVersion();
-  static uint8_t getTypeEncodingVersion();
+    static uint8_t getVersion();
+    static uint8_t getTypeEncodingVersion();
 
 private:
-  struct Constant {
-    enum Type {
-      Type_Nil,
-      Type_Boolean,
-      Type_Number,
-      Type_Vector,
-      Type_String,
-      Type_Import,
-      Type_Table,
-      Type_Closure,
+    struct Constant
+    {
+        enum Type
+        {
+            Type_Nil,
+            Type_Boolean,
+            Type_Number,
+            Type_Vector,
+            Type_String,
+            Type_Import,
+            Type_Table,
+            Type_Closure,
+        };
+
+        Type type;
+        union
+        {
+            bool valueBoolean;
+            double valueNumber;
+            float valueVector[4];
+            unsigned int valueString; // index into string table
+            uint32_t valueImport;     // 10-10-10-2 encoded import id
+            uint32_t valueTable;      // index into tableShapes[]
+            uint32_t valueClosure;    // index of function in global list
+        };
     };
 
-    Type type;
-    union {
-      bool valueBoolean;
-      double valueNumber;
-      float valueVector[4];
-      unsigned int valueString; // index into string table
-      uint32_t valueImport;     // 10-10-10-2 encoded import id
-      uint32_t valueTable;      // index into tableShapes[]
-      uint32_t valueClosure;    // index of function in global list
+    struct ConstantKey
+    {
+        Constant::Type type;
+        // Note: this stores value* from Constant; when type is Type_Number, this stores the same bits as double does but in uint64_t.
+        // For Type_Vector, x and y are stored in 'value' and z and w are stored in 'extra'.
+        uint64_t value;
+        uint64_t extra = 0;
+
+        bool operator==(const ConstantKey& key) const
+        {
+            return type == key.type && value == key.value && extra == key.extra;
+        }
     };
-  };
 
-  struct ConstantKey {
-    Constant::Type type;
-    // Note: this stores value* from Constant; when type is Type_Number, this
-    // stores the same bits as double does but in uint64_t. For Type_Vector, x
-    // and y are stored in 'value' and z and w are stored in 'extra'.
-    uint64_t value;
-    uint64_t extra = 0;
+    struct Function
+    {
+        std::string data;
 
-    bool operator==(const ConstantKey &key) const {
-      return type == key.type && value == key.value && extra == key.extra;
-    }
-  };
+        uint8_t maxstacksize = 0;
+        uint8_t numparams = 0;
+        uint8_t numupvalues = 0;
+        bool isvararg = false;
 
-  struct Function {
-    std::string data;
+        unsigned int debugname = 0;
+        int debuglinedefined = 0;
 
-    uint8_t maxstacksize = 0;
-    uint8_t numparams = 0;
-    uint8_t numupvalues = 0;
-    bool isvararg = false;
+        std::string dump;
+        std::string dumpname;
+        std::vector<int> dumpinstoffs;
+        std::string typeinfo;
+    };
 
-    unsigned int debugname = 0;
-    int debuglinedefined = 0;
+    struct DebugLocal
+    {
+        unsigned int name;
 
-    std::string dump;
-    std::string dumpname;
-    std::vector<int> dumpinstoffs;
-    std::string typeinfo;
-  };
+        uint8_t reg;
+        uint32_t startpc;
+        uint32_t endpc;
+    };
 
-  struct DebugLocal {
-    unsigned int name;
+    struct DebugUpval
+    {
+        unsigned int name;
+    };
 
-    uint8_t reg;
-    uint32_t startpc;
-    uint32_t endpc;
-  };
+    struct TypedLocal
+    {
+        LuauBytecodeType type;
+        uint8_t reg;
+        uint32_t startpc;
+        uint32_t endpc;
+    };
 
-  struct DebugUpval {
-    unsigned int name;
-  };
+    struct TypedUpval
+    {
+        LuauBytecodeType type;
+    };
 
-  struct TypedLocal {
-    LuauBytecodeType type;
-    uint8_t reg;
-    uint32_t startpc;
-    uint32_t endpc;
-  };
+    struct UserdataType
+    {
+        std::string name;
+        uint32_t nameRef = 0;
+        bool used = false;
+    };
 
-  struct TypedUpval {
-    LuauBytecodeType type;
-  };
+    struct Jump
+    {
+        uint32_t source;
+        uint32_t target;
+    };
 
-  struct UserdataType {
-    std::string name;
-    uint32_t nameRef = 0;
-    bool used = false;
-  };
+    struct StringRefHash
+    {
+        size_t operator()(const StringRef& v) const;
+    };
 
-  struct Jump {
-    uint32_t source;
-    uint32_t target;
-  };
+    struct ConstantKeyHash
+    {
+        size_t operator()(const ConstantKey& key) const;
+    };
 
-  struct StringRefHash {
-    size_t operator()(const StringRef &v) const;
-  };
+    struct TableShapeHash
+    {
+        size_t operator()(const TableShape& v) const;
+    };
 
-  struct ConstantKeyHash {
-    size_t operator()(const ConstantKey &key) const;
-  };
+    std::vector<Function> functions;
+    uint32_t currentFunction = ~0u;
+    uint32_t mainFunction = ~0u;
 
-  struct TableShapeHash {
-    size_t operator()(const TableShape &v) const;
-  };
+    size_t totalInstructionCount = 0;
+    std::vector<uint32_t> insns;
+    std::vector<int> lines;
+    std::vector<Constant> constants;
+    std::vector<uint32_t> protos;
+    std::vector<Jump> jumps;
 
-  std::vector<Function> functions;
-  uint32_t currentFunction = ~0u;
-  uint32_t mainFunction = ~0u;
+    std::vector<TableShape> tableShapes;
 
-  size_t totalInstructionCount = 0;
-  std::vector<uint32_t> insns;
-  std::vector<int> lines;
-  std::vector<Constant> constants;
-  std::vector<uint32_t> protos;
-  std::vector<Jump> jumps;
+    bool hasLongJumps = false;
 
-  std::vector<TableShape> tableShapes;
+    DenseHashMap<ConstantKey, int32_t, ConstantKeyHash> constantMap;
+    DenseHashMap<TableShape, int32_t, TableShapeHash> tableShapeMap;
+    DenseHashMap<uint32_t, int16_t> protoMap;
 
-  bool hasLongJumps = false;
+    int debugLine = 0;
 
-  DenseHashMap<ConstantKey, int32_t, ConstantKeyHash> constantMap;
-  DenseHashMap<TableShape, int32_t, TableShapeHash> tableShapeMap;
-  DenseHashMap<uint32_t, int16_t> protoMap;
+    std::vector<DebugLocal> debugLocals;
+    std::vector<DebugUpval> debugUpvals;
 
-  int debugLine = 0;
+    std::vector<TypedLocal> typedLocals;
+    std::vector<TypedUpval> typedUpvals;
 
-  std::vector<DebugLocal> debugLocals;
-  std::vector<DebugUpval> debugUpvals;
+    std::vector<UserdataType> userdataTypes;
 
-  std::vector<TypedLocal> typedLocals;
-  std::vector<TypedUpval> typedUpvals;
+    DenseHashMap<StringRef, unsigned int, StringRefHash> stringTable;
+    std::vector<StringRef> debugStrings;
 
-  std::vector<UserdataType> userdataTypes;
+    std::vector<std::pair<uint32_t, uint32_t>> debugRemarks;
+    std::string debugRemarkBuffer;
 
-  DenseHashMap<StringRef, unsigned int, StringRefHash> stringTable;
-  std::vector<StringRef> debugStrings;
+    BytecodeEncoder* encoder = nullptr;
+    std::string bytecode;
 
-  std::vector<std::pair<uint32_t, uint32_t>> debugRemarks;
-  std::string debugRemarkBuffer;
+    uint32_t dumpFlags = 0;
+    std::vector<std::string> dumpSource;
+    std::vector<std::pair<int, std::string>> dumpRemarks;
 
-  BytecodeEncoder *encoder = nullptr;
-  std::string bytecode;
+    std::string tempTypeInfo;
 
-  uint32_t dumpFlags = 0;
-  std::vector<std::string> dumpSource;
-  std::vector<std::pair<int, std::string>> dumpRemarks;
+    std::string (BytecodeBuilder::*dumpFunctionPtr)(std::vector<int>&) const = nullptr;
 
-  std::string tempTypeInfo;
+    void validate() const;
+    void validateInstructions() const;
+    void validateVariadic() const;
 
-  std::string (BytecodeBuilder::*dumpFunctionPtr)(std::vector<int> &) const =
-      nullptr;
+    std::string dumpCurrentFunction(std::vector<int>& dumpinstoffs) const;
+    void dumpConstant(std::string& result, int k) const;
+    void dumpInstruction(const uint32_t* opcode, std::string& output, int targetLabel) const;
 
-  void validate() const;
-  void validateInstructions() const;
-  void validateVariadic() const;
+    void writeFunction(std::string& ss, uint32_t id, uint8_t flags);
+    void writeLineInfo(std::string& ss) const;
+    void writeStringTable(std::string& ss) const;
 
-  std::string dumpCurrentFunction(std::vector<int> &dumpinstoffs) const;
-  void dumpConstant(std::string &result, int k) const;
-  void dumpInstruction(const uint32_t *opcode, std::string &output,
-                       int targetLabel) const;
+    int32_t addConstant(const ConstantKey& key, const Constant& value);
+    unsigned int addStringTableEntry(StringRef value);
 
-  void writeFunction(std::string &ss, uint32_t id, uint8_t flags);
-  void writeLineInfo(std::string &ss) const;
-  void writeStringTable(std::string &ss) const;
-
-  int32_t addConstant(const ConstantKey &key, const Constant &value);
-  unsigned int addStringTableEntry(StringRef value);
-
-  const char *tryGetUserdataTypeName(LuauBytecodeType type) const;
+    const char* tryGetUserdataTypeName(LuauBytecodeType type) const;
 };
 
 } // namespace Luau
 
 // @@@ PACK.lua : done, inlined <Compiler/include/Luau/Compiler.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
-#include "luau_ast_int.hpp"
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// DONE : was aleready included <Luau/ParseOptions.h>
 
-#include "luau_ast_int.hpp"
+// DONE : was aleready included <Luau/Location.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/StringUtils.h>
 
-#include "luau_common_int.hpp"
+// DONE : was aleready included <Luau/Common.h>
 
-namespace Luau {
+namespace Luau
+{
 class AstNameTable;
 struct ParseResult;
 class BytecodeBuilder;
 class BytecodeEncoder;
 
-// Note: this structure is duplicated in luacode.h, don't forget to change these
-// in sync!
-struct CompileOptions {
-  // 0 - no optimization
-  // 1 - baseline optimization level that doesn't prevent debuggability
-  // 2 - includes optimizations that harm debuggability such as inlining
-  int optimizationLevel = 1;
+// Note: this structure is duplicated in luacode.h, don't forget to change these in sync!
+struct CompileOptions
+{
+    // 0 - no optimization
+    // 1 - baseline optimization level that doesn't prevent debuggability
+    // 2 - includes optimizations that harm debuggability such as inlining
+    int optimizationLevel = 1;
 
-  // 0 - no debugging support
-  // 1 - line info & function names only; sufficient for backtraces
-  // 2 - full debug info with local & upvalue names; necessary for debugger
-  int debugLevel = 1;
+    // 0 - no debugging support
+    // 1 - line info & function names only; sufficient for backtraces
+    // 2 - full debug info with local & upvalue names; necessary for debugger
+    int debugLevel = 1;
 
-  // type information is used to guide native code generation decisions
-  // information includes testable types for function arguments, locals,
-  // upvalues and some temporaries 0 - generate for native modules 1 - generate
-  // for all modules
-  int typeInfoLevel = 0;
+    // type information is used to guide native code generation decisions
+    // information includes testable types for function arguments, locals, upvalues and some temporaries
+    // 0 - generate for native modules
+    // 1 - generate for all modules
+    int typeInfoLevel = 0;
 
-  // 0 - no code coverage support
-  // 1 - statement coverage
-  // 2 - statement and expression coverage (verbose)
-  int coverageLevel = 0;
+    // 0 - no code coverage support
+    // 1 - statement coverage
+    // 2 - statement and expression coverage (verbose)
+    int coverageLevel = 0;
 
-  // global builtin to construct vectors; disabled by default
-  const char *vectorLib = nullptr;
-  const char *vectorCtor = nullptr;
+    // global builtin to construct vectors; disabled by default
+    const char* vectorLib = nullptr;
+    const char* vectorCtor = nullptr;
 
-  // vector type name for type tables; disabled by default
-  const char *vectorType = nullptr;
+    // vector type name for type tables; disabled by default
+    const char* vectorType = nullptr;
 
-  // null-terminated array of globals that are mutable; disables the import
-  // optimization for fields accessed through these
-  const char *const *mutableGlobals = nullptr;
+    // null-terminated array of globals that are mutable; disables the import optimization for fields accessed through these
+    const char* const* mutableGlobals = nullptr;
 
-  // null-terminated array of userdata types that will be included in the type
-  // information
-  const char *const *userdataTypes = nullptr;
+    // null-terminated array of userdata types that will be included in the type information
+    const char* const* userdataTypes = nullptr;
 };
 
-class CompileError : public std::exception {
+class CompileError : public std::exception
+{
 public:
-  CompileError(const Location &location, const std::string &message);
+    CompileError(const Location& location, const std::string& message);
 
-  virtual ~CompileError() throw();
+    virtual ~CompileError() throw();
 
-  virtual const char *what() const throw();
+    virtual const char* what() const throw();
 
-  const Location &getLocation() const;
+    const Location& getLocation() const;
 
-  static LUAU_NORETURN void raise(const Location &location, const char *format,
-                                  ...) LUAU_PRINTF_ATTR(2, 3);
+    static LUAU_NORETURN void raise(const Location& location, const char* format, ...) LUAU_PRINTF_ATTR(2, 3);
 
 private:
-  Location location;
-  std::string message;
+    Location location;
+    std::string message;
 };
 
-// compiles bytecode into bytecode builder using either a pre-parsed AST or
-// parsing it from source; throws on errors
-void compileOrThrow(BytecodeBuilder &bytecode, const ParseResult &parseResult,
-                    const AstNameTable &names,
-                    const CompileOptions &options = {});
-void compileOrThrow(BytecodeBuilder &bytecode, const std::string &source,
-                    const CompileOptions &options = {},
-                    const ParseOptions &parseOptions = {});
+// compiles bytecode into bytecode builder using either a pre-parsed AST or parsing it from source; throws on errors
+void compileOrThrow(BytecodeBuilder& bytecode, const ParseResult& parseResult, const AstNameTable& names, const CompileOptions& options = {});
+void compileOrThrow(BytecodeBuilder& bytecode, const std::string& source, const CompileOptions& options = {}, const ParseOptions& parseOptions = {});
 
-// compiles bytecode into a bytecode blob, that either contains the valid
-// bytecode or an encoded error that luau_load can decode
-std::string compile(const std::string &source,
-                    const CompileOptions &options = {},
-                    const ParseOptions &parseOptions = {},
-                    BytecodeEncoder *encoder = nullptr);
+// compiles bytecode into a bytecode blob, that either contains the valid bytecode or an encoded error that luau_load can decode
+std::string compile(
+    const std::string& source, const CompileOptions& options = {}, const ParseOptions& parseOptions = {}, BytecodeEncoder* encoder = nullptr);
 
 } // namespace Luau
 
 // @@@ PACK.lua : done, inlined <Compiler/src/BuiltinFolding.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined
-// <Compiler/src/ConstantFolding.h>
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined <Compiler/src/ConstantFolding.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined
-// <Compiler/src/ValueTracking.h>
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined <Compiler/src/ValueTracking.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
-#include "luau_ast_int.hpp"
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// DONE : was aleready included <Luau/Ast.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/DenseHash.h>
 
-namespace Luau {
+namespace Luau
+{
 class AstNameTable;
 }
 
-namespace Luau {
-namespace Compile {
+namespace Luau
+{
+namespace Compile
+{
 
-enum class Global {
-  Default = 0,
-  Mutable, // builtin that has contents unknown at compile time, blocks
-           // GETIMPORT for chains
-  Written, // written in the code which means we can't reason about the value
+enum class Global
+{
+    Default = 0,
+    Mutable, // builtin that has contents unknown at compile time, blocks GETIMPORT for chains
+    Written, // written in the code which means we can't reason about the value
 };
 
-struct Variable {
-  AstExpr *init =
-      nullptr; // initial value of the variable; filled by trackValues
-  bool written =
-      false; // is the variable ever assigned to? filled by trackValues
-  bool constant = false; // is the variable's value a compile-time constant?
-                         // filled by constantFold
+struct Variable
+{
+    AstExpr* init = nullptr; // initial value of the variable; filled by trackValues
+    bool written = false;    // is the variable ever assigned to? filled by trackValues
+    bool constant = false;   // is the variable's value a compile-time constant? filled by constantFold
 };
 
-void assignMutable(DenseHashMap<AstName, Global> &globals,
-                   const AstNameTable &names,
-                   const char *const *mutableGlobals);
-void trackValues(DenseHashMap<AstName, Global> &globals,
-                 DenseHashMap<AstLocal *, Variable> &variables, AstNode *root);
+void assignMutable(DenseHashMap<AstName, Global>& globals, const AstNameTable& names, const char* const* mutableGlobals);
+void trackValues(DenseHashMap<AstName, Global>& globals, DenseHashMap<AstLocal*, Variable>& variables, AstNode* root);
 
-inline Global getGlobalState(const DenseHashMap<AstName, Global> &globals,
-                             AstName name) {
-  const Global *it = globals.find(name);
+inline Global getGlobalState(const DenseHashMap<AstName, Global>& globals, AstName name)
+{
+    const Global* it = globals.find(name);
 
-  return it ? *it : Global::Default;
+    return it ? *it : Global::Default;
 }
 
 } // namespace Compile
 } // namespace Luau
 
-namespace Luau {
-namespace Compile {
+namespace Luau
+{
+namespace Compile
+{
 
-struct Constant {
-  enum Type {
-    Type_Unknown,
-    Type_Nil,
-    Type_Boolean,
-    Type_Number,
-    Type_Vector,
-    Type_String,
-  };
+struct Constant
+{
+    enum Type
+    {
+        Type_Unknown,
+        Type_Nil,
+        Type_Boolean,
+        Type_Number,
+        Type_Vector,
+        Type_String,
+    };
 
-  Type type = Type_Unknown;
-  unsigned int stringLength = 0;
+    Type type = Type_Unknown;
+    unsigned int stringLength = 0;
 
-  union {
-    bool valueBoolean;
-    double valueNumber;
-    float valueVector[4];
-    const char *valueString = nullptr; // length stored in stringLength
-  };
+    union
+    {
+        bool valueBoolean;
+        double valueNumber;
+        float valueVector[4];
+        const char* valueString = nullptr; // length stored in stringLength
+    };
 
-  bool isTruthful() const {
-    LUAU_ASSERT(type != Type_Unknown);
-    return type != Type_Nil && !(type == Type_Boolean && valueBoolean == false);
-  }
+    bool isTruthful() const
+    {
+        LUAU_ASSERT(type != Type_Unknown);
+        return type != Type_Nil && !(type == Type_Boolean && valueBoolean == false);
+    }
 
-  AstArray<const char> getString() const {
-    LUAU_ASSERT(type == Type_String);
-    return {valueString, stringLength};
-  }
+    AstArray<const char> getString() const
+    {
+        LUAU_ASSERT(type == Type_String);
+        return {valueString, stringLength};
+    }
 };
 
-void foldConstants(DenseHashMap<AstExpr *, Constant> &constants,
-                   DenseHashMap<AstLocal *, Variable> &variables,
-                   DenseHashMap<AstLocal *, Constant> &locals,
-                   const DenseHashMap<AstExprCall *, int> *builtins,
-                   bool foldMathK, AstNode *root);
+void foldConstants(DenseHashMap<AstExpr*, Constant>& constants, DenseHashMap<AstLocal*, Variable>& variables,
+    DenseHashMap<AstLocal*, Constant>& locals, const DenseHashMap<AstExprCall*, int>* builtins, bool foldMathK, AstNode* root);
 
 } // namespace Compile
 } // namespace Luau
 
-namespace Luau {
-namespace Compile {
+namespace Luau
+{
+namespace Compile
+{
 
-Constant foldBuiltin(int bfid, const Constant *args, size_t count);
+Constant foldBuiltin(int bfid, const Constant* args, size_t count);
 Constant foldBuiltinMath(AstName index);
 
 } // namespace Compile
@@ -549,8 +554,7 @@ Constant foldBuiltinMath(AstName index);
 
 // @@@ PACK.lua : done, inlined <Compiler/src/Types.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Ast.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Bytecode.h>
@@ -561,55 +565,48 @@ Constant foldBuiltinMath(AstName index);
 
 // @@@@@ PACK.LUA : was already included! <string>
 
-namespace Luau {
+namespace Luau
+{
 class BytecodeBuilder;
 
-struct BuiltinTypes {
-  BuiltinTypes(const char *vectorType)
-      : vectorType{{}, std::nullopt, AstName{vectorType}, std::nullopt, {}} {}
+struct BuiltinTypes
+{
+    BuiltinTypes(const char* vectorType)
+        : vectorType{{}, std::nullopt, AstName{vectorType}, std::nullopt, {}}
+    {
+    }
 
-  // AstName use here will not match the AstNameTable, but the was we use them
-  // here always force a full string compare
-  AstTypeReference booleanType{
-      {}, std::nullopt, AstName{"boolean"}, std::nullopt, {}};
-  AstTypeReference numberType{
-      {}, std::nullopt, AstName{"number"}, std::nullopt, {}};
-  AstTypeReference stringType{
-      {}, std::nullopt, AstName{"string"}, std::nullopt, {}};
-  AstTypeReference vectorType;
+    // AstName use here will not match the AstNameTable, but the was we use them here always force a full string compare
+    AstTypeReference booleanType{{}, std::nullopt, AstName{"boolean"}, std::nullopt, {}};
+    AstTypeReference numberType{{}, std::nullopt, AstName{"number"}, std::nullopt, {}};
+    AstTypeReference stringType{{}, std::nullopt, AstName{"string"}, std::nullopt, {}};
+    AstTypeReference vectorType;
 };
 
-void buildTypeMap(DenseHashMap<AstExprFunction *, std::string> &functionTypes,
-                  DenseHashMap<AstLocal *, LuauBytecodeType> &localTypes,
-                  DenseHashMap<AstExpr *, LuauBytecodeType> &exprTypes,
-                  AstNode *root, const char *vectorType,
-                  const DenseHashMap<AstName, uint8_t> &userdataTypes,
-                  const BuiltinTypes &builtinTypes,
-                  const DenseHashMap<AstExprCall *, int> &builtinCalls,
-                  const DenseHashMap<AstName, Compile::Global> &globals,
-                  BytecodeBuilder &bytecode);
+void buildTypeMap(DenseHashMap<AstExprFunction*, std::string>& functionTypes, DenseHashMap<AstLocal*, LuauBytecodeType>& localTypes,
+    DenseHashMap<AstExpr*, LuauBytecodeType>& exprTypes, AstNode* root, const char* vectorType, const DenseHashMap<AstName, uint8_t>& userdataTypes,
+    const BuiltinTypes& builtinTypes, const DenseHashMap<AstExprCall*, int>& builtinCalls, const DenseHashMap<AstName, Compile::Global>& globals,
+    BytecodeBuilder& bytecode);
 
 } // namespace Luau
 
 // @@@ PACK.lua : done, inlined <Compiler/src/CostModel.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Ast.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/DenseHash.h>
 
-namespace Luau {
-namespace Compile {
+namespace Luau
+{
+namespace Compile
+{
 
-// cost model: 8 bytes, where first byte is the baseline cost, and the next 7
-// bytes are discounts for when variable #i is constant
-uint64_t modelCost(AstNode *root, AstLocal *const *vars, size_t varCount,
-                   const DenseHashMap<AstExprCall *, int> &builtins);
+// cost model: 8 bytes, where first byte is the baseline cost, and the next 7 bytes are discounts for when variable #i is constant
+uint64_t modelCost(AstNode* root, AstLocal* const* vars, size_t varCount, const DenseHashMap<AstExprCall*, int>& builtins);
 
-// cost is computed as B - sum(Di * Ci), where B is baseline cost, Di is the
-// discount for each variable and Ci is 1 when variable #i is constant
-int computeCost(uint64_t model, const bool *varsConst, size_t varCount);
+// cost is computed as B - sum(Di * Ci), where B is baseline cost, Di is the discount for each variable and Ci is 1 when variable #i is constant
+int computeCost(uint64_t model, const bool* varsConst, size_t varCount);
 
 // get loop trip count or -1 if we can't compute it precisely
 int getTripCount(double from, double to, double step);
@@ -623,78 +620,85 @@ int getTripCount(double from, double to, double step);
 
 // @@@ PACK.lua : done, inlined <Compiler/src/TableShape.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Ast.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/DenseHash.h>
 
-namespace Luau {
-namespace Compile {
+namespace Luau
+{
+namespace Compile
+{
 
-struct TableShape {
-  unsigned int arraySize = 0;
-  unsigned int hashSize = 0;
+struct TableShape
+{
+    unsigned int arraySize = 0;
+    unsigned int hashSize = 0;
 };
 
-void predictTableShapes(DenseHashMap<AstExprTable *, TableShape> &shapes,
-                        AstNode *root);
+void predictTableShapes(DenseHashMap<AstExprTable*, TableShape>& shapes, AstNode* root);
 
 } // namespace Compile
 } // namespace Luau
 
 // @@@ PACK.lua : done, inlined <Compiler/src/Builtins.h>
 
-// This file is part of the Luau programming language and is licensed under MIT
-// License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <ValueTracking.h>
 
-namespace Luau {
+namespace Luau
+{
 struct CompileOptions;
 }
 
-namespace Luau {
-namespace Compile {
+namespace Luau
+{
+namespace Compile
+{
 
-struct Builtin {
-  AstName object;
-  AstName method;
+struct Builtin
+{
+    AstName object;
+    AstName method;
 
-  bool empty() const { return object == AstName() && method == AstName(); }
+    bool empty() const
+    {
+        return object == AstName() && method == AstName();
+    }
 
-  bool isGlobal(const char *name) const {
-    return object == AstName() && method == name;
-  }
+    bool isGlobal(const char* name) const
+    {
+        return object == AstName() && method == name;
+    }
 
-  bool isMethod(const char *table, const char *name) const {
-    return object == table && method == name;
-  }
+    bool isMethod(const char* table, const char* name) const
+    {
+        return object == table && method == name;
+    }
 };
 
-Builtin getBuiltin(AstExpr *node, const DenseHashMap<AstName, Global> &globals,
-                   const DenseHashMap<AstLocal *, Variable> &variables);
+Builtin getBuiltin(AstExpr* node, const DenseHashMap<AstName, Global>& globals, const DenseHashMap<AstLocal*, Variable>& variables);
 
-void analyzeBuiltins(DenseHashMap<AstExprCall *, int> &result,
-                     const DenseHashMap<AstName, Global> &globals,
-                     const DenseHashMap<AstLocal *, Variable> &variables,
-                     const CompileOptions &options, AstNode *root);
+void analyzeBuiltins(DenseHashMap<AstExprCall*, int>& result, const DenseHashMap<AstName, Global>& globals,
+    const DenseHashMap<AstLocal*, Variable>& variables, const CompileOptions& options, AstNode* root);
 
-struct BuiltinInfo {
-  enum Flags {
-    // none-safe builtins are builtins that have the same behavior for arguments
-    // that are nil or none this allows the compiler to compile calls to
-    // builtins more efficiently in certain cases for example, math.abs(x()) may
-    // compile x() as if it returns one value; if it returns no values, abs()
-    // will get nil instead of none
-    Flag_NoneSafe = 1 << 0,
-  };
+struct BuiltinInfo
+{
+    enum Flags
+    {
+        // none-safe builtins are builtins that have the same behavior for arguments that are nil or none
+        // this allows the compiler to compile calls to builtins more efficiently in certain cases
+        // for example, math.abs(x()) may compile x() as if it returns one value; if it returns no values, abs() will get nil instead of none
+        Flag_NoneSafe = 1 << 0,
+    };
 
-  int params;
-  int results;
-  unsigned int flags;
+    int params;
+    int results;
+    unsigned int flags;
 };
 
 BuiltinInfo getBuiltinInfo(int bfid);
 
 } // namespace Compile
 } // namespace Luau
+
