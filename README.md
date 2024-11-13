@@ -25,7 +25,7 @@ The produced source code is still not well tested for compilation and functional
 If you need something stable, please check out version 1.0 on the main branch.
 
 ## NOTES/TODO
-- [+] CLI Tools: Compiler and Repl sources packed and verified to build and seemingly run well
+- [x] CLI Tools: Compiler and Repl sources packed and verified to build and seemingly run well
 - [ ] Unfortunately, the Analysis module still can't be compiled, I'm still thinking and working on ideas how to work around it...
 - [ ] Need to set up or pack some minimal executable for runtime testing, better than the old one.
 - [ ] Check 2 can't be done with default luau's test suite, because it retuires analysis module be kept up and ready + has it's own shenanigans.
