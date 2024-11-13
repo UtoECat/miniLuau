@@ -8,175 +8,16 @@ MIT License.
 NO ANY WARRIANTY!
 ]])
 
-local START_TIME = os.time()
 
--- 
--- UTILITIES 
---
-
-gen = {}
-
-local function pesc(s)
-  return string.gsub(s, '([%"%$])', '\\%1')
-end
-
-local function trimspaces(s)
-  local n = s:find"%S"
-  return n and s:match(".*%S", n) or ""
-end
-
--- RAW list all directories
-function gen.dirs(path)
-  local t = {}
-  path = trimspaces(path)
-  local p = io.popen(string.format('find "%s" -type d', pesc(path)), 'r')
-  assert(p, "can't execute find command!")
-	for c in p:lines() do
-    c = trimspaces(c)
-		if c ~= path then
-			t[#t+1] = c
-		end
-	end
-	p:close()
-  return t
-end
-
-function gen.pathinfo(filePath)
-    filePath = trimspaces(filePath)
-    local pathParts = {}
-    local fileNameWithExt = filePath:match("([^/\\]+)$")
-    local fileNameWithoutExt = fileNameWithExt:match("(.+)%..+$") or fileNameWithExt
-    local fileExtension = fileNameWithExt:match("%.([^%.]+)$") or ""
-    local pathWithoutFileName = filePath:match("^(.*[\\/])") or ""
-    pathParts.ext = fileExtension
-    pathParts.filename = fileNameWithoutExt
-    pathParts.fullname = fileNameWithExt
-    -- fullpath is the original path
-    pathParts.path = pathWithoutFileName
-    pathParts.fullpath = filePath
-    return pathParts
-end
-
-function gen.files(path)
-  local c = {}
-  local h = {}
-  path = trimspaces(path)
-  local p = io.popen(string.format('find "%s" -maxdepth 1 -type f -name \'*.cpp\' -or -name \'*.h\' -or -name \'*.hpp\' ', pesc(path)), 'r')
-  assert(p, "can't execute find command!")
-	for n in p:lines() do
-    local info = gen.pathinfo(n)
-    n = info.fullpath
-    local ext = info.ext:lower()
-    if ext == "cpp" or ext == "c" then
-		  c[#c+1] = n
-    else
-      h[#h+1] = n
-    end
-	end
-	p:close()
-  return c, h
-end
-
-
-local SEP = "/"
-
-function gen.splitpath(path)
-    local components = {}
-    -- Split the path by the separator and trim each component
-    for component in string.gmatch(path, "([^/\\]+)") do
-        -- Trim leading and trailing separators
-        local trimmed = component:gsub("^[%./\\]+", ""):gsub("[/\\]+$", "")
-        if trimmed ~= "" then
-            table.insert(components, trimmed)
-        end
-    end
-    return components
-end
-
-function gen.conpath(...)
-  local t = {}
-  local n = select('#', ...)
-
-  for i = 1, n do
-    local s = select(i, ...)
-    t[#t+1] = tostring(s):gsub("[/\\]+$", ""):gsub("^[%./\\]+", "")
-  end
-  return table.concat(t, "/")
-end
-
-function gen.pathset(Path)
-    local paths = {}
-    Path = gen.conpath(Path)
-
-    -- Split the file path into components
-    local components = {}
-    for component in string.gmatch(Path, "([^/]+)") do
-        table.insert(components, component)
-    end
-
-    -- Build all possible paths
-    for i = 1, #components do
-        -- Join the remaining components to form the new path
-        local newPath = table.concat(components, "/", i)
-        table.insert(paths, newPath)
-    end
-    return paths
-end
-
-function table.merge(a, b)
-  for k, v in pairs(a) do
-    if not b[k] then
-      b[k] = v
+function splitlines(input)
+  local result = {}
+  for match in (input.."\n"):gmatch("(.-)\n") do
+    if #match > 0 then
+      result[#result+1] = match
     end
   end
-  return b
+  return result
 end
-
-function table.arr_to_set(t, s)
-  s = s or {}
-  for k, v in pairs(t) do
-    s[v] = k
-  end
-  return s
-end
-
-function table.set_to_arr(t, a)
-  a = a or {}
-  for k, _ in pairs(t) do
-    a[#a+1] = k
-  end
-  return a
-end
-
-function table.combine_arr_from_set(a, b)
-  local set = table.arr_to_set(b)
-  for k, _ in pairs(a) do
-    if not set[k] then
-      b[#b+1] = k
-    end
-  end
-  return b
-end
-
-function table.override(a, b)
-  for k, v in pairs(a) do
-    b[k] = v
-  end
-  return b
-end
-
-if not table.clone then
-  table.clone = function (a)
-    return table.override(a, {})
-  end
-end
-
-function table.set_append(s, k, v)
-  local t = s[k] or {}
-  s[k] = t
-  table.merge(v, t)
-end
-
 
 ---
 --- CONFIGURE
@@ -189,7 +30,16 @@ end
 -- deps - list of dependencies.
 -- all dependencies are resolved propely in order + all #includes are replaced prioperly
 -- dirs - list of source diectories
-
+-- ONLY if manual_sources=true is NOT present - theese are generated automaticly :
+-- - sources - list of paths of source files in this module TO PACK
+-- - headers -  list to paths of headerfiles in this module TO PACK
+-- - _source and _headers are ALWAYS regenerated, nad used to lookup headers and source files to be included on demand.
+-- - see exclude below to exclude some files completely
+-- FEATURE NO. 2:
+-- - explicit=true - if set, module will NOT be compiled automaticly when no aruments to script was given 
+--   however, if some other module depends on this one, both gonna be compiled.
+-- - path_base - alternative path abse, if set, relative to luau directory. By default == to module name
+-- - exclude = {} - lsit of headers and sources to exclude TOTALLY
 local modules = {
   {
     name = "Common",
@@ -215,12 +65,13 @@ local modules = {
     dirs = {"include/Luau", "include", "src"},
     deps = {"Ast"}
   },
-  --[[{
+  {
     name = "Analysis",
     out = "luau_analysis",
     dirs = {"include/Luau", "include", "src"},
-    deps = {"Ast", "Config"}
-  },]]
+    deps = {"Ast", "Config"},
+    explicit = true -- 'cause fails to compile
+  },
   {
     name = "CodeGen",
     out = "luau_codegen",
@@ -232,13 +83,53 @@ local modules = {
     out = "luau_vm",
     dirs = {"src", "include"},
     deps = {"Common"}
+  }, 
+
+  -- just for fun - ability to amalgamate CLI tools is also provided, but it's optional
+  -- but we need isocline first
+  {
+    explicit = true,
+    name = "isocline",
+    out = "luau_isocline",
+    path_base = "extern/isocline",
+    dirs = {"src", "include"},
+    manual_sources = true,
+    sources = {"extern/isocline/src/isocline.c"}, -- hacky ways around stuff
+    headers = {"extern/isocline/include/isocline.h"},
+    deps = {}
+  },
+
+  {
+    explicit = true,
+    name = "CLIBase",
+    out = "luau_cli_base",
+    path_base = "CLI",
+    dirs = {"."},
+    manual_sources = true,
+    sources = splitlines[[CLI/FileUtils.cpp
+CLI/Flags.cpp]],
+    headers = splitlines[[CLI/FileUtils.h
+CLI/Flags.h]],
+    deps = {"Common"}
+  },
+
+  {
+    explicit = true,
+    name = "CLICompiler",
+    out = "luau_cli_compiler",
+    path_base = "CLI",
+    dirs = {"."},
+    manual_sources = true,
+    sources = splitlines[[CLI/Compile.cpp]],
+    headers = {},
+    deps = {"CLIBase", "Compiler", "CodeGen"}
   }
 }
 
 -- set of result filenames we NOT allowed to inline!
-local resultset = {
-
-}
+-- instead, #include directives will be left.
+-- done automaticly for resulting files
+local resultset = {}
 
 -- CONFIGURE : condition on which header goes into internal header, instead of global exposed one!
 local function is_internal_header(mod, path)
@@ -252,6 +143,210 @@ local function is_internal_header(mod, path)
   end
   return false
 end
+
+
+--- 
+--- PACKING SCRIPT SOURCE BEGINS
+--- 
+
+-- rough parf measurement
+local START_TIME = os.time()
+
+-- 
+-- UTILITIES 
+--
+
+-- module variable
+gen = {}
+
+-- escape string to be **semi**-safely inserted as command line argument into os.execute()
+-- does not accunt to all edge cases, but don't really needs to.
+local function pesc(s)
+  return string.gsub(s, '([%"%$])', '\\%1')
+end
+
+-- trim spaces from the start and the end of the string
+local function trimspaces(s)
+  local n = s:find"%S"
+  return n and s:match(".*%S", n) or ""
+end
+
+-- RAW  - list all directories at certain path, excluding given path itself
+-- requires unix `find` utiltity.
+function gen.dirs(path)
+  local t = {}
+  path = trimspaces(path)
+  local p = io.popen(string.format('find "%s" -type d', pesc(path)), 'r')
+  assert(p, "can't execute find command!")
+	for c in p:lines() do
+    c = trimspaces(c)
+		if c ~= path then
+			t[#t+1] = c
+		end
+	end
+	p:close()
+  return t
+end
+
+-- splits string path info various ways. does not giveabsolute pathes or stuff.
+-- i know name is misleading, but whatever.
+function gen.pathinfo(filePath)
+    filePath = trimspaces(filePath)
+    local pathParts = {}
+    local fileNameWithExt = filePath:match("([^/\\]+)$")
+    local fileNameWithoutExt = fileNameWithExt:match("(.+)%..+$") or fileNameWithExt
+    local fileExtension = fileNameWithExt:match("%.([^%.]+)$") or ""
+    local pathWithoutFileName = filePath:match("^(.*[\\/])") or ""
+    pathParts.ext = fileExtension
+    pathParts.filename = fileNameWithoutExt
+    pathParts.fullname = fileNameWithExt
+    -- fullpath is the original path
+    pathParts.path = pathWithoutFileName
+    pathParts.fullpath = filePath
+    return pathParts
+end
+
+local FIND_FORMATS = "-type f -name '*.cpp' -or -name '*.c' -or -name '*.h' -or -name '*.hpp'"
+
+-- list all source/header files in specified directory.
+-- returns them in separate pair of tables (sources, headers)
+function gen.files(path)
+  local c = {}
+  local h = {}
+  path = trimspaces(path)
+  local p = io.popen(string.format('find "%s" -maxdepth 1 %s ', pesc(path), FIND_FORMATS), 'r')
+  assert(p, "can't execute find command!")
+	for n in p:lines() do
+    local info = gen.pathinfo(n)
+    n = info.fullpath
+    local ext = info.ext:lower()
+    if ext == "cpp" or ext == "c" then
+		  c[#c+1] = n
+    else
+      h[#h+1] = n
+    end
+	end
+	p:close()
+  return c, h
+end
+
+-- path separator. Hardcoded to unix one, because we rely on unix utilities adter all.
+local SEP = "/"
+
+-- split path on directory names components + filename at the end
+-- ignores duplicate path separators and shit, as well as dots, so don't mess wiht dots a lot
+function gen.splitpath(path)
+    local components = {}
+    -- Split the path by the separator and trim each component
+    for component in string.gmatch(path, "([^/\\]+)") do
+        -- Trim leading and trailing separators
+        local trimmed = component:gsub("^[%./\\]+", ""):gsub("[/\\]+$", "")
+        if trimmed ~= "" then
+            table.insert(components, trimmed)
+        end
+    end
+    return components
+end
+
+
+-- concatenate path from given directory anmes + filename
+-- also removes any prefix-posix path separators. quite handy
+function gen.conpath(...)
+  local t = {}
+  local n = select('#', ...)
+
+  for i = 1, n do
+    local s = select(i, ...)
+    t[#t+1] = tostring(s):gsub("[/\\]+$", ""):gsub("^[%./\\]+", "")
+  end
+  return table.concat(t, "/")
+end
+
+-- splits path into all possible relative pathes, including original one and just a filename
+-- and returns them in a list.
+function gen.pathset(Path)
+    local paths = {}
+    Path = gen.conpath(Path)
+
+    -- Split the file path into components
+    local components = {}
+    for component in string.gmatch(Path, "([^/]+)") do
+        table.insert(components, component)
+    end
+
+    -- Build all possible paths
+    for i = 1, #components do
+        -- Join the remaining components to form the new path
+        local newPath = table.concat(components, "/", i)
+        table.insert(paths, newPath)
+    end
+    return paths
+end
+
+-- merge table A into table B, if B has no such key
+function table.merge(a, b)
+  for k, v in pairs(a) do
+    if not b[k] then
+      b[k] = v
+    end
+  end
+  return b
+end
+
+-- convent array {a,b,c} to set {[a]=1, [b]=2, [c]=3}
+-- duplicates are randomly lost, as well as order, if converted back.
+function table.arr_to_set(t, s)
+  s = s or {}
+  for k, v in pairs(t) do
+    s[v] = k
+  end
+  return s
+end
+
+-- converts set to an array.
+-- order of original array will be lost, values are ignored
+function table.set_to_arr(t, a)
+  a = a or {}
+  for k, _ in pairs(t) do
+    a[#a+1] = k
+  end
+  return a
+end
+
+-- pushes items froom set to the end of the array if same values don't exist in it already
+function table.combine_arr_from_set(a, b)
+  local set = table.arr_to_set(b)
+  for k, _ in pairs(a) do
+    if not set[k] then
+      b[#b+1] = k
+    end
+  end
+  return b
+end
+
+-- pverride all keys in B with keys in A
+function table.override(a, b)
+  for k, v in pairs(a) do
+    b[k] = v
+  end
+  return b
+end
+
+-- not defined in vanilla lua, exists in luajit
+if not table.clone then
+  table.clone = function (a)
+    return table.override(a, {})
+  end
+end
+
+-- append vale to a set...??? what the shhellit is that?
+--function table.set_append(s, k, v)
+--  local t = s[k] or {}
+--  s[k] = t
+--  table.merge(v, t)
+--end
+
+
 
 -- 
 -- SEARCHING ALGORITHM 
@@ -276,39 +371,82 @@ local function process_modules()
     res[v.name] = v
   end
   modules = res
+
   for _, v in pairs(modules) do
     local set = {}
     recursive_set_append(set, modules, v.deps)
     table.combine_arr_from_set(set, v.deps)
 
-    v.sources = {}
-    v.headers = {}
-    for _, path in pairs(v.dirs) do
-      local c, h = gen.files(gen.conpath(v.name, path))
-      for _, item in pairs(c) do
-        v.sources[#v.sources+1] = item
-      end
-      for _, item in pairs(h) do
-        v.headers[#v.headers+1] = item
-      end
+    v.path_base = v.path_base or v.name
+
+    local exclude = v.exclude and table.arr_to_set(v.exclude) or {}
+
+    -- new requirement
+    v._sources = {}
+    v._headers = {}
+
+    if not v.manual_sources then
+      v.headers = {}
+      v.sources = {}
     end
+
+      for _, path in pairs(v.dirs) do
+        local c, h = gen.files(gen.conpath(v.path_base, path))
+        for _, item in pairs(c) do
+          if not exclude[item] then
+            v._sources[#v._sources+1] = item -- only to be included
+            if not v.manual_sources then
+              v.sources[#v.sources+1] = item -- to be pakced
+            end
+          else
+            print("@@@@@@@@ EXCLUDED SOURCE "..item)
+          end
+        end
+
+        -- else ignore
+        for _, item in pairs(h) do
+          if not exclude[item] then
+            v._headers[#v._headers+1] = item -- only to be included
+            if not v.manual_sources then
+              v.headers[#v.headers+1] = item -- to be pakced
+            end
+          else
+            print("@@@@@@@@ EXCLUDED HEADER "..item)
+          end
+        end
+
+      end
   end
 end
 
 
 local function genincludes(v)
     local set = {}
-    for _, path in pairs(v.headers) do
+    for _, path in pairs(v._headers) do
       local outname = v.out .. (is_internal_header(v, path) and '_int.hpp' or '.hpp')
       resultset[outname] = true -- ensure it's added
       for _, item in pairs(gen.pathset(path)) do
         set[item] = {common = outname, real = path}
       end
     end
+
+    -- fuuuch
+
+    for _, path in pairs(v._sources) do
+      local outname = v.out .. ('.cpp')
+      resultset[outname] = true 
+      for _, item in pairs(gen.pathset(path)) do
+        set[item] = {common = outname, real = path} -- kinda reverse
+      end
+    end
+
   return set
 end
 
+unpack = unpack or table.unpack
+
 function gen.find_header(curr, name)
+  name = gen.conpath(unpack(gen.splitpath(name))) -- hacky way :)
   local deps = curr.deps
 
   -- try our own headers first
@@ -387,13 +525,14 @@ end
 
 local INCLUDE_PATTERN = '\n?%s*#%s*include%s+["<](.-)[">]'
 -- recursive :D
-function CTX.includefile(_oname)
+function CTX.includefile(_oname, is_in_source)
 	local oname = gen.pathinfo(_oname).fullpath
 	-- get only filename without path separator at the beginning
 
   if CTX.included[oname] == nil then
 		--print("Including", oname, "!") -- new short name 
     -- search for realname
+
     local realname = gen.find_header(CTX.module, oname)
 		print("Including", oname, ">>", realname, "!")
 
@@ -401,14 +540,14 @@ function CTX.includefile(_oname)
     if not realname then
       print("header not found " .. oname)
       CTX.included[oname] = {ok = false, count = 1}
-      return "\n// @@@ PACK.lua : not found, likely and std header\n#include <"..oname..">\n" -- ok
+      return "\n// @@@@@ PACK.lua : not found, likely and std header\n#include <"..oname..">\n" -- ok
     end
 
     -- error condition 2
     if resultset[realname] then
       if CTX.included[realname] then
         CTX.remember(oname, realname, true) -- good
-        return "\n// DONE : was aleready included <"..oname..">\n" -- ok
+        return "\n// @@@@@ DONE : was aleready included <"..oname..">\n" -- ok
       end
       print("header ignored (it's from result set):" ..realname)
       CTX.remember(oname, realname, true) -- good
@@ -440,7 +579,7 @@ function CTX.includefile(_oname)
         
         -- pop
         CTX.incl_stack[#CTX.incl_stack] = nil
-			  return "// @@@ PACK.lua : done, inlined <"..realname..">\n\n"..str
+			  return "// @@@@@ PACK.lua : done, inlined <"..realname..">\n\n"..str
     else -- found
       CTX.remember(oname, realname, true) -- good
       return "\n// DONE : was aleready inlined <"..oname..">\n" -- ok
@@ -462,21 +601,27 @@ end
 function CTX.appendfile(oname)
 	-- get only filename without path separator at the beginning
 	local name = gen.pathinfo(oname).fullpath
+  if CTX.included[oname] == nil then
 		print("Source ", name, oname, "!")
 		local txt = gen.readfile(name)
     assert(type(txt) == "string")
     txt = "\n"..format_string(txt).."\n"
+
+    CTX.remember(name, name, true) -- heheheh
 
 			-- parse included file for more inclusions
       CTX.incl_stack[#CTX.incl_stack+1] = name
       print('debug: ', inspect(CTX.incl_stack))
 
 			local str = txt --('#line __LINE__ "%s"\n%s'):format(name, txt)
-			str = str:gsub(INCLUDE_PATTERN, CTX.includefile)
+			str = str:gsub(INCLUDE_PATTERN, function(a) return CTX.includefile(a, true) end)
       -- pop
       CTX.incl_stack[#CTX.incl_stack] = nil
 			str = str--..('#line __LINE__ "%s"\n'):format(curr)
 			return str
+  else 
+    return "\n // @@@ source file was previously already included! \n"
+  end
 end
 
 
@@ -770,10 +915,10 @@ function CTX.donefile(filename, append, prepend)
   str = "/* @@@@@ PACK.LUA : THIS FILE WAS AUTOGENERATED USING PACK.lua v.2.0!\n * @@@@@ SEE https://github.com/UtoECat/miniLuau/blob/main/PACK.lua FOR DETAILS\n */\n" .. str
 
   -- change dest path
-  filename = "../" .. filename
+  filename = "../pack-out/" .. filename
 
 	local f = io.open(filename, "w")
-  assert(f)
+  assert(f, "cannot create file, ensure pack-out directory exists in the root of the repo!")
 	f:write(str)
 	f:flush()
 	f:close()
@@ -892,7 +1037,7 @@ local function pack_module(mod)
     local include_file = (has_int and ("\n#include\""..CTX.module.out .. '_int.hpp'.."\"\n") or nil) 
     include_file = include_file or (has_glob and ("\n#include\""..CTX.module.out .. '.hpp'.."\"\n") or nil)
 
-    CTX.donefile(CTX.module.out .. '.cpp',  COPYRIGHT .. (include_file) and (include_file) or "")
+    CTX.donefile(CTX.module.out .. '.cpp',  COPYRIGHT .. ((include_file) and (include_file) or ""))
   end
   --print(inspect(CTX.included))
 end
@@ -921,8 +1066,25 @@ local function traverse_module(mod)
   pack_module(mod)
 end
 
-for _, mod in pairs(modules) do
-  traverse_module(mod) -- pack all with correct dependency order
+
+--- 
+--- MAIN
+--- 
+
+if #arg > 0 then
+  print("@@@@@@ STATUS : Paking only modules from command line arguments...")
+  for _, v in ipairs(arg) do
+    local m = assert(modules[v], "invalid module name "..v)
+    traverse_module(m) -- pack with correct dependency order
+  end
+else
+  print("@@@@@@ STATUS : Packing ALL implicit modules (no args were provided)")
+  for _, mod in pairs(modules) do
+    if not mod.explicit then
+      traverse_module(mod) -- pack all with correct dependency order
+    end
+  end
+
 end
 
 print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")

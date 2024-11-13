@@ -29,23 +29,47 @@
 
 //only once
 #pragma once
-// @@@ PACK.lua : done, inlined <CodeGen/include/luacodegen.h>
+// @@@@@ PACK.lua : done, inlined <CLI/FileUtils.h>
+
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// @@@@@ PACK.lua : not found, likely and std header
+#include <optional>
+
+// @@@@@ PACK.lua : not found, likely and std header
+#include <string>
+
+// @@@@@ PACK.lua : not found, likely and std header
+#include <string_view>
+
+// @@@@@ PACK.lua : not found, likely and std header
+#include <functional>
+
+// @@@@@ PACK.lua : not found, likely and std header
+#include <vector>
+
+std::optional<std::string> getCurrentWorkingDirectory();
+
+std::string normalizePath(std::string_view path);
+std::string resolvePath(std::string_view relativePath, std::string_view baseFilePath);
+
+std::optional<std::string> readFile(const std::string& name);
+std::optional<std::string> readStdin();
+
+bool isAbsolutePath(std::string_view path);
+bool isExplicitlyRelative(std::string_view path);
+bool isDirectory(const std::string& path);
+bool traverseDirectory(const std::string& path, const std::function<void(const std::string& name)>& callback);
+
+std::vector<std::string_view> splitPath(std::string_view path);
+std::string joinPaths(const std::string& lhs, const std::string& rhs);
+std::optional<std::string> getParentPath(const std::string& path);
+
+std::vector<std::string> getSourceFiles(int argc, char** argv);
+
+// @@@@@ PACK.lua : done, inlined <CLI/Flags.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 
-// Can be used to reconfigure visibility/exports for public APIs
-#ifndef LUACODEGEN_API
-#define LUACODEGEN_API extern
-#endif
-
-typedef struct lua_State lua_State;
-
-// returns 1 if Luau code generator is supported, 0 otherwise
-LUACODEGEN_API int luau_codegen_supported(void);
-
-// create an instance of Luau code generator. you must check that this feature is supported using luau_codegen_supported().
-LUACODEGEN_API void luau_codegen_create(lua_State* L);
-
-// build target function and all inner functions
-LUACODEGEN_API void luau_codegen_compile(lua_State* L, int idx);
+void setLuauFlagsDefault();
+void setLuauFlags(const char* list);
 

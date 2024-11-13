@@ -29,18 +29,18 @@
 
 //only once
 #pragma once
-// @@@ PACK.lua : done, inlined <Ast/include/Luau/StringUtils.h>
+// @@@@@ PACK.lua : done, inlined <Ast/include/Luau/StringUtils.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 #include "luau_common_int.hpp"
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <vector>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <string>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <stdarg.h>
 
 namespace Luau
@@ -70,9 +70,9 @@ std::string escape(std::string_view s, bool escapeForInterpString = false);
 bool isIdentifier(std::string_view s);
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <Ast/include/Luau/Ast.h>
+// @@@@@ PACK.lua : done, inlined <Ast/include/Luau/Ast.h>
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined <Ast/include/Luau/Location.h>
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@@@ PACK.lua : done, inlined <Ast/include/Luau/Location.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 
@@ -140,21 +140,21 @@ struct Location
 
 } // namespace Luau
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <iterator>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <optional>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <functional>
 
 // @@@@@ PACK.LUA : was already included! <string>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <string.h>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <stdint.h>
 
 namespace Luau
@@ -1556,7 +1556,7 @@ struct hash<Luau::AstName>
 
 } // namespace std
 
-// @@@ PACK.lua : done, inlined <Ast/include/Luau/ParseOptions.h>
+// @@@@@ PACK.lua : done, inlined <Ast/include/Luau/ParseOptions.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 
@@ -1579,14 +1579,14 @@ struct ParseOptions
 
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <Ast/include/Luau/Lexer.h>
+// @@@@@ PACK.lua : done, inlined <Ast/include/Luau/Lexer.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // DONE : was aleready inlined <Luau/Ast.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Location.h>
 
-// DONE : was aleready included <Luau/DenseHash.h>
+// @@@@@ DONE : was aleready included <Luau/DenseHash.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
 
@@ -1863,14 +1863,14 @@ inline bool isSpace(char ch)
 
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <Ast/include/Luau/TimeTrace.h>
+// @@@@@ PACK.lua : done, inlined <Ast/include/Luau/TimeTrace.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
 
 // @@@@@ PACK.LUA : was already included! <vector>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <memory>
 
 // @@@@@ PACK.LUA : was already included! <stdint.h>
@@ -2093,7 +2093,7 @@ LUAU_NOINLINE uint16_t createScopeData(const char* name, const char* category);
 
 #endif
 
-// @@@ PACK.lua : done, inlined <Ast/include/Luau/Confusables.h>
+// @@@@@ PACK.lua : done, inlined <Ast/include/Luau/Confusables.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : was already included! <stdint.h>
@@ -2103,7 +2103,7 @@ namespace Luau
 const char* findConfusable(uint32_t codepoint);
 }
 
-// @@@ PACK.lua : done, inlined <Ast/include/Luau/Parser.h>
+// @@@@@ PACK.lua : done, inlined <Ast/include/Luau/Parser.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Ast.h>
@@ -2111,7 +2111,7 @@ const char* findConfusable(uint32_t codepoint);
 // DONE : was aleready inlined <Luau/Lexer.h>
 
 // DONE : was aleready inlined <Luau/ParseOptions.h>
-// @@@ PACK.lua : done, inlined <Ast/include/Luau/ParseResult.h>
+// @@@@@ PACK.lua : done, inlined <Ast/include/Luau/ParseResult.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
@@ -2192,12 +2192,12 @@ static constexpr const char* kParseNameError = "%error-id%";
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <initializer_list>
 
 // @@@@@ PACK.LUA : was already included! <optional>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <tuple>
 
 namespace Luau

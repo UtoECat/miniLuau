@@ -31,22 +31,22 @@
 
 //only once
 #pragma once
-// @@@ PACK.lua : done, inlined <VM/src/lvm.h>
+// @@@@@ PACK.lua : done, inlined <VM/src/lvm.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details// @@@ PACK.lua : done, inlined <VM/src/lobject.h>
+// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details// @@@@@ PACK.lua : done, inlined <VM/src/lobject.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 // DONE : was aleready inlined <lua.h>
-// @@@ PACK.lua : done, inlined <VM/src/lcommon.h>
+// @@@@@ PACK.lua : done, inlined <VM/src/lcommon.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <limits.h>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <stdint.h>
 
 // DONE : was aleready inlined <luaconf.h>
@@ -477,7 +477,7 @@ LUAI_FUNC const char* luaO_pushvfstring(lua_State* L, const char* fmt, va_list a
 LUAI_FUNC const char* luaO_pushfstring(lua_State* L, const char* fmt, ...);
 LUAI_FUNC const char* luaO_chunkid(char* buf, size_t buflen, const char* source, size_t srclen);
 
-// @@@ PACK.lua : done, inlined <VM/src/ltm.h>
+// @@@@@ PACK.lua : done, inlined <VM/src/ltm.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
@@ -567,7 +567,7 @@ LUAI_FUNC int luau_precall(lua_State* L, struct lua_TValue* func, int nresults);
 LUAI_FUNC void luau_poscall(lua_State* L, StkId first);
 LUAI_FUNC void luau_callhook(lua_State* L, lua_Hook hook, void* userdata);
 
-// @@@ PACK.lua : done, inlined <VM/src/lfunc.h>
+// @@@@@ PACK.lua : done, inlined <VM/src/lfunc.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
@@ -588,19 +588,19 @@ LUAI_FUNC void luaF_freeupval(lua_State* L, UpVal* uv, struct lua_Page* page);
 LUAI_FUNC const LocVar* luaF_getlocal(const Proto* func, int local_number, int pc);
 LUAI_FUNC const LocVar* luaF_findlocal(const Proto* func, int local_reg, int pc);
 
-// @@@ PACK.lua : done, inlined <VM/src/lbytecode.h>
+// @@@@@ PACK.lua : done, inlined <VM/src/lbytecode.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 
 // This is a forwarding header for Luau bytecode definition
-// DONE : was aleready included <Luau/Bytecode.h>
+// @@@@@ DONE : was aleready included <Luau/Bytecode.h>
 
 // @@@@@ PACK.LUA : was already included! <VM/src/lcommon.h>
 
 // @@@@@ PACK.LUA : was already included! <VM/src/lobject.h>
 
-// @@@ PACK.lua : done, inlined <VM/src/lmem.h>
+// @@@@@ PACK.lua : done, inlined <VM/src/lmem.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
@@ -633,7 +633,7 @@ LUAI_FUNC lua_Page* luaM_getnextpage(lua_Page* page);
 LUAI_FUNC void luaM_visitpage(lua_Page* page, void* context, bool (*visitor)(void* context, lua_Page* page, GCObject* gco));
 LUAI_FUNC void luaM_visitgco(lua_State* L, void* context, bool (*visitor)(void* context, lua_Page* page, GCObject* gco));
 
-// @@@ PACK.lua : done, inlined <VM/src/ltable.h>
+// @@@@@ PACK.lua : done, inlined <VM/src/ltable.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
@@ -669,15 +669,15 @@ LUAI_FUNC void luaH_clear(Table* tt);
 
 extern const LuaNode luaH_dummynode;
 
-// @@@ PACK.lua : done, inlined <VM/src/lgc.h>
+// @@@@@ PACK.lua : done, inlined <VM/src/lgc.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details// @@@ PACK.lua : done, inlined <VM/src/ldo.h>
+// This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details// @@@@@ PACK.lua : done, inlined <VM/src/ldo.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <lobject.h>
-// @@@ PACK.lua : done, inlined <VM/src/lstate.h>
+// @@@@@ PACK.lua : done, inlined <VM/src/lstate.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
@@ -979,7 +979,7 @@ LUAI_FUNC lua_State* luaE_newthread(lua_State* L);
 LUAI_FUNC void luaE_freethread(lua_State* L, lua_State* L1, struct lua_Page* page);
 
 // @@@@@ PACK.LUA : unknown was already included! <luaconf.h>
-// @@@ PACK.lua : done, inlined <VM/src/ldebug.h>
+// @@@@@ PACK.lua : done, inlined <VM/src/ldebug.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
@@ -1149,7 +1149,7 @@ LUAI_FUNC void luaC_enumheap(lua_State* L, void* context,
 LUAI_FUNC int64_t luaC_allocationrate(lua_State* L);
 LUAI_FUNC const char* luaC_statename(int state);
 
-// @@@ PACK.lua : done, inlined <VM/src/lstring.h>
+// @@@@@ PACK.lua : done, inlined <VM/src/lstring.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
@@ -1180,7 +1180,7 @@ LUAI_FUNC void luaS_free(lua_State* L, TString* ts, struct lua_Page* page);
 LUAI_FUNC TString* luaS_bufstart(lua_State* L, size_t size);
 LUAI_FUNC TString* luaS_buffinish(lua_State* L, TString* ts);
 
-// @@@ PACK.lua : done, inlined <VM/src/ludata.h>
+// @@@@@ PACK.lua : done, inlined <VM/src/ludata.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
@@ -1197,7 +1197,7 @@ LUAI_FUNC TString* luaS_buffinish(lua_State* L, TString* ts);
 LUAI_FUNC Udata* luaU_newudata(lua_State* L, size_t s, int tag);
 LUAI_FUNC void luaU_freeudata(lua_State* L, Udata* u, struct lua_Page* page);
 
-// @@@ PACK.lua : done, inlined <VM/src/lbuiltins.h>
+// @@@@@ PACK.lua : done, inlined <VM/src/lbuiltins.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
@@ -1213,7 +1213,7 @@ extern const luau_FastFunction luauF_table[256];
 
 // @@@@@ PACK.LUA : was already included! <VM/src/ldo.h>
 
-// @@@ PACK.lua : done, inlined <VM/src/lbuffer.h>
+// @@@@@ PACK.lua : done, inlined <VM/src/lbuffer.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <lobject.h>
@@ -1227,11 +1227,11 @@ extern const luau_FastFunction luauF_table[256];
 LUAI_FUNC Buffer* luaB_newbuffer(lua_State* L, size_t s);
 LUAI_FUNC void luaB_freebuffer(lua_State* L, Buffer* u, struct lua_Page* page);
 
-// @@@ PACK.lua : done, inlined <VM/src/lnumutils.h>
+// @@@@@ PACK.lua : done, inlined <VM/src/lnumutils.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <math.h>
 
 #define luai_numadd(a, b) ((a) + (b))
@@ -1292,7 +1292,7 @@ LUAI_FUNC char* luai_num2str(char* buf, double n);
 
 #define luai_str2num(s, p) strtod((s), (p))
 
-// @@@ PACK.lua : done, inlined <VM/src/lapi.h>
+// @@@@@ PACK.lua : done, inlined <VM/src/lapi.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // This code is based on Lua 5.x implementation licensed under MIT License; see lua_LICENSE.txt for details

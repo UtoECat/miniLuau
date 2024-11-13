@@ -31,11 +31,11 @@
 
 //only once
 #pragma once
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/UnwindBuilderWin.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/UnwindBuilderWin.h>
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/RegisterX64.h>
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/RegisterX64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/CodeGenCommon.h>
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/CodeGenCommon.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 #include "luau_common_int.hpp"
@@ -48,7 +48,7 @@
 #define CODEGEN_ASSERT(expr) (void)sizeof(!!(expr))
 #endif
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <stdint.h>
 
 namespace Luau
@@ -197,9 +197,9 @@ constexpr RegisterX64 qwordReg(RegisterX64 reg)
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/UnwindBuilder.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/UnwindBuilder.h>
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/RegisterA64.h>
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/RegisterA64.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/CodeGenCommon.h>
@@ -423,13 +423,13 @@ constexpr RegisterA64 q31{KindA64::q, 31};
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/RegisterX64.h>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <initializer_list>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <vector>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <stddef.h>
 
 // @@@@@ PACK.LUA : was already included! <stdint.h>
@@ -558,15 +558,15 @@ private:
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrCallWrapperX64.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrCallWrapperX64.h>
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/AssemblyBuilderX64.h>
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/AssemblyBuilderX64.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
 
-// DONE : was aleready included <Luau/DenseHash.h>
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/Label.h>
+// @@@@@ DONE : was aleready included <Luau/DenseHash.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/Label.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : was already included! <stdint.h>
@@ -585,7 +585,7 @@ struct Label
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/ConditionX64.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/ConditionX64.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/CodeGenCommon.h>
@@ -698,7 +698,7 @@ inline ConditionX64 getReverseCondition(ConditionX64 cond)
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/OperandX64.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/OperandX64.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/CodeGenCommon.h>
@@ -847,7 +847,7 @@ constexpr OperandX64 operator+(RegisterX64 base, OperandX64 op)
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/RegisterX64.h>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <string>
 
 // @@@@@ PACK.LUA : was already included! <vector>
@@ -1128,22 +1128,22 @@ private:
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrData.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrData.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// DONE : was aleready included <Luau/Bytecode.h>
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrAnalysis.h>
+// @@@@@ DONE : was aleready included <Luau/Bytecode.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrAnalysis.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/CodeGenCommon.h>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <bitset>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <queue>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <utility>
 
 // @@@@@ PACK.LUA : was already included! <vector>
@@ -1325,14 +1325,14 @@ BlockIteratorWrapper domChildren(const CfgInfo& cfg, uint32_t blockIdx);
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/RegisterA64.h>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <optional>
 
 // @@@@@ PACK.LUA : was already included! <vector>
 
 // @@@@@ PACK.LUA : was already included! <stdint.h>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <string.h>
 
 struct Proto;
@@ -2567,7 +2567,7 @@ inline uint32_t vmExitOp(IrOp op)
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/RegisterX64.h>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <array>
 
 // TODO: call wrapper can be used to suggest target registers for ScopedRegX64 to compute data into argument registers directly
@@ -2645,11 +2645,11 @@ private:
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/AssemblyBuilderA64.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/AssemblyBuilderA64.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/RegisterA64.h>
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/AddressA64.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/AddressA64.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/RegisterA64.h>
@@ -2709,7 +2709,7 @@ using mem = AddressA64;
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/ConditionA64.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/ConditionA64.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 
@@ -3056,7 +3056,7 @@ private:
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrRegAllocX64.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrRegAllocX64.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/AssemblyBuilderX64.h>
@@ -3193,7 +3193,7 @@ struct ScopedSpills
 
 // @@@@@ PACK.LUA : was already included! <CodeGen/include/Luau/RegisterA64.h>
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/BytecodeSummary.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/BytecodeSummary.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/CodeGenCommon.h>
@@ -3279,7 +3279,7 @@ std::vector<FunctionBytecodeSummary> summarizeBytecode(lua_State* L, int idx, un
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrVisitUseDef.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrVisitUseDef.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
@@ -3555,17 +3555,17 @@ static void visitVmRegDefsUses(T& visitor, IrFunction& function, const IrBlock& 
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/SharedCodeAllocator.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/SharedCodeAllocator.h>
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/CodeGen.h>
+// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/CodeGen.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <algorithm>
 
 // @@@@@ PACK.LUA : was already included! <array>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <memory>
 
 // @@@@@ PACK.LUA : was already included! <string>
@@ -3960,7 +3960,7 @@ void setPerfLog(void* context, PerfLogFn logFn);
 } // namespace Luau
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/NativeProtoExecData.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/NativeProtoExecData.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : was already included! <memory>
@@ -4021,19 +4021,19 @@ void destroyNativeProtoExecData(const uint32_t* instructionOffsets) noexcept;
 
 // @@@@@ PACK.LUA : was already included! <array>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <atomic>
 
 // @@@@@ PACK.LUA : was already included! <memory>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <mutex>
 
 // @@@@@ PACK.LUA : was already included! <optional>
 
 // @@@@@ PACK.LUA : was already included! <stdint.h>
 
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <unordered_map>
 
 // @@@@@ PACK.LUA : was already included! <vector>
@@ -4190,7 +4190,7 @@ private:
 
 // @@@@@ PACK.LUA : was already included! <CodeGen/include/Luau/CodeGen.h>
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/CodeBlockUnwind.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/CodeBlockUnwind.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : was already included! <stddef.h>
@@ -4211,7 +4211,7 @@ bool isUnwindSupported();
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/OptimizeConstProp.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/OptimizeConstProp.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/IrData.h>
@@ -4233,7 +4233,7 @@ void createLinearBlocks(IrBuilder& build, bool useValueNumbering);
 
 // @@@@@ PACK.LUA : was already included! <CodeGen/include/Luau/AssemblyBuilderX64.h>
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/UnwindBuilderDwarf2.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/UnwindBuilderDwarf2.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/RegisterX64.h>
@@ -4297,7 +4297,7 @@ private:
 
 // @@@@@ PACK.LUA : was already included! <CodeGen/include/Luau/ConditionX64.h>
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrBuilder.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrBuilder.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Bytecode.h>
@@ -4438,7 +4438,7 @@ struct IrBuilder
 
 // @@@@@ PACK.LUA : was already included! <CodeGen/include/Luau/CodeGenCommon.h>
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/OptimizeDeadStore.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/OptimizeDeadStore.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/IrData.h>
@@ -4459,7 +4459,7 @@ void markDeadStoresInBlockChains(IrBuilder& build);
 
 // @@@@@ PACK.LUA : was already included! <CodeGen/include/Luau/ConditionA64.h>
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/CodeAllocator.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/CodeAllocator.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/CodeGen.h>
@@ -4527,7 +4527,7 @@ private:
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/OptimizeFinalX64.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/OptimizeFinalX64.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/IrData.h>
@@ -4542,7 +4542,7 @@ void optimizeMemoryOperandsX64(IrFunction& function);
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrDump.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrDump.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/IrData.h>
@@ -4601,7 +4601,7 @@ std::string dumpDot(const IrFunction& function, bool includeInst);
 
 // @@@@@ PACK.LUA : was already included! <CodeGen/include/Luau/Label.h>
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/BytecodeAnalysis.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/BytecodeAnalysis.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
@@ -4625,7 +4625,7 @@ void analyzeBytecodeTypes(IrFunction& function, const HostIrHooks& hostHooks);
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrUtils.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/include/Luau/IrUtils.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Bytecode.h>
@@ -4933,11 +4933,11 @@ IrBlock& getNextBlock(IrFunction& function, const std::vector<uint32_t>& sortedB
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/src/EmitCommonX64.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/src/EmitCommonX64.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/AssemblyBuilderX64.h>
-// @@@ PACK.lua : done, inlined <CodeGen/src/EmitCommon.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/src/EmitCommon.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Label.h>
@@ -4977,7 +4977,7 @@ struct ModuleHelpers
 
 #include "luau_vm_int.hpp"
 
-// DONE : was aleready included <ltm.h>
+// @@@@@ DONE : was aleready included <ltm.h>
 
 // MS x64 ABI reminder:
 // Arguments: rcx, rdx, r8, r9 ('overlapped' with xmm0-xmm3)
@@ -5198,7 +5198,7 @@ void emitReturn(AssemblyBuilderX64& build, ModuleHelpers& helpers);
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/src/IrTranslateBuiltins.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/src/IrTranslateBuiltins.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 
@@ -5229,7 +5229,7 @@ BuiltinImplResult translateBuiltin(
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/src/CodeGenUtils.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/src/CodeGenUtils.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <lobject.h>
@@ -5269,13 +5269,13 @@ const Instruction* executePREPVARARGS(lua_State* L, const Instruction* pc, StkId
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/src/BitUtils.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/src/BitUtils.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : was already included! <stdint.h>
 
 #ifdef _MSC_VER
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <intrin.h>
 
 #endif
@@ -5328,7 +5328,7 @@ inline int rrotate(uint32_t u, int s)
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/src/IrValueLocationTracking.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/src/IrValueLocationTracking.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/IrData.h>
@@ -5367,7 +5367,7 @@ struct IrValueLocationTracking
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/src/EmitCommonA64.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/src/EmitCommonA64.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // DONE : was aleready inlined <Luau/AssemblyBuilderA64.h>
@@ -5378,7 +5378,7 @@ struct IrValueLocationTracking
 
 // @@@@@ PACK.LUA : unknown was already included! <ltm.h>
 
-// DONE : was aleready included <lstate.h>
+// @@@@@ DONE : was aleready included <lstate.h>
 
 // AArch64 ABI reminder:
 // Arguments: x0-x7, v0-v7
@@ -5428,7 +5428,7 @@ inline void emitUpdateBase(AssemblyBuilderA64& build)
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/src/EmitInstructionX64.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/src/EmitInstructionX64.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : was already included! <stdint.h>
@@ -5456,7 +5456,7 @@ void emitInstForGLoop(AssemblyBuilderX64& build, int ra, int aux, Label& loopRep
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/src/IrLoweringA64.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/src/IrLoweringA64.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/AssemblyBuilderA64.h>
@@ -5464,7 +5464,7 @@ void emitInstForGLoop(AssemblyBuilderX64& build, int ra, int aux, Label& loopRep
 // @@@@@ PACK.LUA : unknown was already included! <Luau/DenseHash.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/IrData.h>
-// @@@ PACK.lua : done, inlined <CodeGen/src/IrRegAllocA64.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/src/IrRegAllocA64.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/IrData.h>
@@ -5643,7 +5643,7 @@ struct IrLoweringA64
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/src/IrTranslation.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/src/IrTranslation.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : was already included! <stdint.h>
@@ -5718,7 +5718,7 @@ void afterInstForNLoop(IrBuilder& build, const Instruction* pc);
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/src/CodeGenA64.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/src/CodeGenA64.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 
@@ -5744,7 +5744,7 @@ void assembleHelpers(AssemblyBuilderA64& build, ModuleHelpers& helpers);
 
 // @@@@@ PACK.LUA : was already included! <CodeGen/src/IrRegAllocA64.h>
 
-// @@@ PACK.lua : done, inlined <CodeGen/src/CodeGenLower.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/src/CodeGenLower.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/AssemblyBuilderA64.h>
@@ -5768,7 +5768,7 @@ void assembleHelpers(AssemblyBuilderA64& build, ModuleHelpers& helpers);
 // @@@@@ PACK.LUA : unknown was already included! <EmitCommon.h>
 
 // DONE : was aleready inlined <IrLoweringA64.h>
-// @@@ PACK.lua : done, inlined <CodeGen/src/IrLoweringX64.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/src/IrLoweringX64.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/AssemblyBuilderX64.h>
@@ -6229,7 +6229,7 @@ inline bool lowerFunction(IrBuilder& ir, AssemblyBuilder& build, ModuleHelpers& 
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/src/EmitBuiltinsX64.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/src/EmitBuiltinsX64.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 
@@ -6254,13 +6254,13 @@ void emitBuiltin(IrRegAllocX64& regs, AssemblyBuilderX64& build, int bfid, int r
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/src/ByteUtils.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/src/ByteUtils.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
 
 #if defined(LUAU_BIG_ENDIAN)
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <endian.h>
 
 #endif
@@ -6346,7 +6346,7 @@ inline uint8_t* writef64(uint8_t* target, double value)
     return target + sizeof(value);
 }
 
-// @@@ PACK.lua : done, inlined <CodeGen/src/NativeState.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/src/NativeState.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Bytecode.h>
@@ -6359,7 +6359,7 @@ inline uint8_t* writef64(uint8_t* target, double value)
 
 // @@@@@ PACK.LUA : was already included! <stdint.h>
 
-// DONE : was aleready included <ldebug.h>
+// @@@@@ DONE : was aleready included <ldebug.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <lobject.h>
 
@@ -6474,7 +6474,7 @@ void initFunctions(NativeContext& context);
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/src/CodeGenX64.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/src/CodeGenX64.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 
@@ -6498,7 +6498,7 @@ void assembleHelpers(AssemblyBuilderX64& build, ModuleHelpers& helpers);
 } // namespace CodeGen
 } // namespace Luau
 
-// @@@ PACK.lua : done, inlined <CodeGen/src/CodeGenContext.h>
+// @@@@@ PACK.lua : done, inlined <CodeGen/src/CodeGenContext.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // DONE : was aleready inlined <Luau/SharedCodeAllocator.h>

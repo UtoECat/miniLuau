@@ -1,112 +1,150 @@
 MiniLuau
 ====
 
+# Luau
+
 ## ⚠️ HERE BE DRAGONS
 
 This is an experimental WIP branch!
 I'm currently working on a new and improved packing system that transforms the massive Luau source tree into a more manageable set of files.
 Here’s what you need to know:
-- **OLD**: The old version packed everything into just two files: `luau.hpp` and `luau.cpp`. 
-  That worked, but not perfectly : 
-  - it became painfully slow to recompile everything. 
-  - accessing and modifying internal definitions and structures was a headache.
-- **NEW**: The new system breaks things down into pairs of `.cpp` and `.hpp` files for each module (which correspond to directories in the Luau source tree). This means you’ll have a lot more files—16 in total!—but it’s designed to make your life easier in the long run.
-  Additionally :
-  - All comments are KEPT and all file indents are KEPT - makes packed code readable ans self documented. Comments do not affect compile times (on this scale).
-  - Files are run trough clang-format after packing for better consistency and readability.
-- **WARNING:** The produced source code is still untested for compilation and functionality.
-  If you need something stable, please check out version 1.0 on the main branch.
 
-## NOTES/TODO :
-- Unfortunately, Analysis module still can't be compiled, i'm still thinking and working on ideas how to work around it...
-- Need to setup or pack some minimal executable for runtime tesrting, better than old one.
+### OLD
+The old version packed everything into just two files: `luau.hpp` and `luau.cpp`.
+That worked, but not perfectly:
+- it became painfully slow to recompile everything.
+- accessing and modifying internal definitions and structures was a headache.
+
+### NEW
+The new system breaks things down into pairs of `.cpp` and `.hpp` files for each module (which correspond to directories in the Luau source tree).
+This means you’ll have a lot more files—16 in total!—but it’s designed to make your life easier in the long run.
+Additionally:
+- All comments are kept, and all file indents are kept - makes packed code readable and self-documented. Comments do not affect compile times (on this scale).
+- Files are run through clang-format after packing for better consistency and readability.
+- Packing sources of some parts of the Luau CLI toolchain is possible now! **ONLY Compiler is verified to work for now**
+
+### WARNING
+The produced source code is still untested for compilation and functionality.
+If you need something stable, please check out version 1.0 on the main branch.
+
+## NOTES/TODO
+- Unfortunately, the Analysis module still can't be compiled, I'm still thinking and working on ideas how to work around it...
+- Need to set up or pack some minimal executable for runtime testing, better than the old one.
 
 # Overview
 
-This repository implements the `PACK.lua` script for packing a large number of official Luau sources into a 
+This repository implements the `PACK.lua` script for packing a large number of official Luau sources into a
 **significantly smaller** set of pairs of `.cpp` and `.hpp` files. You can easily integrate these files into
- your C++ project as needed.
+your C++ project as needed.
 
-The previous version only supported compiling `luau.hpp` and `luau.cpp`. However, real-world requirements
-necessitated access to compiler and code generation internals, as well as support for packing type checker 
-(analysis) sources. This led to the expansion to **16** files in total. 
-This may seem *overwhelming*, but it's worth noting that other well-known "source packed" projects, such as
-[ImGui](https://github.com/ocornut/imgui), utilize even more files.
+Script supports building only a specific module by its name, a complete list of modules can be found at the top of the script.
+By default, only Luau sources for *integration into another application* are packed, including VM, Codegen, Ast.
+Standalone CLI tools are available for packing too, but only when requested!
+
+> The previous version only supported compiling `luau.hpp` and `luau.cpp`. However, real-world requirements
+> necessitated access to compiler and code generation internals, as well as support for packing type checker
+> (analysis) sources. This led to the expansion to **16** files in total.
+> This may seem *overwhelming*, but it's worth noting that other well-known "source packed" projects, such as
+> [ImGui](https://github.com/ocornut/imgui), utilize even more files.
+> The system remains flexible; you can exclude compiler, code generation, and type checking support by simply
+> not downloading or using certain files.
 
 
-The system remains flexible; you can exclude compiler, code generation, and type checking support by simply
- not downloading or using certain files.
+# Tutorial
 
-# Integration
+## Step 1 - Get or Generate Packed Sources
 
-To use the files, place the necessary ones into your project and ensure it is compiled with a C++11 compiler 
-or higher (C++17 or higher is required for the bytecode compiler, code generation, and type analysis).
+### Option 1 - Download from GitHub
 
-## What Files Do What
+Download the archive zip folder or clone this repository in your terminal. 
+Luau sources, including CLI sources, are periodically automatically updated and repacked here. 
 
-Each file pair or triplet generally represents a single Luau source tree *module*. You can view the *dependency
-tree* of modules (which modules you will need if you want to download specific files) inside the 
-[PACK.lua](PACK.lua) file at line 193.
- Below is a simplified representation of the dependency structure (unnecessary lines and formatting have been removed):
-```
-local modules = {
-  {
-    name = "Common",
-    deps = {}
-  }, {
-    name = "Ast",
-    deps = {"Common"},
-  }, {
-    name = "Compiler",
-    deps = {"Ast"}
-  }, {
-    name = "Config",
-    deps = {"Ast"}
-  }, {
-    name = "Analysis",
-    deps = {"Ast", "Config"}
-  }, {
-    name = "CodeGen",
-    deps = {"Common", "VM"}
-  }, {
-    name = "VM",
-    deps = {"Common"}
-  }
-}
-```
+> $ git clone --recursive https://github.com/UtoECat/miniLuau
 
-As illustrated, the "Common" module is a prerequisite for all other modules.
+### Option 2 - Use Script to Pack Luau Sources
 
-# File Naming Conventions
-Each module has associated `.cpp` and `.hpp` files, specifically:
+For your customized setups or to pack a more recent version/patched version of Luau sources.
 
-- `luau_(modname).hpp`: External header files and API. Provides user-friendly (extern "C") interfaces.
-- `luau_(modname)_int.hpp`: Internal headers. Contains internal data structures, functions, and various C++ standard library classes. These are rarely useful but you never know when you will need them :)
-- `luau_(modname).cpp`: Implementation of internal and external APIs. For note, "Common" module does not have an associated .cpp file.
+> **Hint**: You mostly would want to stick to a specific Luau version and not run for the new shiny version every time. 
+> Luau is constantly evolving, and while it may not break your stuff, it will likely break this script for sure :) 
+> So I **DO NOT RECOMMEND** using this script as part of an automated build system for getting the latest and greatest Luau version! 
 
-# Building
-**Note: all source files are ALREADY AUTOMATICLY packed in this repository! Do manual packaging only if you really want to change this process in some way or speed up getting the latest version of Luau.**
-If you want to package sources manually, you need to install:
-- `Lua 5.4`
-- `git` (or download zip)
-- `clang-format` ???
-- ensure unix `find` and `ls` utilities are available
+Usage: Change directory to the `luau` submodule directory and run:
 
-First clone this repository with this command:
-```sh
- $ git clone --recursive https://github.com/UtoECat/miniLuau
-```
-Then cd to the `luau` submodule directory and run
-```sh
-$ lua5.4 ../PACK.lua
-```
-During the build process, you will see errors about `<string.h>` or `<vector>` not found, this is normal.
-At the end you will get your packaged luau sources inside `..` directory :)
+> $ lua5.4 ../PACK.lua
 
-# Usage
-- Put packed files in your project, compile as any other source file
-- Add `-lm` to your linker flags (if not done yet)
-- include `luau_(modname).hpp` everywhere you need to work with lua.
+This should produce output in the `../pack-out` directory.
+
+If you want to build specific module(s):
+
+> $ lua5.4 ../PACK.lua MODNAME1 MODNAME2 ... MODNAMEN
+
+You only need to specify the final module names you want; all dependencies will be resolved and packed in the correct order automatically.
+
+
+### Q: What Does the Term Module Mean?
+
+A module is an individual set of source and header files from the Luau source tree. 
+The output of a module (packed sources, which is what you are interested in) is usually in `luau_(modname).cpp`, 
+`luau_(modname).hpp`, and `luau_(modname)_int.hpp` files. 
+
+- `luau_(modname).hpp`: External header files and API. Provides public interfaces, functions and methods.
+- `luau_(modname)_int.hpp`: Internal headers. Contains internal data structures, functions, and various C++ standard library classes. These are rarely useful, but you never know when you will need them :)
+- `luau_(modname).cpp`: Implementation of internal and external APIs. Note that the "Common" module does not have an associated .cpp file.
+
+
+### Q: What Files Do I Need?
+
+Generally, here are the options:
+For embedding into your app:
+  - Minimal: Common, Ast, VM modules
+  - With the ability to compile scripts at runtime: +Compiler module
+  - With native code generation for performance boost on supported platforms: +Codegen module
+
+CLI Tools are a little more difficult.
+The easiest way to find out dependencies is to look into the `Pack.lua` script module table and `deps` fields.
+Another way is to follow `#include` statements at the top of the files you are interested in until you find all the modules you need.
+
+Also, you *can* just download everything, but beware to compile all `luau_cli_*.cpp` files (except `luau_cli_base.cpp`) separately
+(or you will get linker errors about duplicated main symbols).
+In cases where you don't want CLI tools, simply remove all files with `cli` in their names :)
+
+
+## Step 2A: Embedding/Integration
+
+So, you want to embed Luau.
+Step one - put the necessary files into your project.
+I recommend keeping `*_int.hpp` as private headers and `*.hpp` as public API headers, but you may dump everything in one directory,
+even with source files.
+
+Step 2 - ensure they are compiled with at least a C++11 compiler or higher (C++17 or higher is required 
+for the bytecode compiler, code generation, and type analysis).
+Ensure you have exceptions enabled as well.
+
+For foreign interfaces, although I'm not recommending doing that, you will need to change/add some definitions in `vm_int.hpp` and `vm.hpp`.
+Refer to makefiles for that; I don't remember them, and I haven't used them seriously.
+
+## Step 2B: Building Luau Toolchain
+
+With this script, there is optional support for packing and building parts of the CLI toolchain too!
+
+Example for CLI Compiler:
+
+> $ cd luau
+>
+> # Asking to pack a specific module with all dependencies
+> $ lua5.4 ../PACK.lua CLICompiler
+> $ cd ../pack-out
+>
+> # Build it
+> $ g++ luau_cli_compiler.cpp luau_cli_base.cpp luau_ast.cpp luau_codegen.cpp luau_compiler.cpp luau_vm.cpp -o cli_compiler -I. 
+>
+> $ ./cli_compiler --help
+> Usage: ./cli_compiler [--mode] [options] [file list]
+>
+> Available modes:
+>    binary, text, remarks, codegen
+> ...
 
 # Dependencies
 

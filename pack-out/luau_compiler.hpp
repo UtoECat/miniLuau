@@ -29,10 +29,10 @@
 
 //only once
 #pragma once
-// @@@ PACK.lua : done, inlined <Compiler/include/luacode.h>
+// @@@@@ PACK.lua : done, inlined <Compiler/include/luacode.h>
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// @@@ PACK.lua : not found, likely and std header
+// @@@@@ PACK.lua : not found, likely and std header
 #include <stddef.h>
 
 // Can be used to reconfigure visibility/exports for public APIs
