@@ -69,15 +69,24 @@ For your customized setups or to pack a more recent version/patched version of L
 > Luau is constantly evolving, and while it may not break your stuff, it will likely break this script for sure :) 
 > So I **DO NOT RECOMMEND** using this script as part of an automated build system for getting the latest and greatest Luau version! 
 
+Requirements :
+- Unix/Linux/Posix OS.
+- Find, ls utilities awailable
+- clang-format and gcc compiler installed (form the formatting and checks)
+
 Usage: Change directory to the `luau` submodule directory and run:
 
+> ```
 > $ lua5.4 ../PACK.lua
+> ```
 
 This should produce output in the `../pack-out` directory.
 
 If you want to build specific module(s):
 
+> ```
 > $ lua5.4 ../PACK.lua MODNAME1 MODNAME2 ... MODNAMEN
+> ```
 
 You only need to specify the final module names you want; all dependencies will be resolved and packed in the correct order automatically.
 
@@ -130,6 +139,7 @@ With this script, there is optional support for packing and building parts of th
 
 Example for CLI Compiler:
 
+> ```
 > $ cd luau
 >
 > # Asking to pack a specific module with all dependencies
@@ -145,6 +155,7 @@ Example for CLI Compiler:
 > Available modes:
 >    binary, text, remarks, codegen
 > ...
+> ```
 
 # Dependencies
 
