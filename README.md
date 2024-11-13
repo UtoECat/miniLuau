@@ -18,15 +18,17 @@ This means you’ll have a lot more files—16 in total!—but it’s designed t
 Additionally:
 - All comments are kept, and all file indents are kept - makes packed code readable and self-documented. Comments do not affect compile times (on this scale).
 - Files are run through clang-format after packing for better consistency and readability.
-- Packing sources of some parts of the Luau CLI toolchain is possible now! **ONLY Compiler is verified to work for now**
+- Packing sources of some parts of the Luau CLI toolchain is possible now! 
 
 ### WARNING
-The produced source code is still untested for compilation and functionality.
+The produced source code is still not well tested for compilation and functionality.
 If you need something stable, please check out version 1.0 on the main branch.
 
 ## NOTES/TODO
-- Unfortunately, the Analysis module still can't be compiled, I'm still thinking and working on ideas how to work around it...
-- Need to set up or pack some minimal executable for runtime testing, better than the old one.
+- [+] CLI Tools: Compiler and Repl sources packed and verified to build and seemingly run well
+- [ ] Unfortunately, the Analysis module still can't be compiled, I'm still thinking and working on ideas how to work around it...
+- [ ] Need to set up or pack some minimal executable for runtime testing, better than the old one.
+- [ ] Check 2 can't be done with default luau's test suite, because it retuires analysis module be kept up and ready + has it's own shenanigans.
 
 # Overview
 
@@ -153,6 +155,19 @@ Example for CLI Compiler:
 >    binary, text, remarks, codegen
 > ...
 > ```
+
+Example for REPL (interactive command prompt):
+> ```
+> $ cd luau
+>
+> # Asking to pack a specific module with all dependencies
+> $ lua5.4 ../PACK.lua CLIRepl
+> $ cd ../pack-out
+>
+> g++ -o out_repl -I. luau_ast.cpp luau_cli_base.cpp luau_cli_repl.cpp luau_codegen.cpp luau_compiler.cpp luau_config.cpp luau_isocline.cpp luau_vm.cpp 
+> ```
+
+Testing utility and Analysis utility are cannot be packed into the correct c++ code yet.
 
 # Dependencies
 

@@ -7,17 +7,17 @@
  *
  * Copyright (c) 2019-2024 Roblox Corporation
  * Copyright (c) 1994–2019 Lua.org, PUC-Rio.
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- * 
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -27,11 +27,14 @@
  * SOFTWARE.
  */
 
-//only once
+// only once
 #pragma once
 // @@@@@ PACK.lua : done, inlined <Compiler/include/luacode.h>
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+#line __LINE__ "Compiler/include/luacode.h"
+
+// This file is part of the Luau programming language and is licensed under MIT
+// License; see LICENSE.txt for details
 // @@@@@ PACK.lua : not found, likely and std header
 #include <stddef.h>
 
@@ -42,43 +45,47 @@
 
 typedef struct lua_CompileOptions lua_CompileOptions;
 
-struct lua_CompileOptions
-{
-    // 0 - no optimization
-    // 1 - baseline optimization level that doesn't prevent debuggability
-    // 2 - includes optimizations that harm debuggability such as inlining
-    int optimizationLevel; // default=1
+struct lua_CompileOptions {
+  // 0 - no optimization
+  // 1 - baseline optimization level that doesn't prevent debuggability
+  // 2 - includes optimizations that harm debuggability such as inlining
+  int optimizationLevel; // default=1
 
-    // 0 - no debugging support
-    // 1 - line info & function names only; sufficient for backtraces
-    // 2 - full debug info with local & upvalue names; necessary for debugger
-    int debugLevel; // default=1
+  // 0 - no debugging support
+  // 1 - line info & function names only; sufficient for backtraces
+  // 2 - full debug info with local & upvalue names; necessary for debugger
+  int debugLevel; // default=1
 
-    // type information is used to guide native code generation decisions
-    // information includes testable types for function arguments, locals, upvalues and some temporaries
-    // 0 - generate for native modules
-    // 1 - generate for all modules
-    int typeInfoLevel; // default=0
+  // type information is used to guide native code generation decisions
+  // information includes testable types for function arguments, locals,
+  // upvalues and some temporaries 0 - generate for native modules 1 - generate
+  // for all modules
+  int typeInfoLevel; // default=0
 
-    // 0 - no code coverage support
-    // 1 - statement coverage
-    // 2 - statement and expression coverage (verbose)
-    int coverageLevel; // default=0
+  // 0 - no code coverage support
+  // 1 - statement coverage
+  // 2 - statement and expression coverage (verbose)
+  int coverageLevel; // default=0
 
-    // global builtin to construct vectors; disabled by default
-    const char* vectorLib;
-    const char* vectorCtor;
+  // global builtin to construct vectors; disabled by default
+  const char *vectorLib;
+  const char *vectorCtor;
 
-    // vector type name for type tables; disabled by default
-    const char* vectorType;
+  // vector type name for type tables; disabled by default
+  const char *vectorType;
 
-    // null-terminated array of globals that are mutable; disables the import optimization for fields accessed through these
-    const char* const* mutableGlobals;
+  // null-terminated array of globals that are mutable; disables the import
+  // optimization for fields accessed through these
+  const char *const *mutableGlobals;
 
-    // null-terminated array of userdata types that will be included in the type information
-    const char* const* userdataTypes;
+  // null-terminated array of userdata types that will be included in the type
+  // information
+  const char *const *userdataTypes;
 };
 
-// compile source to bytecode; when source compilation fails, the resulting bytecode contains the encoded error. use free() to destroy
-LUACODE_API char* luau_compile(const char* source, size_t size, lua_CompileOptions* options, size_t* outsize);
+// compile source to bytecode; when source compilation fails, the resulting
+// bytecode contains the encoded error. use free() to destroy
+LUACODE_API char *luau_compile(const char *source, size_t size,
+                               lua_CompileOptions *options, size_t *outsize);
 
+#line __LINE__ "luau_compiler.hpp"

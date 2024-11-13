@@ -31,6 +31,8 @@
 #pragma once
 // @@@@@ PACK.lua : done, inlined <CLI/FileUtils.h>
 
+#line __LINE__ "CLI/FileUtils.h"
+
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.lua : not found, likely and std header
 #include <optional>
@@ -66,10 +68,15 @@ std::optional<std::string> getParentPath(const std::string& path);
 
 std::vector<std::string> getSourceFiles(int argc, char** argv);
 
+#line __LINE__ "luau_cli_base.hpp"
+
 // @@@@@ PACK.lua : done, inlined <CLI/Flags.h>
+
+#line __LINE__ "CLI/Flags.h"
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 
 void setLuauFlagsDefault();
 void setLuauFlags(const char* list);
 
+#line __LINE__ "luau_cli_base.hpp"

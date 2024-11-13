@@ -31,6 +31,7 @@
 
 //only once
 #pragma once
+#line __LINE__ "CLI/FileUtils.cpp"
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // DONE : was aleready inlined <FileUtils.h>
@@ -504,6 +505,10 @@ std::vector<std::string> getSourceFiles(int argc, char** argv)
     return files;
 }
 
+#line __LINE__ "luau_cli_base.cpp"
+
+#line __LINE__ "CLI/Flags.cpp"
+
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
 
@@ -584,3 +589,4 @@ void setLuauFlags(const char* list)
     }
 }
 
+#line __LINE__ "luau_cli_base.cpp"

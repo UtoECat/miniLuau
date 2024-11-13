@@ -7,17 +7,17 @@
  *
  * Copyright (c) 2019-2024 Roblox Corporation
  * Copyright (c) 1994–2019 Lua.org, PUC-Rio.
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- * 
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -27,11 +27,14 @@
  * SOFTWARE.
  */
 
-//only once
+// only once
 #pragma once
 // @@@@@ PACK.lua : done, inlined <Ast/include/Luau/StringUtils.h>
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+#line __LINE__ "Ast/include/Luau/StringUtils.h"
+
+// This file is part of the Luau programming language and is licensed under MIT
+// License; see LICENSE.txt for details
 #include "luau_common_int.hpp"
 
 // @@@@@ PACK.lua : not found, likely and std header
@@ -43,17 +46,19 @@
 // @@@@@ PACK.lua : not found, likely and std header
 #include <stdarg.h>
 
-namespace Luau
-{
+namespace Luau {
 
-std::string format(const char* fmt, ...) LUAU_PRINTF_ATTR(1, 2);
-std::string vformat(const char* fmt, va_list args);
+std::string format(const char *fmt, ...) LUAU_PRINTF_ATTR(1, 2);
+std::string vformat(const char *fmt, va_list args);
 
-void formatAppend(std::string& str, const char* fmt, ...) LUAU_PRINTF_ATTR(2, 3);
-void vformatAppend(std::string& ret, const char* fmt, va_list args);
+void formatAppend(std::string &str, const char *fmt, ...)
+    LUAU_PRINTF_ATTR(2, 3);
+void vformatAppend(std::string &ret, const char *fmt, va_list args);
 
-std::string join(const std::vector<std::string_view>& segments, std::string_view delimiter);
-std::string join(const std::vector<std::string>& segments, std::string_view delimiter);
+std::string join(const std::vector<std::string_view> &segments,
+                 std::string_view delimiter);
+std::string join(const std::vector<std::string> &segments,
+                 std::string_view delimiter);
 
 std::vector<std::string_view> split(std::string_view s, char delimiter);
 
@@ -64,81 +69,75 @@ size_t editDistance(std::string_view a, std::string_view b);
 bool startsWith(std::string_view lhs, std::string_view rhs);
 bool equalsLower(std::string_view lhs, std::string_view rhs);
 
-size_t hashRange(const char* data, size_t size);
+size_t hashRange(const char *data, size_t size);
 
 std::string escape(std::string_view s, bool escapeForInterpString = false);
 bool isIdentifier(std::string_view s);
 } // namespace Luau
 
+#line __LINE__ "luau_ast_int.hpp"
+
 // @@@@@ PACK.lua : done, inlined <Ast/include/Luau/Ast.h>
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details// @@@@@ PACK.lua : done, inlined <Ast/include/Luau/Location.h>
+#line __LINE__ "Ast/include/Luau/Ast.h"
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+// This file is part of the Luau programming language and is licensed under MIT
+// License; see LICENSE.txt for details// @@@@@ PACK.lua : done, inlined
+// <Ast/include/Luau/Location.h>
 
-namespace Luau
-{
+#line __LINE__ "Luau/Location.h"
 
-struct Position
-{
-    unsigned int line, column;
+// This file is part of the Luau programming language and is licensed under MIT
+// License; see LICENSE.txt for details
 
-    Position(unsigned int line, unsigned int column)
-        : line(line)
-        , column(column)
-    {
-    }
+namespace Luau {
 
-    bool operator==(const Position& rhs) const;
-    bool operator!=(const Position& rhs) const;
-    bool operator<(const Position& rhs) const;
-    bool operator>(const Position& rhs) const;
-    bool operator<=(const Position& rhs) const;
-    bool operator>=(const Position& rhs) const;
+struct Position {
+  unsigned int line, column;
 
-    void shift(const Position& start, const Position& oldEnd, const Position& newEnd);
+  Position(unsigned int line, unsigned int column)
+      : line(line), column(column) {}
+
+  bool operator==(const Position &rhs) const;
+  bool operator!=(const Position &rhs) const;
+  bool operator<(const Position &rhs) const;
+  bool operator>(const Position &rhs) const;
+  bool operator<=(const Position &rhs) const;
+  bool operator>=(const Position &rhs) const;
+
+  void shift(const Position &start, const Position &oldEnd,
+             const Position &newEnd);
 };
 
-struct Location
-{
-    Position begin, end;
+struct Location {
+  Position begin, end;
 
-    Location()
-        : begin(0, 0)
-        , end(0, 0)
-    {
-    }
+  Location() : begin(0, 0), end(0, 0) {}
 
-    Location(const Position& begin, const Position& end)
-        : begin(begin)
-        , end(end)
-    {
-    }
+  Location(const Position &begin, const Position &end)
+      : begin(begin), end(end) {}
 
-    Location(const Position& begin, unsigned int length)
-        : begin(begin)
-        , end(begin.line, begin.column + length)
-    {
-    }
+  Location(const Position &begin, unsigned int length)
+      : begin(begin), end(begin.line, begin.column + length) {}
 
-    Location(const Location& begin, const Location& end)
-        : begin(begin.begin)
-        , end(end.end)
-    {
-    }
+  Location(const Location &begin, const Location &end)
+      : begin(begin.begin), end(end.end) {}
 
-    bool operator==(const Location& rhs) const;
-    bool operator!=(const Location& rhs) const;
+  bool operator==(const Location &rhs) const;
+  bool operator!=(const Location &rhs) const;
 
-    bool encloses(const Location& l) const;
-    bool overlaps(const Location& l) const;
-    bool contains(const Position& p) const;
-    bool containsClosed(const Position& p) const;
-    void extend(const Location& other);
-    void shift(const Position& start, const Position& oldEnd, const Position& newEnd);
+  bool encloses(const Location &l) const;
+  bool overlaps(const Location &l) const;
+  bool contains(const Position &p) const;
+  bool containsClosed(const Position &p) const;
+  void extend(const Location &other);
+  void shift(const Position &start, const Position &oldEnd,
+             const Position &newEnd);
 };
 
 } // namespace Luau
+
+#line __LINE__ "Ast/include/Luau/Ast.h"
 
 // @@@@@ PACK.lua : not found, likely and std header
 #include <iterator>
@@ -157,47 +156,31 @@ struct Location
 // @@@@@ PACK.lua : not found, likely and std header
 #include <stdint.h>
 
-namespace Luau
-{
+namespace Luau {
 
-struct AstName
-{
-    const char* value;
+struct AstName {
+  const char *value;
 
-    AstName()
-        : value(nullptr)
-    {
-    }
+  AstName() : value(nullptr) {}
 
-    explicit AstName(const char* value)
-        : value(value)
-    {
-    }
+  explicit AstName(const char *value) : value(value) {}
 
-    bool operator==(const AstName& rhs) const
-    {
-        return value == rhs.value;
-    }
+  bool operator==(const AstName &rhs) const { return value == rhs.value; }
 
-    bool operator!=(const AstName& rhs) const
-    {
-        return value != rhs.value;
-    }
+  bool operator!=(const AstName &rhs) const { return value != rhs.value; }
 
-    bool operator==(const char* rhs) const
-    {
-        return value && strcmp(value, rhs) == 0;
-    }
+  bool operator==(const char *rhs) const {
+    return value && strcmp(value, rhs) == 0;
+  }
 
-    bool operator!=(const char* rhs) const
-    {
-        return !value || strcmp(value, rhs) != 0;
-    }
+  bool operator!=(const char *rhs) const {
+    return !value || strcmp(value, rhs) != 0;
+  }
 
-    bool operator<(const AstName& rhs) const
-    {
-        return (value && rhs.value) ? strcmp(value, rhs.value) < 0 : value < rhs.value;
-    }
+  bool operator<(const AstName &rhs) const {
+    return (value && rhs.value) ? strcmp(value, rhs.value) < 0
+                                : value < rhs.value;
+  }
 };
 
 class AstType;
@@ -209,1380 +192,1246 @@ class AstTypePack;
 class AstAttr;
 class AstExprTable;
 
-struct AstLocal
-{
-    AstName name;
-    Location location;
-    AstLocal* shadow;
-    size_t functionDepth;
-    size_t loopDepth;
+struct AstLocal {
+  AstName name;
+  Location location;
+  AstLocal *shadow;
+  size_t functionDepth;
+  size_t loopDepth;
 
-    AstType* annotation;
+  AstType *annotation;
 
-    AstLocal(const AstName& name, const Location& location, AstLocal* shadow, size_t functionDepth, size_t loopDepth, AstType* annotation)
-        : name(name)
-        , location(location)
-        , shadow(shadow)
-        , functionDepth(functionDepth)
-        , loopDepth(loopDepth)
-        , annotation(annotation)
-    {
-    }
+  AstLocal(const AstName &name, const Location &location, AstLocal *shadow,
+           size_t functionDepth, size_t loopDepth, AstType *annotation)
+      : name(name), location(location), shadow(shadow),
+        functionDepth(functionDepth), loopDepth(loopDepth),
+        annotation(annotation) {}
 };
 
-template<typename T>
-struct AstArray
-{
-    T* data;
-    size_t size;
+template <typename T> struct AstArray {
+  T *data;
+  size_t size;
 
-    const T* begin() const
-    {
-        return data;
-    }
+  const T *begin() const { return data; }
 
-    const T* end() const
-    {
-        return data + size;
-    }
+  const T *end() const { return data + size; }
 
-    std::reverse_iterator<const T*> rbegin() const
-    {
-        return std::make_reverse_iterator(end());
-    }
+  std::reverse_iterator<const T *> rbegin() const {
+    return std::make_reverse_iterator(end());
+  }
 
-    std::reverse_iterator<const T*> rend() const
-    {
-        return std::make_reverse_iterator(begin());
-    }
+  std::reverse_iterator<const T *> rend() const {
+    return std::make_reverse_iterator(begin());
+  }
 };
 
-struct AstTypeList
-{
-    AstArray<AstType*> types;
-    // Null indicates no tail, not an untyped tail.
-    AstTypePack* tailType = nullptr;
+struct AstTypeList {
+  AstArray<AstType *> types;
+  // Null indicates no tail, not an untyped tail.
+  AstTypePack *tailType = nullptr;
 };
 
-using AstArgumentName = std::pair<AstName, Location>; // TODO: remove and replace when we get a common struct for this pair instead of AstName
+using AstArgumentName =
+    std::pair<AstName,
+              Location>; // TODO: remove and replace when we get a common struct
+                         // for this pair instead of AstName
 
-struct AstGenericType
-{
-    AstName name;
-    Location location;
-    AstType* defaultValue = nullptr;
+struct AstGenericType {
+  AstName name;
+  Location location;
+  AstType *defaultValue = nullptr;
 };
 
-struct AstGenericTypePack
-{
-    AstName name;
-    Location location;
-    AstTypePack* defaultValue = nullptr;
+struct AstGenericTypePack {
+  AstName name;
+  Location location;
+  AstTypePack *defaultValue = nullptr;
 };
 
 extern int gAstRttiIndex;
 
-template<typename T>
-struct AstRtti
-{
-    static const int value;
+template <typename T> struct AstRtti {
+  static const int value;
 };
 
-template<typename T>
-const int AstRtti<T>::value = ++gAstRttiIndex;
+template <typename T> const int AstRtti<T>::value = ++gAstRttiIndex;
 
-#define LUAU_RTTI(Class)     static int ClassIndex()     {         return AstRtti<Class>::value;     }
+#define LUAU_RTTI(Class)                                                       \
+  static int ClassIndex() { return AstRtti<Class>::value; }
 
-class AstNode
-{
+class AstNode {
 public:
-    explicit AstNode(int classIndex, const Location& location)
-        : classIndex(classIndex)
-        , location(location)
-    {
-    }
+  explicit AstNode(int classIndex, const Location &location)
+      : classIndex(classIndex), location(location) {}
 
-    virtual void visit(AstVisitor* visitor) = 0;
+  virtual void visit(AstVisitor *visitor) = 0;
 
-    virtual AstExpr* asExpr()
-    {
-        return nullptr;
-    }
-    virtual AstStat* asStat()
-    {
-        return nullptr;
-    }
-    virtual AstType* asType()
-    {
-        return nullptr;
-    }
-    virtual AstAttr* asAttr()
-    {
-        return nullptr;
-    }
+  virtual AstExpr *asExpr() { return nullptr; }
+  virtual AstStat *asStat() { return nullptr; }
+  virtual AstType *asType() { return nullptr; }
+  virtual AstAttr *asAttr() { return nullptr; }
 
-    template<typename T>
-    bool is() const
-    {
-        return classIndex == T::ClassIndex();
-    }
-    template<typename T>
-    T* as()
-    {
-        return classIndex == T::ClassIndex() ? static_cast<T*>(this) : nullptr;
-    }
-    template<typename T>
-    const T* as() const
-    {
-        return classIndex == T::ClassIndex() ? static_cast<const T*>(this) : nullptr;
-    }
+  template <typename T> bool is() const {
+    return classIndex == T::ClassIndex();
+  }
+  template <typename T> T *as() {
+    return classIndex == T::ClassIndex() ? static_cast<T *>(this) : nullptr;
+  }
+  template <typename T> const T *as() const {
+    return classIndex == T::ClassIndex() ? static_cast<const T *>(this)
+                                         : nullptr;
+  }
 
-    const int classIndex;
-    Location location;
+  const int classIndex;
+  Location location;
 };
 
-class AstAttr : public AstNode
-{
+class AstAttr : public AstNode {
 public:
-    LUAU_RTTI(AstAttr)
+  LUAU_RTTI(AstAttr)
 
-    enum Type
-    {
-        Checked,
-        Native,
+  enum Type {
+    Checked,
+    Native,
+  };
+
+  AstAttr(const Location &location, Type type);
+
+  AstAttr *asAttr() override { return this; }
+
+  void visit(AstVisitor *visitor) override;
+
+  Type type;
+};
+
+class AstExpr : public AstNode {
+public:
+  explicit AstExpr(int classIndex, const Location &location)
+      : AstNode(classIndex, location) {}
+
+  AstExpr *asExpr() override { return this; }
+};
+
+class AstStat : public AstNode {
+public:
+  explicit AstStat(int classIndex, const Location &location)
+      : AstNode(classIndex, location), hasSemicolon(false) {}
+
+  AstStat *asStat() override { return this; }
+
+  bool hasSemicolon;
+};
+
+class AstExprGroup : public AstExpr {
+public:
+  LUAU_RTTI(AstExprGroup)
+
+  explicit AstExprGroup(const Location &location, AstExpr *expr);
+
+  void visit(AstVisitor *visitor) override;
+
+  AstExpr *expr;
+};
+
+class AstExprConstantNil : public AstExpr {
+public:
+  LUAU_RTTI(AstExprConstantNil)
+
+  explicit AstExprConstantNil(const Location &location);
+
+  void visit(AstVisitor *visitor) override;
+};
+
+class AstExprConstantBool : public AstExpr {
+public:
+  LUAU_RTTI(AstExprConstantBool)
+
+  AstExprConstantBool(const Location &location, bool value);
+
+  void visit(AstVisitor *visitor) override;
+
+  bool value;
+};
+
+enum class ConstantNumberParseResult {
+  Ok,
+  Imprecise,
+  Malformed,
+  BinOverflow,
+  HexOverflow,
+};
+
+class AstExprConstantNumber : public AstExpr {
+public:
+  LUAU_RTTI(AstExprConstantNumber)
+
+  AstExprConstantNumber(
+      const Location &location, double value,
+      ConstantNumberParseResult parseResult = ConstantNumberParseResult::Ok);
+
+  void visit(AstVisitor *visitor) override;
+
+  double value;
+  ConstantNumberParseResult parseResult;
+};
+
+class AstExprConstantString : public AstExpr {
+public:
+  LUAU_RTTI(AstExprConstantString)
+
+  enum QuoteStyle { Quoted, Unquoted };
+
+  AstExprConstantString(const Location &location, const AstArray<char> &value,
+                        QuoteStyle quoteStyle = Quoted);
+
+  void visit(AstVisitor *visitor) override;
+
+  AstArray<char> value;
+  QuoteStyle quoteStyle = Quoted;
+};
+
+class AstExprLocal : public AstExpr {
+public:
+  LUAU_RTTI(AstExprLocal)
+
+  AstExprLocal(const Location &location, AstLocal *local, bool upvalue);
+
+  void visit(AstVisitor *visitor) override;
+
+  AstLocal *local;
+  bool upvalue;
+};
+
+class AstExprGlobal : public AstExpr {
+public:
+  LUAU_RTTI(AstExprGlobal)
+
+  AstExprGlobal(const Location &location, const AstName &name);
+
+  void visit(AstVisitor *visitor) override;
+
+  AstName name;
+};
+
+class AstExprVarargs : public AstExpr {
+public:
+  LUAU_RTTI(AstExprVarargs)
+
+  AstExprVarargs(const Location &location);
+
+  void visit(AstVisitor *visitor) override;
+};
+
+class AstExprCall : public AstExpr {
+public:
+  LUAU_RTTI(AstExprCall)
+
+  AstExprCall(const Location &location, AstExpr *func,
+              const AstArray<AstExpr *> &args, bool self,
+              const Location &argLocation);
+
+  void visit(AstVisitor *visitor) override;
+
+  AstExpr *func;
+  AstArray<AstExpr *> args;
+  bool self;
+  Location argLocation;
+};
+
+class AstExprIndexName : public AstExpr {
+public:
+  LUAU_RTTI(AstExprIndexName)
+
+  AstExprIndexName(const Location &location, AstExpr *expr,
+                   const AstName &index, const Location &indexLocation,
+                   const Position &opPosition, char op);
+
+  void visit(AstVisitor *visitor) override;
+
+  AstExpr *expr;
+  AstName index;
+  Location indexLocation;
+  Position opPosition;
+  char op = '.';
+};
+
+class AstExprIndexExpr : public AstExpr {
+public:
+  LUAU_RTTI(AstExprIndexExpr)
+
+  AstExprIndexExpr(const Location &location, AstExpr *expr, AstExpr *index);
+
+  void visit(AstVisitor *visitor) override;
+
+  AstExpr *expr;
+  AstExpr *index;
+};
+
+class AstExprFunction : public AstExpr {
+public:
+  LUAU_RTTI(AstExprFunction)
+
+  AstExprFunction(const Location &location,
+                  const AstArray<AstAttr *> &attributes,
+                  const AstArray<AstGenericType> &generics,
+                  const AstArray<AstGenericTypePack> &genericPacks,
+                  AstLocal *self, const AstArray<AstLocal *> &args, bool vararg,
+                  const Location &varargLocation, AstStatBlock *body,
+                  size_t functionDepth, const AstName &debugname,
+                  const std::optional<AstTypeList> &returnAnnotation = {},
+                  AstTypePack *varargAnnotation = nullptr,
+                  const std::optional<Location> &argLocation = std::nullopt);
+
+  void visit(AstVisitor *visitor) override;
+
+  bool hasNativeAttribute() const;
+
+  AstArray<AstAttr *> attributes;
+  AstArray<AstGenericType> generics;
+  AstArray<AstGenericTypePack> genericPacks;
+  AstLocal *self;
+  AstArray<AstLocal *> args;
+  std::optional<AstTypeList> returnAnnotation;
+  bool vararg = false;
+  Location varargLocation;
+  AstTypePack *varargAnnotation;
+
+  AstStatBlock *body;
+
+  size_t functionDepth;
+
+  AstName debugname;
+
+  std::optional<Location> argLocation;
+};
+
+class AstExprTable : public AstExpr {
+public:
+  LUAU_RTTI(AstExprTable)
+
+  struct Item {
+    enum Kind {
+      List,    // foo, in which case key is a nullptr
+      Record,  // foo=bar, in which case key is a AstExprConstantString
+      General, // [foo]=bar
     };
 
-    AstAttr(const Location& location, Type type);
+    Kind kind;
 
-    AstAttr* asAttr() override
-    {
-        return this;
-    }
+    AstExpr *key; // can be nullptr!
+    AstExpr *value;
+  };
 
-    void visit(AstVisitor* visitor) override;
+  AstExprTable(const Location &location, const AstArray<Item> &items);
 
-    Type type;
+  void visit(AstVisitor *visitor) override;
+
+  AstArray<Item> items;
 };
 
-class AstExpr : public AstNode
-{
+class AstExprUnary : public AstExpr {
 public:
-    explicit AstExpr(int classIndex, const Location& location)
-        : AstNode(classIndex, location)
-    {
-    }
+  LUAU_RTTI(AstExprUnary)
 
-    AstExpr* asExpr() override
-    {
-        return this;
-    }
-};
+  enum Op { Not, Minus, Len };
 
-class AstStat : public AstNode
-{
-public:
-    explicit AstStat(int classIndex, const Location& location)
-        : AstNode(classIndex, location)
-        , hasSemicolon(false)
-    {
-    }
+  AstExprUnary(const Location &location, Op op, AstExpr *expr);
 
-    AstStat* asStat() override
-    {
-        return this;
-    }
+  void visit(AstVisitor *visitor) override;
 
-    bool hasSemicolon;
-};
-
-class AstExprGroup : public AstExpr
-{
-public:
-    LUAU_RTTI(AstExprGroup)
-
-    explicit AstExprGroup(const Location& location, AstExpr* expr);
-
-    void visit(AstVisitor* visitor) override;
-
-    AstExpr* expr;
-};
-
-class AstExprConstantNil : public AstExpr
-{
-public:
-    LUAU_RTTI(AstExprConstantNil)
-
-    explicit AstExprConstantNil(const Location& location);
-
-    void visit(AstVisitor* visitor) override;
-};
-
-class AstExprConstantBool : public AstExpr
-{
-public:
-    LUAU_RTTI(AstExprConstantBool)
-
-    AstExprConstantBool(const Location& location, bool value);
-
-    void visit(AstVisitor* visitor) override;
-
-    bool value;
-};
-
-enum class ConstantNumberParseResult
-{
-    Ok,
-    Imprecise,
-    Malformed,
-    BinOverflow,
-    HexOverflow,
-};
-
-class AstExprConstantNumber : public AstExpr
-{
-public:
-    LUAU_RTTI(AstExprConstantNumber)
-
-    AstExprConstantNumber(const Location& location, double value, ConstantNumberParseResult parseResult = ConstantNumberParseResult::Ok);
-
-    void visit(AstVisitor* visitor) override;
-
-    double value;
-    ConstantNumberParseResult parseResult;
-};
-
-class AstExprConstantString : public AstExpr
-{
-public:
-    LUAU_RTTI(AstExprConstantString)
-
-    enum QuoteStyle
-    {
-        Quoted,
-        Unquoted
-    };
-
-    AstExprConstantString(const Location& location, const AstArray<char>& value, QuoteStyle quoteStyle = Quoted);
-
-    void visit(AstVisitor* visitor) override;
-
-    AstArray<char> value;
-    QuoteStyle quoteStyle = Quoted;
-};
-
-class AstExprLocal : public AstExpr
-{
-public:
-    LUAU_RTTI(AstExprLocal)
-
-    AstExprLocal(const Location& location, AstLocal* local, bool upvalue);
-
-    void visit(AstVisitor* visitor) override;
-
-    AstLocal* local;
-    bool upvalue;
-};
-
-class AstExprGlobal : public AstExpr
-{
-public:
-    LUAU_RTTI(AstExprGlobal)
-
-    AstExprGlobal(const Location& location, const AstName& name);
-
-    void visit(AstVisitor* visitor) override;
-
-    AstName name;
-};
-
-class AstExprVarargs : public AstExpr
-{
-public:
-    LUAU_RTTI(AstExprVarargs)
-
-    AstExprVarargs(const Location& location);
-
-    void visit(AstVisitor* visitor) override;
-};
-
-class AstExprCall : public AstExpr
-{
-public:
-    LUAU_RTTI(AstExprCall)
-
-    AstExprCall(const Location& location, AstExpr* func, const AstArray<AstExpr*>& args, bool self, const Location& argLocation);
-
-    void visit(AstVisitor* visitor) override;
-
-    AstExpr* func;
-    AstArray<AstExpr*> args;
-    bool self;
-    Location argLocation;
-};
-
-class AstExprIndexName : public AstExpr
-{
-public:
-    LUAU_RTTI(AstExprIndexName)
-
-    AstExprIndexName(
-        const Location& location, AstExpr* expr, const AstName& index, const Location& indexLocation, const Position& opPosition, char op);
-
-    void visit(AstVisitor* visitor) override;
-
-    AstExpr* expr;
-    AstName index;
-    Location indexLocation;
-    Position opPosition;
-    char op = '.';
-};
-
-class AstExprIndexExpr : public AstExpr
-{
-public:
-    LUAU_RTTI(AstExprIndexExpr)
-
-    AstExprIndexExpr(const Location& location, AstExpr* expr, AstExpr* index);
-
-    void visit(AstVisitor* visitor) override;
-
-    AstExpr* expr;
-    AstExpr* index;
-};
-
-class AstExprFunction : public AstExpr
-{
-public:
-    LUAU_RTTI(AstExprFunction)
-
-    AstExprFunction(const Location& location, const AstArray<AstAttr*>& attributes, const AstArray<AstGenericType>& generics,
-        const AstArray<AstGenericTypePack>& genericPacks, AstLocal* self, const AstArray<AstLocal*>& args, bool vararg,
-        const Location& varargLocation, AstStatBlock* body, size_t functionDepth, const AstName& debugname,
-        const std::optional<AstTypeList>& returnAnnotation = {}, AstTypePack* varargAnnotation = nullptr,
-        const std::optional<Location>& argLocation = std::nullopt);
-
-    void visit(AstVisitor* visitor) override;
-
-    bool hasNativeAttribute() const;
-
-    AstArray<AstAttr*> attributes;
-    AstArray<AstGenericType> generics;
-    AstArray<AstGenericTypePack> genericPacks;
-    AstLocal* self;
-    AstArray<AstLocal*> args;
-    std::optional<AstTypeList> returnAnnotation;
-    bool vararg = false;
-    Location varargLocation;
-    AstTypePack* varargAnnotation;
-
-    AstStatBlock* body;
-
-    size_t functionDepth;
-
-    AstName debugname;
-
-    std::optional<Location> argLocation;
-};
-
-class AstExprTable : public AstExpr
-{
-public:
-    LUAU_RTTI(AstExprTable)
-
-    struct Item
-    {
-        enum Kind
-        {
-            List,    // foo, in which case key is a nullptr
-            Record,  // foo=bar, in which case key is a AstExprConstantString
-            General, // [foo]=bar
-        };
-
-        Kind kind;
-
-        AstExpr* key; // can be nullptr!
-        AstExpr* value;
-    };
-
-    AstExprTable(const Location& location, const AstArray<Item>& items);
-
-    void visit(AstVisitor* visitor) override;
-
-    AstArray<Item> items;
-};
-
-class AstExprUnary : public AstExpr
-{
-public:
-    LUAU_RTTI(AstExprUnary)
-
-    enum Op
-    {
-        Not,
-        Minus,
-        Len
-    };
-
-    AstExprUnary(const Location& location, Op op, AstExpr* expr);
-
-    void visit(AstVisitor* visitor) override;
-
-    Op op;
-    AstExpr* expr;
+  Op op;
+  AstExpr *expr;
 };
 
 std::string toString(AstExprUnary::Op op);
 
-class AstExprBinary : public AstExpr
-{
+class AstExprBinary : public AstExpr {
 public:
-    LUAU_RTTI(AstExprBinary)
+  LUAU_RTTI(AstExprBinary)
 
-    enum Op
-    {
-        Add,
-        Sub,
-        Mul,
-        Div,
-        FloorDiv,
-        Mod,
-        Pow,
-        Concat,
-        CompareNe,
-        CompareEq,
-        CompareLt,
-        CompareLe,
-        CompareGt,
-        CompareGe,
-        And,
-        Or,
+  enum Op {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    FloorDiv,
+    Mod,
+    Pow,
+    Concat,
+    CompareNe,
+    CompareEq,
+    CompareLt,
+    CompareLe,
+    CompareGt,
+    CompareGe,
+    And,
+    Or,
 
-        Op__Count
-    };
+    Op__Count
+  };
 
-    AstExprBinary(const Location& location, Op op, AstExpr* left, AstExpr* right);
+  AstExprBinary(const Location &location, Op op, AstExpr *left, AstExpr *right);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    Op op;
-    AstExpr* left;
-    AstExpr* right;
+  Op op;
+  AstExpr *left;
+  AstExpr *right;
 };
 
 std::string toString(AstExprBinary::Op op);
 
-class AstExprTypeAssertion : public AstExpr
-{
+class AstExprTypeAssertion : public AstExpr {
 public:
-    LUAU_RTTI(AstExprTypeAssertion)
+  LUAU_RTTI(AstExprTypeAssertion)
 
-    AstExprTypeAssertion(const Location& location, AstExpr* expr, AstType* annotation);
+  AstExprTypeAssertion(const Location &location, AstExpr *expr,
+                       AstType *annotation);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstExpr* expr;
-    AstType* annotation;
+  AstExpr *expr;
+  AstType *annotation;
 };
 
-class AstExprIfElse : public AstExpr
-{
+class AstExprIfElse : public AstExpr {
 public:
-    LUAU_RTTI(AstExprIfElse)
+  LUAU_RTTI(AstExprIfElse)
 
-    AstExprIfElse(const Location& location, AstExpr* condition, bool hasThen, AstExpr* trueExpr, bool hasElse, AstExpr* falseExpr);
+  AstExprIfElse(const Location &location, AstExpr *condition, bool hasThen,
+                AstExpr *trueExpr, bool hasElse, AstExpr *falseExpr);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstExpr* condition;
-    bool hasThen;
-    AstExpr* trueExpr;
-    bool hasElse;
-    AstExpr* falseExpr;
+  AstExpr *condition;
+  bool hasThen;
+  AstExpr *trueExpr;
+  bool hasElse;
+  AstExpr *falseExpr;
 };
 
-class AstExprInterpString : public AstExpr
-{
+class AstExprInterpString : public AstExpr {
 public:
-    LUAU_RTTI(AstExprInterpString)
+  LUAU_RTTI(AstExprInterpString)
 
-    AstExprInterpString(const Location& location, const AstArray<AstArray<char>>& strings, const AstArray<AstExpr*>& expressions);
+  AstExprInterpString(const Location &location,
+                      const AstArray<AstArray<char>> &strings,
+                      const AstArray<AstExpr *> &expressions);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    /// An interpolated string such as `foo{bar}baz` is represented as
-    /// an array of strings for "foo" and "bar", and an array of expressions for "baz".
-    /// `strings` will always have one more element than `expressions`.
-    AstArray<AstArray<char>> strings;
-    AstArray<AstExpr*> expressions;
+  /// An interpolated string such as `foo{bar}baz` is represented as
+  /// an array of strings for "foo" and "bar", and an array of expressions for
+  /// "baz". `strings` will always have one more element than `expressions`.
+  AstArray<AstArray<char>> strings;
+  AstArray<AstExpr *> expressions;
 };
 
-class AstStatBlock : public AstStat
-{
+class AstStatBlock : public AstStat {
 public:
-    LUAU_RTTI(AstStatBlock)
+  LUAU_RTTI(AstStatBlock)
 
-    AstStatBlock(const Location& location, const AstArray<AstStat*>& body, bool hasEnd = true);
+  AstStatBlock(const Location &location, const AstArray<AstStat *> &body,
+               bool hasEnd = true);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstArray<AstStat*> body;
+  AstArray<AstStat *> body;
 
-    /* Indicates whether or not this block has been terminated in a
-     * syntactically valid way.
-     *
-     * This is usually but not always done with the 'end' keyword.  AstStatIf
-     * and AstStatRepeat are the two main exceptions to this.
-     *
-     * The 'then' clause of an if statement can properly be closed by the
-     * keywords 'else' or 'elseif'.  A 'repeat' loop's body is closed with the
-     * 'until' keyword.
-     */
-    bool hasEnd = false;
+  /* Indicates whether or not this block has been terminated in a
+   * syntactically valid way.
+   *
+   * This is usually but not always done with the 'end' keyword.  AstStatIf
+   * and AstStatRepeat are the two main exceptions to this.
+   *
+   * The 'then' clause of an if statement can properly be closed by the
+   * keywords 'else' or 'elseif'.  A 'repeat' loop's body is closed with the
+   * 'until' keyword.
+   */
+  bool hasEnd = false;
 };
 
-class AstStatIf : public AstStat
-{
+class AstStatIf : public AstStat {
 public:
-    LUAU_RTTI(AstStatIf)
+  LUAU_RTTI(AstStatIf)
 
-    AstStatIf(const Location& location, AstExpr* condition, AstStatBlock* thenbody, AstStat* elsebody, const std::optional<Location>& thenLocation,
-        const std::optional<Location>& elseLocation);
+  AstStatIf(const Location &location, AstExpr *condition,
+            AstStatBlock *thenbody, AstStat *elsebody,
+            const std::optional<Location> &thenLocation,
+            const std::optional<Location> &elseLocation);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstExpr* condition;
-    AstStatBlock* thenbody;
-    AstStat* elsebody;
+  AstExpr *condition;
+  AstStatBlock *thenbody;
+  AstStat *elsebody;
 
-    std::optional<Location> thenLocation;
+  std::optional<Location> thenLocation;
 
-    // Active for 'elseif' as well
-    std::optional<Location> elseLocation;
+  // Active for 'elseif' as well
+  std::optional<Location> elseLocation;
 };
 
-class AstStatWhile : public AstStat
-{
+class AstStatWhile : public AstStat {
 public:
-    LUAU_RTTI(AstStatWhile)
+  LUAU_RTTI(AstStatWhile)
 
-    AstStatWhile(const Location& location, AstExpr* condition, AstStatBlock* body, bool hasDo, const Location& doLocation);
+  AstStatWhile(const Location &location, AstExpr *condition, AstStatBlock *body,
+               bool hasDo, const Location &doLocation);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstExpr* condition;
-    AstStatBlock* body;
+  AstExpr *condition;
+  AstStatBlock *body;
 
-    bool hasDo = false;
-    Location doLocation;
+  bool hasDo = false;
+  Location doLocation;
 };
 
-class AstStatRepeat : public AstStat
-{
+class AstStatRepeat : public AstStat {
 public:
-    LUAU_RTTI(AstStatRepeat)
+  LUAU_RTTI(AstStatRepeat)
 
-    AstStatRepeat(const Location& location, AstExpr* condition, AstStatBlock* body, bool DEPRECATED_hasUntil);
+  AstStatRepeat(const Location &location, AstExpr *condition,
+                AstStatBlock *body, bool DEPRECATED_hasUntil);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstExpr* condition;
-    AstStatBlock* body;
+  AstExpr *condition;
+  AstStatBlock *body;
 
-    bool DEPRECATED_hasUntil = false;
+  bool DEPRECATED_hasUntil = false;
 };
 
-class AstStatBreak : public AstStat
-{
+class AstStatBreak : public AstStat {
 public:
-    LUAU_RTTI(AstStatBreak)
+  LUAU_RTTI(AstStatBreak)
 
-    AstStatBreak(const Location& location);
+  AstStatBreak(const Location &location);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 };
 
-class AstStatContinue : public AstStat
-{
+class AstStatContinue : public AstStat {
 public:
-    LUAU_RTTI(AstStatContinue)
+  LUAU_RTTI(AstStatContinue)
 
-    AstStatContinue(const Location& location);
+  AstStatContinue(const Location &location);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 };
 
-class AstStatReturn : public AstStat
-{
+class AstStatReturn : public AstStat {
 public:
-    LUAU_RTTI(AstStatReturn)
+  LUAU_RTTI(AstStatReturn)
 
-    AstStatReturn(const Location& location, const AstArray<AstExpr*>& list);
+  AstStatReturn(const Location &location, const AstArray<AstExpr *> &list);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstArray<AstExpr*> list;
+  AstArray<AstExpr *> list;
 };
 
-class AstStatExpr : public AstStat
-{
+class AstStatExpr : public AstStat {
 public:
-    LUAU_RTTI(AstStatExpr)
+  LUAU_RTTI(AstStatExpr)
 
-    AstStatExpr(const Location& location, AstExpr* expr);
+  AstStatExpr(const Location &location, AstExpr *expr);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstExpr* expr;
+  AstExpr *expr;
 };
 
-class AstStatLocal : public AstStat
-{
+class AstStatLocal : public AstStat {
 public:
-    LUAU_RTTI(AstStatLocal)
+  LUAU_RTTI(AstStatLocal)
 
-    AstStatLocal(const Location& location, const AstArray<AstLocal*>& vars, const AstArray<AstExpr*>& values,
-        const std::optional<Location>& equalsSignLocation);
+  AstStatLocal(const Location &location, const AstArray<AstLocal *> &vars,
+               const AstArray<AstExpr *> &values,
+               const std::optional<Location> &equalsSignLocation);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstArray<AstLocal*> vars;
-    AstArray<AstExpr*> values;
+  AstArray<AstLocal *> vars;
+  AstArray<AstExpr *> values;
 
-    std::optional<Location> equalsSignLocation;
+  std::optional<Location> equalsSignLocation;
 };
 
-class AstStatFor : public AstStat
-{
+class AstStatFor : public AstStat {
 public:
-    LUAU_RTTI(AstStatFor)
+  LUAU_RTTI(AstStatFor)
 
-    AstStatFor(const Location& location, AstLocal* var, AstExpr* from, AstExpr* to, AstExpr* step, AstStatBlock* body, bool hasDo,
-        const Location& doLocation);
+  AstStatFor(const Location &location, AstLocal *var, AstExpr *from,
+             AstExpr *to, AstExpr *step, AstStatBlock *body, bool hasDo,
+             const Location &doLocation);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstLocal* var;
-    AstExpr* from;
-    AstExpr* to;
-    AstExpr* step;
-    AstStatBlock* body;
+  AstLocal *var;
+  AstExpr *from;
+  AstExpr *to;
+  AstExpr *step;
+  AstStatBlock *body;
 
-    bool hasDo = false;
-    Location doLocation;
+  bool hasDo = false;
+  Location doLocation;
 };
 
-class AstStatForIn : public AstStat
-{
+class AstStatForIn : public AstStat {
 public:
-    LUAU_RTTI(AstStatForIn)
+  LUAU_RTTI(AstStatForIn)
 
-    AstStatForIn(const Location& location, const AstArray<AstLocal*>& vars, const AstArray<AstExpr*>& values, AstStatBlock* body, bool hasIn,
-        const Location& inLocation, bool hasDo, const Location& doLocation);
+  AstStatForIn(const Location &location, const AstArray<AstLocal *> &vars,
+               const AstArray<AstExpr *> &values, AstStatBlock *body,
+               bool hasIn, const Location &inLocation, bool hasDo,
+               const Location &doLocation);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstArray<AstLocal*> vars;
-    AstArray<AstExpr*> values;
-    AstStatBlock* body;
+  AstArray<AstLocal *> vars;
+  AstArray<AstExpr *> values;
+  AstStatBlock *body;
 
-    bool hasIn = false;
-    Location inLocation;
+  bool hasIn = false;
+  Location inLocation;
 
-    bool hasDo = false;
-    Location doLocation;
+  bool hasDo = false;
+  Location doLocation;
 };
 
-class AstStatAssign : public AstStat
-{
+class AstStatAssign : public AstStat {
 public:
-    LUAU_RTTI(AstStatAssign)
+  LUAU_RTTI(AstStatAssign)
 
-    AstStatAssign(const Location& location, const AstArray<AstExpr*>& vars, const AstArray<AstExpr*>& values);
+  AstStatAssign(const Location &location, const AstArray<AstExpr *> &vars,
+                const AstArray<AstExpr *> &values);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstArray<AstExpr*> vars;
-    AstArray<AstExpr*> values;
+  AstArray<AstExpr *> vars;
+  AstArray<AstExpr *> values;
 };
 
-class AstStatCompoundAssign : public AstStat
-{
+class AstStatCompoundAssign : public AstStat {
 public:
-    LUAU_RTTI(AstStatCompoundAssign)
+  LUAU_RTTI(AstStatCompoundAssign)
 
-    AstStatCompoundAssign(const Location& location, AstExprBinary::Op op, AstExpr* var, AstExpr* value);
+  AstStatCompoundAssign(const Location &location, AstExprBinary::Op op,
+                        AstExpr *var, AstExpr *value);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstExprBinary::Op op;
-    AstExpr* var;
-    AstExpr* value;
+  AstExprBinary::Op op;
+  AstExpr *var;
+  AstExpr *value;
 };
 
-class AstStatFunction : public AstStat
-{
+class AstStatFunction : public AstStat {
 public:
-    LUAU_RTTI(AstStatFunction)
+  LUAU_RTTI(AstStatFunction)
 
-    AstStatFunction(const Location& location, AstExpr* name, AstExprFunction* func);
+  AstStatFunction(const Location &location, AstExpr *name,
+                  AstExprFunction *func);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstExpr* name;
-    AstExprFunction* func;
+  AstExpr *name;
+  AstExprFunction *func;
 };
 
-class AstStatLocalFunction : public AstStat
-{
+class AstStatLocalFunction : public AstStat {
 public:
-    LUAU_RTTI(AstStatLocalFunction)
+  LUAU_RTTI(AstStatLocalFunction)
 
-    AstStatLocalFunction(const Location& location, AstLocal* name, AstExprFunction* func);
+  AstStatLocalFunction(const Location &location, AstLocal *name,
+                       AstExprFunction *func);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstLocal* name;
-    AstExprFunction* func;
+  AstLocal *name;
+  AstExprFunction *func;
 };
 
-class AstStatTypeAlias : public AstStat
-{
+class AstStatTypeAlias : public AstStat {
 public:
-    LUAU_RTTI(AstStatTypeAlias)
+  LUAU_RTTI(AstStatTypeAlias)
 
-    AstStatTypeAlias(const Location& location, const AstName& name, const Location& nameLocation, const AstArray<AstGenericType>& generics,
-        const AstArray<AstGenericTypePack>& genericPacks, AstType* type, bool exported);
+  AstStatTypeAlias(const Location &location, const AstName &name,
+                   const Location &nameLocation,
+                   const AstArray<AstGenericType> &generics,
+                   const AstArray<AstGenericTypePack> &genericPacks,
+                   AstType *type, bool exported);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstName name;
-    Location nameLocation;
-    AstArray<AstGenericType> generics;
-    AstArray<AstGenericTypePack> genericPacks;
-    AstType* type;
-    bool exported;
+  AstName name;
+  Location nameLocation;
+  AstArray<AstGenericType> generics;
+  AstArray<AstGenericTypePack> genericPacks;
+  AstType *type;
+  bool exported;
 };
 
-class AstStatDeclareGlobal : public AstStat
-{
+class AstStatDeclareGlobal : public AstStat {
 public:
-    LUAU_RTTI(AstStatDeclareGlobal)
+  LUAU_RTTI(AstStatDeclareGlobal)
 
-    AstStatDeclareGlobal(const Location& location, const AstName& name, const Location& nameLocation, AstType* type);
+  AstStatDeclareGlobal(const Location &location, const AstName &name,
+                       const Location &nameLocation, AstType *type);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstName name;
-    Location nameLocation;
-    AstType* type;
+  AstName name;
+  Location nameLocation;
+  AstType *type;
 };
 
-class AstStatDeclareFunction : public AstStat
-{
+class AstStatDeclareFunction : public AstStat {
 public:
-    LUAU_RTTI(AstStatDeclareFunction)
+  LUAU_RTTI(AstStatDeclareFunction)
 
-    AstStatDeclareFunction(const Location& location, const AstName& name, const Location& nameLocation, const AstArray<AstGenericType>& generics,
-        const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& params, const AstArray<AstArgumentName>& paramNames, bool vararg,
-        const Location& varargLocation, const AstTypeList& retTypes);
+  AstStatDeclareFunction(const Location &location, const AstName &name,
+                         const Location &nameLocation,
+                         const AstArray<AstGenericType> &generics,
+                         const AstArray<AstGenericTypePack> &genericPacks,
+                         const AstTypeList &params,
+                         const AstArray<AstArgumentName> &paramNames,
+                         bool vararg, const Location &varargLocation,
+                         const AstTypeList &retTypes);
 
-    AstStatDeclareFunction(const Location& location, const AstArray<AstAttr*>& attributes, const AstName& name, const Location& nameLocation,
-        const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& params,
-        const AstArray<AstArgumentName>& paramNames, bool vararg, const Location& varargLocation, const AstTypeList& retTypes);
+  AstStatDeclareFunction(const Location &location,
+                         const AstArray<AstAttr *> &attributes,
+                         const AstName &name, const Location &nameLocation,
+                         const AstArray<AstGenericType> &generics,
+                         const AstArray<AstGenericTypePack> &genericPacks,
+                         const AstTypeList &params,
+                         const AstArray<AstArgumentName> &paramNames,
+                         bool vararg, const Location &varargLocation,
+                         const AstTypeList &retTypes);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    bool isCheckedFunction() const;
+  bool isCheckedFunction() const;
 
-    AstArray<AstAttr*> attributes;
-    AstName name;
-    Location nameLocation;
-    AstArray<AstGenericType> generics;
-    AstArray<AstGenericTypePack> genericPacks;
-    AstTypeList params;
-    AstArray<AstArgumentName> paramNames;
-    bool vararg = false;
-    Location varargLocation;
-    AstTypeList retTypes;
+  AstArray<AstAttr *> attributes;
+  AstName name;
+  Location nameLocation;
+  AstArray<AstGenericType> generics;
+  AstArray<AstGenericTypePack> genericPacks;
+  AstTypeList params;
+  AstArray<AstArgumentName> paramNames;
+  bool vararg = false;
+  Location varargLocation;
+  AstTypeList retTypes;
 };
 
-struct AstDeclaredClassProp
-{
-    AstName name;
-    Location nameLocation;
-    AstType* ty = nullptr;
-    bool isMethod = false;
-    Location location;
+struct AstDeclaredClassProp {
+  AstName name;
+  Location nameLocation;
+  AstType *ty = nullptr;
+  bool isMethod = false;
+  Location location;
 };
 
-enum class AstTableAccess
-{
-    Read = 0b01,
-    Write = 0b10,
-    ReadWrite = 0b11,
+enum class AstTableAccess {
+  Read = 0b01,
+  Write = 0b10,
+  ReadWrite = 0b11,
 };
 
-struct AstTableIndexer
-{
-    AstType* indexType;
-    AstType* resultType;
-    Location location;
+struct AstTableIndexer {
+  AstType *indexType;
+  AstType *resultType;
+  Location location;
 
-    AstTableAccess access = AstTableAccess::ReadWrite;
-    std::optional<Location> accessLocation;
+  AstTableAccess access = AstTableAccess::ReadWrite;
+  std::optional<Location> accessLocation;
 };
 
-class AstStatDeclareClass : public AstStat
-{
+class AstStatDeclareClass : public AstStat {
 public:
-    LUAU_RTTI(AstStatDeclareClass)
+  LUAU_RTTI(AstStatDeclareClass)
 
-    AstStatDeclareClass(const Location& location, const AstName& name, std::optional<AstName> superName, const AstArray<AstDeclaredClassProp>& props,
-        AstTableIndexer* indexer = nullptr);
+  AstStatDeclareClass(const Location &location, const AstName &name,
+                      std::optional<AstName> superName,
+                      const AstArray<AstDeclaredClassProp> &props,
+                      AstTableIndexer *indexer = nullptr);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstName name;
-    std::optional<AstName> superName;
+  AstName name;
+  std::optional<AstName> superName;
 
-    AstArray<AstDeclaredClassProp> props;
-    AstTableIndexer* indexer;
+  AstArray<AstDeclaredClassProp> props;
+  AstTableIndexer *indexer;
 };
 
-class AstType : public AstNode
-{
+class AstType : public AstNode {
 public:
-    AstType(int classIndex, const Location& location)
-        : AstNode(classIndex, location)
-    {
-    }
+  AstType(int classIndex, const Location &location)
+      : AstNode(classIndex, location) {}
 
-    AstType* asType() override
-    {
-        return this;
-    }
+  AstType *asType() override { return this; }
 };
 
-// Don't have Luau::Variant available, it's a bit of an overhead, but a plain struct is nice to use
-struct AstTypeOrPack
-{
-    AstType* type = nullptr;
-    AstTypePack* typePack = nullptr;
+// Don't have Luau::Variant available, it's a bit of an overhead, but a plain
+// struct is nice to use
+struct AstTypeOrPack {
+  AstType *type = nullptr;
+  AstTypePack *typePack = nullptr;
 };
 
-class AstTypeReference : public AstType
-{
+class AstTypeReference : public AstType {
 public:
-    LUAU_RTTI(AstTypeReference)
+  LUAU_RTTI(AstTypeReference)
 
-    AstTypeReference(const Location& location, std::optional<AstName> prefix, AstName name, std::optional<Location> prefixLocation,
-        const Location& nameLocation, bool hasParameterList = false, const AstArray<AstTypeOrPack>& parameters = {});
+  AstTypeReference(const Location &location, std::optional<AstName> prefix,
+                   AstName name, std::optional<Location> prefixLocation,
+                   const Location &nameLocation, bool hasParameterList = false,
+                   const AstArray<AstTypeOrPack> &parameters = {});
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    bool hasParameterList;
-    std::optional<AstName> prefix;
-    std::optional<Location> prefixLocation;
-    AstName name;
-    Location nameLocation;
-    AstArray<AstTypeOrPack> parameters;
+  bool hasParameterList;
+  std::optional<AstName> prefix;
+  std::optional<Location> prefixLocation;
+  AstName name;
+  Location nameLocation;
+  AstArray<AstTypeOrPack> parameters;
 };
 
-struct AstTableProp
-{
-    AstName name;
-    Location location;
-    AstType* type;
-    AstTableAccess access = AstTableAccess::ReadWrite;
-    std::optional<Location> accessLocation;
+struct AstTableProp {
+  AstName name;
+  Location location;
+  AstType *type;
+  AstTableAccess access = AstTableAccess::ReadWrite;
+  std::optional<Location> accessLocation;
 };
 
-class AstTypeTable : public AstType
-{
+class AstTypeTable : public AstType {
 public:
-    LUAU_RTTI(AstTypeTable)
+  LUAU_RTTI(AstTypeTable)
 
-    AstTypeTable(const Location& location, const AstArray<AstTableProp>& props, AstTableIndexer* indexer = nullptr);
+  AstTypeTable(const Location &location, const AstArray<AstTableProp> &props,
+               AstTableIndexer *indexer = nullptr);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstArray<AstTableProp> props;
-    AstTableIndexer* indexer;
+  AstArray<AstTableProp> props;
+  AstTableIndexer *indexer;
 };
 
-class AstTypeFunction : public AstType
-{
+class AstTypeFunction : public AstType {
 public:
-    LUAU_RTTI(AstTypeFunction)
+  LUAU_RTTI(AstTypeFunction)
 
-    AstTypeFunction(const Location& location, const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks,
-        const AstTypeList& argTypes, const AstArray<std::optional<AstArgumentName>>& argNames, const AstTypeList& returnTypes);
+  AstTypeFunction(const Location &location,
+                  const AstArray<AstGenericType> &generics,
+                  const AstArray<AstGenericTypePack> &genericPacks,
+                  const AstTypeList &argTypes,
+                  const AstArray<std::optional<AstArgumentName>> &argNames,
+                  const AstTypeList &returnTypes);
 
-    AstTypeFunction(const Location& location, const AstArray<AstAttr*>& attributes, const AstArray<AstGenericType>& generics,
-        const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& argTypes, const AstArray<std::optional<AstArgumentName>>& argNames,
-        const AstTypeList& returnTypes);
+  AstTypeFunction(const Location &location,
+                  const AstArray<AstAttr *> &attributes,
+                  const AstArray<AstGenericType> &generics,
+                  const AstArray<AstGenericTypePack> &genericPacks,
+                  const AstTypeList &argTypes,
+                  const AstArray<std::optional<AstArgumentName>> &argNames,
+                  const AstTypeList &returnTypes);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    bool isCheckedFunction() const;
+  bool isCheckedFunction() const;
 
-    AstArray<AstAttr*> attributes;
-    AstArray<AstGenericType> generics;
-    AstArray<AstGenericTypePack> genericPacks;
-    AstTypeList argTypes;
-    AstArray<std::optional<AstArgumentName>> argNames;
-    AstTypeList returnTypes;
+  AstArray<AstAttr *> attributes;
+  AstArray<AstGenericType> generics;
+  AstArray<AstGenericTypePack> genericPacks;
+  AstTypeList argTypes;
+  AstArray<std::optional<AstArgumentName>> argNames;
+  AstTypeList returnTypes;
 };
 
-class AstTypeTypeof : public AstType
-{
+class AstTypeTypeof : public AstType {
 public:
-    LUAU_RTTI(AstTypeTypeof)
+  LUAU_RTTI(AstTypeTypeof)
 
-    AstTypeTypeof(const Location& location, AstExpr* expr);
+  AstTypeTypeof(const Location &location, AstExpr *expr);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstExpr* expr;
+  AstExpr *expr;
 };
 
-class AstTypeUnion : public AstType
-{
+class AstTypeUnion : public AstType {
 public:
-    LUAU_RTTI(AstTypeUnion)
+  LUAU_RTTI(AstTypeUnion)
 
-    AstTypeUnion(const Location& location, const AstArray<AstType*>& types);
+  AstTypeUnion(const Location &location, const AstArray<AstType *> &types);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstArray<AstType*> types;
+  AstArray<AstType *> types;
 };
 
-class AstTypeIntersection : public AstType
-{
+class AstTypeIntersection : public AstType {
 public:
-    LUAU_RTTI(AstTypeIntersection)
+  LUAU_RTTI(AstTypeIntersection)
 
-    AstTypeIntersection(const Location& location, const AstArray<AstType*>& types);
+  AstTypeIntersection(const Location &location,
+                      const AstArray<AstType *> &types);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstArray<AstType*> types;
+  AstArray<AstType *> types;
 };
 
-class AstExprError : public AstExpr
-{
+class AstExprError : public AstExpr {
 public:
-    LUAU_RTTI(AstExprError)
+  LUAU_RTTI(AstExprError)
 
-    AstExprError(const Location& location, const AstArray<AstExpr*>& expressions, unsigned messageIndex);
+  AstExprError(const Location &location, const AstArray<AstExpr *> &expressions,
+               unsigned messageIndex);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstArray<AstExpr*> expressions;
-    unsigned messageIndex;
+  AstArray<AstExpr *> expressions;
+  unsigned messageIndex;
 };
 
-class AstStatError : public AstStat
-{
+class AstStatError : public AstStat {
 public:
-    LUAU_RTTI(AstStatError)
+  LUAU_RTTI(AstStatError)
 
-    AstStatError(const Location& location, const AstArray<AstExpr*>& expressions, const AstArray<AstStat*>& statements, unsigned messageIndex);
+  AstStatError(const Location &location, const AstArray<AstExpr *> &expressions,
+               const AstArray<AstStat *> &statements, unsigned messageIndex);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstArray<AstExpr*> expressions;
-    AstArray<AstStat*> statements;
-    unsigned messageIndex;
+  AstArray<AstExpr *> expressions;
+  AstArray<AstStat *> statements;
+  unsigned messageIndex;
 };
 
-class AstTypeError : public AstType
-{
+class AstTypeError : public AstType {
 public:
-    LUAU_RTTI(AstTypeError)
+  LUAU_RTTI(AstTypeError)
 
-    AstTypeError(const Location& location, const AstArray<AstType*>& types, bool isMissing, unsigned messageIndex);
+  AstTypeError(const Location &location, const AstArray<AstType *> &types,
+               bool isMissing, unsigned messageIndex);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstArray<AstType*> types;
-    bool isMissing;
-    unsigned messageIndex;
+  AstArray<AstType *> types;
+  bool isMissing;
+  unsigned messageIndex;
 };
 
-class AstTypeSingletonBool : public AstType
-{
+class AstTypeSingletonBool : public AstType {
 public:
-    LUAU_RTTI(AstTypeSingletonBool)
+  LUAU_RTTI(AstTypeSingletonBool)
 
-    AstTypeSingletonBool(const Location& location, bool value);
+  AstTypeSingletonBool(const Location &location, bool value);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    bool value;
+  bool value;
 };
 
-class AstTypeSingletonString : public AstType
-{
+class AstTypeSingletonString : public AstType {
 public:
-    LUAU_RTTI(AstTypeSingletonString)
+  LUAU_RTTI(AstTypeSingletonString)
 
-    AstTypeSingletonString(const Location& location, const AstArray<char>& value);
+  AstTypeSingletonString(const Location &location, const AstArray<char> &value);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    const AstArray<char> value;
+  const AstArray<char> value;
 };
 
-class AstTypePack : public AstNode
-{
+class AstTypePack : public AstNode {
 public:
-    AstTypePack(int classIndex, const Location& location)
-        : AstNode(classIndex, location)
-    {
-    }
+  AstTypePack(int classIndex, const Location &location)
+      : AstNode(classIndex, location) {}
 };
 
-class AstTypePackExplicit : public AstTypePack
-{
+class AstTypePackExplicit : public AstTypePack {
 public:
-    LUAU_RTTI(AstTypePackExplicit)
+  LUAU_RTTI(AstTypePackExplicit)
 
-    AstTypePackExplicit(const Location& location, AstTypeList typeList);
+  AstTypePackExplicit(const Location &location, AstTypeList typeList);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstTypeList typeList;
+  AstTypeList typeList;
 };
 
-class AstTypePackVariadic : public AstTypePack
-{
+class AstTypePackVariadic : public AstTypePack {
 public:
-    LUAU_RTTI(AstTypePackVariadic)
+  LUAU_RTTI(AstTypePackVariadic)
 
-    AstTypePackVariadic(const Location& location, AstType* variadicType);
+  AstTypePackVariadic(const Location &location, AstType *variadicType);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstType* variadicType;
+  AstType *variadicType;
 };
 
-class AstTypePackGeneric : public AstTypePack
-{
+class AstTypePackGeneric : public AstTypePack {
 public:
-    LUAU_RTTI(AstTypePackGeneric)
+  LUAU_RTTI(AstTypePackGeneric)
 
-    AstTypePackGeneric(const Location& location, AstName name);
+  AstTypePackGeneric(const Location &location, AstName name);
 
-    void visit(AstVisitor* visitor) override;
+  void visit(AstVisitor *visitor) override;
 
-    AstName genericName;
+  AstName genericName;
 };
 
-class AstVisitor
-{
+class AstVisitor {
 public:
-    virtual ~AstVisitor() {}
+  virtual ~AstVisitor() {}
 
-    virtual bool visit(class AstNode*)
-    {
-        return true;
-    }
+  virtual bool visit(class AstNode *) { return true; }
 
-    virtual bool visit(class AstAttr* node)
-    {
-        return visit(static_cast<AstNode*>(node));
-    }
+  virtual bool visit(class AstAttr *node) {
+    return visit(static_cast<AstNode *>(node));
+  }
 
-    virtual bool visit(class AstExpr* node)
-    {
-        return visit(static_cast<AstNode*>(node));
-    }
+  virtual bool visit(class AstExpr *node) {
+    return visit(static_cast<AstNode *>(node));
+  }
 
-    virtual bool visit(class AstExprGroup* node)
-    {
-        return visit(static_cast<AstExpr*>(node));
-    }
-    virtual bool visit(class AstExprConstantNil* node)
-    {
-        return visit(static_cast<AstExpr*>(node));
-    }
-    virtual bool visit(class AstExprConstantBool* node)
-    {
-        return visit(static_cast<AstExpr*>(node));
-    }
-    virtual bool visit(class AstExprConstantNumber* node)
-    {
-        return visit(static_cast<AstExpr*>(node));
-    }
-    virtual bool visit(class AstExprConstantString* node)
-    {
-        return visit(static_cast<AstExpr*>(node));
-    }
-    virtual bool visit(class AstExprLocal* node)
-    {
-        return visit(static_cast<AstExpr*>(node));
-    }
-    virtual bool visit(class AstExprGlobal* node)
-    {
-        return visit(static_cast<AstExpr*>(node));
-    }
-    virtual bool visit(class AstExprVarargs* node)
-    {
-        return visit(static_cast<AstExpr*>(node));
-    }
-    virtual bool visit(class AstExprCall* node)
-    {
-        return visit(static_cast<AstExpr*>(node));
-    }
-    virtual bool visit(class AstExprIndexName* node)
-    {
-        return visit(static_cast<AstExpr*>(node));
-    }
-    virtual bool visit(class AstExprIndexExpr* node)
-    {
-        return visit(static_cast<AstExpr*>(node));
-    }
-    virtual bool visit(class AstExprFunction* node)
-    {
-        return visit(static_cast<AstExpr*>(node));
-    }
-    virtual bool visit(class AstExprTable* node)
-    {
-        return visit(static_cast<AstExpr*>(node));
-    }
-    virtual bool visit(class AstExprUnary* node)
-    {
-        return visit(static_cast<AstExpr*>(node));
-    }
-    virtual bool visit(class AstExprBinary* node)
-    {
-        return visit(static_cast<AstExpr*>(node));
-    }
-    virtual bool visit(class AstExprTypeAssertion* node)
-    {
-        return visit(static_cast<AstExpr*>(node));
-    }
-    virtual bool visit(class AstExprIfElse* node)
-    {
-        return visit(static_cast<AstExpr*>(node));
-    }
-    virtual bool visit(class AstExprInterpString* node)
-    {
-        return visit(static_cast<AstExpr*>(node));
-    }
-    virtual bool visit(class AstExprError* node)
-    {
-        return visit(static_cast<AstExpr*>(node));
-    }
+  virtual bool visit(class AstExprGroup *node) {
+    return visit(static_cast<AstExpr *>(node));
+  }
+  virtual bool visit(class AstExprConstantNil *node) {
+    return visit(static_cast<AstExpr *>(node));
+  }
+  virtual bool visit(class AstExprConstantBool *node) {
+    return visit(static_cast<AstExpr *>(node));
+  }
+  virtual bool visit(class AstExprConstantNumber *node) {
+    return visit(static_cast<AstExpr *>(node));
+  }
+  virtual bool visit(class AstExprConstantString *node) {
+    return visit(static_cast<AstExpr *>(node));
+  }
+  virtual bool visit(class AstExprLocal *node) {
+    return visit(static_cast<AstExpr *>(node));
+  }
+  virtual bool visit(class AstExprGlobal *node) {
+    return visit(static_cast<AstExpr *>(node));
+  }
+  virtual bool visit(class AstExprVarargs *node) {
+    return visit(static_cast<AstExpr *>(node));
+  }
+  virtual bool visit(class AstExprCall *node) {
+    return visit(static_cast<AstExpr *>(node));
+  }
+  virtual bool visit(class AstExprIndexName *node) {
+    return visit(static_cast<AstExpr *>(node));
+  }
+  virtual bool visit(class AstExprIndexExpr *node) {
+    return visit(static_cast<AstExpr *>(node));
+  }
+  virtual bool visit(class AstExprFunction *node) {
+    return visit(static_cast<AstExpr *>(node));
+  }
+  virtual bool visit(class AstExprTable *node) {
+    return visit(static_cast<AstExpr *>(node));
+  }
+  virtual bool visit(class AstExprUnary *node) {
+    return visit(static_cast<AstExpr *>(node));
+  }
+  virtual bool visit(class AstExprBinary *node) {
+    return visit(static_cast<AstExpr *>(node));
+  }
+  virtual bool visit(class AstExprTypeAssertion *node) {
+    return visit(static_cast<AstExpr *>(node));
+  }
+  virtual bool visit(class AstExprIfElse *node) {
+    return visit(static_cast<AstExpr *>(node));
+  }
+  virtual bool visit(class AstExprInterpString *node) {
+    return visit(static_cast<AstExpr *>(node));
+  }
+  virtual bool visit(class AstExprError *node) {
+    return visit(static_cast<AstExpr *>(node));
+  }
 
-    virtual bool visit(class AstStat* node)
-    {
-        return visit(static_cast<AstNode*>(node));
-    }
+  virtual bool visit(class AstStat *node) {
+    return visit(static_cast<AstNode *>(node));
+  }
 
-    virtual bool visit(class AstStatBlock* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
-    virtual bool visit(class AstStatIf* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
-    virtual bool visit(class AstStatWhile* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
-    virtual bool visit(class AstStatRepeat* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
-    virtual bool visit(class AstStatBreak* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
-    virtual bool visit(class AstStatContinue* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
-    virtual bool visit(class AstStatReturn* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
-    virtual bool visit(class AstStatExpr* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
-    virtual bool visit(class AstStatLocal* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
-    virtual bool visit(class AstStatFor* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
-    virtual bool visit(class AstStatForIn* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
-    virtual bool visit(class AstStatAssign* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
-    virtual bool visit(class AstStatCompoundAssign* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
-    virtual bool visit(class AstStatFunction* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
-    virtual bool visit(class AstStatLocalFunction* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
-    virtual bool visit(class AstStatTypeAlias* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
-    virtual bool visit(class AstStatDeclareFunction* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
-    virtual bool visit(class AstStatDeclareGlobal* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
-    virtual bool visit(class AstStatDeclareClass* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
-    virtual bool visit(class AstStatError* node)
-    {
-        return visit(static_cast<AstStat*>(node));
-    }
+  virtual bool visit(class AstStatBlock *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
+  virtual bool visit(class AstStatIf *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
+  virtual bool visit(class AstStatWhile *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
+  virtual bool visit(class AstStatRepeat *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
+  virtual bool visit(class AstStatBreak *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
+  virtual bool visit(class AstStatContinue *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
+  virtual bool visit(class AstStatReturn *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
+  virtual bool visit(class AstStatExpr *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
+  virtual bool visit(class AstStatLocal *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
+  virtual bool visit(class AstStatFor *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
+  virtual bool visit(class AstStatForIn *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
+  virtual bool visit(class AstStatAssign *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
+  virtual bool visit(class AstStatCompoundAssign *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
+  virtual bool visit(class AstStatFunction *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
+  virtual bool visit(class AstStatLocalFunction *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
+  virtual bool visit(class AstStatTypeAlias *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
+  virtual bool visit(class AstStatDeclareFunction *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
+  virtual bool visit(class AstStatDeclareGlobal *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
+  virtual bool visit(class AstStatDeclareClass *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
+  virtual bool visit(class AstStatError *node) {
+    return visit(static_cast<AstStat *>(node));
+  }
 
-    // By default visiting type annotations is disabled; override this in your visitor if you need to!
-    virtual bool visit(class AstType* node)
-    {
-        return false;
-    }
+  // By default visiting type annotations is disabled; override this in your
+  // visitor if you need to!
+  virtual bool visit(class AstType *node) { return false; }
 
-    virtual bool visit(class AstTypeReference* node)
-    {
-        return visit(static_cast<AstType*>(node));
-    }
-    virtual bool visit(class AstTypeTable* node)
-    {
-        return visit(static_cast<AstType*>(node));
-    }
-    virtual bool visit(class AstTypeFunction* node)
-    {
-        return visit(static_cast<AstType*>(node));
-    }
-    virtual bool visit(class AstTypeTypeof* node)
-    {
-        return visit(static_cast<AstType*>(node));
-    }
-    virtual bool visit(class AstTypeUnion* node)
-    {
-        return visit(static_cast<AstType*>(node));
-    }
-    virtual bool visit(class AstTypeIntersection* node)
-    {
-        return visit(static_cast<AstType*>(node));
-    }
-    virtual bool visit(class AstTypeSingletonBool* node)
-    {
-        return visit(static_cast<AstType*>(node));
-    }
-    virtual bool visit(class AstTypeSingletonString* node)
-    {
-        return visit(static_cast<AstType*>(node));
-    }
-    virtual bool visit(class AstTypeError* node)
-    {
-        return visit(static_cast<AstType*>(node));
-    }
+  virtual bool visit(class AstTypeReference *node) {
+    return visit(static_cast<AstType *>(node));
+  }
+  virtual bool visit(class AstTypeTable *node) {
+    return visit(static_cast<AstType *>(node));
+  }
+  virtual bool visit(class AstTypeFunction *node) {
+    return visit(static_cast<AstType *>(node));
+  }
+  virtual bool visit(class AstTypeTypeof *node) {
+    return visit(static_cast<AstType *>(node));
+  }
+  virtual bool visit(class AstTypeUnion *node) {
+    return visit(static_cast<AstType *>(node));
+  }
+  virtual bool visit(class AstTypeIntersection *node) {
+    return visit(static_cast<AstType *>(node));
+  }
+  virtual bool visit(class AstTypeSingletonBool *node) {
+    return visit(static_cast<AstType *>(node));
+  }
+  virtual bool visit(class AstTypeSingletonString *node) {
+    return visit(static_cast<AstType *>(node));
+  }
+  virtual bool visit(class AstTypeError *node) {
+    return visit(static_cast<AstType *>(node));
+  }
 
-    virtual bool visit(class AstTypePack* node)
-    {
-        return false;
-    }
-    virtual bool visit(class AstTypePackExplicit* node)
-    {
-        return visit(static_cast<AstTypePack*>(node));
-    }
-    virtual bool visit(class AstTypePackVariadic* node)
-    {
-        return visit(static_cast<AstTypePack*>(node));
-    }
-    virtual bool visit(class AstTypePackGeneric* node)
-    {
-        return visit(static_cast<AstTypePack*>(node));
-    }
+  virtual bool visit(class AstTypePack *node) { return false; }
+  virtual bool visit(class AstTypePackExplicit *node) {
+    return visit(static_cast<AstTypePack *>(node));
+  }
+  virtual bool visit(class AstTypePackVariadic *node) {
+    return visit(static_cast<AstTypePack *>(node));
+  }
+  virtual bool visit(class AstTypePackGeneric *node) {
+    return visit(static_cast<AstTypePack *>(node));
+  }
 };
 
-AstName getIdentifier(AstExpr*);
-Location getLocation(const AstTypeList& typeList);
+AstName getIdentifier(AstExpr *);
+Location getLocation(const AstTypeList &typeList);
 
-template<typename T> // AstNode, AstExpr, AstLocal, etc
-Location getLocation(AstArray<T*> array)
-{
-    if (0 == array.size)
-        return {};
+template <typename T> // AstNode, AstExpr, AstLocal, etc
+Location getLocation(AstArray<T *> array) {
+  if (0 == array.size)
+    return {};
 
-    return Location{array.data[0]->location.begin, array.data[array.size - 1]->location.end};
+  return Location{array.data[0]->location.begin,
+                  array.data[array.size - 1]->location.end};
 }
 
 #undef LUAU_RTTI
 
 } // namespace Luau
 
-namespace std
-{
+namespace std {
 
-template<>
-struct hash<Luau::AstName>
-{
-    size_t operator()(const Luau::AstName& value) const
-    {
-        // note: since operator== uses pointer identity, hashing function uses it as well
-        // the hasher is the same as DenseHashPointer (DenseHash.h)
-        return (uintptr_t(value.value) >> 4) ^ (uintptr_t(value.value) >> 9);
-    }
+template <> struct hash<Luau::AstName> {
+  size_t operator()(const Luau::AstName &value) const {
+    // note: since operator== uses pointer identity, hashing function uses it as
+    // well the hasher is the same as DenseHashPointer (DenseHash.h)
+    return (uintptr_t(value.value) >> 4) ^ (uintptr_t(value.value) >> 9);
+  }
 };
 
 } // namespace std
 
+#line __LINE__ "luau_ast_int.hpp"
+
 // @@@@@ PACK.lua : done, inlined <Ast/include/Luau/ParseOptions.h>
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+#line __LINE__ "Ast/include/Luau/ParseOptions.h"
 
-namespace Luau
-{
+// This file is part of the Luau programming language and is licensed under MIT
+// License; see LICENSE.txt for details
 
-enum class Mode
-{
-    NoCheck,    // Do not perform any inference
-    Nonstrict,  // Unannotated symbols are any
-    Strict,     // Unannotated symbols are inferred
-    Definition, // Type definition module, has special parsing rules
+namespace Luau {
+
+enum class Mode {
+  NoCheck,    // Do not perform any inference
+  Nonstrict,  // Unannotated symbols are any
+  Strict,     // Unannotated symbols are inferred
+  Definition, // Type definition module, has special parsing rules
 };
 
-struct ParseOptions
-{
-    bool allowDeclarationSyntax = false;
-    bool captureComments = false;
+struct ParseOptions {
+  bool allowDeclarationSyntax = false;
+  bool captureComments = false;
 };
 
 } // namespace Luau
 
+#line __LINE__ "luau_ast_int.hpp"
+
 // @@@@@ PACK.lua : done, inlined <Ast/include/Luau/Lexer.h>
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// DONE : was aleready inlined <Luau/Ast.h>
+#line __LINE__ "Ast/include/Luau/Lexer.h"
+
+// This file is part of the Luau programming language and is licensed under MIT
+// License; see LICENSE.txt for details DONE : was aleready inlined <Luau/Ast.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Location.h>
 
@@ -1592,280 +1441,273 @@ struct ParseOptions
 
 // @@@@@ PACK.LUA : was already included! <vector>
 
-namespace Luau
-{
+namespace Luau {
 
-class Allocator
-{
+class Allocator {
 public:
-    Allocator();
-    Allocator(Allocator&&);
+  Allocator();
+  Allocator(Allocator &&);
 
-    Allocator& operator=(Allocator&&) = delete;
+  Allocator &operator=(Allocator &&) = delete;
 
-    ~Allocator();
+  ~Allocator();
 
-    void* allocate(size_t size);
+  void *allocate(size_t size);
 
-    template<typename T, typename... Args>
-    T* alloc(Args&&... args)
-    {
-        static_assert(std::is_trivially_destructible<T>::value, "Objects allocated with this allocator will never have their destructors run!");
+  template <typename T, typename... Args> T *alloc(Args &&...args) {
+    static_assert(std::is_trivially_destructible<T>::value,
+                  "Objects allocated with this allocator will never have their "
+                  "destructors run!");
 
-        T* t = static_cast<T*>(allocate(sizeof(T)));
-        new (t) T(std::forward<Args>(args)...);
-        return t;
-    }
+    T *t = static_cast<T *>(allocate(sizeof(T)));
+    new (t) T(std::forward<Args>(args)...);
+    return t;
+  }
 
 private:
-    struct Page
-    {
-        Page* next;
+  struct Page {
+    Page *next;
 
-        char data[8192];
-    };
+    char data[8192];
+  };
 
-    Page* root;
-    size_t offset;
+  Page *root;
+  size_t offset;
 };
 
-struct Lexeme
-{
-    enum Type
-    {
-        Eof = 0,
+struct Lexeme {
+  enum Type {
+    Eof = 0,
 
-        // 1..255 means actual character values
-        Char_END = 256,
+    // 1..255 means actual character values
+    Char_END = 256,
 
-        Equal,
-        LessEqual,
-        GreaterEqual,
-        NotEqual,
-        Dot2,
-        Dot3,
-        SkinnyArrow,
-        DoubleColon,
-        FloorDiv,
+    Equal,
+    LessEqual,
+    GreaterEqual,
+    NotEqual,
+    Dot2,
+    Dot3,
+    SkinnyArrow,
+    DoubleColon,
+    FloorDiv,
 
-        InterpStringBegin,
-        InterpStringMid,
-        InterpStringEnd,
-        // An interpolated string with no expressions (like `x`)
-        InterpStringSimple,
+    InterpStringBegin,
+    InterpStringMid,
+    InterpStringEnd,
+    // An interpolated string with no expressions (like `x`)
+    InterpStringSimple,
 
-        AddAssign,
-        SubAssign,
-        MulAssign,
-        DivAssign,
-        FloorDivAssign,
-        ModAssign,
-        PowAssign,
-        ConcatAssign,
+    AddAssign,
+    SubAssign,
+    MulAssign,
+    DivAssign,
+    FloorDivAssign,
+    ModAssign,
+    PowAssign,
+    ConcatAssign,
 
-        RawString,
-        QuotedString,
-        Number,
-        Name,
+    RawString,
+    QuotedString,
+    Number,
+    Name,
 
-        Comment,
-        BlockComment,
+    Comment,
+    BlockComment,
 
-        Attribute,
+    Attribute,
 
-        BrokenString,
-        BrokenComment,
-        BrokenUnicode,
-        BrokenInterpDoubleBrace,
-        Error,
+    BrokenString,
+    BrokenComment,
+    BrokenUnicode,
+    BrokenInterpDoubleBrace,
+    Error,
 
-        Reserved_BEGIN,
-        ReservedAnd = Reserved_BEGIN,
-        ReservedBreak,
-        ReservedDo,
-        ReservedElse,
-        ReservedElseif,
-        ReservedEnd,
-        ReservedFalse,
-        ReservedFor,
-        ReservedFunction,
-        ReservedIf,
-        ReservedIn,
-        ReservedLocal,
-        ReservedNil,
-        ReservedNot,
-        ReservedOr,
-        ReservedRepeat,
-        ReservedReturn,
-        ReservedThen,
-        ReservedTrue,
-        ReservedUntil,
-        ReservedWhile,
-        Reserved_END
-    };
+    Reserved_BEGIN,
+    ReservedAnd = Reserved_BEGIN,
+    ReservedBreak,
+    ReservedDo,
+    ReservedElse,
+    ReservedElseif,
+    ReservedEnd,
+    ReservedFalse,
+    ReservedFor,
+    ReservedFunction,
+    ReservedIf,
+    ReservedIn,
+    ReservedLocal,
+    ReservedNil,
+    ReservedNot,
+    ReservedOr,
+    ReservedRepeat,
+    ReservedReturn,
+    ReservedThen,
+    ReservedTrue,
+    ReservedUntil,
+    ReservedWhile,
+    Reserved_END
+  };
 
-    Type type;
-    Location location;
+  Type type;
+  Location location;
 
-    // Field declared here, before the union, to ensure that Lexeme size is 32 bytes.
+  // Field declared here, before the union, to ensure that Lexeme size is 32
+  // bytes.
 private:
-    // length is used to extract a slice from the input buffer.
-    // This field is only valid for certain lexeme types which don't duplicate portions of input
-    // but instead store a pointer to a location in the input buffer and the length of lexeme.
-    unsigned int length;
+  // length is used to extract a slice from the input buffer.
+  // This field is only valid for certain lexeme types which don't duplicate
+  // portions of input but instead store a pointer to a location in the input
+  // buffer and the length of lexeme.
+  unsigned int length;
 
 public:
-    union
-    {
-        const char* data;       // String, Number, Comment
-        const char* name;       // Name
-        unsigned int codepoint; // BrokenUnicode
-    };
+  union {
+    const char *data;       // String, Number, Comment
+    const char *name;       // Name
+    unsigned int codepoint; // BrokenUnicode
+  };
 
-    Lexeme(const Location& location, Type type);
-    Lexeme(const Location& location, char character);
-    Lexeme(const Location& location, Type type, const char* data, size_t size);
-    Lexeme(const Location& location, Type type, const char* name);
+  Lexeme(const Location &location, Type type);
+  Lexeme(const Location &location, char character);
+  Lexeme(const Location &location, Type type, const char *data, size_t size);
+  Lexeme(const Location &location, Type type, const char *name);
 
-    unsigned int getLength() const;
+  unsigned int getLength() const;
 
-    std::string toString() const;
+  std::string toString() const;
 };
 
-static_assert(sizeof(Lexeme) <= 32, "Size of `Lexeme` struct should be up to 32 bytes.");
+static_assert(sizeof(Lexeme) <= 32,
+              "Size of `Lexeme` struct should be up to 32 bytes.");
 
-class AstNameTable
-{
+class AstNameTable {
 public:
-    AstNameTable(Allocator& allocator);
+  AstNameTable(Allocator &allocator);
 
-    AstName addStatic(const char* name, Lexeme::Type type = Lexeme::Name);
+  AstName addStatic(const char *name, Lexeme::Type type = Lexeme::Name);
 
-    std::pair<AstName, Lexeme::Type> getOrAddWithType(const char* name, size_t length);
-    std::pair<AstName, Lexeme::Type> getWithType(const char* name, size_t length) const;
+  std::pair<AstName, Lexeme::Type> getOrAddWithType(const char *name,
+                                                    size_t length);
+  std::pair<AstName, Lexeme::Type> getWithType(const char *name,
+                                               size_t length) const;
 
-    AstName getOrAdd(const char* name);
-    AstName get(const char* name) const;
+  AstName getOrAdd(const char *name);
+  AstName get(const char *name) const;
 
 private:
-    struct Entry
-    {
-        AstName value;
-        uint32_t length;
-        Lexeme::Type type;
+  struct Entry {
+    AstName value;
+    uint32_t length;
+    Lexeme::Type type;
 
-        bool operator==(const Entry& other) const;
-    };
+    bool operator==(const Entry &other) const;
+  };
 
-    struct EntryHash
-    {
-        size_t operator()(const Entry& e) const;
-    };
+  struct EntryHash {
+    size_t operator()(const Entry &e) const;
+  };
 
-    DenseHashSet<Entry, EntryHash> data;
+  DenseHashSet<Entry, EntryHash> data;
 
-    Allocator& allocator;
+  Allocator &allocator;
 };
 
-class Lexer
-{
+class Lexer {
 public:
-    Lexer(const char* buffer, std::size_t bufferSize, AstNameTable& names);
+  Lexer(const char *buffer, std::size_t bufferSize, AstNameTable &names);
 
-    void setSkipComments(bool skip);
-    void setReadNames(bool read);
+  void setSkipComments(bool skip);
+  void setReadNames(bool read);
 
-    const Location& previousLocation() const
-    {
-        return prevLocation;
-    }
+  const Location &previousLocation() const { return prevLocation; }
 
-    const Lexeme& next();
-    const Lexeme& next(bool skipComments, bool updatePrevLocation);
-    void nextline();
+  const Lexeme &next();
+  const Lexeme &next(bool skipComments, bool updatePrevLocation);
+  void nextline();
 
-    Lexeme lookahead();
+  Lexeme lookahead();
 
-    const Lexeme& current() const
-    {
-        return lexeme;
-    }
+  const Lexeme &current() const { return lexeme; }
 
-    static bool isReserved(const std::string& word);
+  static bool isReserved(const std::string &word);
 
-    static bool fixupQuotedString(std::string& data);
-    static void fixupMultilineString(std::string& data);
+  static bool fixupQuotedString(std::string &data);
+  static void fixupMultilineString(std::string &data);
 
 private:
-    char peekch() const;
-    char peekch(unsigned int lookahead) const;
+  char peekch() const;
+  char peekch(unsigned int lookahead) const;
 
-    Position position() const;
+  Position position() const;
 
-    // consume() assumes current character is not a newline for performance; when that is not known, consumeAny() should be used instead.
-    void consume();
-    void consumeAny();
+  // consume() assumes current character is not a newline for performance; when
+  // that is not known, consumeAny() should be used instead.
+  void consume();
+  void consumeAny();
 
-    Lexeme readCommentBody();
+  Lexeme readCommentBody();
 
-    // Given a sequence [===[ or ]===], returns:
-    // 1. number of equal signs (or 0 if none present) between the brackets
-    // 2. -1 if this is not a long comment/string separator
-    // 3. -N if this is a malformed separator
-    // Does *not* consume the closing brace.
-    int skipLongSeparator();
+  // Given a sequence [===[ or ]===], returns:
+  // 1. number of equal signs (or 0 if none present) between the brackets
+  // 2. -1 if this is not a long comment/string separator
+  // 3. -N if this is a malformed separator
+  // Does *not* consume the closing brace.
+  int skipLongSeparator();
 
-    Lexeme readLongString(const Position& start, int sep, Lexeme::Type ok, Lexeme::Type broken);
-    Lexeme readQuotedString();
+  Lexeme readLongString(const Position &start, int sep, Lexeme::Type ok,
+                        Lexeme::Type broken);
+  Lexeme readQuotedString();
 
-    Lexeme readInterpolatedStringBegin();
-    Lexeme readInterpolatedStringSection(Position start, Lexeme::Type formatType, Lexeme::Type endType);
+  Lexeme readInterpolatedStringBegin();
+  Lexeme readInterpolatedStringSection(Position start, Lexeme::Type formatType,
+                                       Lexeme::Type endType);
 
-    void readBackslashInString();
+  void readBackslashInString();
 
-    std::pair<AstName, Lexeme::Type> readName();
+  std::pair<AstName, Lexeme::Type> readName();
 
-    Lexeme readNumber(const Position& start, unsigned int startOffset);
+  Lexeme readNumber(const Position &start, unsigned int startOffset);
 
-    Lexeme readUtf8Error();
-    Lexeme readNext();
+  Lexeme readUtf8Error();
+  Lexeme readNext();
 
-    const char* buffer;
-    std::size_t bufferSize;
+  const char *buffer;
+  std::size_t bufferSize;
 
-    unsigned int offset;
+  unsigned int offset;
 
-    unsigned int line;
-    unsigned int lineOffset;
+  unsigned int line;
+  unsigned int lineOffset;
 
-    Lexeme lexeme;
+  Lexeme lexeme;
 
-    Location prevLocation;
+  Location prevLocation;
 
-    AstNameTable& names;
+  AstNameTable &names;
 
-    bool skipComments;
-    bool readNames;
+  bool skipComments;
+  bool readNames;
 
-    enum class BraceType
-    {
-        InterpolatedString,
-        Normal
-    };
+  enum class BraceType { InterpolatedString, Normal };
 
-    std::vector<BraceType> braceStack;
+  std::vector<BraceType> braceStack;
 };
 
-inline bool isSpace(char ch)
-{
-    return ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n' || ch == '\v' || ch == '\f';
+inline bool isSpace(char ch) {
+  return ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n' || ch == '\v' ||
+         ch == '\f';
 }
 
 } // namespace Luau
 
+#line __LINE__ "luau_ast_int.hpp"
+
 // @@@@@ PACK.lua : done, inlined <Ast/include/Luau/TimeTrace.h>
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+#line __LINE__ "Ast/include/Luau/TimeTrace.h"
+
+// This file is part of the Luau programming language and is licensed under MIT
+// License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
 
 // @@@@@ PACK.LUA : was already included! <vector>
@@ -1877,10 +1719,8 @@ inline bool isSpace(char ch)
 
 LUAU_FASTFLAG(DebugLuauTimeTracing)
 
-namespace Luau
-{
-namespace TimeTrace
-{
+namespace Luau {
+namespace TimeTrace {
 double getClock();
 uint32_t getClockMicroseconds();
 } // namespace TimeTrace
@@ -1888,35 +1728,29 @@ uint32_t getClockMicroseconds();
 
 #if defined(LUAU_ENABLE_TIME_TRACE)
 
-namespace Luau
-{
-namespace TimeTrace
-{
-struct Token
-{
-    const char* name;
-    const char* category;
+namespace Luau {
+namespace TimeTrace {
+struct Token {
+  const char *name;
+  const char *category;
 };
 
-enum class EventType : uint8_t
-{
-    Enter,
-    Leave,
+enum class EventType : uint8_t {
+  Enter,
+  Leave,
 
-    ArgName,
-    ArgValue,
+  ArgName,
+  ArgValue,
 };
 
-struct Event
-{
-    EventType type;
-    uint16_t token;
+struct Event {
+  EventType type;
+  uint16_t token;
 
-    union
-    {
-        uint32_t microsec; // 1 hour trace limit
-        uint32_t dataPos;
-    } data;
+  union {
+    uint32_t microsec; // 1 hour trace limit
+    uint32_t dataPos;
+  } data;
 };
 
 struct GlobalContext;
@@ -1924,188 +1758,188 @@ struct ThreadContext;
 
 std::shared_ptr<GlobalContext> getGlobalContext();
 
-uint16_t createToken(GlobalContext& context, const char* name, const char* category);
-uint32_t createThread(GlobalContext& context, ThreadContext* threadContext);
-void releaseThread(GlobalContext& context, ThreadContext* threadContext);
-void flushEvents(GlobalContext& context, uint32_t threadId, const std::vector<Event>& events, const std::vector<char>& data);
+uint16_t createToken(GlobalContext &context, const char *name,
+                     const char *category);
+uint32_t createThread(GlobalContext &context, ThreadContext *threadContext);
+void releaseThread(GlobalContext &context, ThreadContext *threadContext);
+void flushEvents(GlobalContext &context, uint32_t threadId,
+                 const std::vector<Event> &events,
+                 const std::vector<char> &data);
 
-struct ThreadContext
-{
-    ThreadContext()
-        : globalContext(getGlobalContext())
-    {
-        threadId = createThread(*globalContext, this);
-    }
+struct ThreadContext {
+  ThreadContext() : globalContext(getGlobalContext()) {
+    threadId = createThread(*globalContext, this);
+  }
 
-    ~ThreadContext()
-    {
-        if (!events.empty())
-            flushEvents();
+  ~ThreadContext() {
+    if (!events.empty())
+      flushEvents();
 
-        releaseThread(*globalContext, this);
-    }
+    releaseThread(*globalContext, this);
+  }
 
-    void flushEvents()
-    {
-        static uint16_t flushToken = createToken(*globalContext, "flushEvents", "TimeTrace");
+  void flushEvents() {
+    static uint16_t flushToken =
+        createToken(*globalContext, "flushEvents", "TimeTrace");
 
-        events.push_back({EventType::Enter, flushToken, {getClockMicroseconds()}});
+    events.push_back({EventType::Enter, flushToken, {getClockMicroseconds()}});
 
-        TimeTrace::flushEvents(*globalContext, threadId, events, data);
+    TimeTrace::flushEvents(*globalContext, threadId, events, data);
 
-        events.clear();
-        data.clear();
+    events.clear();
+    data.clear();
 
-        events.push_back({EventType::Leave, 0, {getClockMicroseconds()}});
-    }
+    events.push_back({EventType::Leave, 0, {getClockMicroseconds()}});
+  }
 
-    void eventEnter(uint16_t token)
-    {
-        eventEnter(token, getClockMicroseconds());
-    }
+  void eventEnter(uint16_t token) { eventEnter(token, getClockMicroseconds()); }
 
-    void eventEnter(uint16_t token, uint32_t microsec)
-    {
-        events.push_back({EventType::Enter, token, {microsec}});
-    }
+  void eventEnter(uint16_t token, uint32_t microsec) {
+    events.push_back({EventType::Enter, token, {microsec}});
+  }
 
-    void eventLeave()
-    {
-        eventLeave(getClockMicroseconds());
-    }
+  void eventLeave() { eventLeave(getClockMicroseconds()); }
 
-    void eventLeave(uint32_t microsec)
-    {
-        events.push_back({EventType::Leave, 0, {microsec}});
+  void eventLeave(uint32_t microsec) {
+    events.push_back({EventType::Leave, 0, {microsec}});
 
-        if (events.size() > kEventFlushLimit)
-            flushEvents();
-    }
+    if (events.size() > kEventFlushLimit)
+      flushEvents();
+  }
 
-    void eventArgument(const char* name, const char* value)
-    {
-        uint32_t pos = uint32_t(data.size());
-        data.insert(data.end(), name, name + strlen(name) + 1);
-        events.push_back({EventType::ArgName, 0, {pos}});
+  void eventArgument(const char *name, const char *value) {
+    uint32_t pos = uint32_t(data.size());
+    data.insert(data.end(), name, name + strlen(name) + 1);
+    events.push_back({EventType::ArgName, 0, {pos}});
 
-        pos = uint32_t(data.size());
-        data.insert(data.end(), value, value + strlen(value) + 1);
-        events.push_back({EventType::ArgValue, 0, {pos}});
-    }
+    pos = uint32_t(data.size());
+    data.insert(data.end(), value, value + strlen(value) + 1);
+    events.push_back({EventType::ArgValue, 0, {pos}});
+  }
 
-    std::shared_ptr<GlobalContext> globalContext;
-    uint32_t threadId;
-    std::vector<Event> events;
-    std::vector<char> data;
+  std::shared_ptr<GlobalContext> globalContext;
+  uint32_t threadId;
+  std::vector<Event> events;
+  std::vector<char> data;
 
-    static constexpr size_t kEventFlushLimit = 8192;
+  static constexpr size_t kEventFlushLimit = 8192;
 };
 
-using ThreadContextProvider = ThreadContext& (*)();
+using ThreadContextProvider = ThreadContext &(*)();
 
-inline ThreadContextProvider& threadContextProvider()
-{
-    static ThreadContextProvider handler = nullptr;
-    return handler;
+inline ThreadContextProvider &threadContextProvider() {
+  static ThreadContextProvider handler = nullptr;
+  return handler;
 }
 
-ThreadContext& getThreadContext();
+ThreadContext &getThreadContext();
 
-struct Scope
-{
-    explicit Scope(uint16_t token)
-        : context(getThreadContext())
-    {
-        if (!FFlag::DebugLuauTimeTracing)
-            return;
+struct Scope {
+  explicit Scope(uint16_t token) : context(getThreadContext()) {
+    if (!FFlag::DebugLuauTimeTracing)
+      return;
 
-        context.eventEnter(token);
-    }
+    context.eventEnter(token);
+  }
 
-    ~Scope()
-    {
-        if (!FFlag::DebugLuauTimeTracing)
-            return;
+  ~Scope() {
+    if (!FFlag::DebugLuauTimeTracing)
+      return;
 
-        context.eventLeave();
-    }
+    context.eventLeave();
+  }
 
-    ThreadContext& context;
+  ThreadContext &context;
 };
 
-struct OptionalTailScope
-{
-    explicit OptionalTailScope(uint16_t token, uint32_t threshold)
-        : context(getThreadContext())
-        , token(token)
-        , threshold(threshold)
-    {
-        if (!FFlag::DebugLuauTimeTracing)
-            return;
+struct OptionalTailScope {
+  explicit OptionalTailScope(uint16_t token, uint32_t threshold)
+      : context(getThreadContext()), token(token), threshold(threshold) {
+    if (!FFlag::DebugLuauTimeTracing)
+      return;
 
-        pos = uint32_t(context.events.size());
-        microsec = getClockMicroseconds();
+    pos = uint32_t(context.events.size());
+    microsec = getClockMicroseconds();
+  }
+
+  ~OptionalTailScope() {
+    if (!FFlag::DebugLuauTimeTracing)
+      return;
+
+    if (pos == context.events.size()) {
+      uint32_t curr = getClockMicroseconds();
+
+      if (curr - microsec > threshold) {
+        context.eventEnter(token, microsec);
+        context.eventLeave(curr);
+      }
     }
+  }
 
-    ~OptionalTailScope()
-    {
-        if (!FFlag::DebugLuauTimeTracing)
-            return;
-
-        if (pos == context.events.size())
-        {
-            uint32_t curr = getClockMicroseconds();
-
-            if (curr - microsec > threshold)
-            {
-                context.eventEnter(token, microsec);
-                context.eventLeave(curr);
-            }
-        }
-    }
-
-    ThreadContext& context;
-    uint16_t token;
-    uint32_t threshold;
-    uint32_t microsec;
-    uint32_t pos;
+  ThreadContext &context;
+  uint16_t token;
+  uint32_t threshold;
+  uint32_t microsec;
+  uint32_t pos;
 };
 
-LUAU_NOINLINE uint16_t createScopeData(const char* name, const char* category);
+LUAU_NOINLINE uint16_t createScopeData(const char *name, const char *category);
 
 } // namespace TimeTrace
 } // namespace Luau
 
 // Regular scope
-#define LUAU_TIMETRACE_SCOPE(name, category)     static uint16_t lttScopeStatic = Luau::TimeTrace::createScopeData(name, category);     Luau::TimeTrace::Scope lttScope(lttScopeStatic)
+#define LUAU_TIMETRACE_SCOPE(name, category)                                   \
+  static uint16_t lttScopeStatic =                                             \
+      Luau::TimeTrace::createScopeData(name, category);                        \
+  Luau::TimeTrace::Scope lttScope(lttScopeStatic)
 
-// A scope without nested scopes that may be skipped if the time it took is less than the threshold
-#define LUAU_TIMETRACE_OPTIONAL_TAIL_SCOPE(name, category, microsec)     static uint16_t lttScopeStaticOptTail = Luau::TimeTrace::createScopeData(name, category);     Luau::TimeTrace::OptionalTailScope lttScope(lttScopeStaticOptTail, microsec)
+// A scope without nested scopes that may be skipped if the time it took is less
+// than the threshold
+#define LUAU_TIMETRACE_OPTIONAL_TAIL_SCOPE(name, category, microsec)           \
+  static uint16_t lttScopeStaticOptTail =                                      \
+      Luau::TimeTrace::createScopeData(name, category);                        \
+  Luau::TimeTrace::OptionalTailScope lttScope(lttScopeStaticOptTail, microsec)
 
 // Extra key/value data can be added to regular scopes
-#define LUAU_TIMETRACE_ARGUMENT(name, value)     do     {         if (FFlag::DebugLuauTimeTracing)             lttScope.context.eventArgument(name, value);     } while (false)
+#define LUAU_TIMETRACE_ARGUMENT(name, value)                                   \
+  do {                                                                         \
+    if (FFlag::DebugLuauTimeTracing)                                           \
+      lttScope.context.eventArgument(name, value);                             \
+  } while (false)
 
 #else
 
 #define LUAU_TIMETRACE_SCOPE(name, category)
 #define LUAU_TIMETRACE_OPTIONAL_TAIL_SCOPE(name, category, microsec)
-#define LUAU_TIMETRACE_ARGUMENT(name, value)     do     {     } while (false)
+#define LUAU_TIMETRACE_ARGUMENT(name, value)                                   \
+  do {                                                                         \
+  } while (false)
 
 #endif
 
+#line __LINE__ "luau_ast_int.hpp"
+
 // @@@@@ PACK.lua : done, inlined <Ast/include/Luau/Confusables.h>
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+#line __LINE__ "Ast/include/Luau/Confusables.h"
+
+// This file is part of the Luau programming language and is licensed under MIT
+// License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : was already included! <stdint.h>
 
-namespace Luau
-{
-const char* findConfusable(uint32_t codepoint);
+namespace Luau {
+const char *findConfusable(uint32_t codepoint);
 }
+
+#line __LINE__ "luau_ast_int.hpp"
 
 // @@@@@ PACK.lua : done, inlined <Ast/include/Luau/Parser.h>
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+#line __LINE__ "Ast/include/Luau/Parser.h"
+
+// This file is part of the Luau programming language and is licensed under MIT
+// License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Ast.h>
 
 // DONE : was aleready inlined <Luau/Lexer.h>
@@ -2113,7 +1947,10 @@ const char* findConfusable(uint32_t codepoint);
 // DONE : was aleready inlined <Luau/ParseOptions.h>
 // @@@@@ PACK.lua : done, inlined <Ast/include/Luau/ParseResult.h>
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+#line __LINE__ "Luau/ParseResult.h"
+
+// This file is part of the Luau programming language and is licensed under MIT
+// License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Location.h>
@@ -2122,69 +1959,66 @@ const char* findConfusable(uint32_t codepoint);
 
 // DONE : was aleready inlined <Luau/StringUtils.h>
 
-namespace Luau
-{
+namespace Luau {
 
 class AstStatBlock;
 
-class ParseError : public std::exception
-{
+class ParseError : public std::exception {
 public:
-    ParseError(const Location& location, const std::string& message);
+  ParseError(const Location &location, const std::string &message);
 
-    virtual const char* what() const throw();
+  virtual const char *what() const throw();
 
-    const Location& getLocation() const;
-    const std::string& getMessage() const;
+  const Location &getLocation() const;
+  const std::string &getMessage() const;
 
-    static LUAU_NORETURN void raise(const Location& location, const char* format, ...) LUAU_PRINTF_ATTR(2, 3);
+  static LUAU_NORETURN void raise(const Location &location, const char *format,
+                                  ...) LUAU_PRINTF_ATTR(2, 3);
 
 private:
-    Location location;
-    std::string message;
+  Location location;
+  std::string message;
 };
 
-class ParseErrors : public std::exception
-{
+class ParseErrors : public std::exception {
 public:
-    ParseErrors(std::vector<ParseError> errors);
+  ParseErrors(std::vector<ParseError> errors);
 
-    virtual const char* what() const throw();
+  virtual const char *what() const throw();
 
-    const std::vector<ParseError>& getErrors() const;
+  const std::vector<ParseError> &getErrors() const;
 
 private:
-    std::vector<ParseError> errors;
-    std::string message;
+  std::vector<ParseError> errors;
+  std::string message;
 };
 
-struct HotComment
-{
-    bool header;
-    Location location;
-    std::string content;
+struct HotComment {
+  bool header;
+  Location location;
+  std::string content;
 };
 
-struct Comment
-{
-    Lexeme::Type type; // Comment, BlockComment, or BrokenComment
-    Location location;
+struct Comment {
+  Lexeme::Type type; // Comment, BlockComment, or BrokenComment
+  Location location;
 };
 
-struct ParseResult
-{
-    AstStatBlock* root;
-    size_t lines = 0;
+struct ParseResult {
+  AstStatBlock *root;
+  size_t lines = 0;
 
-    std::vector<HotComment> hotcomments;
-    std::vector<ParseError> errors;
+  std::vector<HotComment> hotcomments;
+  std::vector<ParseError> errors;
 
-    std::vector<Comment> commentLocations;
+  std::vector<Comment> commentLocations;
 };
 
-static constexpr const char* kParseNameError = "%error-id%";
+static constexpr const char *kParseNameError = "%error-id%";
 
 } // namespace Luau
+
+#line __LINE__ "Ast/include/Luau/Parser.h"
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/StringUtils.h>
 
@@ -2200,422 +2034,431 @@ static constexpr const char* kParseNameError = "%error-id%";
 // @@@@@ PACK.lua : not found, likely and std header
 #include <tuple>
 
-namespace Luau
-{
+namespace Luau {
 
-template<typename T>
-class TempVector
-{
+template <typename T> class TempVector {
 public:
-    explicit TempVector(std::vector<T>& storage);
+  explicit TempVector(std::vector<T> &storage);
 
-    ~TempVector();
+  ~TempVector();
 
-    const T& operator[](std::size_t index) const;
+  const T &operator[](std::size_t index) const;
 
-    const T& front() const;
+  const T &front() const;
 
-    const T& back() const;
+  const T &back() const;
 
-    bool empty() const;
+  bool empty() const;
 
-    std::size_t size() const;
+  std::size_t size() const;
 
-    void push_back(const T& item);
+  void push_back(const T &item);
 
-    typename std::vector<T>::const_iterator begin() const
-    {
-        return storage.begin() + offset;
-    }
-    typename std::vector<T>::const_iterator end() const
-    {
-        return storage.begin() + offset + size_;
-    }
+  typename std::vector<T>::const_iterator begin() const {
+    return storage.begin() + offset;
+  }
+  typename std::vector<T>::const_iterator end() const {
+    return storage.begin() + offset + size_;
+  }
 
 private:
-    std::vector<T>& storage;
-    size_t offset;
-    size_t size_;
+  std::vector<T> &storage;
+  size_t offset;
+  size_t size_;
 };
 
-class Parser
-{
+class Parser {
 public:
-    static ParseResult parse(
-        const char* buffer, std::size_t bufferSize, AstNameTable& names, Allocator& allocator, ParseOptions options = ParseOptions());
+  static ParseResult parse(const char *buffer, std::size_t bufferSize,
+                           AstNameTable &names, Allocator &allocator,
+                           ParseOptions options = ParseOptions());
 
 private:
-    struct Name;
-    struct Binding;
+  struct Name;
+  struct Binding;
 
-    Parser(const char* buffer, std::size_t bufferSize, AstNameTable& names, Allocator& allocator, const ParseOptions& options);
+  Parser(const char *buffer, std::size_t bufferSize, AstNameTable &names,
+         Allocator &allocator, const ParseOptions &options);
 
-    bool blockFollow(const Lexeme& l);
+  bool blockFollow(const Lexeme &l);
 
-    AstStatBlock* parseChunk();
+  AstStatBlock *parseChunk();
 
-    // chunk ::= {stat [`;']} [laststat [`;']]
-    // block ::= chunk
-    AstStatBlock* parseBlock();
+  // chunk ::= {stat [`;']} [laststat [`;']]
+  // block ::= chunk
+  AstStatBlock *parseBlock();
 
-    AstStatBlock* parseBlockNoScope();
+  AstStatBlock *parseBlockNoScope();
 
-    // stat ::=
-    // varlist `=' explist |
-    // functioncall |
-    // do block end |
-    // while exp do block end |
-    // repeat block until exp |
-    // if exp then block {elseif exp then block} [else block] end |
-    // for Name `=' exp `,' exp [`,' exp] do block end |
-    // for namelist in explist do block end |
-    // [attributes] function funcname funcbody |
-    // [attributes] local function Name funcbody |
-    // local namelist [`=' explist]
-    // laststat ::= return [explist] | break
-    AstStat* parseStat();
+  // stat ::=
+  // varlist `=' explist |
+  // functioncall |
+  // do block end |
+  // while exp do block end |
+  // repeat block until exp |
+  // if exp then block {elseif exp then block} [else block] end |
+  // for Name `=' exp `,' exp [`,' exp] do block end |
+  // for namelist in explist do block end |
+  // [attributes] function funcname funcbody |
+  // [attributes] local function Name funcbody |
+  // local namelist [`=' explist]
+  // laststat ::= return [explist] | break
+  AstStat *parseStat();
 
-    // if exp then block {elseif exp then block} [else block] end
-    AstStat* parseIf();
+  // if exp then block {elseif exp then block} [else block] end
+  AstStat *parseIf();
+
+  // while exp do block end
+  AstStat *parseWhile();
 
-    // while exp do block end
-    AstStat* parseWhile();
+  // repeat block until exp
+  AstStat *parseRepeat();
+
+  // do block end
+  AstStat *parseDo();
+
+  // break
+  AstStat *parseBreak();
+
+  // continue
+  AstStat *parseContinue(const Location &start);
 
-    // repeat block until exp
-    AstStat* parseRepeat();
+  // for Name `=' exp `,' exp [`,' exp] do block end |
+  // for namelist in explist do block end |
+  AstStat *parseFor();
+
+  // funcname ::= Name {`.' Name} [`:' Name]
+  AstExpr *parseFunctionName(Location start, bool &hasself, AstName &debugname);
+
+  // function funcname funcbody
+  LUAU_FORCEINLINE AstStat *
+  parseFunctionStat(const AstArray<AstAttr *> &attributes = {nullptr, 0});
+
+  std::pair<bool, AstAttr::Type>
+  validateAttribute(const char *attributeName,
+                    const TempVector<AstAttr *> &attributes);
+
+  // attribute ::= '@' NAME
+  void parseAttribute(TempVector<AstAttr *> &attribute);
+
+  // attributes ::= {attribute}
+  AstArray<AstAttr *> parseAttributes();
+
+  // attributes local function Name funcbody
+  // attributes function funcname funcbody
+  // attributes `declare function' Name`(' [parlist] `)' [`:` Type]
+  // declare Name '{' Name ':' attributes `(' [parlist] `)' [`:` Type] '}'
+  AstStat *parseAttributeStat();
 
-    // do block end
-    AstStat* parseDo();
+  // local function Name funcbody |
+  // local namelist [`=' explist]
+  AstStat *parseLocal(const AstArray<AstAttr *> &attributes);
+
+  // return [explist]
+  AstStat *parseReturn();
+
+  // type Name `=' Type
+  AstStat *parseTypeAlias(const Location &start, bool exported);
+
+  AstDeclaredClassProp parseDeclaredClassMethod();
 
-    // break
-    AstStat* parseBreak();
+  // `declare global' Name: Type |
+  // `declare function' Name`(' [parlist] `)' [`:` Type]
+  AstStat *parseDeclaration(const Location &start,
+                            const AstArray<AstAttr *> &attributes);
 
-    // continue
-    AstStat* parseContinue(const Location& start);
+  // varlist `=' explist
+  AstStat *parseAssignment(AstExpr *initial);
 
-    // for Name `=' exp `,' exp [`,' exp] do block end |
-    // for namelist in explist do block end |
-    AstStat* parseFor();
+  // var [`+=' | `-=' | `*=' | `/=' | `%=' | `^=' | `..='] exp
+  AstStat *parseCompoundAssignment(AstExpr *initial, AstExprBinary::Op op);
 
-    // funcname ::= Name {`.' Name} [`:' Name]
-    AstExpr* parseFunctionName(Location start, bool& hasself, AstName& debugname);
+  std::pair<AstLocal *, AstArray<AstLocal *>>
+  prepareFunctionArguments(const Location &start, bool hasself,
+                           const TempVector<Binding> &args);
+
+  // funcbodyhead ::= `(' [namelist [`,' `...'] | `...'] `)' [`:` Type]
+  // funcbody ::= funcbodyhead block end
+  std::pair<AstExprFunction *, AstLocal *>
+  parseFunctionBody(bool hasself, const Lexeme &matchFunction,
+                    const AstName &debugname, const Name *localName,
+                    const AstArray<AstAttr *> &attributes);
+
+  // explist ::= {exp `,'} exp
+  void parseExprList(TempVector<AstExpr *> &result);
+
+  // binding ::= Name [`:` Type]
+  Binding parseBinding();
+
+  // bindinglist ::= (binding | `...') {`,' bindinglist}
+  // Returns the location of the vararg ..., or std::nullopt if the function is
+  // not vararg.
+  std::tuple<bool, Location, AstTypePack *>
+  parseBindingList(TempVector<Binding> &result, bool allowDot3 = false);
+
+  AstType *parseOptionalType();
+
+  // TypeList ::= Type [`,' TypeList]
+  // ReturnType ::= Type | `(' TypeList `)'
+  // TableProp ::= Name `:' Type
+  // TableIndexer ::= `[' Type `]' `:' Type
+  // PropList ::= (TableProp | TableIndexer) [`,' PropList]
+  // Type
+  //      ::= Name
+  //      |   `nil`
+  //      |   `{' [PropList] `}'
+  //      |   `(' [TypeList] `)' `->` ReturnType
+
+  // Returns the variadic annotation, if it exists.
+  AstTypePack *
+  parseTypeList(TempVector<AstType *> &result,
+                TempVector<std::optional<AstArgumentName>> &resultNames);
 
-    // function funcname funcbody
-    LUAU_FORCEINLINE AstStat* parseFunctionStat(const AstArray<AstAttr*>& attributes = {nullptr, 0});
+  std::optional<AstTypeList> parseOptionalReturnType();
+  std::pair<Location, AstTypeList> parseReturnType();
+
+  AstTableIndexer *parseTableIndexer(AstTableAccess access,
+                                     std::optional<Location> accessLocation);
+
+  AstTypeOrPack parseFunctionType(bool allowPack,
+                                  const AstArray<AstAttr *> &attributes);
+  AstType *parseFunctionTypeTail(
+      const Lexeme &begin, const AstArray<AstAttr *> &attributes,
+      AstArray<AstGenericType> generics,
+      AstArray<AstGenericTypePack> genericPacks, AstArray<AstType *> params,
+      AstArray<std::optional<AstArgumentName>> paramNames,
+      AstTypePack *varargAnnotation);
+
+  AstType *parseTableType(bool inDeclarationContext = false);
+  AstTypeOrPack parseSimpleType(bool allowPack,
+                                bool inDeclarationContext = false);
+
+  AstTypeOrPack parseTypeOrPack();
+  AstType *parseType(bool inDeclarationContext = false);
+
+  AstTypePack *parseTypePack();
+  AstTypePack *parseVariadicArgumentTypePack();
 
-    std::pair<bool, AstAttr::Type> validateAttribute(const char* attributeName, const TempVector<AstAttr*>& attributes);
+  AstType *parseTypeSuffix(AstType *type, const Location &begin);
 
-    // attribute ::= '@' NAME
-    void parseAttribute(TempVector<AstAttr*>& attribute);
+  static std::optional<AstExprUnary::Op> parseUnaryOp(const Lexeme &l);
+  static std::optional<AstExprBinary::Op> parseBinaryOp(const Lexeme &l);
+  static std::optional<AstExprBinary::Op> parseCompoundOp(const Lexeme &l);
 
-    // attributes ::= {attribute}
-    AstArray<AstAttr*> parseAttributes();
+  struct BinaryOpPriority {
+    unsigned char left, right;
+  };
 
-    // attributes local function Name funcbody
-    // attributes function funcname funcbody
-    // attributes `declare function' Name`(' [parlist] `)' [`:` Type]
-    // declare Name '{' Name ':' attributes `(' [parlist] `)' [`:` Type] '}'
-    AstStat* parseAttributeStat();
+  std::optional<AstExprUnary::Op> checkUnaryConfusables();
+  std::optional<AstExprBinary::Op>
+  checkBinaryConfusables(const BinaryOpPriority binaryPriority[],
+                         unsigned int limit);
 
-    // local function Name funcbody |
-    // local namelist [`=' explist]
-    AstStat* parseLocal(const AstArray<AstAttr*>& attributes);
+  // subexpr -> (asexp | unop subexpr) { binop subexpr }
+  // where `binop' is any binary operator with a priority higher than `limit'
+  AstExpr *parseExpr(unsigned int limit = 0);
 
-    // return [explist]
-    AstStat* parseReturn();
+  // NAME
+  AstExpr *parseNameExpr(const char *context = nullptr);
 
-    // type Name `=' Type
-    AstStat* parseTypeAlias(const Location& start, bool exported);
+  // prefixexp -> NAME | '(' expr ')'
+  AstExpr *parsePrefixExpr();
+
+  // primaryexp -> prefixexp { `.' NAME | `[' exp `]' | `:' NAME funcargs |
+  // funcargs }
+  AstExpr *parsePrimaryExpr(bool asStatement);
+
+  // asexp -> simpleexp [`::' Type]
+  AstExpr *parseAssertionExpr();
+
+  // simpleexp -> NUMBER | STRING | NIL | true | false | ... | constructor |
+  // [attributes] FUNCTION body | primaryexp
+  AstExpr *parseSimpleExpr();
+
+  // args ::=  `(' [explist] `)' | tableconstructor | String
+  AstExpr *parseFunctionArgs(AstExpr *func, bool self);
+
+  // tableconstructor ::= `{' [fieldlist] `}'
+  // fieldlist ::= field {fieldsep field} [fieldsep]
+  // field ::= `[' exp `]' `=' exp | Name `=' exp | exp
+  // fieldsep ::= `,' | `;'
+  AstExpr *parseTableConstructor();
+
+  // TODO: Add grammar rules here?
+  AstExpr *parseIfElseExpr();
+
+  // stringinterp ::= <INTERP_BEGIN> exp {<INTERP_MID> exp} <INTERP_END>
+  AstExpr *parseInterpString();
+
+  // Name
+  std::optional<Name> parseNameOpt(const char *context = nullptr);
+  Name parseName(const char *context = nullptr);
+  Name parseIndexName(const char *context, const Position &previous);
+
+  // `<' namelist `>'
+  std::pair<AstArray<AstGenericType>, AstArray<AstGenericTypePack>>
+  parseGenericTypeList(bool withDefaultValues);
+
+  // `<' Type[, ...] `>'
+  AstArray<AstTypeOrPack> parseTypeParams();
+
+  std::optional<AstArray<char>> parseCharArray();
+  AstExpr *parseString();
+  AstExpr *parseNumber();
+
+  AstLocal *pushLocal(const Binding &binding);
+
+  unsigned int saveLocals();
 
-    AstDeclaredClassProp parseDeclaredClassMethod();
+  void restoreLocals(unsigned int offset);
+
+  // check that parser is at lexeme/symbol, move to next lexeme/symbol on
+  // success, report failure and continue on failure
+  bool expectAndConsume(char value, const char *context = nullptr);
+  bool expectAndConsume(Lexeme::Type type, const char *context = nullptr);
+  void expectAndConsumeFail(Lexeme::Type type, const char *context);
 
-    // `declare global' Name: Type |
-    // `declare function' Name`(' [parlist] `)' [`:` Type]
-    AstStat* parseDeclaration(const Location& start, const AstArray<AstAttr*>& attributes);
+  struct MatchLexeme {
+    MatchLexeme(const Lexeme &l) : type(l.type), position(l.location.begin) {}
 
-    // varlist `=' explist
-    AstStat* parseAssignment(AstExpr* initial);
+    Lexeme::Type type;
+    Position position;
+  };
 
-    // var [`+=' | `-=' | `*=' | `/=' | `%=' | `^=' | `..='] exp
-    AstStat* parseCompoundAssignment(AstExpr* initial, AstExprBinary::Op op);
+  bool expectMatchAndConsume(char value, const MatchLexeme &begin,
+                             bool searchForMissing = false);
+  void expectMatchAndConsumeFail(Lexeme::Type type, const MatchLexeme &begin,
+                                 const char *extra = nullptr);
+  bool expectMatchAndConsumeRecover(char value, const MatchLexeme &begin,
+                                    bool searchForMissing);
 
-    std::pair<AstLocal*, AstArray<AstLocal*>> prepareFunctionArguments(const Location& start, bool hasself, const TempVector<Binding>& args);
+  bool expectMatchEndAndConsume(Lexeme::Type type, const MatchLexeme &begin);
+  void expectMatchEndAndConsumeFail(Lexeme::Type type,
+                                    const MatchLexeme &begin);
 
-    // funcbodyhead ::= `(' [namelist [`,' `...'] | `...'] `)' [`:` Type]
-    // funcbody ::= funcbodyhead block end
-    std::pair<AstExprFunction*, AstLocal*> parseFunctionBody(
-        bool hasself, const Lexeme& matchFunction, const AstName& debugname, const Name* localName, const AstArray<AstAttr*>& attributes);
+  template <typename T> AstArray<T> copy(const T *data, std::size_t size);
 
-    // explist ::= {exp `,'} exp
-    void parseExprList(TempVector<AstExpr*>& result);
+  template <typename T> AstArray<T> copy(const TempVector<T> &data);
 
-    // binding ::= Name [`:` Type]
-    Binding parseBinding();
+  template <typename T> AstArray<T> copy(std::initializer_list<T> data);
 
-    // bindinglist ::= (binding | `...') {`,' bindinglist}
-    // Returns the location of the vararg ..., or std::nullopt if the function is not vararg.
-    std::tuple<bool, Location, AstTypePack*> parseBindingList(TempVector<Binding>& result, bool allowDot3 = false);
+  AstArray<char> copy(const std::string &data);
 
-    AstType* parseOptionalType();
+  void incrementRecursionCounter(const char *context);
 
-    // TypeList ::= Type [`,' TypeList]
-    // ReturnType ::= Type | `(' TypeList `)'
-    // TableProp ::= Name `:' Type
-    // TableIndexer ::= `[' Type `]' `:' Type
-    // PropList ::= (TableProp | TableIndexer) [`,' PropList]
-    // Type
-    //      ::= Name
-    //      |   `nil`
-    //      |   `{' [PropList] `}'
-    //      |   `(' [TypeList] `)' `->` ReturnType
+  void report(const Location &location, const char *format, va_list args);
+  void report(const Location &location, const char *format, ...)
+      LUAU_PRINTF_ATTR(3, 4);
 
-    // Returns the variadic annotation, if it exists.
-    AstTypePack* parseTypeList(TempVector<AstType*>& result, TempVector<std::optional<AstArgumentName>>& resultNames);
-
-    std::optional<AstTypeList> parseOptionalReturnType();
-    std::pair<Location, AstTypeList> parseReturnType();
-
-    AstTableIndexer* parseTableIndexer(AstTableAccess access, std::optional<Location> accessLocation);
-
-    AstTypeOrPack parseFunctionType(bool allowPack, const AstArray<AstAttr*>& attributes);
-    AstType* parseFunctionTypeTail(const Lexeme& begin, const AstArray<AstAttr*>& attributes, AstArray<AstGenericType> generics,
-        AstArray<AstGenericTypePack> genericPacks, AstArray<AstType*> params, AstArray<std::optional<AstArgumentName>> paramNames,
-        AstTypePack* varargAnnotation);
-
-    AstType* parseTableType(bool inDeclarationContext = false);
-    AstTypeOrPack parseSimpleType(bool allowPack, bool inDeclarationContext = false);
-
-    AstTypeOrPack parseTypeOrPack();
-    AstType* parseType(bool inDeclarationContext = false);
-
-    AstTypePack* parseTypePack();
-    AstTypePack* parseVariadicArgumentTypePack();
-
-    AstType* parseTypeSuffix(AstType* type, const Location& begin);
-
-    static std::optional<AstExprUnary::Op> parseUnaryOp(const Lexeme& l);
-    static std::optional<AstExprBinary::Op> parseBinaryOp(const Lexeme& l);
-    static std::optional<AstExprBinary::Op> parseCompoundOp(const Lexeme& l);
-
-    struct BinaryOpPriority
-    {
-        unsigned char left, right;
-    };
-
-    std::optional<AstExprUnary::Op> checkUnaryConfusables();
-    std::optional<AstExprBinary::Op> checkBinaryConfusables(const BinaryOpPriority binaryPriority[], unsigned int limit);
-
-    // subexpr -> (asexp | unop subexpr) { binop subexpr }
-    // where `binop' is any binary operator with a priority higher than `limit'
-    AstExpr* parseExpr(unsigned int limit = 0);
-
-    // NAME
-    AstExpr* parseNameExpr(const char* context = nullptr);
-
-    // prefixexp -> NAME | '(' expr ')'
-    AstExpr* parsePrefixExpr();
-
-    // primaryexp -> prefixexp { `.' NAME | `[' exp `]' | `:' NAME funcargs | funcargs }
-    AstExpr* parsePrimaryExpr(bool asStatement);
-
-    // asexp -> simpleexp [`::' Type]
-    AstExpr* parseAssertionExpr();
-
-    // simpleexp -> NUMBER | STRING | NIL | true | false | ... | constructor | [attributes] FUNCTION body | primaryexp
-    AstExpr* parseSimpleExpr();
-
-    // args ::=  `(' [explist] `)' | tableconstructor | String
-    AstExpr* parseFunctionArgs(AstExpr* func, bool self);
-
-    // tableconstructor ::= `{' [fieldlist] `}'
-    // fieldlist ::= field {fieldsep field} [fieldsep]
-    // field ::= `[' exp `]' `=' exp | Name `=' exp | exp
-    // fieldsep ::= `,' | `;'
-    AstExpr* parseTableConstructor();
-
-    // TODO: Add grammar rules here?
-    AstExpr* parseIfElseExpr();
-
-    // stringinterp ::= <INTERP_BEGIN> exp {<INTERP_MID> exp} <INTERP_END>
-    AstExpr* parseInterpString();
-
-    // Name
-    std::optional<Name> parseNameOpt(const char* context = nullptr);
-    Name parseName(const char* context = nullptr);
-    Name parseIndexName(const char* context, const Position& previous);
-
-    // `<' namelist `>'
-    std::pair<AstArray<AstGenericType>, AstArray<AstGenericTypePack>> parseGenericTypeList(bool withDefaultValues);
-
-    // `<' Type[, ...] `>'
-    AstArray<AstTypeOrPack> parseTypeParams();
-
-    std::optional<AstArray<char>> parseCharArray();
-    AstExpr* parseString();
-    AstExpr* parseNumber();
-
-    AstLocal* pushLocal(const Binding& binding);
-
-    unsigned int saveLocals();
-
-    void restoreLocals(unsigned int offset);
-
-    // check that parser is at lexeme/symbol, move to next lexeme/symbol on success, report failure and continue on failure
-    bool expectAndConsume(char value, const char* context = nullptr);
-    bool expectAndConsume(Lexeme::Type type, const char* context = nullptr);
-    void expectAndConsumeFail(Lexeme::Type type, const char* context);
-
-    struct MatchLexeme
-    {
-        MatchLexeme(const Lexeme& l)
-            : type(l.type)
-            , position(l.location.begin)
-        {
-        }
-
-        Lexeme::Type type;
-        Position position;
-    };
-
-    bool expectMatchAndConsume(char value, const MatchLexeme& begin, bool searchForMissing = false);
-    void expectMatchAndConsumeFail(Lexeme::Type type, const MatchLexeme& begin, const char* extra = nullptr);
-    bool expectMatchAndConsumeRecover(char value, const MatchLexeme& begin, bool searchForMissing);
-
-    bool expectMatchEndAndConsume(Lexeme::Type type, const MatchLexeme& begin);
-    void expectMatchEndAndConsumeFail(Lexeme::Type type, const MatchLexeme& begin);
-
-    template<typename T>
-    AstArray<T> copy(const T* data, std::size_t size);
-
-    template<typename T>
-    AstArray<T> copy(const TempVector<T>& data);
-
-    template<typename T>
-    AstArray<T> copy(std::initializer_list<T> data);
-
-    AstArray<char> copy(const std::string& data);
-
-    void incrementRecursionCounter(const char* context);
-
-    void report(const Location& location, const char* format, va_list args);
-    void report(const Location& location, const char* format, ...) LUAU_PRINTF_ATTR(3, 4);
-
-    void reportNameError(const char* context);
-
-    AstStatError* reportStatError(const Location& location, const AstArray<AstExpr*>& expressions, const AstArray<AstStat*>& statements,
-        const char* format, ...) LUAU_PRINTF_ATTR(5, 6);
-    AstExprError* reportExprError(const Location& location, const AstArray<AstExpr*>& expressions, const char* format, ...) LUAU_PRINTF_ATTR(4, 5);
-    AstTypeError* reportTypeError(const Location& location, const AstArray<AstType*>& types, const char* format, ...) LUAU_PRINTF_ATTR(4, 5);
-    // `parseErrorLocation` is associated with the parser error
-    // `astErrorLocation` is associated with the AstTypeError created
-    // It can be useful to have different error locations so that the parse error can include the next lexeme, while the AstTypeError can precisely
-    // define the location (possibly of zero size) where a type annotation is expected.
-    AstTypeError* reportMissingTypeError(const Location& parseErrorLocation, const Location& astErrorLocation, const char* format, ...)
-        LUAU_PRINTF_ATTR(4, 5);
-
-    AstExpr* reportFunctionArgsError(AstExpr* func, bool self);
-    void reportAmbiguousCallError();
-
-    void nextLexeme();
-
-    struct Function
-    {
-        bool vararg;
-        unsigned int loopDepth;
-
-        Function()
-            : vararg(false)
-            , loopDepth(0)
-        {
-        }
-    };
-
-    struct Local
-    {
-        AstLocal* local;
-        unsigned int offset;
-
-        Local()
-            : local(nullptr)
-            , offset(0)
-        {
-        }
-    };
-
-    struct Name
-    {
-        AstName name;
-        Location location;
-
-        Name(const AstName& name, const Location& location)
-            : name(name)
-            , location(location)
-        {
-        }
-    };
-
-    struct Binding
-    {
-        Name name;
-        AstType* annotation;
-
-        explicit Binding(const Name& name, AstType* annotation = nullptr)
-            : name(name)
-            , annotation(annotation)
-        {
-        }
-    };
-
-    ParseOptions options;
-
-    Lexer lexer;
-    Allocator& allocator;
-
-    std::vector<Comment> commentLocations;
-    std::vector<HotComment> hotcomments;
-
-    bool hotcommentHeader = true;
-
-    unsigned int recursionCounter;
-
-    AstName nameSelf;
-    AstName nameNumber;
-    AstName nameError;
-    AstName nameNil;
-
-    MatchLexeme endMismatchSuspect;
-
-    std::vector<Function> functionStack;
-
-    DenseHashMap<AstName, AstLocal*> localMap;
-    std::vector<AstLocal*> localStack;
-
-    std::vector<ParseError> parseErrors;
-
-    std::vector<unsigned int> matchRecoveryStopOnToken;
-
-    std::vector<AstAttr*> scratchAttr;
-    std::vector<AstStat*> scratchStat;
-    std::vector<AstArray<char>> scratchString;
-    std::vector<AstExpr*> scratchExpr;
-    std::vector<AstExpr*> scratchExprAux;
-    std::vector<AstName> scratchName;
-    std::vector<AstName> scratchPackName;
-    std::vector<Binding> scratchBinding;
-    std::vector<AstLocal*> scratchLocal;
-    std::vector<AstTableProp> scratchTableTypeProps;
-    std::vector<AstType*> scratchType;
-    std::vector<AstTypeOrPack> scratchTypeOrPack;
-    std::vector<AstDeclaredClassProp> scratchDeclaredClassProps;
-    std::vector<AstExprTable::Item> scratchItem;
-    std::vector<AstArgumentName> scratchArgName;
-    std::vector<AstGenericType> scratchGenericTypes;
-    std::vector<AstGenericTypePack> scratchGenericTypePacks;
-    std::vector<std::optional<AstArgumentName>> scratchOptArgName;
-    std::string scratchData;
+  void reportNameError(const char *context);
+
+  AstStatError *reportStatError(const Location &location,
+                                const AstArray<AstExpr *> &expressions,
+                                const AstArray<AstStat *> &statements,
+                                const char *format, ...) LUAU_PRINTF_ATTR(5, 6);
+  AstExprError *reportExprError(const Location &location,
+                                const AstArray<AstExpr *> &expressions,
+                                const char *format, ...) LUAU_PRINTF_ATTR(4, 5);
+  AstTypeError *reportTypeError(const Location &location,
+                                const AstArray<AstType *> &types,
+                                const char *format, ...) LUAU_PRINTF_ATTR(4, 5);
+  // `parseErrorLocation` is associated with the parser error
+  // `astErrorLocation` is associated with the AstTypeError created
+  // It can be useful to have different error locations so that the parse error
+  // can include the next lexeme, while the AstTypeError can precisely define
+  // the location (possibly of zero size) where a type annotation is expected.
+  AstTypeError *reportMissingTypeError(const Location &parseErrorLocation,
+                                       const Location &astErrorLocation,
+                                       const char *format, ...)
+      LUAU_PRINTF_ATTR(4, 5);
+
+  AstExpr *reportFunctionArgsError(AstExpr *func, bool self);
+  void reportAmbiguousCallError();
+
+  void nextLexeme();
+
+  struct Function {
+    bool vararg;
+    unsigned int loopDepth;
+
+    Function() : vararg(false), loopDepth(0) {}
+  };
+
+  struct Local {
+    AstLocal *local;
+    unsigned int offset;
+
+    Local() : local(nullptr), offset(0) {}
+  };
+
+  struct Name {
+    AstName name;
+    Location location;
+
+    Name(const AstName &name, const Location &location)
+        : name(name), location(location) {}
+  };
+
+  struct Binding {
+    Name name;
+    AstType *annotation;
+
+    explicit Binding(const Name &name, AstType *annotation = nullptr)
+        : name(name), annotation(annotation) {}
+  };
+
+  ParseOptions options;
+
+  Lexer lexer;
+  Allocator &allocator;
+
+  std::vector<Comment> commentLocations;
+  std::vector<HotComment> hotcomments;
+
+  bool hotcommentHeader = true;
+
+  unsigned int recursionCounter;
+
+  AstName nameSelf;
+  AstName nameNumber;
+  AstName nameError;
+  AstName nameNil;
+
+  MatchLexeme endMismatchSuspect;
+
+  std::vector<Function> functionStack;
+
+  DenseHashMap<AstName, AstLocal *> localMap;
+  std::vector<AstLocal *> localStack;
+
+  std::vector<ParseError> parseErrors;
+
+  std::vector<unsigned int> matchRecoveryStopOnToken;
+
+  std::vector<AstAttr *> scratchAttr;
+  std::vector<AstStat *> scratchStat;
+  std::vector<AstArray<char>> scratchString;
+  std::vector<AstExpr *> scratchExpr;
+  std::vector<AstExpr *> scratchExprAux;
+  std::vector<AstName> scratchName;
+  std::vector<AstName> scratchPackName;
+  std::vector<Binding> scratchBinding;
+  std::vector<AstLocal *> scratchLocal;
+  std::vector<AstTableProp> scratchTableTypeProps;
+  std::vector<AstType *> scratchType;
+  std::vector<AstTypeOrPack> scratchTypeOrPack;
+  std::vector<AstDeclaredClassProp> scratchDeclaredClassProps;
+  std::vector<AstExprTable::Item> scratchItem;
+  std::vector<AstArgumentName> scratchArgName;
+  std::vector<AstGenericType> scratchGenericTypes;
+  std::vector<AstGenericTypePack> scratchGenericTypePacks;
+  std::vector<std::optional<AstArgumentName>> scratchOptArgName;
+  std::string scratchData;
 };
 
 } // namespace Luau
+
+#line __LINE__ "luau_ast_int.hpp"
 
 // @@@@@ PACK.LUA : was already included! <Ast/include/Luau/Location.h>
 

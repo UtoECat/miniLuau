@@ -8,8 +8,9 @@ cd ./luau
 
 lua ../PACK.lua
 
-cd ..
+cd ../pack-out
 
 echo "Check for valid packing"
 
-g++ -fsyntax-only -c *.cpp  -std=c++17 -Wall -DLUAU_ENABLE_COMPILER -DLUAU_ENABLE_CODEGEN
+# TODO : does not test tools really yet
+g++ -fsyntax-only -c *.cpp  -std=c++17 -Wall

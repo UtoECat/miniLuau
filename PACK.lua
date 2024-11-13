@@ -1,4 +1,6 @@
 
+-- debugging only
+-- TODO: get rid of in release
 inspect = dofile('../inspect.lua')
 
 print([[
@@ -23,23 +25,26 @@ end
 --- CONFIGURE
 ---
 
+-- format files before checking them with the gcc compiler for consistency
+local ENABLE_CLANG_FORMAT = true
+
 -- CONFIGURE : list of modules
--- dependencies syntax
--- name - neme odf the directory we will dig for code and headers
--- out - ouput name of amalgamated files without extensions
--- deps - list of dependencies.
--- all dependencies are resolved propely in order + all #includes are replaced prioperly
--- dirs - list of source diectories
--- ONLY if manual_sources=true is NOT present - theese are generated automaticly :
+-- dependencies syntax :
+-- name - name of the module
+-- out - output name of amalgamated files without extensions and `_int` postfix
+-- deps - list of dependencies (module names).
+-- all dependencies are resolved properly in order + all #includes are replaced properly
+-- dirs - list of source directories
+-- ONLY if manual_sources=true is NOT present - these are generated automatically:
 -- - sources - list of paths of source files in this module TO PACK
--- - headers -  list to paths of headerfiles in this module TO PACK
--- - _source and _headers are ALWAYS regenerated, nad used to lookup headers and source files to be included on demand.
+-- - headers - list of paths of header files in this module TO PACK
+-- - _source and _headers are ALWAYS regenerated, and used to lookup headers and source files to be included on demand.
 -- - see exclude below to exclude some files completely
 -- FEATURE NO. 2:
--- - explicit=true - if set, module will NOT be compiled automaticly when no aruments to script was given 
---   however, if some other module depends on this one, both gonna be compiled.
--- - path_base - alternative path abse, if set, relative to luau directory. By default == to module name
--- - exclude = {} - lsit of headers and sources to exclude TOTALLY
+-- - explicit=true - if set, module will NOT be compiled automatically when no arguments to script were given 
+--   however, if some other module depends on this one, both will be compiled.
+-- - path_base - alternative path base, if set, relative to luau directory. By default == to module name
+-- - exclude = {} - list of headers and sources to exclude TOTALLY
 local modules = {
   {
     name = "Common",
@@ -70,6 +75,10 @@ local modules = {
     out = "luau_analysis",
     dirs = {"include/Luau", "include", "src"},
     deps = {"Ast", "Config"},
+    replace_duplicates = {
+      ["static bool isMetamethod"] = "static bool isMetamethod_duplicate () {}",
+      ["struct FreeTypeSearcher : TypeVisitor"] = "struct FreeTypeSearcher_duplicate : TypeVisitor {}"
+    },
     explicit = true -- 'cause fails to compile
   },
   {
@@ -85,8 +94,8 @@ local modules = {
     deps = {"Common"}
   }, 
 
-  -- just for fun - ability to amalgamate CLI tools is also provided, but it's optional
-  -- but we need isocline first
+  -- ability to amalgamate CLI tools is also provided, but it's optional
+  -- we need isocline first
   {
     explicit = true,
     name = "isocline",
@@ -99,6 +108,7 @@ local modules = {
     deps = {}
   },
 
+  -- required by all CLI tools.
   {
     explicit = true,
     name = "CLIBase",
@@ -123,12 +133,27 @@ CLI/Flags.h]],
     sources = splitlines[[CLI/Compile.cpp]],
     headers = {},
     deps = {"CLIBase", "Compiler", "CodeGen"}
+  },
+  {
+    explicit = true,
+    name = "CLIRepl",
+    out = "luau_cli_repl",
+    path_base = "CLI",
+    dirs = {"."},
+    manual_sources = true,
+    sources = splitlines[[CLI/Coverage.cpp
+CLI/Profiler.cpp
+CLI/Repl.cpp
+CLI/ReplEntry.cpp
+CLI/Require.cpp]],
+    headers = {}, -- we do NOT want to generate header files for tools! They will be amalgamated directly to .cpp instead!
+    deps = {"CLIBase", "Compiler", "CodeGen", "Config", "isocline"}
   }
 }
 
--- set of result filenames we NOT allowed to inline!
+-- set of result filenames we do NOT allow to inline!
 -- instead, #include directives will be left.
--- done automaticly for resulting files
+-- done automatically for ALL resulting files
 local resultset = {}
 
 -- CONFIGURE : condition on which header goes into internal header, instead of global exposed one!
@@ -149,7 +174,7 @@ end
 --- PACKING SCRIPT SOURCE BEGINS
 --- 
 
--- rough parf measurement
+-- rough perf measurement
 local START_TIME = os.time()
 
 -- 
@@ -160,7 +185,7 @@ local START_TIME = os.time()
 gen = {}
 
 -- escape string to be **semi**-safely inserted as command line argument into os.execute()
--- does not accunt to all edge cases, but don't really needs to.
+-- does not account for all edge cases, but doesn't really need to.
 local function pesc(s)
   return string.gsub(s, '([%"%$])', '\\%1')
 end
@@ -171,8 +196,8 @@ local function trimspaces(s)
   return n and s:match(".*%S", n) or ""
 end
 
--- RAW  - list all directories at certain path, excluding given path itself
--- requires unix `find` utiltity.
+-- RAW - list all directories at a certain path, excluding the given path itself
+-- requires unix `find` utility.
 function gen.dirs(path)
   local t = {}
   path = trimspaces(path)
@@ -188,8 +213,8 @@ function gen.dirs(path)
   return t
 end
 
--- splits string path info various ways. does not giveabsolute pathes or stuff.
--- i know name is misleading, but whatever.
+-- splits string path info in various ways. does not give absolute paths or stuff.
+-- I know the name is misleading, but whatever.
 function gen.pathinfo(filePath)
     filePath = trimspaces(filePath)
     local pathParts = {}
@@ -234,7 +259,7 @@ end
 local SEP = "/"
 
 -- split path on directory names components + filename at the end
--- ignores duplicate path separators and shit, as well as dots, so don't mess wiht dots a lot
+-- ignores duplicate path separators and dots, so don't mess with dots a lot
 function gen.splitpath(path)
     local components = {}
     -- Split the path by the separator and trim each component
@@ -249,8 +274,8 @@ function gen.splitpath(path)
 end
 
 
--- concatenate path from given directory anmes + filename
--- also removes any prefix-posix path separators. quite handy
+-- concatenate path from given directory names + filename
+-- also removes any prefix POSIX path separators. Quite handy
 function gen.conpath(...)
   local t = {}
   local n = select('#', ...)
@@ -262,7 +287,7 @@ function gen.conpath(...)
   return table.concat(t, "/")
 end
 
--- splits path into all possible relative pathes, including original one and just a filename
+-- splits path into all possible relative paths, including original one and just a filename
 -- and returns them in a list.
 function gen.pathset(Path)
     local paths = {}
@@ -565,9 +590,9 @@ function CTX.includefile(_oname, is_in_source)
         -- push
         CTX.incl_stack[#CTX.incl_stack+1] = oname
         --print('debug: ', inspect(CTX.incl_stack))
-        local str = txt
+        local str = ('#line __LINE__ "%s"\n%s'):format(oname, txt)
         str = str:gsub(INCLUDE_PATTERN, CTX.includefile)
-
+  
         --print("TEST : ", str:find(INCLUDE_PATTERN))
         local _tmp = {}
         for match in string.gmatch(str, INCLUDE_PATTERN) do
@@ -579,6 +604,8 @@ function CTX.includefile(_oname, is_in_source)
         
         -- pop
         CTX.incl_stack[#CTX.incl_stack] = nil
+        str = str..('\n#line __LINE__ "%s"\n'):format(CTX.incl_stack[#CTX.incl_stack] or "{{THIS_FILENAME}}")
+
 			  return "// @@@@@ PACK.lua : done, inlined <"..realname..">\n\n"..str
     else -- found
       CTX.remember(oname, realname, true) -- good
@@ -613,11 +640,11 @@ function CTX.appendfile(oname)
       CTX.incl_stack[#CTX.incl_stack+1] = name
       print('debug: ', inspect(CTX.incl_stack))
 
-			local str = txt --('#line __LINE__ "%s"\n%s'):format(name, txt)
+			local str = ('#line __LINE__ "%s"\n%s'):format(name, txt)
 			str = str:gsub(INCLUDE_PATTERN, function(a) return CTX.includefile(a, true) end)
       -- pop
       CTX.incl_stack[#CTX.incl_stack] = nil
-			str = str--..('#line __LINE__ "%s"\n'):format(curr)
+			str = str..('\n#line __LINE__ "%s"\n'):format(CTX.incl_stack[#CTX.incl_stack] or "{{THIS_FILENAME}}")
 			return str
   else 
     return "\n // @@@ source file was previously already included! \n"
@@ -864,6 +891,125 @@ local function remove_duplicate_blocks(str)
 end
 ]]
 
+local function str_to_strack(s)
+  local t = {}
+  for i = 1, #s do
+    local c = s:sub(i, i)
+    if c == '(' or c == '<' or c == '{' then
+      t[#t+1] = c -- push
+    elseif c == '}' or c == ')' then
+      while t[#t] == '<' do -- pop garbage
+        t[#t] = nil
+      end
+      t[#t]  = nil -- pop
+    elseif c == '>' and t[#t] == '<' then
+      t[#t] = nil -- pop only if matches
+    elseif c == ';' then
+      while t[#t] == '<' do -- pop garbage
+        t[#t] = nil
+      end
+    end
+  end
+  return t
+end
+
+local function remove_duplicate_blocks(str, replace_duplicates)
+  for patt, replwith in pairs(replace_duplicates) do
+    local print = function(...) end
+    local newstart, newpos = str:find(patt, 1, true)
+    while newpos and newpos <= #str do
+      print("@@@@@@@@@ ATT ", str:sub(newpos, newpos + 32))
+      newstart, newpos = str:find(patt, newpos, true) -- find SECOND and other usages
+      if not newpos then
+        break -- end
+      end
+      print("found at ", newstart)
+
+      local dstack = str_to_strack(patt) -- stack of brackets
+      local comm = 0
+      local stackres = {}
+      while newpos <= #str do
+        local c = str:sub(newpos, newpos)
+        if c == " " or c == '\n' then
+          if c == "\n" and comm == 2 then
+            comm = 0 -- reset one-line comment
+            print("comment done")
+          end
+          -- continue
+        elseif comm > 1 then -- real comments
+          if comm == 2 then -- one-line
+            -- continue
+          elseif comm == 3 then
+            if c == '*' then
+              comm = 4
+            end
+          elseif comm == 4 then
+            if c == '/' then
+              comm = 0 -- stop comments
+              print('multiline comment done')
+            end
+          end
+        elseif c == '/' then
+          comm = comm + 1 -- commnents
+        elseif comm == 1 and c == '/' then
+          comm = 2 -- one-line
+          print('one line')
+        elseif comm == 1 and c == '*' then
+          comm = 3 -- multi-line
+          print('miltiline')
+        elseif c == '(' or c == '{' or c == '<' then
+          stackres[#stackres+1] = c
+          dstack[#dstack+1] = c
+          comm = 0
+          print('bracket open ', #dstack, c)
+        elseif #dstack > 0 and (c == ')' or c == '}' or c == '>') then
+          print('bracket close ', #dstack, c)
+          stackres[#stackres+1] = c
+          comm = 0
+          
+          if c ~= '>' then
+            while dstack[#dstack] == '<' do
+              dstack[#dstack] = nil
+              print('==>> actual close ', #dstack)
+            end
+
+            dstack[#dstack] = nil -- pop us
+          elseif dstack[#dstack] == '<' then -- pop one
+            dstack[#dstack] = nil
+          end
+
+          if #dstack == 0 and c == '}' then
+            print("DONE via ", c)
+            break -- done
+          end
+        elseif c == ';' then
+          stackres[#stackres+1] = c
+          -- pop all shit
+          while dstack[#dstack] == '<' do
+            dstack[#dstack] = nil 
+          end
+          comm = 0
+          if #dstack == 0 then
+            print("DONE via ", ';')
+             break -- done
+          end
+        end
+        newpos = newpos + 1
+      end
+
+      print = _G.print
+      local a, b = str:sub(1, newstart-1), str:sub(newpos+1, #str)
+      print("replaced duplicate of", patt, "at", newpos)
+      --print(a, "\n===========\n")
+      --print(b, "\n==========\n")
+      --print("ORID:\n", str)
+      str = a .. replwith .. b
+      newpos = newstart + #replwith - 1
+      --os.exit()
+    end
+  end
+  return str
+end
 
 ---
 --- Back to packing
@@ -881,6 +1027,8 @@ function CTX.donefile(filename, append, prepend)
 
 	--str = str:gsub("\n?%s*#%s*define[ \t]+([_%w]*)[ \t]?(.-)\n", unused_check)
 
+  str = str:gsub("%{%{THIS_FILENAME%}%}", filename)
+
   if doit then
 	  str = str:gsub('(\n[^/"]-)//.-\n', "%1\n") -- remove C++ comments
 	  str = str:gsub('\n%s*//.-\n', "\n") -- remove C++ comments 2
@@ -897,7 +1045,10 @@ function CTX.donefile(filename, append, prepend)
   str = str:gsub("\n[ ]+\n", "\n\n") -- remove staces within newlines
   str = str:gsub("\n\n+\n", "\n\n") -- remove extra newlines
 
-  --str = remove_duplicate_blocks(str)
+  if CTX.module.replace_duplicates then
+    str = remove_duplicate_blocks(str, CTX.module.replace_duplicates)
+  end
+
 	str = (append or "") .. "\n//only once\n#pragma once\n" .. str .. (prepend or "") -- hehe
 
 	-- rollback included cache :
@@ -924,8 +1075,10 @@ function CTX.donefile(filename, append, prepend)
 	f:close()
 
   local cmd = "clang-format --style=LLVM -i " .. pesc(filename)
-  --print("@!! calling clang-format", cmd)
-  --print(os.execute(cmd))
+  if ENABLE_CLANG_FORMAT then
+    print("@!! calling clang-format", cmd)
+    print(os.execute(cmd))
+  end
 
   cmd = "g++ -fsyntax-only -I. -c ".. pesc(filename)
   print("@!! calling gcc-syntx-check", cmd)

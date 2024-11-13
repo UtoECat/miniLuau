@@ -7,17 +7,17 @@
  *
  * Copyright (c) 2019-2024 Roblox Corporation
  * Copyright (c) 1994–2019 Lua.org, PUC-Rio.
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- * 
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -27,13 +27,15 @@
  * SOFTWARE.
  */
 
-#include"luau_ast_int.hpp"
+#include "luau_ast_int.hpp"
 
-//only once
+// only once
 #pragma once
+#line __LINE__ "Ast/src/Confusables.cpp"
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// DONE : was aleready inlined <Luau/Confusables.h>
+// This file is part of the Luau programming language and is licensed under MIT
+// License; see LICENSE.txt for details DONE : was aleready inlined
+// <Luau/Confusables.h>
 
 // @@@@@ PACK.lua : not found, likely and std header
 #include <algorithm>
@@ -41,16 +43,15 @@
 // @@@@@ PACK.lua : not found, likely and std header
 #include <array>
 
-namespace Luau
-{
+namespace Luau {
 
-struct Confusable
-{
-    unsigned codepoint : 24;
-    char text[5];
+struct Confusable {
+  unsigned codepoint : 24;
+  char text[5];
 };
 
-// Derived from http://www.unicode.org/Public/security/10.0.0/confusables.txt; sorted by codepoint
+// Derived from http://www.unicode.org/Public/security/10.0.0/confusables.txt;
+// sorted by codepoint
 // clang-format off
 static const Confusable kConfusables[] =
 {
@@ -1843,19 +1844,24 @@ static const Confusable kConfusables[] =
 };
 // clang-format on
 
-const char* findConfusable(uint32_t codepoint)
-{
-    auto it = std::lower_bound(std::begin(kConfusables), std::end(kConfusables), codepoint, [](const Confusable& lhs, uint32_t rhs) {
-        return lhs.codepoint < rhs;
-    });
+const char *findConfusable(uint32_t codepoint) {
+  auto it = std::lower_bound(
+      std::begin(kConfusables), std::end(kConfusables), codepoint,
+      [](const Confusable &lhs, uint32_t rhs) { return lhs.codepoint < rhs; });
 
-    return (it != std::end(kConfusables) && it->codepoint == codepoint) ? it->text : nullptr;
+  return (it != std::end(kConfusables) && it->codepoint == codepoint) ? it->text
+                                                                      : nullptr;
 }
 
 } // namespace Luau
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// DONE : was aleready inlined <Luau/StringUtils.h>
+#line __LINE__ "luau_ast.cpp"
+
+#line __LINE__ "Ast/src/StringUtils.cpp"
+
+// This file is part of the Luau programming language and is licensed under MIT
+// License; see LICENSE.txt for details DONE : was aleready inlined
+// <Luau/StringUtils.h>
 
 // @@@@@ DONE : was aleready included <Luau/Common.h>
 
@@ -1873,295 +1879,286 @@ const char* findConfusable(uint32_t codepoint)
 // @@@@@ PACK.lua : not found, likely and std header
 #include <stdint.h>
 
-namespace Luau
-{
+namespace Luau {
 
-void vformatAppend(std::string& ret, const char* fmt, va_list args)
-{
-    va_list argscopy;
-    va_copy(argscopy, args);
+void vformatAppend(std::string &ret, const char *fmt, va_list args) {
+  va_list argscopy;
+  va_copy(argscopy, args);
 #ifdef _MSC_VER
-    int actualSize = _vscprintf(fmt, argscopy);
+  int actualSize = _vscprintf(fmt, argscopy);
 #else
-    int actualSize = vsnprintf(NULL, 0, fmt, argscopy);
+  int actualSize = vsnprintf(NULL, 0, fmt, argscopy);
 #endif
-    va_end(argscopy);
+  va_end(argscopy);
 
-    if (actualSize <= 0)
-        return;
+  if (actualSize <= 0)
+    return;
 
-    size_t sz = ret.size();
-    ret.resize(sz + actualSize);
-    vsnprintf(&ret[0] + sz, actualSize + 1, fmt, args);
+  size_t sz = ret.size();
+  ret.resize(sz + actualSize);
+  vsnprintf(&ret[0] + sz, actualSize + 1, fmt, args);
 }
 
-std::string format(const char* fmt, ...)
-{
-    std::string result;
-    va_list args;
-    va_start(args, fmt);
-    vformatAppend(result, fmt, args);
-    va_end(args);
-    return result;
+std::string format(const char *fmt, ...) {
+  std::string result;
+  va_list args;
+  va_start(args, fmt);
+  vformatAppend(result, fmt, args);
+  va_end(args);
+  return result;
 }
 
-void formatAppend(std::string& str, const char* fmt, ...)
-{
-    va_list args;
-    va_start(args, fmt);
-    vformatAppend(str, fmt, args);
-    va_end(args);
+void formatAppend(std::string &str, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  vformatAppend(str, fmt, args);
+  va_end(args);
 }
 
-std::string vformat(const char* fmt, va_list args)
-{
-    std::string ret;
-    vformatAppend(ret, fmt, args);
-    return ret;
+std::string vformat(const char *fmt, va_list args) {
+  std::string ret;
+  vformatAppend(ret, fmt, args);
+  return ret;
 }
 
-template<typename String>
-static std::string joinImpl(const std::vector<String>& segments, std::string_view delimiter)
-{
-    if (segments.empty())
-        return "";
+template <typename String>
+static std::string joinImpl(const std::vector<String> &segments,
+                            std::string_view delimiter) {
+  if (segments.empty())
+    return "";
 
-    size_t len = (segments.size() - 1) * delimiter.size();
-    for (const auto& sv : segments)
-        len += sv.size();
+  size_t len = (segments.size() - 1) * delimiter.size();
+  for (const auto &sv : segments)
+    len += sv.size();
 
-    std::string result;
-    result.resize(len);
-    char* dest = const_cast<char*>(result.data()); // This const_cast is only necessary until C++17
+  std::string result;
+  result.resize(len);
+  char *dest = const_cast<char *>(
+      result.data()); // This const_cast is only necessary until C++17
 
-    auto it = segments.begin();
+  auto it = segments.begin();
+  memcpy(dest, it->data(), it->size());
+  dest += it->size();
+  ++it;
+  for (; it != segments.end(); ++it) {
+    memcpy(dest, delimiter.data(), delimiter.size());
+    dest += delimiter.size();
     memcpy(dest, it->data(), it->size());
     dest += it->size();
-    ++it;
-    for (; it != segments.end(); ++it)
-    {
-        memcpy(dest, delimiter.data(), delimiter.size());
-        dest += delimiter.size();
-        memcpy(dest, it->data(), it->size());
-        dest += it->size();
-    }
+  }
 
-    LUAU_ASSERT(dest == result.data() + len);
+  LUAU_ASSERT(dest == result.data() + len);
 
-    return result;
+  return result;
 }
 
-std::string join(const std::vector<std::string_view>& segments, std::string_view delimiter)
-{
-    return joinImpl(segments, delimiter);
+std::string join(const std::vector<std::string_view> &segments,
+                 std::string_view delimiter) {
+  return joinImpl(segments, delimiter);
 }
 
-std::string join(const std::vector<std::string>& segments, std::string_view delimiter)
-{
-    return joinImpl(segments, delimiter);
+std::string join(const std::vector<std::string> &segments,
+                 std::string_view delimiter) {
+  return joinImpl(segments, delimiter);
 }
 
-std::vector<std::string_view> split(std::string_view s, char delimiter)
-{
-    std::vector<std::string_view> result;
+std::vector<std::string_view> split(std::string_view s, char delimiter) {
+  std::vector<std::string_view> result;
 
-    while (!s.empty())
-    {
-        auto index = s.find(delimiter);
-        if (index == std::string::npos)
-        {
-            result.push_back(s);
-            break;
-        }
-        result.push_back(s.substr(0, index));
-        s.remove_prefix(index + 1);
+  while (!s.empty()) {
+    auto index = s.find(delimiter);
+    if (index == std::string::npos) {
+      result.push_back(s);
+      break;
     }
+    result.push_back(s.substr(0, index));
+    s.remove_prefix(index + 1);
+  }
 
-    return result;
+  return result;
 }
 
-size_t editDistance(std::string_view a, std::string_view b)
-{
-    // When there are matching prefix and suffix, they end up computing as zero cost, effectively making it no-op. We drop these characters.
-    while (!a.empty() && !b.empty() && a.front() == b.front())
-    {
-        a.remove_prefix(1);
-        b.remove_prefix(1);
+size_t editDistance(std::string_view a, std::string_view b) {
+  // When there are matching prefix and suffix, they end up computing as zero
+  // cost, effectively making it no-op. We drop these characters.
+  while (!a.empty() && !b.empty() && a.front() == b.front()) {
+    a.remove_prefix(1);
+    b.remove_prefix(1);
+  }
+
+  while (!a.empty() && !b.empty() && a.back() == b.back()) {
+    a.remove_suffix(1);
+    b.remove_suffix(1);
+  }
+
+  // Since we know the edit distance is the difference of the length of A and B
+  // discounting the matching prefixes and suffixes, it is therefore pointless
+  // to run the rest of this function to find that out. We immediately infer
+  // this size and return it.
+  if (a.empty())
+    return b.size();
+  if (b.empty())
+    return a.size();
+
+  size_t maxDistance = a.size() + b.size();
+
+  std::vector<size_t> distances((a.size() + 2) * (b.size() + 2), 0);
+  auto getPos = [b](size_t x, size_t y) -> size_t {
+    return (x * (b.size() + 2)) + y;
+  };
+
+  distances[0] = maxDistance;
+
+  for (size_t x = 0; x <= a.size(); ++x) {
+    distances[getPos(x + 1, 0)] = maxDistance;
+    distances[getPos(x + 1, 1)] = x;
+  }
+
+  for (size_t y = 0; y <= b.size(); ++y) {
+    distances[getPos(0, y + 1)] = maxDistance;
+    distances[getPos(1, y + 1)] = y;
+  }
+
+  std::array<size_t, 256> seenCharToRow;
+  seenCharToRow.fill(0);
+
+  for (size_t x = 1; x <= a.size(); ++x) {
+    size_t lastMatchedY = 0;
+
+    for (size_t y = 1; y <= b.size(); ++y) {
+      // The value of b[N] can be negative with unicode characters
+      unsigned char bSeenCharIndex = static_cast<unsigned char>(b[y - 1]);
+      size_t x1 = seenCharToRow[bSeenCharIndex];
+      size_t y1 = lastMatchedY;
+
+      size_t cost = 1;
+      if (a[x - 1] == b[y - 1]) {
+        cost = 0;
+        lastMatchedY = y;
+      }
+
+      size_t transposition =
+          distances[getPos(x1, y1)] + (x - x1 - 1) + 1 + (y - y1 - 1);
+      size_t substitution = distances[getPos(x, y)] + cost;
+      size_t insertion = distances[getPos(x, y + 1)] + 1;
+      size_t deletion = distances[getPos(x + 1, y)] + 1;
+
+      // It's more performant to use std::min(size_t, size_t) rather than the
+      // initializer_list overload. Until proven otherwise, please do not change
+      // this.
+      distances[getPos(x + 1, y + 1)] = std::min(
+          std::min(insertion, deletion), std::min(substitution, transposition));
     }
 
-    while (!a.empty() && !b.empty() && a.back() == b.back())
-    {
-        a.remove_suffix(1);
-        b.remove_suffix(1);
-    }
+    // The value of a[N] can be negative with unicode characters
+    unsigned char aSeenCharIndex = static_cast<unsigned char>(a[x - 1]);
+    seenCharToRow[aSeenCharIndex] = x;
+  }
 
-    // Since we know the edit distance is the difference of the length of A and B discounting the matching prefixes and suffixes,
-    // it is therefore pointless to run the rest of this function to find that out. We immediately infer this size and return it.
-    if (a.empty())
-        return b.size();
-    if (b.empty())
-        return a.size();
-
-    size_t maxDistance = a.size() + b.size();
-
-    std::vector<size_t> distances((a.size() + 2) * (b.size() + 2), 0);
-    auto getPos = [b](size_t x, size_t y) -> size_t {
-        return (x * (b.size() + 2)) + y;
-    };
-
-    distances[0] = maxDistance;
-
-    for (size_t x = 0; x <= a.size(); ++x)
-    {
-        distances[getPos(x + 1, 0)] = maxDistance;
-        distances[getPos(x + 1, 1)] = x;
-    }
-
-    for (size_t y = 0; y <= b.size(); ++y)
-    {
-        distances[getPos(0, y + 1)] = maxDistance;
-        distances[getPos(1, y + 1)] = y;
-    }
-
-    std::array<size_t, 256> seenCharToRow;
-    seenCharToRow.fill(0);
-
-    for (size_t x = 1; x <= a.size(); ++x)
-    {
-        size_t lastMatchedY = 0;
-
-        for (size_t y = 1; y <= b.size(); ++y)
-        {
-            // The value of b[N] can be negative with unicode characters
-            unsigned char bSeenCharIndex = static_cast<unsigned char>(b[y - 1]);
-            size_t x1 = seenCharToRow[bSeenCharIndex];
-            size_t y1 = lastMatchedY;
-
-            size_t cost = 1;
-            if (a[x - 1] == b[y - 1])
-            {
-                cost = 0;
-                lastMatchedY = y;
-            }
-
-            size_t transposition = distances[getPos(x1, y1)] + (x - x1 - 1) + 1 + (y - y1 - 1);
-            size_t substitution = distances[getPos(x, y)] + cost;
-            size_t insertion = distances[getPos(x, y + 1)] + 1;
-            size_t deletion = distances[getPos(x + 1, y)] + 1;
-
-            // It's more performant to use std::min(size_t, size_t) rather than the initializer_list overload.
-            // Until proven otherwise, please do not change this.
-            distances[getPos(x + 1, y + 1)] = std::min(std::min(insertion, deletion), std::min(substitution, transposition));
-        }
-
-        // The value of a[N] can be negative with unicode characters
-        unsigned char aSeenCharIndex = static_cast<unsigned char>(a[x - 1]);
-        seenCharToRow[aSeenCharIndex] = x;
-    }
-
-    return distances[getPos(a.size() + 1, b.size() + 1)];
+  return distances[getPos(a.size() + 1, b.size() + 1)];
 }
 
-bool startsWith(std::string_view haystack, std::string_view needle)
-{
-    // ::starts_with is C++20
-    return haystack.size() >= needle.size() && haystack.substr(0, needle.size()) == needle;
+bool startsWith(std::string_view haystack, std::string_view needle) {
+  // ::starts_with is C++20
+  return haystack.size() >= needle.size() &&
+         haystack.substr(0, needle.size()) == needle;
 }
 
-bool equalsLower(std::string_view lhs, std::string_view rhs)
-{
-    if (lhs.size() != rhs.size())
-        return false;
+bool equalsLower(std::string_view lhs, std::string_view rhs) {
+  if (lhs.size() != rhs.size())
+    return false;
 
-    for (size_t i = 0; i < lhs.size(); ++i)
-        if (tolower(uint8_t(lhs[i])) != tolower(uint8_t(rhs[i])))
-            return false;
+  for (size_t i = 0; i < lhs.size(); ++i)
+    if (tolower(uint8_t(lhs[i])) != tolower(uint8_t(rhs[i])))
+      return false;
 
-    return true;
+  return true;
 }
 
-size_t hashRange(const char* data, size_t size)
-{
-    // FNV-1a
-    uint32_t hash = 2166136261;
+size_t hashRange(const char *data, size_t size) {
+  // FNV-1a
+  uint32_t hash = 2166136261;
 
-    for (size_t i = 0; i < size; ++i)
-    {
-        hash ^= uint8_t(data[i]);
-        hash *= 16777619;
+  for (size_t i = 0; i < size; ++i) {
+    hash ^= uint8_t(data[i]);
+    hash *= 16777619;
+  }
+
+  return hash;
+}
+
+bool isIdentifier(std::string_view s) {
+  return (
+      s.find_first_not_of(
+          "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890_") ==
+      std::string::npos);
+}
+
+std::string escape(std::string_view s, bool escapeForInterpString) {
+  std::string r;
+  r.reserve(
+      s.size() +
+      50); // arbitrary number to guess how many characters we'll be inserting
+
+  for (uint8_t c : s) {
+    if (c >= ' ' && c != '\\' && c != '\'' && c != '\"' && c != '`' && c != '{')
+      r += c;
+    else {
+      r += '\\';
+
+      if (escapeForInterpString && (c == '`' || c == '{')) {
+        r += c;
+        continue;
+      }
+
+      switch (c) {
+      case '\a':
+        r += 'a';
+        break;
+      case '\b':
+        r += 'b';
+        break;
+      case '\f':
+        r += 'f';
+        break;
+      case '\n':
+        r += 'n';
+        break;
+      case '\r':
+        r += 'r';
+        break;
+      case '\t':
+        r += 't';
+        break;
+      case '\v':
+        r += 'v';
+        break;
+      case '\'':
+        r += '\'';
+        break;
+      case '\"':
+        r += '\"';
+        break;
+      case '\\':
+        r += '\\';
+        break;
+      default:
+        Luau::formatAppend(r, "%03u", c);
+      }
     }
+  }
 
-    return hash;
-}
-
-bool isIdentifier(std::string_view s)
-{
-    return (s.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890_") == std::string::npos);
-}
-
-std::string escape(std::string_view s, bool escapeForInterpString)
-{
-    std::string r;
-    r.reserve(s.size() + 50); // arbitrary number to guess how many characters we'll be inserting
-
-    for (uint8_t c : s)
-    {
-        if (c >= ' ' && c != '\\' && c != '\'' && c != '\"' && c != '`' && c != '{')
-            r += c;
-        else
-        {
-            r += '\\';
-
-            if (escapeForInterpString && (c == '`' || c == '{'))
-            {
-                r += c;
-                continue;
-            }
-
-            switch (c)
-            {
-            case '\a':
-                r += 'a';
-                break;
-            case '\b':
-                r += 'b';
-                break;
-            case '\f':
-                r += 'f';
-                break;
-            case '\n':
-                r += 'n';
-                break;
-            case '\r':
-                r += 'r';
-                break;
-            case '\t':
-                r += 't';
-                break;
-            case '\v':
-                r += 'v';
-                break;
-            case '\'':
-                r += '\'';
-                break;
-            case '\"':
-                r += '\"';
-                break;
-            case '\\':
-                r += '\\';
-                break;
-            default:
-                Luau::formatAppend(r, "%03u", c);
-            }
-        }
-    }
-
-    return r;
+  return r;
 }
 } // namespace Luau
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// DONE : was aleready inlined <Luau/Lexer.h>
+#line __LINE__ "luau_ast.cpp"
+
+#line __LINE__ "Ast/src/Lexer.cpp"
+
+// This file is part of the Luau programming language and is licensed under MIT
+// License; see LICENSE.txt for details DONE : was aleready inlined
+// <Luau/Lexer.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
 
@@ -2175,511 +2172,452 @@ std::string escape(std::string_view s, bool escapeForInterpString)
 LUAU_FASTFLAGVARIABLE(LuauLexerLookaheadRemembersBraceType, false)
 LUAU_FASTFLAGVARIABLE(LuauAttributeSyntax, false)
 
-namespace Luau
-{
+namespace Luau {
 
 Allocator::Allocator()
-    : root(static_cast<Page*>(operator new(sizeof(Page))))
-    , offset(0)
-{
-    root->next = nullptr;
+    : root(static_cast<Page *>(operator new(sizeof(Page)))), offset(0) {
+  root->next = nullptr;
 }
 
-Allocator::Allocator(Allocator&& rhs)
-    : root(rhs.root)
-    , offset(rhs.offset)
-{
-    rhs.root = nullptr;
-    rhs.offset = 0;
+Allocator::Allocator(Allocator &&rhs) : root(rhs.root), offset(rhs.offset) {
+  rhs.root = nullptr;
+  rhs.offset = 0;
 }
 
-Allocator::~Allocator()
-{
-    Page* page = root;
+Allocator::~Allocator() {
+  Page *page = root;
 
-    while (page)
-    {
-        Page* next = page->next;
+  while (page) {
+    Page *next = page->next;
 
-        operator delete(page);
+    operator delete(page);
 
-        page = next;
+    page = next;
+  }
+}
+
+void *Allocator::allocate(size_t size) {
+  constexpr size_t align =
+      alignof(void *) > alignof(double) ? alignof(void *) : alignof(double);
+
+  if (root) {
+    uintptr_t data = reinterpret_cast<uintptr_t>(root->data);
+    uintptr_t result = (data + offset + align - 1) & ~(align - 1);
+    if (result + size <= data + sizeof(root->data)) {
+      offset = result - data + size;
+      return reinterpret_cast<void *>(result);
     }
+  }
+
+  // allocate new page
+  size_t pageSize = size > sizeof(root->data) ? size : sizeof(root->data);
+  void *pageData = operator new(offsetof(Page, data) + pageSize);
+
+  Page *page = static_cast<Page *>(pageData);
+
+  page->next = root;
+
+  root = page;
+  offset = size;
+
+  return page->data;
 }
 
-void* Allocator::allocate(size_t size)
-{
-    constexpr size_t align = alignof(void*) > alignof(double) ? alignof(void*) : alignof(double);
+Lexeme::Lexeme(const Location &location, Type type)
+    : type(type), location(location), length(0), data(nullptr) {}
 
-    if (root)
-    {
-        uintptr_t data = reinterpret_cast<uintptr_t>(root->data);
-        uintptr_t result = (data + offset + align - 1) & ~(align - 1);
-        if (result + size <= data + sizeof(root->data))
-        {
-            offset = result - data + size;
-            return reinterpret_cast<void*>(result);
-        }
-    }
+Lexeme::Lexeme(const Location &location, char character)
+    : type(static_cast<Type>(static_cast<unsigned char>(character))),
+      location(location), length(0), data(nullptr) {}
 
-    // allocate new page
-    size_t pageSize = size > sizeof(root->data) ? size : sizeof(root->data);
-    void* pageData = operator new(offsetof(Page, data) + pageSize);
-
-    Page* page = static_cast<Page*>(pageData);
-
-    page->next = root;
-
-    root = page;
-    offset = size;
-
-    return page->data;
+Lexeme::Lexeme(const Location &location, Type type, const char *data,
+               size_t size)
+    : type(type), location(location), length(unsigned(size)), data(data) {
+  LUAU_ASSERT(type == RawString || type == QuotedString ||
+              type == InterpStringBegin || type == InterpStringMid ||
+              type == InterpStringEnd || type == InterpStringSimple ||
+              type == BrokenInterpDoubleBrace || type == Number ||
+              type == Comment || type == BlockComment);
 }
 
-Lexeme::Lexeme(const Location& location, Type type)
-    : type(type)
-    , location(location)
-    , length(0)
-    , data(nullptr)
-{
+Lexeme::Lexeme(const Location &location, Type type, const char *name)
+    : type(type), location(location), length(0), name(name) {
+  LUAU_ASSERT(type == Name || type == Attribute ||
+              (type >= Reserved_BEGIN && type < Lexeme::Reserved_END));
 }
 
-Lexeme::Lexeme(const Location& location, char character)
-    : type(static_cast<Type>(static_cast<unsigned char>(character)))
-    , location(location)
-    , length(0)
-    , data(nullptr)
-{
+unsigned int Lexeme::getLength() const {
+  LUAU_ASSERT(type == RawString || type == QuotedString ||
+              type == InterpStringBegin || type == InterpStringMid ||
+              type == InterpStringEnd || type == InterpStringSimple ||
+              type == BrokenInterpDoubleBrace || type == Number ||
+              type == Comment || type == BlockComment);
+
+  return length;
 }
 
-Lexeme::Lexeme(const Location& location, Type type, const char* data, size_t size)
-    : type(type)
-    , location(location)
-    , length(unsigned(size))
-    , data(data)
-{
-    LUAU_ASSERT(type == RawString || type == QuotedString || type == InterpStringBegin || type == InterpStringMid || type == InterpStringEnd ||
-                type == InterpStringSimple || type == BrokenInterpDoubleBrace || type == Number || type == Comment || type == BlockComment);
-}
+static const char *kReserved[] = {
+    "and", "break",    "do",     "else", "elseif", "end",   "false",
+    "for", "function", "if",     "in",   "local",  "nil",   "not",
+    "or",  "repeat",   "return", "then", "true",   "until", "while"};
 
-Lexeme::Lexeme(const Location& location, Type type, const char* name)
-    : type(type)
-    , location(location)
-    , length(0)
-    , name(name)
-{
-    LUAU_ASSERT(type == Name || type == Attribute || (type >= Reserved_BEGIN && type < Lexeme::Reserved_END));
-}
+std::string Lexeme::toString() const {
+  switch (type) {
+  case Eof:
+    return "<eof>";
 
-unsigned int Lexeme::getLength() const
-{
-    LUAU_ASSERT(type == RawString || type == QuotedString || type == InterpStringBegin || type == InterpStringMid || type == InterpStringEnd ||
-                type == InterpStringSimple || type == BrokenInterpDoubleBrace || type == Number || type == Comment || type == BlockComment);
+  case Equal:
+    return "'=='";
 
-    return length;
-}
+  case LessEqual:
+    return "'<='";
 
-static const char* kReserved[] = {"and", "break", "do", "else", "elseif", "end", "false", "for", "function", "if", "in", "local", "nil", "not", "or",
-    "repeat", "return", "then", "true", "until", "while"};
+  case GreaterEqual:
+    return "'>='";
 
-std::string Lexeme::toString() const
-{
-    switch (type)
-    {
-    case Eof:
-        return "<eof>";
+  case NotEqual:
+    return "'~='";
 
-    case Equal:
-        return "'=='";
+  case Dot2:
+    return "'..'";
 
-    case LessEqual:
-        return "'<='";
+  case Dot3:
+    return "'...'";
 
-    case GreaterEqual:
-        return "'>='";
+  case SkinnyArrow:
+    return "'->'";
 
-    case NotEqual:
-        return "'~='";
+  case DoubleColon:
+    return "'::'";
 
-    case Dot2:
-        return "'..'";
+  case FloorDiv:
+    return "'//'";
 
-    case Dot3:
-        return "'...'";
+  case AddAssign:
+    return "'+='";
 
-    case SkinnyArrow:
-        return "'->'";
+  case SubAssign:
+    return "'-='";
 
-    case DoubleColon:
-        return "'::'";
+  case MulAssign:
+    return "'*='";
 
-    case FloorDiv:
-        return "'//'";
+  case DivAssign:
+    return "'/='";
 
-    case AddAssign:
-        return "'+='";
+  case FloorDivAssign:
+    return "'//='";
 
-    case SubAssign:
-        return "'-='";
+  case ModAssign:
+    return "'%='";
 
-    case MulAssign:
-        return "'*='";
+  case PowAssign:
+    return "'^='";
 
-    case DivAssign:
-        return "'/='";
+  case ConcatAssign:
+    return "'..='";
 
-    case FloorDivAssign:
-        return "'//='";
+  case RawString:
+  case QuotedString:
+    return data ? format("\"%.*s\"", length, data) : "string";
 
-    case ModAssign:
-        return "'%='";
+  case InterpStringBegin:
+    return data ? format("`%.*s{", length, data)
+                : "the beginning of an interpolated string";
 
-    case PowAssign:
-        return "'^='";
+  case InterpStringMid:
+    return data ? format("}%.*s{", length, data)
+                : "the middle of an interpolated string";
 
-    case ConcatAssign:
-        return "'..='";
+  case InterpStringEnd:
+    return data ? format("}%.*s`", length, data)
+                : "the end of an interpolated string";
 
-    case RawString:
-    case QuotedString:
-        return data ? format("\"%.*s\"", length, data) : "string";
+  case InterpStringSimple:
+    return data ? format("`%.*s`", length, data) : "interpolated string";
 
-    case InterpStringBegin:
-        return data ? format("`%.*s{", length, data) : "the beginning of an interpolated string";
+  case Number:
+    return data ? format("'%.*s'", length, data) : "number";
 
-    case InterpStringMid:
-        return data ? format("}%.*s{", length, data) : "the middle of an interpolated string";
+  case Name:
+    return name ? format("'%s'", name) : "identifier";
 
-    case InterpStringEnd:
-        return data ? format("}%.*s`", length, data) : "the end of an interpolated string";
+  case Comment:
+    return "comment";
 
-    case InterpStringSimple:
-        return data ? format("`%.*s`", length, data) : "interpolated string";
+  case Attribute:
+    LUAU_ASSERT(FFlag::LuauAttributeSyntax);
+    return name ? format("'%s'", name) : "attribute";
 
-    case Number:
-        return data ? format("'%.*s'", length, data) : "number";
+  case BrokenString:
+    return "malformed string";
 
-    case Name:
-        return name ? format("'%s'", name) : "identifier";
+  case BrokenComment:
+    return "unfinished comment";
 
-    case Comment:
-        return "comment";
+  case BrokenInterpDoubleBrace:
+    return "'{{', which is invalid (did you mean '\\{'?)";
 
-    case Attribute:
-        LUAU_ASSERT(FFlag::LuauAttributeSyntax);
-        return name ? format("'%s'", name) : "attribute";
+  case BrokenUnicode:
+    if (codepoint) {
+      if (const char *confusable = findConfusable(codepoint))
+        return format("Unicode character U+%x (did you mean '%s'?)", codepoint,
+                      confusable);
 
-    case BrokenString:
-        return "malformed string";
-
-    case BrokenComment:
-        return "unfinished comment";
-
-    case BrokenInterpDoubleBrace:
-        return "'{{', which is invalid (did you mean '\\{'?)";
-
-    case BrokenUnicode:
-        if (codepoint)
-        {
-            if (const char* confusable = findConfusable(codepoint))
-                return format("Unicode character U+%x (did you mean '%s'?)", codepoint, confusable);
-
-            return format("Unicode character U+%x", codepoint);
-        }
-        else
-        {
-            return "invalid UTF-8 sequence";
-        }
-
-    default:
-        if (type < Char_END)
-            return format("'%c'", type);
-        else if (type >= Reserved_BEGIN && type < Reserved_END)
-            return format("'%s'", kReserved[type - Reserved_BEGIN]);
-        else
-            return "<unknown>";
-    }
-}
-
-bool AstNameTable::Entry::operator==(const Entry& other) const
-{
-    return length == other.length && memcmp(value.value, other.value.value, length) == 0;
-}
-
-size_t AstNameTable::EntryHash::operator()(const Entry& e) const
-{
-    // FNV1a
-    uint32_t hash = 2166136261;
-
-    for (size_t i = 0; i < e.length; ++i)
-    {
-        hash ^= uint8_t(e.value.value[i]);
-        hash *= 16777619;
+      return format("Unicode character U+%x", codepoint);
+    } else {
+      return "invalid UTF-8 sequence";
     }
 
-    return hash;
+  default:
+    if (type < Char_END)
+      return format("'%c'", type);
+    else if (type >= Reserved_BEGIN && type < Reserved_END)
+      return format("'%s'", kReserved[type - Reserved_BEGIN]);
+    else
+      return "<unknown>";
+  }
 }
 
-AstNameTable::AstNameTable(Allocator& allocator)
-    : data({AstName(""), 0, Lexeme::Eof}, 128)
-    , allocator(allocator)
-{
-    static_assert(sizeof(kReserved) / sizeof(kReserved[0]) == Lexeme::Reserved_END - Lexeme::Reserved_BEGIN);
-
-    for (int i = Lexeme::Reserved_BEGIN; i < Lexeme::Reserved_END; ++i)
-        addStatic(kReserved[i - Lexeme::Reserved_BEGIN], static_cast<Lexeme::Type>(i));
+bool AstNameTable::Entry::operator==(const Entry &other) const {
+  return length == other.length &&
+         memcmp(value.value, other.value.value, length) == 0;
 }
 
-AstName AstNameTable::addStatic(const char* name, Lexeme::Type type)
-{
-    AstNameTable::Entry entry = {AstName(name), uint32_t(strlen(name)), type};
+size_t AstNameTable::EntryHash::operator()(const Entry &e) const {
+  // FNV1a
+  uint32_t hash = 2166136261;
 
-    LUAU_ASSERT(!data.contains(entry));
-    data.insert(entry);
+  for (size_t i = 0; i < e.length; ++i) {
+    hash ^= uint8_t(e.value.value[i]);
+    hash *= 16777619;
+  }
 
-    return entry.value;
+  return hash;
 }
 
-std::pair<AstName, Lexeme::Type> AstNameTable::getOrAddWithType(const char* name, size_t length)
-{
-    AstNameTable::Entry key = {AstName(name), uint32_t(length), Lexeme::Eof};
-    const Entry& entry = data.insert(key);
+AstNameTable::AstNameTable(Allocator &allocator)
+    : data({AstName(""), 0, Lexeme::Eof}, 128), allocator(allocator) {
+  static_assert(sizeof(kReserved) / sizeof(kReserved[0]) ==
+                Lexeme::Reserved_END - Lexeme::Reserved_BEGIN);
 
-    // entry already was inserted
-    if (entry.type != Lexeme::Eof)
-        return std::make_pair(entry.value, entry.type);
+  for (int i = Lexeme::Reserved_BEGIN; i < Lexeme::Reserved_END; ++i)
+    addStatic(kReserved[i - Lexeme::Reserved_BEGIN],
+              static_cast<Lexeme::Type>(i));
+}
 
-    // we just inserted an entry with a non-owned pointer into the map
-    // we need to correct it, *but* we need to be careful about not disturbing the hash value
-    char* nameData = static_cast<char*>(allocator.allocate(length + 1));
-    memcpy(nameData, name, length);
-    nameData[length] = 0;
+AstName AstNameTable::addStatic(const char *name, Lexeme::Type type) {
+  AstNameTable::Entry entry = {AstName(name), uint32_t(strlen(name)), type};
 
-    const_cast<Entry&>(entry).value = AstName(nameData);
-    const_cast<Entry&>(entry).type = (name[0] == '@' ? Lexeme::Attribute : Lexeme::Name);
+  LUAU_ASSERT(!data.contains(entry));
+  data.insert(entry);
 
+  return entry.value;
+}
+
+std::pair<AstName, Lexeme::Type>
+AstNameTable::getOrAddWithType(const char *name, size_t length) {
+  AstNameTable::Entry key = {AstName(name), uint32_t(length), Lexeme::Eof};
+  const Entry &entry = data.insert(key);
+
+  // entry already was inserted
+  if (entry.type != Lexeme::Eof)
     return std::make_pair(entry.value, entry.type);
+
+  // we just inserted an entry with a non-owned pointer into the map
+  // we need to correct it, *but* we need to be careful about not disturbing the
+  // hash value
+  char *nameData = static_cast<char *>(allocator.allocate(length + 1));
+  memcpy(nameData, name, length);
+  nameData[length] = 0;
+
+  const_cast<Entry &>(entry).value = AstName(nameData);
+  const_cast<Entry &>(entry).type =
+      (name[0] == '@' ? Lexeme::Attribute : Lexeme::Name);
+
+  return std::make_pair(entry.value, entry.type);
 }
 
-std::pair<AstName, Lexeme::Type> AstNameTable::getWithType(const char* name, size_t length) const
-{
-    if (const Entry* entry = data.find({AstName(name), uint32_t(length), Lexeme::Eof}))
-    {
-        return std::make_pair(entry->value, entry->type);
-    }
-    return std::make_pair(AstName(), Lexeme::Name);
+std::pair<AstName, Lexeme::Type>
+AstNameTable::getWithType(const char *name, size_t length) const {
+  if (const Entry *entry =
+          data.find({AstName(name), uint32_t(length), Lexeme::Eof})) {
+    return std::make_pair(entry->value, entry->type);
+  }
+  return std::make_pair(AstName(), Lexeme::Name);
 }
 
-AstName AstNameTable::getOrAdd(const char* name)
-{
-    return getOrAddWithType(name, strlen(name)).first;
+AstName AstNameTable::getOrAdd(const char *name) {
+  return getOrAddWithType(name, strlen(name)).first;
 }
 
-AstName AstNameTable::get(const char* name) const
-{
-    return getWithType(name, strlen(name)).first;
+AstName AstNameTable::get(const char *name) const {
+  return getWithType(name, strlen(name)).first;
 }
 
-inline bool isAlpha(char ch)
-{
-    // use or trick to convert to lower case and unsigned comparison to do range check
-    return unsigned((ch | ' ') - 'a') < 26;
+inline bool isAlpha(char ch) {
+  // use or trick to convert to lower case and unsigned comparison to do range
+  // check
+  return unsigned((ch | ' ') - 'a') < 26;
 }
 
-inline bool isDigit(char ch)
-{
-    return unsigned(ch - '0') < 10;
+inline bool isDigit(char ch) { return unsigned(ch - '0') < 10; }
+
+inline bool isHexDigit(char ch) {
+  // use or trick to convert to lower case and unsigned comparison to do range
+  // check
+  return unsigned(ch - '0') < 10 || unsigned((ch | ' ') - 'a') < 6;
 }
 
-inline bool isHexDigit(char ch)
-{
-    // use or trick to convert to lower case and unsigned comparison to do range check
-    return unsigned(ch - '0') < 10 || unsigned((ch | ' ') - 'a') < 6;
+inline bool isNewline(char ch) { return ch == '\n'; }
+
+static char unescape(char ch) {
+  switch (ch) {
+  case 'a':
+    return '\a';
+  case 'b':
+    return '\b';
+  case 'f':
+    return '\f';
+  case 'n':
+    return '\n';
+  case 'r':
+    return '\r';
+  case 't':
+    return '\t';
+  case 'v':
+    return '\v';
+  default:
+    return ch;
+  }
 }
 
-inline bool isNewline(char ch)
-{
-    return ch == '\n';
+Lexer::Lexer(const char *buffer, size_t bufferSize, AstNameTable &names)
+    : buffer(buffer), bufferSize(bufferSize), offset(0), line(0), lineOffset(0),
+      lexeme(Location(Position(0, 0), 0), Lexeme::Eof), names(names),
+      skipComments(false), readNames(true) {}
+
+void Lexer::setSkipComments(bool skip) { skipComments = skip; }
+
+void Lexer::setReadNames(bool read) { readNames = read; }
+
+const Lexeme &Lexer::next() { return next(this->skipComments, true); }
+
+const Lexeme &Lexer::next(bool skipComments, bool updatePrevLocation) {
+  // in skipComments mode we reject valid comments
+  do {
+    // consume whitespace before the token
+    while (isSpace(peekch()))
+      consumeAny();
+
+    if (updatePrevLocation)
+      prevLocation = lexeme.location;
+
+    lexeme = readNext();
+    updatePrevLocation = false;
+  } while (skipComments && (lexeme.type == Lexeme::Comment ||
+                            lexeme.type == Lexeme::BlockComment));
+
+  return lexeme;
 }
 
-static char unescape(char ch)
-{
-    switch (ch)
-    {
-    case 'a':
-        return '\a';
-    case 'b':
-        return '\b';
-    case 'f':
-        return '\f';
-    case 'n':
-        return '\n';
-    case 'r':
-        return '\r';
-    case 't':
-        return '\t';
-    case 'v':
-        return '\v';
-    default:
-        return ch;
-    }
-}
-
-Lexer::Lexer(const char* buffer, size_t bufferSize, AstNameTable& names)
-    : buffer(buffer)
-    , bufferSize(bufferSize)
-    , offset(0)
-    , line(0)
-    , lineOffset(0)
-    , lexeme(Location(Position(0, 0), 0), Lexeme::Eof)
-    , names(names)
-    , skipComments(false)
-    , readNames(true)
-{
-}
-
-void Lexer::setSkipComments(bool skip)
-{
-    skipComments = skip;
-}
-
-void Lexer::setReadNames(bool read)
-{
-    readNames = read;
-}
-
-const Lexeme& Lexer::next()
-{
-    return next(this->skipComments, true);
-}
-
-const Lexeme& Lexer::next(bool skipComments, bool updatePrevLocation)
-{
-    // in skipComments mode we reject valid comments
-    do
-    {
-        // consume whitespace before the token
-        while (isSpace(peekch()))
-            consumeAny();
-
-        if (updatePrevLocation)
-            prevLocation = lexeme.location;
-
-        lexeme = readNext();
-        updatePrevLocation = false;
-    } while (skipComments && (lexeme.type == Lexeme::Comment || lexeme.type == Lexeme::BlockComment));
-
-    return lexeme;
-}
-
-void Lexer::nextline()
-{
-    while (peekch() != 0 && peekch() != '\r' && !isNewline(peekch()))
-        consume();
-
-    next();
-}
-
-Lexeme Lexer::lookahead()
-{
-    unsigned int currentOffset = offset;
-    unsigned int currentLine = line;
-    unsigned int currentLineOffset = lineOffset;
-    Lexeme currentLexeme = lexeme;
-    Location currentPrevLocation = prevLocation;
-    size_t currentBraceStackSize = braceStack.size();
-    BraceType currentBraceType = braceStack.empty() ? BraceType::Normal : braceStack.back();
-
-    Lexeme result = next();
-
-    offset = currentOffset;
-    line = currentLine;
-    lineOffset = currentLineOffset;
-    lexeme = currentLexeme;
-    prevLocation = currentPrevLocation;
-    if (FFlag::LuauLexerLookaheadRemembersBraceType)
-    {
-        if (braceStack.size() < currentBraceStackSize)
-            braceStack.push_back(currentBraceType);
-        else if (braceStack.size() > currentBraceStackSize)
-            braceStack.pop_back();
-    }
-
-    return result;
-}
-
-bool Lexer::isReserved(const std::string& word)
-{
-    for (int i = Lexeme::Reserved_BEGIN; i < Lexeme::Reserved_END; ++i)
-        if (word == kReserved[i - Lexeme::Reserved_BEGIN])
-            return true;
-
-    return false;
-}
-
-LUAU_FORCEINLINE
-char Lexer::peekch() const
-{
-    return (offset < bufferSize) ? buffer[offset] : 0;
-}
-
-LUAU_FORCEINLINE
-char Lexer::peekch(unsigned int lookahead) const
-{
-    return (offset + lookahead < bufferSize) ? buffer[offset + lookahead] : 0;
-}
-
-Position Lexer::position() const
-{
-    return Position(line, offset - lineOffset);
-}
-
-LUAU_FORCEINLINE
-void Lexer::consume()
-{
-    // consume() assumes current character is known to not be a newline; use consumeAny if this is not guaranteed
-    LUAU_ASSERT(!isNewline(buffer[offset]));
-
-    offset++;
-}
-
-LUAU_FORCEINLINE
-void Lexer::consumeAny()
-{
-    if (isNewline(buffer[offset]))
-    {
-        line++;
-        lineOffset = offset + 1;
-    }
-
-    offset++;
-}
-
-Lexeme Lexer::readCommentBody()
-{
-    Position start = position();
-
-    LUAU_ASSERT(peekch(0) == '-' && peekch(1) == '-');
-    consume();
+void Lexer::nextline() {
+  while (peekch() != 0 && peekch() != '\r' && !isNewline(peekch()))
     consume();
 
-    size_t startOffset = offset;
+  next();
+}
 
-    if (peekch() == '[')
-    {
-        int sep = skipLongSeparator();
+Lexeme Lexer::lookahead() {
+  unsigned int currentOffset = offset;
+  unsigned int currentLine = line;
+  unsigned int currentLineOffset = lineOffset;
+  Lexeme currentLexeme = lexeme;
+  Location currentPrevLocation = prevLocation;
+  size_t currentBraceStackSize = braceStack.size();
+  BraceType currentBraceType =
+      braceStack.empty() ? BraceType::Normal : braceStack.back();
 
-        if (sep >= 0)
-        {
-            return readLongString(start, sep, Lexeme::BlockComment, Lexeme::BrokenComment);
-        }
+  Lexeme result = next();
+
+  offset = currentOffset;
+  line = currentLine;
+  lineOffset = currentLineOffset;
+  lexeme = currentLexeme;
+  prevLocation = currentPrevLocation;
+  if (FFlag::LuauLexerLookaheadRemembersBraceType) {
+    if (braceStack.size() < currentBraceStackSize)
+      braceStack.push_back(currentBraceType);
+    else if (braceStack.size() > currentBraceStackSize)
+      braceStack.pop_back();
+  }
+
+  return result;
+}
+
+bool Lexer::isReserved(const std::string &word) {
+  for (int i = Lexeme::Reserved_BEGIN; i < Lexeme::Reserved_END; ++i)
+    if (word == kReserved[i - Lexeme::Reserved_BEGIN])
+      return true;
+
+  return false;
+}
+
+LUAU_FORCEINLINE
+char Lexer::peekch() const {
+  return (offset < bufferSize) ? buffer[offset] : 0;
+}
+
+LUAU_FORCEINLINE
+char Lexer::peekch(unsigned int lookahead) const {
+  return (offset + lookahead < bufferSize) ? buffer[offset + lookahead] : 0;
+}
+
+Position Lexer::position() const { return Position(line, offset - lineOffset); }
+
+LUAU_FORCEINLINE
+void Lexer::consume() {
+  // consume() assumes current character is known to not be a newline; use
+  // consumeAny if this is not guaranteed
+  LUAU_ASSERT(!isNewline(buffer[offset]));
+
+  offset++;
+}
+
+LUAU_FORCEINLINE
+void Lexer::consumeAny() {
+  if (isNewline(buffer[offset])) {
+    line++;
+    lineOffset = offset + 1;
+  }
+
+  offset++;
+}
+
+Lexeme Lexer::readCommentBody() {
+  Position start = position();
+
+  LUAU_ASSERT(peekch(0) == '-' && peekch(1) == '-');
+  consume();
+  consume();
+
+  size_t startOffset = offset;
+
+  if (peekch() == '[') {
+    int sep = skipLongSeparator();
+
+    if (sep >= 0) {
+      return readLongString(start, sep, Lexeme::BlockComment,
+                            Lexeme::BrokenComment);
     }
+  }
 
-    // fall back to single-line comment
-    while (peekch() != 0 && peekch() != '\r' && !isNewline(peekch()))
-        consume();
+  // fall back to single-line comment
+  while (peekch() != 0 && peekch() != '\r' && !isNewline(peekch()))
+    consume();
 
-    return Lexeme(Location(start, position()), Lexeme::Comment, &buffer[startOffset], offset - startOffset);
+  return Lexeme(Location(start, position()), Lexeme::Comment,
+                &buffer[startOffset], offset - startOffset);
 }
 
 // Given a sequence [===[ or ]===], returns:
@@ -2687,911 +2625,787 @@ Lexeme Lexer::readCommentBody()
 // 2. -1 if this is not a long comment/string separator
 // 3. -N if this is a malformed separator
 // Does *not* consume the closing brace.
-int Lexer::skipLongSeparator()
-{
-    char start = peekch();
+int Lexer::skipLongSeparator() {
+  char start = peekch();
 
-    LUAU_ASSERT(start == '[' || start == ']');
+  LUAU_ASSERT(start == '[' || start == ']');
+  consume();
+
+  int count = 0;
+
+  while (peekch() == '=') {
     consume();
+    count++;
+  }
 
-    int count = 0;
-
-    while (peekch() == '=')
-    {
-        consume();
-        count++;
-    }
-
-    return (start == peekch()) ? count : (-count) - 1;
+  return (start == peekch()) ? count : (-count) - 1;
 }
 
-Lexeme Lexer::readLongString(const Position& start, int sep, Lexeme::Type ok, Lexeme::Type broken)
-{
-    // skip (second) [
-    LUAU_ASSERT(peekch() == '[');
-    consume();
+Lexeme Lexer::readLongString(const Position &start, int sep, Lexeme::Type ok,
+                             Lexeme::Type broken) {
+  // skip (second) [
+  LUAU_ASSERT(peekch() == '[');
+  consume();
 
-    unsigned int startOffset = offset;
+  unsigned int startOffset = offset;
 
-    while (peekch())
-    {
-        if (peekch() == ']')
-        {
-            if (skipLongSeparator() == sep)
-            {
-                LUAU_ASSERT(peekch() == ']');
-                consume(); // skip (second) ]
+  while (peekch()) {
+    if (peekch() == ']') {
+      if (skipLongSeparator() == sep) {
+        LUAU_ASSERT(peekch() == ']');
+        consume(); // skip (second) ]
 
-                unsigned int endOffset = offset - sep - 2;
-                LUAU_ASSERT(endOffset >= startOffset);
+        unsigned int endOffset = offset - sep - 2;
+        LUAU_ASSERT(endOffset >= startOffset);
 
-                return Lexeme(Location(start, position()), ok, &buffer[startOffset], endOffset - startOffset);
-            }
-        }
-        else
-        {
-            consumeAny();
-        }
+        return Lexeme(Location(start, position()), ok, &buffer[startOffset],
+                      endOffset - startOffset);
+      }
+    } else {
+      consumeAny();
     }
+  }
 
-    return Lexeme(Location(start, position()), broken);
+  return Lexeme(Location(start, position()), broken);
 }
 
-void Lexer::readBackslashInString()
-{
-    LUAU_ASSERT(peekch() == '\\');
+void Lexer::readBackslashInString() {
+  LUAU_ASSERT(peekch() == '\\');
+  consume();
+  switch (peekch()) {
+  case '\r':
     consume();
-    switch (peekch())
-    {
+    if (peekch() == '\n')
+      consumeAny();
+    break;
+
+  case 0:
+    break;
+
+  case 'z':
+    consume();
+    while (isSpace(peekch()))
+      consumeAny();
+    break;
+
+  default:
+    consumeAny();
+  }
+}
+
+Lexeme Lexer::readQuotedString() {
+  Position start = position();
+
+  char delimiter = peekch();
+  LUAU_ASSERT(delimiter == '\'' || delimiter == '"');
+  consume();
+
+  unsigned int startOffset = offset;
+
+  while (peekch() != delimiter) {
+    switch (peekch()) {
+    case 0:
     case '\r':
-        consume();
-        if (peekch() == '\n')
-            consumeAny();
-        break;
+    case '\n':
+      return Lexeme(Location(start, position()), Lexeme::BrokenString);
 
-    case 0:
-        break;
-
-    case 'z':
-        consume();
-        while (isSpace(peekch()))
-            consumeAny();
-        break;
+    case '\\':
+      readBackslashInString();
+      break;
 
     default:
-        consumeAny();
+      consume();
     }
+  }
+
+  consume();
+
+  return Lexeme(Location(start, position()), Lexeme::QuotedString,
+                &buffer[startOffset], offset - startOffset - 1);
 }
 
-Lexeme Lexer::readQuotedString()
-{
-    Position start = position();
+Lexeme Lexer::readInterpolatedStringBegin() {
+  LUAU_ASSERT(peekch() == '`');
 
-    char delimiter = peekch();
-    LUAU_ASSERT(delimiter == '\'' || delimiter == '"');
-    consume();
+  Position start = position();
+  consume();
 
-    unsigned int startOffset = offset;
-
-    while (peekch() != delimiter)
-    {
-        switch (peekch())
-        {
-        case 0:
-        case '\r':
-        case '\n':
-            return Lexeme(Location(start, position()), Lexeme::BrokenString);
-
-        case '\\':
-            readBackslashInString();
-            break;
-
-        default:
-            consume();
-        }
-    }
-
-    consume();
-
-    return Lexeme(Location(start, position()), Lexeme::QuotedString, &buffer[startOffset], offset - startOffset - 1);
+  return readInterpolatedStringSection(start, Lexeme::InterpStringBegin,
+                                       Lexeme::InterpStringSimple);
 }
 
-Lexeme Lexer::readInterpolatedStringBegin()
-{
-    LUAU_ASSERT(peekch() == '`');
+Lexeme Lexer::readInterpolatedStringSection(Position start,
+                                            Lexeme::Type formatType,
+                                            Lexeme::Type endType) {
+  unsigned int startOffset = offset;
 
-    Position start = position();
-    consume();
-
-    return readInterpolatedStringSection(start, Lexeme::InterpStringBegin, Lexeme::InterpStringSimple);
-}
-
-Lexeme Lexer::readInterpolatedStringSection(Position start, Lexeme::Type formatType, Lexeme::Type endType)
-{
-    unsigned int startOffset = offset;
-
-    while (peekch() != '`')
-    {
-        switch (peekch())
-        {
-        case 0:
-        case '\r':
-        case '\n':
-            return Lexeme(Location(start, position()), Lexeme::BrokenString);
-
-        case '\\':
-            // Allow for \u{}, which would otherwise be consumed by looking for {
-            if (peekch(1) == 'u' && peekch(2) == '{')
-            {
-                consume(); // backslash
-                consume(); // u
-                consume(); // {
-                break;
-            }
-
-            readBackslashInString();
-            break;
-
-        case '{':
-        {
-            braceStack.push_back(BraceType::InterpolatedString);
-
-            if (peekch(1) == '{')
-            {
-                Lexeme brokenDoubleBrace =
-                    Lexeme(Location(start, position()), Lexeme::BrokenInterpDoubleBrace, &buffer[startOffset], offset - startOffset);
-                consume();
-                consume();
-                return brokenDoubleBrace;
-            }
-
-            consume();
-            return Lexeme(Location(start, position()), formatType, &buffer[startOffset], offset - startOffset - 1);
-        }
-
-        default:
-            consume();
-        }
-    }
-
-    consume();
-
-    return Lexeme(Location(start, position()), endType, &buffer[startOffset], offset - startOffset - 1);
-}
-
-Lexeme Lexer::readNumber(const Position& start, unsigned int startOffset)
-{
-    LUAU_ASSERT(isDigit(peekch()));
-
-    // This function does not do the number parsing - it only skips a number-like pattern.
-    // It uses the same logic as Lua stock lexer; the resulting string is later converted
-    // to a number with proper verification.
-    do
-    {
-        consume();
-    } while (isDigit(peekch()) || peekch() == '.' || peekch() == '_');
-
-    if (peekch() == 'e' || peekch() == 'E')
-    {
-        consume();
-
-        if (peekch() == '+' || peekch() == '-')
-            consume();
-    }
-
-    while (isAlpha(peekch()) || isDigit(peekch()) || peekch() == '_')
-        consume();
-
-    return Lexeme(Location(start, position()), Lexeme::Number, &buffer[startOffset], offset - startOffset);
-}
-
-std::pair<AstName, Lexeme::Type> Lexer::readName()
-{
-    LUAU_ASSERT(isAlpha(peekch()) || peekch() == '_' || peekch() == '@');
-
-    unsigned int startOffset = offset;
-
-    do
-        consume();
-    while (isAlpha(peekch()) || isDigit(peekch()) || peekch() == '_');
-
-    return readNames ? names.getOrAddWithType(&buffer[startOffset], offset - startOffset)
-                     : names.getWithType(&buffer[startOffset], offset - startOffset);
-}
-
-Lexeme Lexer::readNext()
-{
-    Position start = position();
-
-    switch (peekch())
-    {
+  while (peekch() != '`') {
+    switch (peekch()) {
     case 0:
-        return Lexeme(Location(start, 0), Lexeme::Eof);
+    case '\r':
+    case '\n':
+      return Lexeme(Location(start, position()), Lexeme::BrokenString);
 
-    case '-':
-    {
-        if (peekch(1) == '>')
-        {
-            consume();
-            consume();
-            return Lexeme(Location(start, 2), Lexeme::SkinnyArrow);
-        }
-        else if (peekch(1) == '=')
-        {
-            consume();
-            consume();
-            return Lexeme(Location(start, 2), Lexeme::SubAssign);
-        }
-        else if (peekch(1) == '-')
-        {
-            return readCommentBody();
-        }
-        else
-        {
-            consume();
-            return Lexeme(Location(start, 1), '-');
-        }
+    case '\\':
+      // Allow for \u{}, which would otherwise be consumed by looking for {
+      if (peekch(1) == 'u' && peekch(2) == '{') {
+        consume(); // backslash
+        consume(); // u
+        consume(); // {
+        break;
+      }
+
+      readBackslashInString();
+      break;
+
+    case '{': {
+      braceStack.push_back(BraceType::InterpolatedString);
+
+      if (peekch(1) == '{') {
+        Lexeme brokenDoubleBrace =
+            Lexeme(Location(start, position()), Lexeme::BrokenInterpDoubleBrace,
+                   &buffer[startOffset], offset - startOffset);
+        consume();
+        consume();
+        return brokenDoubleBrace;
+      }
+
+      consume();
+      return Lexeme(Location(start, position()), formatType,
+                    &buffer[startOffset], offset - startOffset - 1);
     }
 
-    case '[':
-    {
-        int sep = skipLongSeparator();
-
-        if (sep >= 0)
-        {
-            return readLongString(start, sep, Lexeme::RawString, Lexeme::BrokenString);
-        }
-        else if (sep == -1)
-        {
-            return Lexeme(Location(start, 1), '[');
-        }
-        else
-        {
-            return Lexeme(Location(start, position()), Lexeme::BrokenString);
-        }
-    }
-
-    case '{':
-    {
-        consume();
-
-        if (!braceStack.empty())
-            braceStack.push_back(BraceType::Normal);
-
-        return Lexeme(Location(start, 1), '{');
-    }
-
-    case '}':
-    {
-        consume();
-
-        if (braceStack.empty())
-        {
-            return Lexeme(Location(start, 1), '}');
-        }
-
-        const BraceType braceStackTop = braceStack.back();
-        braceStack.pop_back();
-
-        if (braceStackTop != BraceType::InterpolatedString)
-        {
-            return Lexeme(Location(start, 1), '}');
-        }
-
-        return readInterpolatedStringSection(position(), Lexeme::InterpStringMid, Lexeme::InterpStringEnd);
-    }
-
-    case '=':
-    {
-        consume();
-
-        if (peekch() == '=')
-        {
-            consume();
-            return Lexeme(Location(start, 2), Lexeme::Equal);
-        }
-        else
-            return Lexeme(Location(start, 1), '=');
-    }
-
-    case '<':
-    {
-        consume();
-
-        if (peekch() == '=')
-        {
-            consume();
-            return Lexeme(Location(start, 2), Lexeme::LessEqual);
-        }
-        else
-            return Lexeme(Location(start, 1), '<');
-    }
-
-    case '>':
-    {
-        consume();
-
-        if (peekch() == '=')
-        {
-            consume();
-            return Lexeme(Location(start, 2), Lexeme::GreaterEqual);
-        }
-        else
-            return Lexeme(Location(start, 1), '>');
-    }
-
-    case '~':
-    {
-        consume();
-
-        if (peekch() == '=')
-        {
-            consume();
-            return Lexeme(Location(start, 2), Lexeme::NotEqual);
-        }
-        else
-            return Lexeme(Location(start, 1), '~');
-    }
-
-    case '"':
-    case '\'':
-        return readQuotedString();
-
-    case '`':
-        return readInterpolatedStringBegin();
-
-    case '.':
-        consume();
-
-        if (peekch() == '.')
-        {
-            consume();
-
-            if (peekch() == '.')
-            {
-                consume();
-
-                return Lexeme(Location(start, 3), Lexeme::Dot3);
-            }
-            else if (peekch() == '=')
-            {
-                consume();
-
-                return Lexeme(Location(start, 3), Lexeme::ConcatAssign);
-            }
-            else
-                return Lexeme(Location(start, 2), Lexeme::Dot2);
-        }
-        else
-        {
-            if (isDigit(peekch()))
-            {
-                return readNumber(start, offset - 1);
-            }
-            else
-                return Lexeme(Location(start, 1), '.');
-        }
-
-    case '+':
-        consume();
-
-        if (peekch() == '=')
-        {
-            consume();
-            return Lexeme(Location(start, 2), Lexeme::AddAssign);
-        }
-        else
-            return Lexeme(Location(start, 1), '+');
-
-    case '/':
-    {
-        consume();
-
-        char ch = peekch();
-
-        if (ch == '=')
-        {
-            consume();
-            return Lexeme(Location(start, 2), Lexeme::DivAssign);
-        }
-        else if (ch == '/')
-        {
-            consume();
-
-            if (peekch() == '=')
-            {
-                consume();
-                return Lexeme(Location(start, 3), Lexeme::FloorDivAssign);
-            }
-            else
-                return Lexeme(Location(start, 2), Lexeme::FloorDiv);
-        }
-        else
-            return Lexeme(Location(start, 1), '/');
-    }
-
-    case '*':
-        consume();
-
-        if (peekch() == '=')
-        {
-            consume();
-            return Lexeme(Location(start, 2), Lexeme::MulAssign);
-        }
-        else
-            return Lexeme(Location(start, 1), '*');
-
-    case '%':
-        consume();
-
-        if (peekch() == '=')
-        {
-            consume();
-            return Lexeme(Location(start, 2), Lexeme::ModAssign);
-        }
-        else
-            return Lexeme(Location(start, 1), '%');
-
-    case '^':
-        consume();
-
-        if (peekch() == '=')
-        {
-            consume();
-            return Lexeme(Location(start, 2), Lexeme::PowAssign);
-        }
-        else
-            return Lexeme(Location(start, 1), '^');
-
-    case ':':
-    {
-        consume();
-        if (peekch() == ':')
-        {
-            consume();
-            return Lexeme(Location(start, 2), Lexeme::DoubleColon);
-        }
-        else
-            return Lexeme(Location(start, 1), ':');
-    }
-
-    case '(':
-    case ')':
-    case ']':
-    case ';':
-    case ',':
-    case '#':
-    case '?':
-    case '&':
-    case '|':
-    {
-        char ch = peekch();
-        consume();
-
-        return Lexeme(Location(start, 1), ch);
-    }
-    case '@':
-    {
-        if (FFlag::LuauAttributeSyntax)
-        {
-            std::pair<AstName, Lexeme::Type> attribute = readName();
-            return Lexeme(Location(start, position()), Lexeme::Attribute, attribute.first.value);
-        }
-    }
     default:
-        if (isDigit(peekch()))
-        {
-            return readNumber(start, offset);
-        }
-        else if (isAlpha(peekch()) || peekch() == '_')
-        {
-            std::pair<AstName, Lexeme::Type> name = readName();
-
-            return Lexeme(Location(start, position()), name.second, name.first.value);
-        }
-        else if (peekch() & 0x80)
-        {
-            return readUtf8Error();
-        }
-        else
-        {
-            char ch = peekch();
-            consume();
-
-            return Lexeme(Location(start, 1), ch);
-        }
+      consume();
     }
+  }
+
+  consume();
+
+  return Lexeme(Location(start, position()), endType, &buffer[startOffset],
+                offset - startOffset - 1);
 }
 
-LUAU_NOINLINE Lexeme Lexer::readUtf8Error()
-{
-    Position start = position();
-    uint32_t codepoint = 0;
-    int size = 0;
+Lexeme Lexer::readNumber(const Position &start, unsigned int startOffset) {
+  LUAU_ASSERT(isDigit(peekch()));
 
-    if ((peekch() & 0b10000000) == 0b00000000)
-    {
-        size = 1;
-        codepoint = peekch() & 0x7F;
-    }
-    else if ((peekch() & 0b11100000) == 0b11000000)
-    {
-        size = 2;
-        codepoint = peekch() & 0b11111;
-    }
-    else if ((peekch() & 0b11110000) == 0b11100000)
-    {
-        size = 3;
-        codepoint = peekch() & 0b1111;
-    }
-    else if ((peekch() & 0b11111000) == 0b11110000)
-    {
-        size = 4;
-        codepoint = peekch() & 0b111;
-    }
-    else
-    {
-        consume();
-        return Lexeme(Location(start, position()), Lexeme::BrokenUnicode);
-    }
+  // This function does not do the number parsing - it only skips a number-like
+  // pattern. It uses the same logic as Lua stock lexer; the resulting string is
+  // later converted to a number with proper verification.
+  do {
+    consume();
+  } while (isDigit(peekch()) || peekch() == '.' || peekch() == '_');
 
+  if (peekch() == 'e' || peekch() == 'E') {
     consume();
 
-    for (int i = 1; i < size; ++i)
-    {
-        if ((peekch() & 0b11000000) != 0b10000000)
-            return Lexeme(Location(start, position()), Lexeme::BrokenUnicode);
+    if (peekch() == '+' || peekch() == '-')
+      consume();
+  }
 
-        codepoint = codepoint << 6;
-        codepoint |= (peekch() & 0b00111111);
+  while (isAlpha(peekch()) || isDigit(peekch()) || peekch() == '_')
+    consume();
+
+  return Lexeme(Location(start, position()), Lexeme::Number,
+                &buffer[startOffset], offset - startOffset);
+}
+
+std::pair<AstName, Lexeme::Type> Lexer::readName() {
+  LUAU_ASSERT(isAlpha(peekch()) || peekch() == '_' || peekch() == '@');
+
+  unsigned int startOffset = offset;
+
+  do
+    consume();
+  while (isAlpha(peekch()) || isDigit(peekch()) || peekch() == '_');
+
+  return readNames
+             ? names.getOrAddWithType(&buffer[startOffset],
+                                      offset - startOffset)
+             : names.getWithType(&buffer[startOffset], offset - startOffset);
+}
+
+Lexeme Lexer::readNext() {
+  Position start = position();
+
+  switch (peekch()) {
+  case 0:
+    return Lexeme(Location(start, 0), Lexeme::Eof);
+
+  case '-': {
+    if (peekch(1) == '>') {
+      consume();
+      consume();
+      return Lexeme(Location(start, 2), Lexeme::SkinnyArrow);
+    } else if (peekch(1) == '=') {
+      consume();
+      consume();
+      return Lexeme(Location(start, 2), Lexeme::SubAssign);
+    } else if (peekch(1) == '-') {
+      return readCommentBody();
+    } else {
+      consume();
+      return Lexeme(Location(start, 1), '-');
+    }
+  }
+
+  case '[': {
+    int sep = skipLongSeparator();
+
+    if (sep >= 0) {
+      return readLongString(start, sep, Lexeme::RawString,
+                            Lexeme::BrokenString);
+    } else if (sep == -1) {
+      return Lexeme(Location(start, 1), '[');
+    } else {
+      return Lexeme(Location(start, position()), Lexeme::BrokenString);
+    }
+  }
+
+  case '{': {
+    consume();
+
+    if (!braceStack.empty())
+      braceStack.push_back(BraceType::Normal);
+
+    return Lexeme(Location(start, 1), '{');
+  }
+
+  case '}': {
+    consume();
+
+    if (braceStack.empty()) {
+      return Lexeme(Location(start, 1), '}');
+    }
+
+    const BraceType braceStackTop = braceStack.back();
+    braceStack.pop_back();
+
+    if (braceStackTop != BraceType::InterpolatedString) {
+      return Lexeme(Location(start, 1), '}');
+    }
+
+    return readInterpolatedStringSection(position(), Lexeme::InterpStringMid,
+                                         Lexeme::InterpStringEnd);
+  }
+
+  case '=': {
+    consume();
+
+    if (peekch() == '=') {
+      consume();
+      return Lexeme(Location(start, 2), Lexeme::Equal);
+    } else
+      return Lexeme(Location(start, 1), '=');
+  }
+
+  case '<': {
+    consume();
+
+    if (peekch() == '=') {
+      consume();
+      return Lexeme(Location(start, 2), Lexeme::LessEqual);
+    } else
+      return Lexeme(Location(start, 1), '<');
+  }
+
+  case '>': {
+    consume();
+
+    if (peekch() == '=') {
+      consume();
+      return Lexeme(Location(start, 2), Lexeme::GreaterEqual);
+    } else
+      return Lexeme(Location(start, 1), '>');
+  }
+
+  case '~': {
+    consume();
+
+    if (peekch() == '=') {
+      consume();
+      return Lexeme(Location(start, 2), Lexeme::NotEqual);
+    } else
+      return Lexeme(Location(start, 1), '~');
+  }
+
+  case '"':
+  case '\'':
+    return readQuotedString();
+
+  case '`':
+    return readInterpolatedStringBegin();
+
+  case '.':
+    consume();
+
+    if (peekch() == '.') {
+      consume();
+
+      if (peekch() == '.') {
         consume();
+
+        return Lexeme(Location(start, 3), Lexeme::Dot3);
+      } else if (peekch() == '=') {
+        consume();
+
+        return Lexeme(Location(start, 3), Lexeme::ConcatAssign);
+      } else
+        return Lexeme(Location(start, 2), Lexeme::Dot2);
+    } else {
+      if (isDigit(peekch())) {
+        return readNumber(start, offset - 1);
+      } else
+        return Lexeme(Location(start, 1), '.');
     }
 
-    Lexeme result(Location(start, position()), Lexeme::BrokenUnicode);
-    result.codepoint = codepoint;
-    return result;
+  case '+':
+    consume();
+
+    if (peekch() == '=') {
+      consume();
+      return Lexeme(Location(start, 2), Lexeme::AddAssign);
+    } else
+      return Lexeme(Location(start, 1), '+');
+
+  case '/': {
+    consume();
+
+    char ch = peekch();
+
+    if (ch == '=') {
+      consume();
+      return Lexeme(Location(start, 2), Lexeme::DivAssign);
+    } else if (ch == '/') {
+      consume();
+
+      if (peekch() == '=') {
+        consume();
+        return Lexeme(Location(start, 3), Lexeme::FloorDivAssign);
+      } else
+        return Lexeme(Location(start, 2), Lexeme::FloorDiv);
+    } else
+      return Lexeme(Location(start, 1), '/');
+  }
+
+  case '*':
+    consume();
+
+    if (peekch() == '=') {
+      consume();
+      return Lexeme(Location(start, 2), Lexeme::MulAssign);
+    } else
+      return Lexeme(Location(start, 1), '*');
+
+  case '%':
+    consume();
+
+    if (peekch() == '=') {
+      consume();
+      return Lexeme(Location(start, 2), Lexeme::ModAssign);
+    } else
+      return Lexeme(Location(start, 1), '%');
+
+  case '^':
+    consume();
+
+    if (peekch() == '=') {
+      consume();
+      return Lexeme(Location(start, 2), Lexeme::PowAssign);
+    } else
+      return Lexeme(Location(start, 1), '^');
+
+  case ':': {
+    consume();
+    if (peekch() == ':') {
+      consume();
+      return Lexeme(Location(start, 2), Lexeme::DoubleColon);
+    } else
+      return Lexeme(Location(start, 1), ':');
+  }
+
+  case '(':
+  case ')':
+  case ']':
+  case ';':
+  case ',':
+  case '#':
+  case '?':
+  case '&':
+  case '|': {
+    char ch = peekch();
+    consume();
+
+    return Lexeme(Location(start, 1), ch);
+  }
+  case '@': {
+    if (FFlag::LuauAttributeSyntax) {
+      std::pair<AstName, Lexeme::Type> attribute = readName();
+      return Lexeme(Location(start, position()), Lexeme::Attribute,
+                    attribute.first.value);
+    }
+  }
+  default:
+    if (isDigit(peekch())) {
+      return readNumber(start, offset);
+    } else if (isAlpha(peekch()) || peekch() == '_') {
+      std::pair<AstName, Lexeme::Type> name = readName();
+
+      return Lexeme(Location(start, position()), name.second, name.first.value);
+    } else if (peekch() & 0x80) {
+      return readUtf8Error();
+    } else {
+      char ch = peekch();
+      consume();
+
+      return Lexeme(Location(start, 1), ch);
+    }
+  }
 }
 
-static size_t toUtf8(char* data, unsigned int code)
-{
-    // U+0000..U+007F
-    if (code < 0x80)
-    {
-        data[0] = char(code);
-        return 1;
-    }
-    // U+0080..U+07FF
-    else if (code < 0x800)
-    {
-        data[0] = char(0xC0 | (code >> 6));
-        data[1] = char(0x80 | (code & 0x3F));
-        return 2;
-    }
-    // U+0800..U+FFFF
-    else if (code < 0x10000)
-    {
-        data[0] = char(0xE0 | (code >> 12));
-        data[1] = char(0x80 | ((code >> 6) & 0x3F));
-        data[2] = char(0x80 | (code & 0x3F));
-        return 3;
-    }
-    // U+10000..U+10FFFF
-    else if (code < 0x110000)
-    {
-        data[0] = char(0xF0 | (code >> 18));
-        data[1] = char(0x80 | ((code >> 12) & 0x3F));
-        data[2] = char(0x80 | ((code >> 6) & 0x3F));
-        data[3] = char(0x80 | (code & 0x3F));
-        return 4;
-    }
-    else
-    {
-        return 0;
-    }
+LUAU_NOINLINE Lexeme Lexer::readUtf8Error() {
+  Position start = position();
+  uint32_t codepoint = 0;
+  int size = 0;
+
+  if ((peekch() & 0b10000000) == 0b00000000) {
+    size = 1;
+    codepoint = peekch() & 0x7F;
+  } else if ((peekch() & 0b11100000) == 0b11000000) {
+    size = 2;
+    codepoint = peekch() & 0b11111;
+  } else if ((peekch() & 0b11110000) == 0b11100000) {
+    size = 3;
+    codepoint = peekch() & 0b1111;
+  } else if ((peekch() & 0b11111000) == 0b11110000) {
+    size = 4;
+    codepoint = peekch() & 0b111;
+  } else {
+    consume();
+    return Lexeme(Location(start, position()), Lexeme::BrokenUnicode);
+  }
+
+  consume();
+
+  for (int i = 1; i < size; ++i) {
+    if ((peekch() & 0b11000000) != 0b10000000)
+      return Lexeme(Location(start, position()), Lexeme::BrokenUnicode);
+
+    codepoint = codepoint << 6;
+    codepoint |= (peekch() & 0b00111111);
+    consume();
+  }
+
+  Lexeme result(Location(start, position()), Lexeme::BrokenUnicode);
+  result.codepoint = codepoint;
+  return result;
 }
 
-bool Lexer::fixupQuotedString(std::string& data)
-{
-    if (data.empty() || data.find('\\') == std::string::npos)
-        return true;
+static size_t toUtf8(char *data, unsigned int code) {
+  // U+0000..U+007F
+  if (code < 0x80) {
+    data[0] = char(code);
+    return 1;
+  }
+  // U+0080..U+07FF
+  else if (code < 0x800) {
+    data[0] = char(0xC0 | (code >> 6));
+    data[1] = char(0x80 | (code & 0x3F));
+    return 2;
+  }
+  // U+0800..U+FFFF
+  else if (code < 0x10000) {
+    data[0] = char(0xE0 | (code >> 12));
+    data[1] = char(0x80 | ((code >> 6) & 0x3F));
+    data[2] = char(0x80 | (code & 0x3F));
+    return 3;
+  }
+  // U+10000..U+10FFFF
+  else if (code < 0x110000) {
+    data[0] = char(0xF0 | (code >> 18));
+    data[1] = char(0x80 | ((code >> 12) & 0x3F));
+    data[2] = char(0x80 | ((code >> 6) & 0x3F));
+    data[3] = char(0x80 | (code & 0x3F));
+    return 4;
+  } else {
+    return 0;
+  }
+}
 
-    size_t size = data.size();
-    size_t write = 0;
-
-    for (size_t i = 0; i < size;)
-    {
-        if (data[i] != '\\')
-        {
-            data[write++] = data[i];
-            i++;
-            continue;
-        }
-
-        if (i + 1 == size)
-            return false;
-
-        char escape = data[i + 1];
-        i += 2; // skip \e
-
-        switch (escape)
-        {
-        case '\n':
-            data[write++] = '\n';
-            break;
-
-        case '\r':
-            data[write++] = '\n';
-            if (i < size && data[i] == '\n')
-                i++;
-            break;
-
-        case 0:
-            return false;
-
-        case 'x':
-        {
-            // hex escape codes are exactly 2 hex digits long
-            if (i + 2 > size)
-                return false;
-
-            unsigned int code = 0;
-
-            for (int j = 0; j < 2; ++j)
-            {
-                char ch = data[i + j];
-                if (!isHexDigit(ch))
-                    return false;
-
-                // use or trick to convert to lower case
-                code = 16 * code + (isDigit(ch) ? ch - '0' : (ch | ' ') - 'a' + 10);
-            }
-
-            data[write++] = char(code);
-            i += 2;
-            break;
-        }
-
-        case 'z':
-        {
-            while (i < size && isSpace(data[i]))
-                i++;
-            break;
-        }
-
-        case 'u':
-        {
-            // unicode escape codes are at least 3 characters including braces
-            if (i + 3 > size)
-                return false;
-
-            if (data[i] != '{')
-                return false;
-            i++;
-
-            if (data[i] == '}')
-                return false;
-
-            unsigned int code = 0;
-
-            for (int j = 0; j < 16; ++j)
-            {
-                if (i == size)
-                    return false;
-
-                char ch = data[i];
-
-                if (ch == '}')
-                    break;
-
-                if (!isHexDigit(ch))
-                    return false;
-
-                // use or trick to convert to lower case
-                code = 16 * code + (isDigit(ch) ? ch - '0' : (ch | ' ') - 'a' + 10);
-                i++;
-            }
-
-            if (i == size || data[i] != '}')
-                return false;
-            i++;
-
-            size_t utf8 = toUtf8(&data[write], code);
-            if (utf8 == 0)
-                return false;
-
-            write += utf8;
-            break;
-        }
-
-        default:
-        {
-            if (isDigit(escape))
-            {
-                unsigned int code = escape - '0';
-
-                for (int j = 0; j < 2; ++j)
-                {
-                    if (i == size || !isDigit(data[i]))
-                        break;
-
-                    code = 10 * code + (data[i] - '0');
-                    i++;
-                }
-
-                if (code > UCHAR_MAX)
-                    return false;
-
-                data[write++] = char(code);
-            }
-            else
-            {
-                data[write++] = unescape(escape);
-            }
-        }
-        }
-    }
-
-    LUAU_ASSERT(write <= size);
-    data.resize(write);
-
+bool Lexer::fixupQuotedString(std::string &data) {
+  if (data.empty() || data.find('\\') == std::string::npos)
     return true;
+
+  size_t size = data.size();
+  size_t write = 0;
+
+  for (size_t i = 0; i < size;) {
+    if (data[i] != '\\') {
+      data[write++] = data[i];
+      i++;
+      continue;
+    }
+
+    if (i + 1 == size)
+      return false;
+
+    char escape = data[i + 1];
+    i += 2; // skip \e
+
+    switch (escape) {
+    case '\n':
+      data[write++] = '\n';
+      break;
+
+    case '\r':
+      data[write++] = '\n';
+      if (i < size && data[i] == '\n')
+        i++;
+      break;
+
+    case 0:
+      return false;
+
+    case 'x': {
+      // hex escape codes are exactly 2 hex digits long
+      if (i + 2 > size)
+        return false;
+
+      unsigned int code = 0;
+
+      for (int j = 0; j < 2; ++j) {
+        char ch = data[i + j];
+        if (!isHexDigit(ch))
+          return false;
+
+        // use or trick to convert to lower case
+        code = 16 * code + (isDigit(ch) ? ch - '0' : (ch | ' ') - 'a' + 10);
+      }
+
+      data[write++] = char(code);
+      i += 2;
+      break;
+    }
+
+    case 'z': {
+      while (i < size && isSpace(data[i]))
+        i++;
+      break;
+    }
+
+    case 'u': {
+      // unicode escape codes are at least 3 characters including braces
+      if (i + 3 > size)
+        return false;
+
+      if (data[i] != '{')
+        return false;
+      i++;
+
+      if (data[i] == '}')
+        return false;
+
+      unsigned int code = 0;
+
+      for (int j = 0; j < 16; ++j) {
+        if (i == size)
+          return false;
+
+        char ch = data[i];
+
+        if (ch == '}')
+          break;
+
+        if (!isHexDigit(ch))
+          return false;
+
+        // use or trick to convert to lower case
+        code = 16 * code + (isDigit(ch) ? ch - '0' : (ch | ' ') - 'a' + 10);
+        i++;
+      }
+
+      if (i == size || data[i] != '}')
+        return false;
+      i++;
+
+      size_t utf8 = toUtf8(&data[write], code);
+      if (utf8 == 0)
+        return false;
+
+      write += utf8;
+      break;
+    }
+
+    default: {
+      if (isDigit(escape)) {
+        unsigned int code = escape - '0';
+
+        for (int j = 0; j < 2; ++j) {
+          if (i == size || !isDigit(data[i]))
+            break;
+
+          code = 10 * code + (data[i] - '0');
+          i++;
+        }
+
+        if (code > UCHAR_MAX)
+          return false;
+
+        data[write++] = char(code);
+      } else {
+        data[write++] = unescape(escape);
+      }
+    }
+    }
+  }
+
+  LUAU_ASSERT(write <= size);
+  data.resize(write);
+
+  return true;
 }
 
-void Lexer::fixupMultilineString(std::string& data)
-{
-    if (data.empty())
-        return;
+void Lexer::fixupMultilineString(std::string &data) {
+  if (data.empty())
+    return;
 
-    // Lua rules for multiline strings are as follows:
-    // - standalone \r, \r\n, \n\r and \n are all considered newlines
-    // - first newline in the multiline string is skipped
-    // - all other newlines are normalized to \n
+  // Lua rules for multiline strings are as follows:
+  // - standalone \r, \r\n, \n\r and \n are all considered newlines
+  // - first newline in the multiline string is skipped
+  // - all other newlines are normalized to \n
 
-    // Since our lexer just treats \n as newlines, we apply a simplified set of rules that is sufficient to get normalized newlines for Windows/Unix:
-    // - \r\n and \n are considered newlines
-    // - first newline is skipped
-    // - newlines are normalized to \n
+  // Since our lexer just treats \n as newlines, we apply a simplified set of
+  // rules that is sufficient to get normalized newlines for Windows/Unix:
+  // - \r\n and \n are considered newlines
+  // - first newline is skipped
+  // - newlines are normalized to \n
 
-    // This makes the string parsing behavior consistent with general lexing behavior - a standalone \r isn't considered a new line from the line
-    // tracking perspective
+  // This makes the string parsing behavior consistent with general lexing
+  // behavior - a standalone \r isn't considered a new line from the line
+  // tracking perspective
 
-    const char* src = data.c_str();
-    char* dst = &data[0];
+  const char *src = data.c_str();
+  char *dst = &data[0];
 
-    // skip leading newline
-    if (src[0] == '\r' && src[1] == '\n')
+  // skip leading newline
+  if (src[0] == '\r' && src[1] == '\n') {
+    src += 2;
+  } else if (src[0] == '\n') {
+    src += 1;
+  }
+
+  // parse the rest of the string, converting newlines as we go
+  while (*src) {
+    if (src[0] == '\r' && src[1] == '\n') {
+      *dst++ = '\n';
+      src += 2;
+    } else // note, this handles \n by just writing it without changes
     {
-        src += 2;
+      *dst++ = *src;
+      src += 1;
     }
-    else if (src[0] == '\n')
-    {
-        src += 1;
-    }
+  }
 
-    // parse the rest of the string, converting newlines as we go
-    while (*src)
-    {
-        if (src[0] == '\r' && src[1] == '\n')
-        {
-            *dst++ = '\n';
-            src += 2;
-        }
-        else // note, this handles \n by just writing it without changes
-        {
-            *dst++ = *src;
-            src += 1;
-        }
-    }
-
-    data.resize(dst - &data[0]);
+  data.resize(dst - &data[0]);
 }
 
 } // namespace Luau
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// DONE : was aleready inlined <Luau/Location.h>
+#line __LINE__ "luau_ast.cpp"
 
-namespace Luau
-{
+#line __LINE__ "Ast/src/Location.cpp"
 
-bool Position::operator==(const Position& rhs) const
-{
-    return this->column == rhs.column && this->line == rhs.line;
+// This file is part of the Luau programming language and is licensed under MIT
+// License; see LICENSE.txt for details DONE : was aleready inlined
+// <Luau/Location.h>
+
+namespace Luau {
+
+bool Position::operator==(const Position &rhs) const {
+  return this->column == rhs.column && this->line == rhs.line;
 }
 
-bool Position::operator!=(const Position& rhs) const
-{
-    return !(*this == rhs);
+bool Position::operator!=(const Position &rhs) const { return !(*this == rhs); }
+
+bool Position::operator<(const Position &rhs) const {
+  if (line == rhs.line)
+    return column < rhs.column;
+  else
+    return line < rhs.line;
 }
 
-bool Position::operator<(const Position& rhs) const
-{
-    if (line == rhs.line)
-        return column < rhs.column;
-    else
-        return line < rhs.line;
+bool Position::operator>(const Position &rhs) const {
+  if (line == rhs.line)
+    return column > rhs.column;
+  else
+    return line > rhs.line;
 }
 
-bool Position::operator>(const Position& rhs) const
-{
-    if (line == rhs.line)
-        return column > rhs.column;
-    else
-        return line > rhs.line;
+bool Position::operator<=(const Position &rhs) const {
+  return *this == rhs || *this < rhs;
 }
 
-bool Position::operator<=(const Position& rhs) const
-{
-    return *this == rhs || *this < rhs;
+bool Position::operator>=(const Position &rhs) const {
+  return *this == rhs || *this > rhs;
 }
 
-bool Position::operator>=(const Position& rhs) const
-{
-    return *this == rhs || *this > rhs;
-}
-
-void Position::shift(const Position& start, const Position& oldEnd, const Position& newEnd)
-{
-    if (*this >= start)
-    {
-        if (this->line > oldEnd.line)
-            this->line += (newEnd.line - oldEnd.line);
-        else
-        {
-            this->line = newEnd.line;
-            this->column += (newEnd.column - oldEnd.column);
-        }
+void Position::shift(const Position &start, const Position &oldEnd,
+                     const Position &newEnd) {
+  if (*this >= start) {
+    if (this->line > oldEnd.line)
+      this->line += (newEnd.line - oldEnd.line);
+    else {
+      this->line = newEnd.line;
+      this->column += (newEnd.column - oldEnd.column);
     }
+  }
 }
 
-bool Location::operator==(const Location& rhs) const
-{
-    return this->begin == rhs.begin && this->end == rhs.end;
+bool Location::operator==(const Location &rhs) const {
+  return this->begin == rhs.begin && this->end == rhs.end;
 }
 
-bool Location::operator!=(const Location& rhs) const
-{
-    return !(*this == rhs);
+bool Location::operator!=(const Location &rhs) const { return !(*this == rhs); }
+
+bool Location::encloses(const Location &l) const {
+  return begin <= l.begin && end >= l.end;
 }
 
-bool Location::encloses(const Location& l) const
-{
-    return begin <= l.begin && end >= l.end;
+bool Location::overlaps(const Location &l) const {
+  return (begin <= l.begin && end >= l.begin) ||
+         (begin <= l.end && end >= l.end) || (begin >= l.begin && end <= l.end);
 }
 
-bool Location::overlaps(const Location& l) const
-{
-    return (begin <= l.begin && end >= l.begin) || (begin <= l.end && end >= l.end) || (begin >= l.begin && end <= l.end);
+bool Location::contains(const Position &p) const {
+  return begin <= p && p < end;
 }
 
-bool Location::contains(const Position& p) const
-{
-    return begin <= p && p < end;
+bool Location::containsClosed(const Position &p) const {
+  return begin <= p && p <= end;
 }
 
-bool Location::containsClosed(const Position& p) const
-{
-    return begin <= p && p <= end;
+void Location::extend(const Location &other) {
+  if (other.begin < begin)
+    begin = other.begin;
+  if (other.end > end)
+    end = other.end;
 }
 
-void Location::extend(const Location& other)
-{
-    if (other.begin < begin)
-        begin = other.begin;
-    if (other.end > end)
-        end = other.end;
-}
-
-void Location::shift(const Position& start, const Position& oldEnd, const Position& newEnd)
-{
-    begin.shift(start, oldEnd, newEnd);
-    end.shift(start, oldEnd, newEnd);
+void Location::shift(const Position &start, const Position &oldEnd,
+                     const Position &newEnd) {
+  begin.shift(start, oldEnd, newEnd);
+  end.shift(start, oldEnd, newEnd);
 }
 
 } // namespace Luau
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// DONE : was aleready inlined <Luau/Parser.h>
+#line __LINE__ "luau_ast.cpp"
+
+#line __LINE__ "Ast/src/Parser.cpp"
+
+// This file is part of the Luau programming language and is licensed under MIT
+// License; see LICENSE.txt for details DONE : was aleready inlined
+// <Luau/Parser.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
 
@@ -3608,9 +3422,9 @@ LUAU_FASTINTVARIABLE(LuauRecursionLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauTypeLengthLimit, 1000)
 LUAU_FASTINTVARIABLE(LuauParseErrorLimit, 100)
 
-// Warning: If you are introducing new syntax, ensure that it is behind a separate
-// flag so that we don't break production games by reverting syntax changes.
-// See docs/SyntaxChanges.md for an explanation.
+// Warning: If you are introducing new syntax, ensure that it is behind a
+// separate flag so that we don't break production games by reverting syntax
+// changes. See docs/SyntaxChanges.md for an explanation.
 LUAU_FASTFLAGVARIABLE(DebugLuauDeferredConstraintResolution, false)
 LUAU_FASTFLAG(LuauAttributeSyntax)
 LUAU_FASTFLAGVARIABLE(LuauLeadingBarAndAmpersand2, false)
@@ -3618,263 +3432,220 @@ LUAU_FASTFLAGVARIABLE(LuauNativeAttribute, false)
 LUAU_FASTFLAGVARIABLE(LuauAttributeSyntaxFunExpr, false)
 LUAU_FASTFLAGVARIABLE(LuauDeclarationExtraPropData, false)
 
-namespace Luau
-{
+namespace Luau {
 
-struct AttributeEntry
-{
-    const char* name;
-    AstAttr::Type type;
+struct AttributeEntry {
+  const char *name;
+  AstAttr::Type type;
 };
 
-AttributeEntry kAttributeEntries[] = {{"@checked", AstAttr::Type::Checked}, {"@native", AstAttr::Type::Native}, {nullptr, AstAttr::Type::Checked}};
+AttributeEntry kAttributeEntries[] = {{"@checked", AstAttr::Type::Checked},
+                                      {"@native", AstAttr::Type::Native},
+                                      {nullptr, AstAttr::Type::Checked}};
 
-ParseError::ParseError(const Location& location, const std::string& message)
-    : location(location)
-    , message(message)
-{
-}
+ParseError::ParseError(const Location &location, const std::string &message)
+    : location(location), message(message) {}
 
-const char* ParseError::what() const throw()
-{
-    return message.c_str();
-}
+const char *ParseError::what() const throw() { return message.c_str(); }
 
-const Location& ParseError::getLocation() const
-{
-    return location;
-}
+const Location &ParseError::getLocation() const { return location; }
 
-const std::string& ParseError::getMessage() const
-{
-    return message;
-}
+const std::string &ParseError::getMessage() const { return message; }
 
-// LUAU_NOINLINE is used to limit the stack cost of this function due to std::string object / exception plumbing
-LUAU_NOINLINE void ParseError::raise(const Location& location, const char* format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    std::string message = vformat(format, args);
-    va_end(args);
+// LUAU_NOINLINE is used to limit the stack cost of this function due to
+// std::string object / exception plumbing
+LUAU_NOINLINE void ParseError::raise(const Location &location,
+                                     const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  std::string message = vformat(format, args);
+  va_end(args);
 
-    throw ParseError(location, message);
+  throw ParseError(location, message);
 }
 
 ParseErrors::ParseErrors(std::vector<ParseError> errors)
-    : errors(std::move(errors))
-{
-    LUAU_ASSERT(!this->errors.empty());
+    : errors(std::move(errors)) {
+  LUAU_ASSERT(!this->errors.empty());
 
-    if (this->errors.size() == 1)
-        message = this->errors.front().what();
-    else
-        message = format("%d parse errors", int(this->errors.size()));
+  if (this->errors.size() == 1)
+    message = this->errors.front().what();
+  else
+    message = format("%d parse errors", int(this->errors.size()));
 }
 
-const char* ParseErrors::what() const throw()
-{
-    return message.c_str();
+const char *ParseErrors::what() const throw() { return message.c_str(); }
+
+const std::vector<ParseError> &ParseErrors::getErrors() const { return errors; }
+
+template <typename T>
+TempVector<T>::TempVector(std::vector<T> &storage)
+    : storage(storage), offset(storage.size()), size_(0) {}
+
+template <typename T> TempVector<T>::~TempVector() {
+  LUAU_ASSERT(storage.size() == offset + size_);
+  storage.erase(storage.begin() + offset, storage.end());
 }
 
-const std::vector<ParseError>& ParseErrors::getErrors() const
-{
-    return errors;
+template <typename T> const T &TempVector<T>::operator[](size_t index) const {
+  LUAU_ASSERT(index < size_);
+  return storage[offset + index];
 }
 
-template<typename T>
-TempVector<T>::TempVector(std::vector<T>& storage)
-    : storage(storage)
-    , offset(storage.size())
-    , size_(0)
-{
+template <typename T> const T &TempVector<T>::front() const {
+  LUAU_ASSERT(size_ > 0);
+  return storage[offset];
 }
 
-template<typename T>
-TempVector<T>::~TempVector()
-{
-    LUAU_ASSERT(storage.size() == offset + size_);
-    storage.erase(storage.begin() + offset, storage.end());
+template <typename T> const T &TempVector<T>::back() const {
+  LUAU_ASSERT(size_ > 0);
+  return storage.back();
 }
 
-template<typename T>
-const T& TempVector<T>::operator[](size_t index) const
-{
-    LUAU_ASSERT(index < size_);
-    return storage[offset + index];
+template <typename T> bool TempVector<T>::empty() const { return size_ == 0; }
+
+template <typename T> size_t TempVector<T>::size() const { return size_; }
+
+template <typename T> void TempVector<T>::push_back(const T &item) {
+  LUAU_ASSERT(storage.size() == offset + size_);
+  storage.push_back(item);
+  size_++;
 }
 
-template<typename T>
-const T& TempVector<T>::front() const
-{
-    LUAU_ASSERT(size_ > 0);
-    return storage[offset];
+static bool shouldParseTypePack(Lexer &lexer) {
+  if (lexer.current().type == Lexeme::Dot3)
+    return true;
+  else if (lexer.current().type == Lexeme::Name &&
+           lexer.lookahead().type == Lexeme::Dot3)
+    return true;
+
+  return false;
 }
 
-template<typename T>
-const T& TempVector<T>::back() const
-{
-    LUAU_ASSERT(size_ > 0);
-    return storage.back();
+ParseResult Parser::parse(const char *buffer, size_t bufferSize,
+                          AstNameTable &names, Allocator &allocator,
+                          ParseOptions options) {
+  LUAU_TIMETRACE_SCOPE("Parser::parse", "Parser");
+
+  Parser p(buffer, bufferSize, names, allocator, options);
+
+  try {
+    AstStatBlock *root = p.parseChunk();
+    size_t lines = p.lexer.current().location.end.line +
+                   (bufferSize > 0 && buffer[bufferSize - 1] != '\n');
+
+    return ParseResult{root, lines, std::move(p.hotcomments),
+                       std::move(p.parseErrors), std::move(p.commentLocations)};
+  } catch (ParseError &err) {
+    // when catching a fatal error, append it to the list of non-fatal errors
+    // and return
+    p.parseErrors.push_back(err);
+
+    return ParseResult{nullptr, 0, {}, p.parseErrors};
+  }
 }
 
-template<typename T>
-bool TempVector<T>::empty() const
-{
-    return size_ == 0;
+Parser::Parser(const char *buffer, size_t bufferSize, AstNameTable &names,
+               Allocator &allocator, const ParseOptions &options)
+    : options(options), lexer(buffer, bufferSize, names), allocator(allocator),
+      recursionCounter(0), endMismatchSuspect(Lexeme(Location(), Lexeme::Eof)),
+      localMap(AstName()) {
+  Function top;
+  top.vararg = true;
+
+  functionStack.reserve(8);
+  functionStack.push_back(top);
+
+  nameSelf = names.addStatic("self");
+  nameNumber = names.addStatic("number");
+  nameError = names.addStatic(kParseNameError);
+  nameNil = names.getOrAdd("nil"); // nil is a reserved keyword
+
+  matchRecoveryStopOnToken.assign(Lexeme::Type::Reserved_END, 0);
+  matchRecoveryStopOnToken[Lexeme::Type::Eof] = 1;
+
+  // required for lookahead() to work across a comment boundary and for
+  // nextLexeme() to work when captureComments is false
+  lexer.setSkipComments(true);
+
+  // read first lexeme (any hot comments get .header = true)
+  LUAU_ASSERT(hotcommentHeader);
+  nextLexeme();
+
+  // all hot comments parsed after the first non-comment lexeme are special in
+  // that they don't affect type checking / linting mode
+  hotcommentHeader = false;
+
+  // preallocate some buffers that are very likely to grow anyway; this works
+  // around std::vector's inefficient growth policy for small arrays
+  localStack.reserve(16);
+  scratchStat.reserve(16);
+  scratchExpr.reserve(16);
+  scratchLocal.reserve(16);
+  scratchBinding.reserve(16);
 }
 
-template<typename T>
-size_t TempVector<T>::size() const
-{
-    return size_;
+bool Parser::blockFollow(const Lexeme &l) {
+  return l.type == Lexeme::Eof || l.type == Lexeme::ReservedElse ||
+         l.type == Lexeme::ReservedElseif || l.type == Lexeme::ReservedEnd ||
+         l.type == Lexeme::ReservedUntil;
 }
 
-template<typename T>
-void TempVector<T>::push_back(const T& item)
-{
-    LUAU_ASSERT(storage.size() == offset + size_);
-    storage.push_back(item);
-    size_++;
-}
+AstStatBlock *Parser::parseChunk() {
+  AstStatBlock *result = parseBlock();
 
-static bool shouldParseTypePack(Lexer& lexer)
-{
-    if (lexer.current().type == Lexeme::Dot3)
-        return true;
-    else if (lexer.current().type == Lexeme::Name && lexer.lookahead().type == Lexeme::Dot3)
-        return true;
+  if (lexer.current().type != Lexeme::Eof)
+    expectAndConsumeFail(Lexeme::Eof, nullptr);
 
-    return false;
-}
-
-ParseResult Parser::parse(const char* buffer, size_t bufferSize, AstNameTable& names, Allocator& allocator, ParseOptions options)
-{
-    LUAU_TIMETRACE_SCOPE("Parser::parse", "Parser");
-
-    Parser p(buffer, bufferSize, names, allocator, options);
-
-    try
-    {
-        AstStatBlock* root = p.parseChunk();
-        size_t lines = p.lexer.current().location.end.line + (bufferSize > 0 && buffer[bufferSize - 1] != '\n');
-
-        return ParseResult{root, lines, std::move(p.hotcomments), std::move(p.parseErrors), std::move(p.commentLocations)};
-    }
-    catch (ParseError& err)
-    {
-        // when catching a fatal error, append it to the list of non-fatal errors and return
-        p.parseErrors.push_back(err);
-
-        return ParseResult{nullptr, 0, {}, p.parseErrors};
-    }
-}
-
-Parser::Parser(const char* buffer, size_t bufferSize, AstNameTable& names, Allocator& allocator, const ParseOptions& options)
-    : options(options)
-    , lexer(buffer, bufferSize, names)
-    , allocator(allocator)
-    , recursionCounter(0)
-    , endMismatchSuspect(Lexeme(Location(), Lexeme::Eof))
-    , localMap(AstName())
-{
-    Function top;
-    top.vararg = true;
-
-    functionStack.reserve(8);
-    functionStack.push_back(top);
-
-    nameSelf = names.addStatic("self");
-    nameNumber = names.addStatic("number");
-    nameError = names.addStatic(kParseNameError);
-    nameNil = names.getOrAdd("nil"); // nil is a reserved keyword
-
-    matchRecoveryStopOnToken.assign(Lexeme::Type::Reserved_END, 0);
-    matchRecoveryStopOnToken[Lexeme::Type::Eof] = 1;
-
-    // required for lookahead() to work across a comment boundary and for nextLexeme() to work when captureComments is false
-    lexer.setSkipComments(true);
-
-    // read first lexeme (any hot comments get .header = true)
-    LUAU_ASSERT(hotcommentHeader);
-    nextLexeme();
-
-    // all hot comments parsed after the first non-comment lexeme are special in that they don't affect type checking / linting mode
-    hotcommentHeader = false;
-
-    // preallocate some buffers that are very likely to grow anyway; this works around std::vector's inefficient growth policy for small arrays
-    localStack.reserve(16);
-    scratchStat.reserve(16);
-    scratchExpr.reserve(16);
-    scratchLocal.reserve(16);
-    scratchBinding.reserve(16);
-}
-
-bool Parser::blockFollow(const Lexeme& l)
-{
-    return l.type == Lexeme::Eof || l.type == Lexeme::ReservedElse || l.type == Lexeme::ReservedElseif || l.type == Lexeme::ReservedEnd ||
-           l.type == Lexeme::ReservedUntil;
-}
-
-AstStatBlock* Parser::parseChunk()
-{
-    AstStatBlock* result = parseBlock();
-
-    if (lexer.current().type != Lexeme::Eof)
-        expectAndConsumeFail(Lexeme::Eof, nullptr);
-
-    return result;
+  return result;
 }
 
 // chunk ::= {stat [`;']} [laststat [`;']]
 // block ::= chunk
-AstStatBlock* Parser::parseBlock()
-{
-    unsigned int localsBegin = saveLocals();
+AstStatBlock *Parser::parseBlock() {
+  unsigned int localsBegin = saveLocals();
 
-    AstStatBlock* result = parseBlockNoScope();
+  AstStatBlock *result = parseBlockNoScope();
 
-    restoreLocals(localsBegin);
+  restoreLocals(localsBegin);
 
-    return result;
+  return result;
 }
 
-static bool isStatLast(AstStat* stat)
-{
-    return stat->is<AstStatBreak>() || stat->is<AstStatContinue>() || stat->is<AstStatReturn>();
+static bool isStatLast(AstStat *stat) {
+  return stat->is<AstStatBreak>() || stat->is<AstStatContinue>() ||
+         stat->is<AstStatReturn>();
 }
 
-AstStatBlock* Parser::parseBlockNoScope()
-{
-    TempVector<AstStat*> body(scratchStat);
+AstStatBlock *Parser::parseBlockNoScope() {
+  TempVector<AstStat *> body(scratchStat);
 
-    const Position prevPosition = lexer.previousLocation().end;
+  const Position prevPosition = lexer.previousLocation().end;
 
-    while (!blockFollow(lexer.current()))
-    {
-        unsigned int oldRecursionCount = recursionCounter;
+  while (!blockFollow(lexer.current())) {
+    unsigned int oldRecursionCount = recursionCounter;
 
-        incrementRecursionCounter("block");
+    incrementRecursionCounter("block");
 
-        AstStat* stat = parseStat();
+    AstStat *stat = parseStat();
 
-        recursionCounter = oldRecursionCount;
+    recursionCounter = oldRecursionCount;
 
-        if (lexer.current().type == ';')
-        {
-            nextLexeme();
-            stat->hasSemicolon = true;
-        }
-
-        body.push_back(stat);
-
-        if (isStatLast(stat))
-            break;
+    if (lexer.current().type == ';') {
+      nextLexeme();
+      stat->hasSemicolon = true;
     }
 
-    const Location location = Location(prevPosition, lexer.current().location.begin);
+    body.push_back(stat);
 
-    return allocator.alloc<AstStatBlock>(location, copy(body));
+    if (isStatLast(stat))
+      break;
+  }
+
+  const Location location =
+      Location(prevPosition, lexer.current().location.begin);
+
+  return allocator.alloc<AstStatBlock>(location, copy(body));
 }
 
 // stat ::=
@@ -3892,1403 +3663,1442 @@ AstStatBlock* Parser::parseBlockNoScope()
 // local attributes function Name funcbody |
 // local namelist [`=' explist]
 // laststat ::= return [explist] | break
-AstStat* Parser::parseStat()
-{
-    // guess the type from the token type
-    switch (lexer.current().type)
-    {
-    case Lexeme::ReservedIf:
-        return parseIf();
-    case Lexeme::ReservedWhile:
-        return parseWhile();
-    case Lexeme::ReservedDo:
-        return parseDo();
-    case Lexeme::ReservedFor:
-        return parseFor();
-    case Lexeme::ReservedRepeat:
-        return parseRepeat();
-    case Lexeme::ReservedFunction:
-        return parseFunctionStat(AstArray<AstAttr*>({nullptr, 0}));
-    case Lexeme::ReservedLocal:
-        return parseLocal(AstArray<AstAttr*>({nullptr, 0}));
-    case Lexeme::ReservedReturn:
-        return parseReturn();
-    case Lexeme::ReservedBreak:
-        return parseBreak();
-    case Lexeme::Attribute:
-        if (FFlag::LuauAttributeSyntax)
-            return parseAttributeStat();
-    default:;
-    }
+AstStat *Parser::parseStat() {
+  // guess the type from the token type
+  switch (lexer.current().type) {
+  case Lexeme::ReservedIf:
+    return parseIf();
+  case Lexeme::ReservedWhile:
+    return parseWhile();
+  case Lexeme::ReservedDo:
+    return parseDo();
+  case Lexeme::ReservedFor:
+    return parseFor();
+  case Lexeme::ReservedRepeat:
+    return parseRepeat();
+  case Lexeme::ReservedFunction:
+    return parseFunctionStat(AstArray<AstAttr *>({nullptr, 0}));
+  case Lexeme::ReservedLocal:
+    return parseLocal(AstArray<AstAttr *>({nullptr, 0}));
+  case Lexeme::ReservedReturn:
+    return parseReturn();
+  case Lexeme::ReservedBreak:
+    return parseBreak();
+  case Lexeme::Attribute:
+    if (FFlag::LuauAttributeSyntax)
+      return parseAttributeStat();
+  default:;
+  }
 
-    Location start = lexer.current().location;
+  Location start = lexer.current().location;
 
-    // we need to disambiguate a few cases, primarily assignment (lvalue = ...) vs statements-that-are calls
-    AstExpr* expr = parsePrimaryExpr(/* asStatement= */ true);
+  // we need to disambiguate a few cases, primarily assignment (lvalue = ...) vs
+  // statements-that-are calls
+  AstExpr *expr = parsePrimaryExpr(/* asStatement= */ true);
 
-    if (expr->is<AstExprCall>())
-        return allocator.alloc<AstStatExpr>(expr->location, expr);
+  if (expr->is<AstExprCall>())
+    return allocator.alloc<AstStatExpr>(expr->location, expr);
 
-    // if the next token is , or =, it's an assignment (, means it's an assignment with multiple variables)
-    if (lexer.current().type == ',' || lexer.current().type == '=')
-        return parseAssignment(expr);
+  // if the next token is , or =, it's an assignment (, means it's an assignment
+  // with multiple variables)
+  if (lexer.current().type == ',' || lexer.current().type == '=')
+    return parseAssignment(expr);
 
-    // if the next token is a compound assignment operator, it's a compound assignment (these don't support multiple variables)
-    if (std::optional<AstExprBinary::Op> op = parseCompoundOp(lexer.current()))
-        return parseCompoundAssignment(expr, *op);
+  // if the next token is a compound assignment operator, it's a compound
+  // assignment (these don't support multiple variables)
+  if (std::optional<AstExprBinary::Op> op = parseCompoundOp(lexer.current()))
+    return parseCompoundAssignment(expr, *op);
 
-    // we know this isn't a call or an assignment; therefore it must be a context-sensitive keyword such as `type` or `continue`
-    AstName ident = getIdentifier(expr);
+  // we know this isn't a call or an assignment; therefore it must be a
+  // context-sensitive keyword such as `type` or `continue`
+  AstName ident = getIdentifier(expr);
 
-    if (ident == "type")
-        return parseTypeAlias(expr->location, /* exported= */ false);
+  if (ident == "type")
+    return parseTypeAlias(expr->location, /* exported= */ false);
 
-    if (ident == "export" && lexer.current().type == Lexeme::Name && AstName(lexer.current().name) == "type")
-    {
-        nextLexeme();
-        return parseTypeAlias(expr->location, /* exported= */ true);
-    }
+  if (ident == "export" && lexer.current().type == Lexeme::Name &&
+      AstName(lexer.current().name) == "type") {
+    nextLexeme();
+    return parseTypeAlias(expr->location, /* exported= */ true);
+  }
 
-    if (ident == "continue")
-        return parseContinue(expr->location);
+  if (ident == "continue")
+    return parseContinue(expr->location);
 
-    if (options.allowDeclarationSyntax)
-    {
-        if (ident == "declare")
-            return parseDeclaration(expr->location, AstArray<AstAttr*>({nullptr, 0}));
-    }
+  if (options.allowDeclarationSyntax) {
+    if (ident == "declare")
+      return parseDeclaration(expr->location,
+                              AstArray<AstAttr *>({nullptr, 0}));
+  }
 
-    // skip unexpected symbol if lexer couldn't advance at all (statements are parsed in a loop)
-    if (start == lexer.current().location)
-        nextLexeme();
+  // skip unexpected symbol if lexer couldn't advance at all (statements are
+  // parsed in a loop)
+  if (start == lexer.current().location)
+    nextLexeme();
 
-    return reportStatError(expr->location, copy({expr}), {}, "Incomplete statement: expected assignment or a function call");
+  return reportStatError(
+      expr->location, copy({expr}), {},
+      "Incomplete statement: expected assignment or a function call");
 }
 
 // if exp then block {elseif exp then block} [else block] end
-AstStat* Parser::parseIf()
-{
-    Location start = lexer.current().location;
+AstStat *Parser::parseIf() {
+  Location start = lexer.current().location;
 
-    nextLexeme(); // if / elseif
+  nextLexeme(); // if / elseif
 
-    AstExpr* cond = parseExpr();
+  AstExpr *cond = parseExpr();
 
-    Lexeme matchThen = lexer.current();
-    std::optional<Location> thenLocation;
-    if (expectAndConsume(Lexeme::ReservedThen, "if statement"))
-        thenLocation = matchThen.location;
+  Lexeme matchThen = lexer.current();
+  std::optional<Location> thenLocation;
+  if (expectAndConsume(Lexeme::ReservedThen, "if statement"))
+    thenLocation = matchThen.location;
 
-    AstStatBlock* thenbody = parseBlock();
+  AstStatBlock *thenbody = parseBlock();
 
-    AstStat* elsebody = nullptr;
-    Location end = start;
-    std::optional<Location> elseLocation;
+  AstStat *elsebody = nullptr;
+  Location end = start;
+  std::optional<Location> elseLocation;
 
-    if (lexer.current().type == Lexeme::ReservedElseif)
-    {
-        thenbody->hasEnd = true;
-        unsigned int oldRecursionCount = recursionCounter;
-        incrementRecursionCounter("elseif");
-        elseLocation = lexer.current().location;
-        elsebody = parseIf();
-        end = elsebody->location;
-        recursionCounter = oldRecursionCount;
-    }
-    else
-    {
-        Lexeme matchThenElse = matchThen;
+  if (lexer.current().type == Lexeme::ReservedElseif) {
+    thenbody->hasEnd = true;
+    unsigned int oldRecursionCount = recursionCounter;
+    incrementRecursionCounter("elseif");
+    elseLocation = lexer.current().location;
+    elsebody = parseIf();
+    end = elsebody->location;
+    recursionCounter = oldRecursionCount;
+  } else {
+    Lexeme matchThenElse = matchThen;
 
-        if (lexer.current().type == Lexeme::ReservedElse)
-        {
-            thenbody->hasEnd = true;
-            elseLocation = lexer.current().location;
-            matchThenElse = lexer.current();
-            nextLexeme();
+    if (lexer.current().type == Lexeme::ReservedElse) {
+      thenbody->hasEnd = true;
+      elseLocation = lexer.current().location;
+      matchThenElse = lexer.current();
+      nextLexeme();
 
-            elsebody = parseBlock();
-            elsebody->location.begin = matchThenElse.location.end;
-        }
-
-        end = lexer.current().location;
-
-        bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchThenElse);
-
-        if (elsebody)
-        {
-            if (AstStatBlock* elseBlock = elsebody->as<AstStatBlock>())
-                elseBlock->hasEnd = hasEnd;
-        }
-        else
-            thenbody->hasEnd = hasEnd;
+      elsebody = parseBlock();
+      elsebody->location.begin = matchThenElse.location.end;
     }
 
-    return allocator.alloc<AstStatIf>(Location(start, end), cond, thenbody, elsebody, thenLocation, elseLocation);
+    end = lexer.current().location;
+
+    bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchThenElse);
+
+    if (elsebody) {
+      if (AstStatBlock *elseBlock = elsebody->as<AstStatBlock>())
+        elseBlock->hasEnd = hasEnd;
+    } else
+      thenbody->hasEnd = hasEnd;
+  }
+
+  return allocator.alloc<AstStatIf>(Location(start, end), cond, thenbody,
+                                    elsebody, thenLocation, elseLocation);
 }
 
 // while exp do block end
-AstStat* Parser::parseWhile()
-{
-    Location start = lexer.current().location;
+AstStat *Parser::parseWhile() {
+  Location start = lexer.current().location;
 
-    nextLexeme(); // while
+  nextLexeme(); // while
 
-    AstExpr* cond = parseExpr();
+  AstExpr *cond = parseExpr();
+
+  Lexeme matchDo = lexer.current();
+  bool hasDo = expectAndConsume(Lexeme::ReservedDo, "while loop");
+
+  functionStack.back().loopDepth++;
+
+  AstStatBlock *body = parseBlock();
+
+  functionStack.back().loopDepth--;
+
+  Location end = lexer.current().location;
+
+  bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchDo);
+  body->hasEnd = hasEnd;
+
+  return allocator.alloc<AstStatWhile>(Location(start, end), cond, body, hasDo,
+                                       matchDo.location);
+}
+
+// repeat block until exp
+AstStat *Parser::parseRepeat() {
+  Location start = lexer.current().location;
+
+  Lexeme matchRepeat = lexer.current();
+  nextLexeme(); // repeat
+
+  unsigned int localsBegin = saveLocals();
+
+  functionStack.back().loopDepth++;
+
+  AstStatBlock *body = parseBlockNoScope();
+
+  functionStack.back().loopDepth--;
+
+  bool hasUntil = expectMatchEndAndConsume(Lexeme::ReservedUntil, matchRepeat);
+  body->hasEnd = hasUntil;
+
+  AstExpr *cond = parseExpr();
+
+  restoreLocals(localsBegin);
+
+  return allocator.alloc<AstStatRepeat>(Location(start, cond->location), cond,
+                                        body, hasUntil);
+}
+
+// do block end
+AstStat *Parser::parseDo() {
+  Location start = lexer.current().location;
+
+  Lexeme matchDo = lexer.current();
+  nextLexeme(); // do
+
+  AstStatBlock *body = parseBlock();
+
+  body->location.begin = start.begin;
+
+  body->hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchDo);
+
+  return body;
+}
+
+// break
+AstStat *Parser::parseBreak() {
+  Location start = lexer.current().location;
+
+  nextLexeme(); // break
+
+  if (functionStack.back().loopDepth == 0)
+    return reportStatError(
+        start, {}, copy<AstStat *>({allocator.alloc<AstStatBreak>(start)}),
+        "break statement must be inside a loop");
+
+  return allocator.alloc<AstStatBreak>(start);
+}
+
+// continue
+AstStat *Parser::parseContinue(const Location &start) {
+  if (functionStack.back().loopDepth == 0)
+    return reportStatError(
+        start, {}, copy<AstStat *>({allocator.alloc<AstStatContinue>(start)}),
+        "continue statement must be inside a loop");
+
+  // note: the token is already parsed for us!
+
+  return allocator.alloc<AstStatContinue>(start);
+}
+
+// for binding `=' exp `,' exp [`,' exp] do block end |
+// for bindinglist in explist do block end |
+AstStat *Parser::parseFor() {
+  Location start = lexer.current().location;
+
+  nextLexeme(); // for
+
+  Binding varname = parseBinding();
+
+  if (lexer.current().type == '=') {
+    nextLexeme();
+
+    AstExpr *from = parseExpr();
+
+    expectAndConsume(',', "index range");
+
+    AstExpr *to = parseExpr();
+
+    AstExpr *step = nullptr;
+
+    if (lexer.current().type == ',') {
+      nextLexeme();
+
+      step = parseExpr();
+    }
 
     Lexeme matchDo = lexer.current();
-    bool hasDo = expectAndConsume(Lexeme::ReservedDo, "while loop");
+    bool hasDo = expectAndConsume(Lexeme::ReservedDo, "for loop");
+
+    unsigned int localsBegin = saveLocals();
 
     functionStack.back().loopDepth++;
 
-    AstStatBlock* body = parseBlock();
+    AstLocal *var = pushLocal(varname);
+
+    AstStatBlock *body = parseBlock();
 
     functionStack.back().loopDepth--;
+
+    restoreLocals(localsBegin);
 
     Location end = lexer.current().location;
 
     bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchDo);
     body->hasEnd = hasEnd;
 
-    return allocator.alloc<AstStatWhile>(Location(start, end), cond, body, hasDo, matchDo.location);
-}
+    return allocator.alloc<AstStatFor>(Location(start, end), var, from, to,
+                                       step, body, hasDo, matchDo.location);
+  } else {
+    TempVector<Binding> names(scratchBinding);
+    names.push_back(varname);
 
-// repeat block until exp
-AstStat* Parser::parseRepeat()
-{
-    Location start = lexer.current().location;
+    if (lexer.current().type == ',') {
+      nextLexeme();
 
-    Lexeme matchRepeat = lexer.current();
-    nextLexeme(); // repeat
+      parseBindingList(names);
+    }
+
+    Location inLocation = lexer.current().location;
+    bool hasIn = expectAndConsume(Lexeme::ReservedIn, "for loop");
+
+    TempVector<AstExpr *> values(scratchExpr);
+    parseExprList(values);
+
+    Lexeme matchDo = lexer.current();
+    bool hasDo = expectAndConsume(Lexeme::ReservedDo, "for loop");
 
     unsigned int localsBegin = saveLocals();
 
     functionStack.back().loopDepth++;
 
-    AstStatBlock* body = parseBlockNoScope();
+    TempVector<AstLocal *> vars(scratchLocal);
+
+    for (size_t i = 0; i < names.size(); ++i)
+      vars.push_back(pushLocal(names[i]));
+
+    AstStatBlock *body = parseBlock();
 
     functionStack.back().loopDepth--;
 
-    bool hasUntil = expectMatchEndAndConsume(Lexeme::ReservedUntil, matchRepeat);
-    body->hasEnd = hasUntil;
-
-    AstExpr* cond = parseExpr();
-
     restoreLocals(localsBegin);
 
-    return allocator.alloc<AstStatRepeat>(Location(start, cond->location), cond, body, hasUntil);
-}
+    Location end = lexer.current().location;
 
-// do block end
-AstStat* Parser::parseDo()
-{
-    Location start = lexer.current().location;
+    bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchDo);
+    body->hasEnd = hasEnd;
 
-    Lexeme matchDo = lexer.current();
-    nextLexeme(); // do
-
-    AstStatBlock* body = parseBlock();
-
-    body->location.begin = start.begin;
-
-    body->hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchDo);
-
-    return body;
-}
-
-// break
-AstStat* Parser::parseBreak()
-{
-    Location start = lexer.current().location;
-
-    nextLexeme(); // break
-
-    if (functionStack.back().loopDepth == 0)
-        return reportStatError(start, {}, copy<AstStat*>({allocator.alloc<AstStatBreak>(start)}), "break statement must be inside a loop");
-
-    return allocator.alloc<AstStatBreak>(start);
-}
-
-// continue
-AstStat* Parser::parseContinue(const Location& start)
-{
-    if (functionStack.back().loopDepth == 0)
-        return reportStatError(start, {}, copy<AstStat*>({allocator.alloc<AstStatContinue>(start)}), "continue statement must be inside a loop");
-
-    // note: the token is already parsed for us!
-
-    return allocator.alloc<AstStatContinue>(start);
-}
-
-// for binding `=' exp `,' exp [`,' exp] do block end |
-// for bindinglist in explist do block end |
-AstStat* Parser::parseFor()
-{
-    Location start = lexer.current().location;
-
-    nextLexeme(); // for
-
-    Binding varname = parseBinding();
-
-    if (lexer.current().type == '=')
-    {
-        nextLexeme();
-
-        AstExpr* from = parseExpr();
-
-        expectAndConsume(',', "index range");
-
-        AstExpr* to = parseExpr();
-
-        AstExpr* step = nullptr;
-
-        if (lexer.current().type == ',')
-        {
-            nextLexeme();
-
-            step = parseExpr();
-        }
-
-        Lexeme matchDo = lexer.current();
-        bool hasDo = expectAndConsume(Lexeme::ReservedDo, "for loop");
-
-        unsigned int localsBegin = saveLocals();
-
-        functionStack.back().loopDepth++;
-
-        AstLocal* var = pushLocal(varname);
-
-        AstStatBlock* body = parseBlock();
-
-        functionStack.back().loopDepth--;
-
-        restoreLocals(localsBegin);
-
-        Location end = lexer.current().location;
-
-        bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchDo);
-        body->hasEnd = hasEnd;
-
-        return allocator.alloc<AstStatFor>(Location(start, end), var, from, to, step, body, hasDo, matchDo.location);
-    }
-    else
-    {
-        TempVector<Binding> names(scratchBinding);
-        names.push_back(varname);
-
-        if (lexer.current().type == ',')
-        {
-            nextLexeme();
-
-            parseBindingList(names);
-        }
-
-        Location inLocation = lexer.current().location;
-        bool hasIn = expectAndConsume(Lexeme::ReservedIn, "for loop");
-
-        TempVector<AstExpr*> values(scratchExpr);
-        parseExprList(values);
-
-        Lexeme matchDo = lexer.current();
-        bool hasDo = expectAndConsume(Lexeme::ReservedDo, "for loop");
-
-        unsigned int localsBegin = saveLocals();
-
-        functionStack.back().loopDepth++;
-
-        TempVector<AstLocal*> vars(scratchLocal);
-
-        for (size_t i = 0; i < names.size(); ++i)
-            vars.push_back(pushLocal(names[i]));
-
-        AstStatBlock* body = parseBlock();
-
-        functionStack.back().loopDepth--;
-
-        restoreLocals(localsBegin);
-
-        Location end = lexer.current().location;
-
-        bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchDo);
-        body->hasEnd = hasEnd;
-
-        return allocator.alloc<AstStatForIn>(Location(start, end), copy(vars), copy(values), body, hasIn, inLocation, hasDo, matchDo.location);
-    }
+    return allocator.alloc<AstStatForIn>(Location(start, end), copy(vars),
+                                         copy(values), body, hasIn, inLocation,
+                                         hasDo, matchDo.location);
+  }
 }
 
 // funcname ::= Name {`.' Name} [`:' Name]
-AstExpr* Parser::parseFunctionName(Location start, bool& hasself, AstName& debugname)
-{
-    if (lexer.current().type == Lexeme::Name)
-        debugname = AstName(lexer.current().name);
+AstExpr *Parser::parseFunctionName(Location start, bool &hasself,
+                                   AstName &debugname) {
+  if (lexer.current().type == Lexeme::Name)
+    debugname = AstName(lexer.current().name);
 
-    // parse funcname into a chain of indexing operators
-    AstExpr* expr = parseNameExpr("function name");
+  // parse funcname into a chain of indexing operators
+  AstExpr *expr = parseNameExpr("function name");
 
-    unsigned int oldRecursionCount = recursionCounter;
+  unsigned int oldRecursionCount = recursionCounter;
 
-    while (lexer.current().type == '.')
-    {
-        Position opPosition = lexer.current().location.begin;
-        nextLexeme();
+  while (lexer.current().type == '.') {
+    Position opPosition = lexer.current().location.begin;
+    nextLexeme();
 
-        Name name = parseName("field name");
+    Name name = parseName("field name");
 
-        // while we could concatenate the name chain, for now let's just write the short name
-        debugname = name.name;
+    // while we could concatenate the name chain, for now let's just write the
+    // short name
+    debugname = name.name;
 
-        expr = allocator.alloc<AstExprIndexName>(Location(start, name.location), expr, name.name, name.location, opPosition, '.');
+    expr = allocator.alloc<AstExprIndexName>(Location(start, name.location),
+                                             expr, name.name, name.location,
+                                             opPosition, '.');
 
-        // note: while the parser isn't recursive here, we're generating recursive structures of unbounded depth
-        incrementRecursionCounter("function name");
-    }
+    // note: while the parser isn't recursive here, we're generating recursive
+    // structures of unbounded depth
+    incrementRecursionCounter("function name");
+  }
 
-    recursionCounter = oldRecursionCount;
+  recursionCounter = oldRecursionCount;
 
-    // finish with :
-    if (lexer.current().type == ':')
-    {
-        Position opPosition = lexer.current().location.begin;
-        nextLexeme();
+  // finish with :
+  if (lexer.current().type == ':') {
+    Position opPosition = lexer.current().location.begin;
+    nextLexeme();
 
-        Name name = parseName("method name");
+    Name name = parseName("method name");
 
-        // while we could concatenate the name chain, for now let's just write the short name
-        debugname = name.name;
+    // while we could concatenate the name chain, for now let's just write the
+    // short name
+    debugname = name.name;
 
-        expr = allocator.alloc<AstExprIndexName>(Location(start, name.location), expr, name.name, name.location, opPosition, ':');
+    expr = allocator.alloc<AstExprIndexName>(Location(start, name.location),
+                                             expr, name.name, name.location,
+                                             opPosition, ':');
 
-        hasself = true;
-    }
+    hasself = true;
+  }
 
-    return expr;
+  return expr;
 }
 
 // function funcname funcbody
-AstStat* Parser::parseFunctionStat(const AstArray<AstAttr*>& attributes)
-{
-    Location start = lexer.current().location;
+AstStat *Parser::parseFunctionStat(const AstArray<AstAttr *> &attributes) {
+  Location start = lexer.current().location;
 
-    Lexeme matchFunction = lexer.current();
-    nextLexeme();
+  Lexeme matchFunction = lexer.current();
+  nextLexeme();
 
-    bool hasself = false;
-    AstName debugname;
-    AstExpr* expr = parseFunctionName(start, hasself, debugname);
+  bool hasself = false;
+  AstName debugname;
+  AstExpr *expr = parseFunctionName(start, hasself, debugname);
 
-    matchRecoveryStopOnToken[Lexeme::ReservedEnd]++;
+  matchRecoveryStopOnToken[Lexeme::ReservedEnd]++;
 
-    AstExprFunction* body = parseFunctionBody(hasself, matchFunction, debugname, nullptr, attributes).first;
+  AstExprFunction *body =
+      parseFunctionBody(hasself, matchFunction, debugname, nullptr, attributes)
+          .first;
 
-    matchRecoveryStopOnToken[Lexeme::ReservedEnd]--;
+  matchRecoveryStopOnToken[Lexeme::ReservedEnd]--;
 
-    return allocator.alloc<AstStatFunction>(Location(start, body->location), expr, body);
+  return allocator.alloc<AstStatFunction>(Location(start, body->location), expr,
+                                          body);
 }
 
-std::pair<bool, AstAttr::Type> Parser::validateAttribute(const char* attributeName, const TempVector<AstAttr*>& attributes)
-{
-    LUAU_ASSERT(FFlag::LuauAttributeSyntax);
+std::pair<bool, AstAttr::Type>
+Parser::validateAttribute(const char *attributeName,
+                          const TempVector<AstAttr *> &attributes) {
+  LUAU_ASSERT(FFlag::LuauAttributeSyntax);
 
-    AstAttr::Type type;
+  AstAttr::Type type;
 
-    // check if the attribute name is valid
+  // check if the attribute name is valid
 
-    bool found = false;
+  bool found = false;
 
-    for (int i = 0; kAttributeEntries[i].name; ++i)
-    {
-        found = !strcmp(attributeName, kAttributeEntries[i].name);
-        if (found)
-        {
-            type = kAttributeEntries[i].type;
+  for (int i = 0; kAttributeEntries[i].name; ++i) {
+    found = !strcmp(attributeName, kAttributeEntries[i].name);
+    if (found) {
+      type = kAttributeEntries[i].type;
 
-            if (!FFlag::LuauNativeAttribute && type == AstAttr::Type::Native)
-                found = false;
+      if (!FFlag::LuauNativeAttribute && type == AstAttr::Type::Native)
+        found = false;
 
-            break;
-        }
+      break;
     }
+  }
 
-    if (!found)
-    {
-        if (strlen(attributeName) == 1)
-            report(lexer.current().location, "Attribute name is missing");
-        else
-            report(lexer.current().location, "Invalid attribute '%s'", attributeName);
-    }
+  if (!found) {
+    if (strlen(attributeName) == 1)
+      report(lexer.current().location, "Attribute name is missing");
     else
-    {
-        // check that attribute is not duplicated
-        for (const AstAttr* attr : attributes)
-        {
-            if (attr->type == type)
-            {
-                report(lexer.current().location, "Cannot duplicate attribute '%s'", attributeName);
-            }
-        }
+      report(lexer.current().location, "Invalid attribute '%s'", attributeName);
+  } else {
+    // check that attribute is not duplicated
+    for (const AstAttr *attr : attributes) {
+      if (attr->type == type) {
+        report(lexer.current().location, "Cannot duplicate attribute '%s'",
+               attributeName);
+      }
     }
+  }
 
-    return {found, type};
+  return {found, type};
 }
 
 // attribute ::= '@' NAME
-void Parser::parseAttribute(TempVector<AstAttr*>& attributes)
-{
-    LUAU_ASSERT(FFlag::LuauAttributeSyntax);
+void Parser::parseAttribute(TempVector<AstAttr *> &attributes) {
+  LUAU_ASSERT(FFlag::LuauAttributeSyntax);
 
-    LUAU_ASSERT(lexer.current().type == Lexeme::Type::Attribute);
+  LUAU_ASSERT(lexer.current().type == Lexeme::Type::Attribute);
 
-    Location loc = lexer.current().location;
+  Location loc = lexer.current().location;
 
-    const char* name = lexer.current().name;
-    const auto [found, type] = validateAttribute(name, attributes);
+  const char *name = lexer.current().name;
+  const auto [found, type] = validateAttribute(name, attributes);
 
-    nextLexeme();
+  nextLexeme();
 
-    if (found)
-        attributes.push_back(allocator.alloc<AstAttr>(loc, type));
+  if (found)
+    attributes.push_back(allocator.alloc<AstAttr>(loc, type));
 }
 
 // attributes ::= {attribute}
-AstArray<AstAttr*> Parser::parseAttributes()
-{
-    LUAU_ASSERT(FFlag::LuauAttributeSyntax);
+AstArray<AstAttr *> Parser::parseAttributes() {
+  LUAU_ASSERT(FFlag::LuauAttributeSyntax);
 
-    Lexeme::Type type = lexer.current().type;
+  Lexeme::Type type = lexer.current().type;
 
-    LUAU_ASSERT(type == Lexeme::Attribute);
+  LUAU_ASSERT(type == Lexeme::Attribute);
 
-    TempVector<AstAttr*> attributes(scratchAttr);
+  TempVector<AstAttr *> attributes(scratchAttr);
 
-    while (lexer.current().type == Lexeme::Attribute)
-        parseAttribute(attributes);
+  while (lexer.current().type == Lexeme::Attribute)
+    parseAttribute(attributes);
 
-    return copy(attributes);
+  return copy(attributes);
 }
 
 // attributes local function Name funcbody
 // attributes function funcname funcbody
 // attributes `declare function' Name`(' [parlist] `)' [`:` Type]
 // declare Name '{' Name ':' attributes `(' [parlist] `)' [`:` Type] '}'
-AstStat* Parser::parseAttributeStat()
-{
-    LUAU_ASSERT(FFlag::LuauAttributeSyntax);
+AstStat *Parser::parseAttributeStat() {
+  LUAU_ASSERT(FFlag::LuauAttributeSyntax);
 
-    AstArray<AstAttr*> attributes = parseAttributes();
+  AstArray<AstAttr *> attributes = parseAttributes();
 
-    Lexeme::Type type = lexer.current().type;
+  Lexeme::Type type = lexer.current().type;
 
-    switch (type)
-    {
-    case Lexeme::Type::ReservedFunction:
-        return parseFunctionStat(attributes);
-    case Lexeme::Type::ReservedLocal:
-        return parseLocal(attributes);
-    case Lexeme::Type::Name:
-        if (options.allowDeclarationSyntax && !strcmp("declare", lexer.current().data))
-        {
-            AstExpr* expr = parsePrimaryExpr(/* asStatement= */ true);
-            return parseDeclaration(expr->location, attributes);
-        }
-    default:
-        return reportStatError(lexer.current().location, {}, {},
-            "Expected 'function', 'local function', 'declare function' or a function type declaration after attribute, but got %s intead",
-            lexer.current().toString().c_str());
+  switch (type) {
+  case Lexeme::Type::ReservedFunction:
+    return parseFunctionStat(attributes);
+  case Lexeme::Type::ReservedLocal:
+    return parseLocal(attributes);
+  case Lexeme::Type::Name:
+    if (options.allowDeclarationSyntax &&
+        !strcmp("declare", lexer.current().data)) {
+      AstExpr *expr = parsePrimaryExpr(/* asStatement= */ true);
+      return parseDeclaration(expr->location, attributes);
     }
+  default:
+    return reportStatError(
+        lexer.current().location, {}, {},
+        "Expected 'function', 'local function', 'declare function' or a "
+        "function type declaration after attribute, but got %s intead",
+        lexer.current().toString().c_str());
+  }
 }
 
 // local function Name funcbody |
 // local bindinglist [`=' explist]
-AstStat* Parser::parseLocal(const AstArray<AstAttr*>& attributes)
-{
-    Location start = lexer.current().location;
+AstStat *Parser::parseLocal(const AstArray<AstAttr *> &attributes) {
+  Location start = lexer.current().location;
 
-    nextLexeme(); // local
+  nextLexeme(); // local
 
-    if (lexer.current().type == Lexeme::ReservedFunction)
-    {
-        Lexeme matchFunction = lexer.current();
-        nextLexeme();
+  if (lexer.current().type == Lexeme::ReservedFunction) {
+    Lexeme matchFunction = lexer.current();
+    nextLexeme();
 
-        // matchFunction is only used for diagnostics; to make it suitable for detecting missed indentation between
-        // `local function` and `end`, we patch the token to begin at the column where `local` starts
-        if (matchFunction.location.begin.line == start.begin.line)
-            matchFunction.location.begin.column = start.begin.column;
+    // matchFunction is only used for diagnostics; to make it suitable for
+    // detecting missed indentation between `local function` and `end`, we patch
+    // the token to begin at the column where `local` starts
+    if (matchFunction.location.begin.line == start.begin.line)
+      matchFunction.location.begin.column = start.begin.column;
 
-        Name name = parseName("variable name");
+    Name name = parseName("variable name");
 
-        matchRecoveryStopOnToken[Lexeme::ReservedEnd]++;
+    matchRecoveryStopOnToken[Lexeme::ReservedEnd]++;
 
-        auto [body, var] = parseFunctionBody(false, matchFunction, name.name, &name, attributes);
+    auto [body, var] =
+        parseFunctionBody(false, matchFunction, name.name, &name, attributes);
 
-        matchRecoveryStopOnToken[Lexeme::ReservedEnd]--;
+    matchRecoveryStopOnToken[Lexeme::ReservedEnd]--;
 
-        Location location{start.begin, body->location.end};
+    Location location{start.begin, body->location.end};
 
-        return allocator.alloc<AstStatLocalFunction>(location, var, body);
+    return allocator.alloc<AstStatLocalFunction>(location, var, body);
+  } else {
+    if (FFlag::LuauAttributeSyntax && attributes.size != 0) {
+      return reportStatError(lexer.current().location, {}, {},
+                             "Expected 'function' after local declaration with "
+                             "attribute, but got %s intead",
+                             lexer.current().toString().c_str());
     }
-    else
-    {
-        if (FFlag::LuauAttributeSyntax && attributes.size != 0)
-        {
-            return reportStatError(lexer.current().location, {}, {}, "Expected 'function' after local declaration with attribute, but got %s intead",
-                lexer.current().toString().c_str());
-        }
 
-        matchRecoveryStopOnToken['=']++;
+    matchRecoveryStopOnToken['=']++;
 
-        TempVector<Binding> names(scratchBinding);
-        parseBindingList(names);
+    TempVector<Binding> names(scratchBinding);
+    parseBindingList(names);
 
-        matchRecoveryStopOnToken['=']--;
+    matchRecoveryStopOnToken['=']--;
 
-        TempVector<AstLocal*> vars(scratchLocal);
+    TempVector<AstLocal *> vars(scratchLocal);
 
-        TempVector<AstExpr*> values(scratchExpr);
+    TempVector<AstExpr *> values(scratchExpr);
 
-        std::optional<Location> equalsSignLocation;
+    std::optional<Location> equalsSignLocation;
 
-        if (lexer.current().type == '=')
-        {
-            equalsSignLocation = lexer.current().location;
+    if (lexer.current().type == '=') {
+      equalsSignLocation = lexer.current().location;
 
-            nextLexeme();
+      nextLexeme();
 
-            parseExprList(values);
-        }
-
-        for (size_t i = 0; i < names.size(); ++i)
-            vars.push_back(pushLocal(names[i]));
-
-        Location end = values.empty() ? lexer.previousLocation() : values.back()->location;
-
-        return allocator.alloc<AstStatLocal>(Location(start, end), copy(vars), copy(values), equalsSignLocation);
+      parseExprList(values);
     }
+
+    for (size_t i = 0; i < names.size(); ++i)
+      vars.push_back(pushLocal(names[i]));
+
+    Location end =
+        values.empty() ? lexer.previousLocation() : values.back()->location;
+
+    return allocator.alloc<AstStatLocal>(Location(start, end), copy(vars),
+                                         copy(values), equalsSignLocation);
+  }
 }
 
 // return [explist]
-AstStat* Parser::parseReturn()
-{
-    Location start = lexer.current().location;
+AstStat *Parser::parseReturn() {
+  Location start = lexer.current().location;
 
-    nextLexeme();
+  nextLexeme();
 
-    TempVector<AstExpr*> list(scratchExpr);
+  TempVector<AstExpr *> list(scratchExpr);
 
-    if (!blockFollow(lexer.current()) && lexer.current().type != ';')
-        parseExprList(list);
+  if (!blockFollow(lexer.current()) && lexer.current().type != ';')
+    parseExprList(list);
 
-    Location end = list.empty() ? start : list.back()->location;
+  Location end = list.empty() ? start : list.back()->location;
 
-    return allocator.alloc<AstStatReturn>(Location(start, end), copy(list));
+  return allocator.alloc<AstStatReturn>(Location(start, end), copy(list));
 }
 
 // type Name [`<' varlist `>'] `=' Type
-AstStat* Parser::parseTypeAlias(const Location& start, bool exported)
-{
-    // note: `type` token is already parsed for us, so we just need to parse the rest
+AstStat *Parser::parseTypeAlias(const Location &start, bool exported) {
+  // note: `type` token is already parsed for us, so we just need to parse the
+  // rest
 
-    std::optional<Name> name = parseNameOpt("type name");
+  std::optional<Name> name = parseNameOpt("type name");
 
-    // Use error name if the name is missing
-    if (!name)
-        name = Name(nameError, lexer.current().location);
+  // Use error name if the name is missing
+  if (!name)
+    name = Name(nameError, lexer.current().location);
 
-    auto [generics, genericPacks] = parseGenericTypeList(/* withDefaultValues= */ true);
+  auto [generics, genericPacks] =
+      parseGenericTypeList(/* withDefaultValues= */ true);
 
-    expectAndConsume('=', "type alias");
+  expectAndConsume('=', "type alias");
 
-    AstType* type = parseType();
+  AstType *type = parseType();
 
-    return allocator.alloc<AstStatTypeAlias>(Location(start, type->location), name->name, name->location, generics, genericPacks, type, exported);
+  return allocator.alloc<AstStatTypeAlias>(Location(start, type->location),
+                                           name->name, name->location, generics,
+                                           genericPacks, type, exported);
 }
 
-AstDeclaredClassProp Parser::parseDeclaredClassMethod()
-{
-    Location start;
+AstDeclaredClassProp Parser::parseDeclaredClassMethod() {
+  Location start;
 
-    if (FFlag::LuauDeclarationExtraPropData)
-        start = lexer.current().location;
+  if (FFlag::LuauDeclarationExtraPropData)
+    start = lexer.current().location;
 
+  nextLexeme();
+
+  if (!FFlag::LuauDeclarationExtraPropData)
+    start = lexer.current().location;
+
+  Name fnName = parseName("function name");
+
+  // TODO: generic method declarations CLI-39909
+  AstArray<AstGenericType> generics;
+  AstArray<AstGenericTypePack> genericPacks;
+  generics.size = 0;
+  generics.data = nullptr;
+  genericPacks.size = 0;
+  genericPacks.data = nullptr;
+
+  MatchLexeme matchParen = lexer.current();
+  expectAndConsume('(', "function parameter list start");
+
+  TempVector<Binding> args(scratchBinding);
+
+  bool vararg = false;
+  Location varargLocation;
+  AstTypePack *varargAnnotation = nullptr;
+  if (lexer.current().type != ')')
+    std::tie(vararg, varargLocation, varargAnnotation) =
+        parseBindingList(args, /* allowDot3 */ true);
+
+  expectMatchAndConsume(')', matchParen);
+
+  AstTypeList retTypes = parseOptionalReturnType().value_or(
+      AstTypeList{copy<AstType *>(nullptr, 0), nullptr});
+  Location end = FFlag::LuauDeclarationExtraPropData ? lexer.previousLocation()
+                                                     : lexer.current().location;
+
+  TempVector<AstType *> vars(scratchType);
+  TempVector<std::optional<AstArgumentName>> varNames(scratchOptArgName);
+
+  if (args.size() == 0 || args[0].name.name != "self" ||
+      args[0].annotation != nullptr) {
+    return AstDeclaredClassProp{
+        fnName.name,
+        FFlag::LuauDeclarationExtraPropData ? fnName.location : Location{},
+        reportTypeError(
+            Location(start, end), {},
+            "'self' must be present as the unannotated first parameter"),
+        true};
+  }
+
+  // Skip the first index.
+  for (size_t i = 1; i < args.size(); ++i) {
+    varNames.push_back(
+        AstArgumentName{args[i].name.name, args[i].name.location});
+
+    if (args[i].annotation)
+      vars.push_back(args[i].annotation);
+    else
+      vars.push_back(reportTypeError(
+          Location(start, end), {},
+          "All declaration parameters aside from 'self' must be annotated"));
+  }
+
+  if (vararg && !varargAnnotation)
+    report(start,
+           "All declaration parameters aside from 'self' must be annotated");
+
+  AstType *fnType = allocator.alloc<AstTypeFunction>(
+      Location(start, end), generics, genericPacks,
+      AstTypeList{copy(vars), varargAnnotation}, copy(varNames), retTypes);
+
+  return AstDeclaredClassProp{
+      fnName.name,
+      FFlag::LuauDeclarationExtraPropData ? fnName.location : Location{},
+      fnType, true,
+      FFlag::LuauDeclarationExtraPropData ? Location(start, end) : Location{}};
+}
+
+AstStat *Parser::parseDeclaration(const Location &start,
+                                  const AstArray<AstAttr *> &attributes) {
+  // `declare` token is already parsed at this point
+
+  if (FFlag::LuauAttributeSyntax && (attributes.size != 0) &&
+      (lexer.current().type != Lexeme::ReservedFunction))
+    return reportStatError(lexer.current().location, {}, {},
+                           "Expected a function type declaration after "
+                           "attribute, but got %s intead",
+                           lexer.current().toString().c_str());
+
+  if (lexer.current().type == Lexeme::ReservedFunction) {
     nextLexeme();
 
-    if (!FFlag::LuauDeclarationExtraPropData)
-        start = lexer.current().location;
-
-    Name fnName = parseName("function name");
-
-    // TODO: generic method declarations CLI-39909
-    AstArray<AstGenericType> generics;
-    AstArray<AstGenericTypePack> genericPacks;
-    generics.size = 0;
-    generics.data = nullptr;
-    genericPacks.size = 0;
-    genericPacks.data = nullptr;
+    Name globalName = parseName("global function name");
+    auto [generics, genericPacks] =
+        parseGenericTypeList(/* withDefaultValues= */ false);
 
     MatchLexeme matchParen = lexer.current();
-    expectAndConsume('(', "function parameter list start");
+
+    expectAndConsume('(', "global function declaration");
 
     TempVector<Binding> args(scratchBinding);
 
     bool vararg = false;
     Location varargLocation;
-    AstTypePack* varargAnnotation = nullptr;
+    AstTypePack *varargAnnotation = nullptr;
+
     if (lexer.current().type != ')')
-        std::tie(vararg, varargLocation, varargAnnotation) = parseBindingList(args, /* allowDot3 */ true);
+      std::tie(vararg, varargLocation, varargAnnotation) =
+          parseBindingList(args, /* allowDot3= */ true);
 
     expectMatchAndConsume(')', matchParen);
 
-    AstTypeList retTypes = parseOptionalReturnType().value_or(AstTypeList{copy<AstType*>(nullptr, 0), nullptr});
-    Location end = FFlag::LuauDeclarationExtraPropData ? lexer.previousLocation() : lexer.current().location;
+    AstTypeList retTypes = parseOptionalReturnType().value_or(
+        AstTypeList{copy<AstType *>(nullptr, 0)});
+    Location end = lexer.current().location;
 
-    TempVector<AstType*> vars(scratchType);
-    TempVector<std::optional<AstArgumentName>> varNames(scratchOptArgName);
+    TempVector<AstType *> vars(scratchType);
+    TempVector<AstArgumentName> varNames(scratchArgName);
 
-    if (args.size() == 0 || args[0].name.name != "self" || args[0].annotation != nullptr)
-    {
-        return AstDeclaredClassProp{fnName.name, FFlag::LuauDeclarationExtraPropData ? fnName.location : Location{},
-            reportTypeError(Location(start, end), {}, "'self' must be present as the unannotated first parameter"), true};
-    }
+    for (size_t i = 0; i < args.size(); ++i) {
+      if (!args[i].annotation)
+        return reportStatError(Location(start, end), {}, {},
+                               "All declaration parameters must be annotated");
 
-    // Skip the first index.
-    for (size_t i = 1; i < args.size(); ++i)
-    {
-        varNames.push_back(AstArgumentName{args[i].name.name, args[i].name.location});
-
-        if (args[i].annotation)
-            vars.push_back(args[i].annotation);
-        else
-            vars.push_back(reportTypeError(Location(start, end), {}, "All declaration parameters aside from 'self' must be annotated"));
+      vars.push_back(args[i].annotation);
+      varNames.push_back({args[i].name.name, args[i].name.location});
     }
 
     if (vararg && !varargAnnotation)
-        report(start, "All declaration parameters aside from 'self' must be annotated");
+      return reportStatError(Location(start, end), {}, {},
+                             "All declaration parameters must be annotated");
 
-    AstType* fnType = allocator.alloc<AstTypeFunction>(
-        Location(start, end), generics, genericPacks, AstTypeList{copy(vars), varargAnnotation}, copy(varNames), retTypes);
-
-    return AstDeclaredClassProp{fnName.name, FFlag::LuauDeclarationExtraPropData ? fnName.location : Location{}, fnType, true,
-        FFlag::LuauDeclarationExtraPropData ? Location(start, end) : Location{}};
-}
-
-AstStat* Parser::parseDeclaration(const Location& start, const AstArray<AstAttr*>& attributes)
-{
-    // `declare` token is already parsed at this point
-
-    if (FFlag::LuauAttributeSyntax && (attributes.size != 0) && (lexer.current().type != Lexeme::ReservedFunction))
-        return reportStatError(lexer.current().location, {}, {}, "Expected a function type declaration after attribute, but got %s intead",
-            lexer.current().toString().c_str());
-
-    if (lexer.current().type == Lexeme::ReservedFunction)
-    {
-        nextLexeme();
-
-        Name globalName = parseName("global function name");
-        auto [generics, genericPacks] = parseGenericTypeList(/* withDefaultValues= */ false);
-
-        MatchLexeme matchParen = lexer.current();
-
-        expectAndConsume('(', "global function declaration");
-
-        TempVector<Binding> args(scratchBinding);
-
-        bool vararg = false;
-        Location varargLocation;
-        AstTypePack* varargAnnotation = nullptr;
-
-        if (lexer.current().type != ')')
-            std::tie(vararg, varargLocation, varargAnnotation) = parseBindingList(args, /* allowDot3= */ true);
-
-        expectMatchAndConsume(')', matchParen);
-
-        AstTypeList retTypes = parseOptionalReturnType().value_or(AstTypeList{copy<AstType*>(nullptr, 0)});
-        Location end = lexer.current().location;
-
-        TempVector<AstType*> vars(scratchType);
-        TempVector<AstArgumentName> varNames(scratchArgName);
-
-        for (size_t i = 0; i < args.size(); ++i)
-        {
-            if (!args[i].annotation)
-                return reportStatError(Location(start, end), {}, {}, "All declaration parameters must be annotated");
-
-            vars.push_back(args[i].annotation);
-            varNames.push_back({args[i].name.name, args[i].name.location});
-        }
-
-        if (vararg && !varargAnnotation)
-            return reportStatError(Location(start, end), {}, {}, "All declaration parameters must be annotated");
-
-        if (FFlag::LuauDeclarationExtraPropData)
-            return allocator.alloc<AstStatDeclareFunction>(Location(start, end), attributes, globalName.name, globalName.location, generics,
-                genericPacks, AstTypeList{copy(vars), varargAnnotation}, copy(varNames), vararg, varargLocation, retTypes);
-        else
-            return allocator.alloc<AstStatDeclareFunction>(Location(start, end), attributes, globalName.name, Location{}, generics, genericPacks,
-                AstTypeList{copy(vars), varargAnnotation}, copy(varNames), false, Location{}, retTypes);
-    }
-    else if (AstName(lexer.current().name) == "class")
-    {
-        nextLexeme();
-        Location classStart = lexer.current().location;
-        Name className = parseName("class name");
-        std::optional<AstName> superName = std::nullopt;
-
-        if (AstName(lexer.current().name) == "extends")
-        {
-            nextLexeme();
-            superName = parseName("superclass name").name;
-        }
-
-        TempVector<AstDeclaredClassProp> props(scratchDeclaredClassProps);
-        AstTableIndexer* indexer = nullptr;
-
-        while (lexer.current().type != Lexeme::ReservedEnd)
-        {
-            // There are two possibilities: Either it's a property or a function.
-            if (lexer.current().type == Lexeme::ReservedFunction)
-            {
-                props.push_back(parseDeclaredClassMethod());
-            }
-            else if (lexer.current().type == '[' && (lexer.lookahead().type == Lexeme::RawString || lexer.lookahead().type == Lexeme::QuotedString))
-            {
-                const Lexeme begin = lexer.current();
-                nextLexeme(); // [
-
-                if (FFlag::LuauDeclarationExtraPropData)
-                {
-                    const Location nameBegin = lexer.current().location;
-                    std::optional<AstArray<char>> chars = parseCharArray();
-
-                    const Location nameEnd = lexer.previousLocation();
-
-                    expectMatchAndConsume(']', begin);
-                    expectAndConsume(':', "property type annotation");
-                    AstType* type = parseType();
-
-                    // since AstName contains a char*, it can't contain null
-                    bool containsNull = chars && (strnlen(chars->data, chars->size) < chars->size);
-
-                    if (chars && !containsNull)
-                        props.push_back(AstDeclaredClassProp{
-                            AstName(chars->data), Location(nameBegin, nameEnd), type, false, Location(begin.location, lexer.previousLocation())});
-                    else
-                        report(begin.location, "String literal contains malformed escape sequence or \\0");
-                }
-                else
-                {
-                    std::optional<AstArray<char>> chars = parseCharArray();
-
-                    expectMatchAndConsume(']', begin);
-                    expectAndConsume(':', "property type annotation");
-                    AstType* type = parseType();
-
-                    // since AstName contains a char*, it can't contain null
-                    bool containsNull = chars && (strnlen(chars->data, chars->size) < chars->size);
-
-                    if (chars && !containsNull)
-                        props.push_back(AstDeclaredClassProp{AstName(chars->data), Location{}, type, false});
-                    else
-                        report(begin.location, "String literal contains malformed escape sequence or \\0");
-                }
-            }
-            else if (lexer.current().type == '[')
-            {
-                if (indexer)
-                {
-                    // maybe we don't need to parse the entire badIndexer...
-                    // however, we either have { or [ to lint, not the entire table type or the bad indexer.
-                    AstTableIndexer* badIndexer = parseTableIndexer(AstTableAccess::ReadWrite, std::nullopt);
-
-                    // we lose all additional indexer expressions from the AST after error recovery here
-                    report(badIndexer->location, "Cannot have more than one class indexer");
-                }
-                else
-                {
-                    indexer = parseTableIndexer(AstTableAccess::ReadWrite, std::nullopt);
-                }
-            }
-            else if (FFlag::LuauDeclarationExtraPropData)
-            {
-                Location propStart = lexer.current().location;
-                Name propName = parseName("property name");
-                expectAndConsume(':', "property type annotation");
-                AstType* propType = parseType();
-                props.push_back(
-                    AstDeclaredClassProp{propName.name, propName.location, propType, false, Location(propStart, lexer.previousLocation())});
-            }
-            else
-            {
-                Name propName = parseName("property name");
-                expectAndConsume(':', "property type annotation");
-                AstType* propType = parseType();
-                props.push_back(AstDeclaredClassProp{propName.name, Location{}, propType, false});
-            }
-        }
-
-        Location classEnd = lexer.current().location;
-        nextLexeme(); // skip past `end`
-
-        return allocator.alloc<AstStatDeclareClass>(Location(classStart, classEnd), className.name, superName, copy(props), indexer);
-    }
-    else if (std::optional<Name> globalName = parseNameOpt("global variable name"))
-    {
-        expectAndConsume(':', "global variable declaration");
-
-        AstType* type = parseType(/* in declaration context */ true);
-        return allocator.alloc<AstStatDeclareGlobal>(
-            Location(start, type->location), globalName->name, FFlag::LuauDeclarationExtraPropData ? globalName->location : Location{}, type);
-    }
+    if (FFlag::LuauDeclarationExtraPropData)
+      return allocator.alloc<AstStatDeclareFunction>(
+          Location(start, end), attributes, globalName.name,
+          globalName.location, generics, genericPacks,
+          AstTypeList{copy(vars), varargAnnotation}, copy(varNames), vararg,
+          varargLocation, retTypes);
     else
-    {
-        return reportStatError(start, {}, {}, "declare must be followed by an identifier, 'function', or 'class'");
+      return allocator.alloc<AstStatDeclareFunction>(
+          Location(start, end), attributes, globalName.name, Location{},
+          generics, genericPacks, AstTypeList{copy(vars), varargAnnotation},
+          copy(varNames), false, Location{}, retTypes);
+  } else if (AstName(lexer.current().name) == "class") {
+    nextLexeme();
+    Location classStart = lexer.current().location;
+    Name className = parseName("class name");
+    std::optional<AstName> superName = std::nullopt;
+
+    if (AstName(lexer.current().name) == "extends") {
+      nextLexeme();
+      superName = parseName("superclass name").name;
     }
+
+    TempVector<AstDeclaredClassProp> props(scratchDeclaredClassProps);
+    AstTableIndexer *indexer = nullptr;
+
+    while (lexer.current().type != Lexeme::ReservedEnd) {
+      // There are two possibilities: Either it's a property or a function.
+      if (lexer.current().type == Lexeme::ReservedFunction) {
+        props.push_back(parseDeclaredClassMethod());
+      } else if (lexer.current().type == '[' &&
+                 (lexer.lookahead().type == Lexeme::RawString ||
+                  lexer.lookahead().type == Lexeme::QuotedString)) {
+        const Lexeme begin = lexer.current();
+        nextLexeme(); // [
+
+        if (FFlag::LuauDeclarationExtraPropData) {
+          const Location nameBegin = lexer.current().location;
+          std::optional<AstArray<char>> chars = parseCharArray();
+
+          const Location nameEnd = lexer.previousLocation();
+
+          expectMatchAndConsume(']', begin);
+          expectAndConsume(':', "property type annotation");
+          AstType *type = parseType();
+
+          // since AstName contains a char*, it can't contain null
+          bool containsNull =
+              chars && (strnlen(chars->data, chars->size) < chars->size);
+
+          if (chars && !containsNull)
+            props.push_back(AstDeclaredClassProp{
+                AstName(chars->data), Location(nameBegin, nameEnd), type, false,
+                Location(begin.location, lexer.previousLocation())});
+          else
+            report(begin.location,
+                   "String literal contains malformed escape sequence or \\0");
+        } else {
+          std::optional<AstArray<char>> chars = parseCharArray();
+
+          expectMatchAndConsume(']', begin);
+          expectAndConsume(':', "property type annotation");
+          AstType *type = parseType();
+
+          // since AstName contains a char*, it can't contain null
+          bool containsNull =
+              chars && (strnlen(chars->data, chars->size) < chars->size);
+
+          if (chars && !containsNull)
+            props.push_back(AstDeclaredClassProp{AstName(chars->data),
+                                                 Location{}, type, false});
+          else
+            report(begin.location,
+                   "String literal contains malformed escape sequence or \\0");
+        }
+      } else if (lexer.current().type == '[') {
+        if (indexer) {
+          // maybe we don't need to parse the entire badIndexer...
+          // however, we either have { or [ to lint, not the entire table type
+          // or the bad indexer.
+          AstTableIndexer *badIndexer =
+              parseTableIndexer(AstTableAccess::ReadWrite, std::nullopt);
+
+          // we lose all additional indexer expressions from the AST after error
+          // recovery here
+          report(badIndexer->location,
+                 "Cannot have more than one class indexer");
+        } else {
+          indexer = parseTableIndexer(AstTableAccess::ReadWrite, std::nullopt);
+        }
+      } else if (FFlag::LuauDeclarationExtraPropData) {
+        Location propStart = lexer.current().location;
+        Name propName = parseName("property name");
+        expectAndConsume(':', "property type annotation");
+        AstType *propType = parseType();
+        props.push_back(AstDeclaredClassProp{
+            propName.name, propName.location, propType, false,
+            Location(propStart, lexer.previousLocation())});
+      } else {
+        Name propName = parseName("property name");
+        expectAndConsume(':', "property type annotation");
+        AstType *propType = parseType();
+        props.push_back(
+            AstDeclaredClassProp{propName.name, Location{}, propType, false});
+      }
+    }
+
+    Location classEnd = lexer.current().location;
+    nextLexeme(); // skip past `end`
+
+    return allocator.alloc<AstStatDeclareClass>(Location(classStart, classEnd),
+                                                className.name, superName,
+                                                copy(props), indexer);
+  } else if (std::optional<Name> globalName =
+                 parseNameOpt("global variable name")) {
+    expectAndConsume(':', "global variable declaration");
+
+    AstType *type = parseType(/* in declaration context */ true);
+    return allocator.alloc<AstStatDeclareGlobal>(
+        Location(start, type->location), globalName->name,
+        FFlag::LuauDeclarationExtraPropData ? globalName->location : Location{},
+        type);
+  } else {
+    return reportStatError(
+        start, {}, {},
+        "declare must be followed by an identifier, 'function', or 'class'");
+  }
 }
 
-static bool isExprLValue(AstExpr* expr)
-{
-    return expr->is<AstExprLocal>() || expr->is<AstExprGlobal>() || expr->is<AstExprIndexExpr>() || expr->is<AstExprIndexName>();
+static bool isExprLValue(AstExpr *expr) {
+  return expr->is<AstExprLocal>() || expr->is<AstExprGlobal>() ||
+         expr->is<AstExprIndexExpr>() || expr->is<AstExprIndexName>();
 }
 
 // varlist `=' explist
-AstStat* Parser::parseAssignment(AstExpr* initial)
-{
-    if (!isExprLValue(initial))
-        initial = reportExprError(initial->location, copy({initial}), "Assigned expression must be a variable or a field");
+AstStat *Parser::parseAssignment(AstExpr *initial) {
+  if (!isExprLValue(initial))
+    initial =
+        reportExprError(initial->location, copy({initial}),
+                        "Assigned expression must be a variable or a field");
 
-    TempVector<AstExpr*> vars(scratchExpr);
-    vars.push_back(initial);
+  TempVector<AstExpr *> vars(scratchExpr);
+  vars.push_back(initial);
 
-    while (lexer.current().type == ',')
-    {
-        nextLexeme();
+  while (lexer.current().type == ',') {
+    nextLexeme();
 
-        AstExpr* expr = parsePrimaryExpr(/* asStatement= */ true);
+    AstExpr *expr = parsePrimaryExpr(/* asStatement= */ true);
 
-        if (!isExprLValue(expr))
-            expr = reportExprError(expr->location, copy({expr}), "Assigned expression must be a variable or a field");
+    if (!isExprLValue(expr))
+      expr =
+          reportExprError(expr->location, copy({expr}),
+                          "Assigned expression must be a variable or a field");
 
-        vars.push_back(expr);
-    }
+    vars.push_back(expr);
+  }
 
-    expectAndConsume('=', "assignment");
+  expectAndConsume('=', "assignment");
 
-    TempVector<AstExpr*> values(scratchExprAux);
-    parseExprList(values);
+  TempVector<AstExpr *> values(scratchExprAux);
+  parseExprList(values);
 
-    return allocator.alloc<AstStatAssign>(Location(initial->location, values.back()->location), copy(vars), copy(values));
+  return allocator.alloc<AstStatAssign>(
+      Location(initial->location, values.back()->location), copy(vars),
+      copy(values));
 }
 
 // var [`+=' | `-=' | `*=' | `/=' | `%=' | `^=' | `..='] exp
-AstStat* Parser::parseCompoundAssignment(AstExpr* initial, AstExprBinary::Op op)
-{
-    if (!isExprLValue(initial))
-    {
-        initial = reportExprError(initial->location, copy({initial}), "Assigned expression must be a variable or a field");
-    }
+AstStat *Parser::parseCompoundAssignment(AstExpr *initial,
+                                         AstExprBinary::Op op) {
+  if (!isExprLValue(initial)) {
+    initial =
+        reportExprError(initial->location, copy({initial}),
+                        "Assigned expression must be a variable or a field");
+  }
 
-    nextLexeme();
+  nextLexeme();
 
-    AstExpr* value = parseExpr();
+  AstExpr *value = parseExpr();
 
-    return allocator.alloc<AstStatCompoundAssign>(Location(initial->location, value->location), op, initial, value);
+  return allocator.alloc<AstStatCompoundAssign>(
+      Location(initial->location, value->location), op, initial, value);
 }
 
-std::pair<AstLocal*, AstArray<AstLocal*>> Parser::prepareFunctionArguments(const Location& start, bool hasself, const TempVector<Binding>& args)
-{
-    AstLocal* self = nullptr;
+std::pair<AstLocal *, AstArray<AstLocal *>>
+Parser::prepareFunctionArguments(const Location &start, bool hasself,
+                                 const TempVector<Binding> &args) {
+  AstLocal *self = nullptr;
 
-    if (hasself)
-        self = pushLocal(Binding(Name(nameSelf, start), nullptr));
+  if (hasself)
+    self = pushLocal(Binding(Name(nameSelf, start), nullptr));
 
-    TempVector<AstLocal*> vars(scratchLocal);
+  TempVector<AstLocal *> vars(scratchLocal);
 
-    for (size_t i = 0; i < args.size(); ++i)
-        vars.push_back(pushLocal(args[i]));
+  for (size_t i = 0; i < args.size(); ++i)
+    vars.push_back(pushLocal(args[i]));
 
-    return {self, copy(vars)};
+  return {self, copy(vars)};
 }
 
 // funcbody ::= `(' [parlist] `)' [`:' ReturnType] block end
 // parlist ::= bindinglist [`,' `...'] | `...'
-std::pair<AstExprFunction*, AstLocal*> Parser::parseFunctionBody(
-    bool hasself, const Lexeme& matchFunction, const AstName& debugname, const Name* localName, const AstArray<AstAttr*>& attributes)
-{
-    Location start = matchFunction.location;
+std::pair<AstExprFunction *, AstLocal *>
+Parser::parseFunctionBody(bool hasself, const Lexeme &matchFunction,
+                          const AstName &debugname, const Name *localName,
+                          const AstArray<AstAttr *> &attributes) {
+  Location start = matchFunction.location;
 
-    auto [generics, genericPacks] = parseGenericTypeList(/* withDefaultValues= */ false);
+  auto [generics, genericPacks] =
+      parseGenericTypeList(/* withDefaultValues= */ false);
 
-    MatchLexeme matchParen = lexer.current();
-    expectAndConsume('(', "function");
+  MatchLexeme matchParen = lexer.current();
+  expectAndConsume('(', "function");
 
-    TempVector<Binding> args(scratchBinding);
+  TempVector<Binding> args(scratchBinding);
 
-    bool vararg = false;
-    Location varargLocation;
-    AstTypePack* varargAnnotation = nullptr;
+  bool vararg = false;
+  Location varargLocation;
+  AstTypePack *varargAnnotation = nullptr;
 
-    if (lexer.current().type != ')')
-        std::tie(vararg, varargLocation, varargAnnotation) = parseBindingList(args, /* allowDot3= */ true);
+  if (lexer.current().type != ')')
+    std::tie(vararg, varargLocation, varargAnnotation) =
+        parseBindingList(args, /* allowDot3= */ true);
 
-    std::optional<Location> argLocation;
+  std::optional<Location> argLocation;
 
-    if (matchParen.type == Lexeme::Type('(') && lexer.current().type == Lexeme::Type(')'))
-        argLocation = Location(matchParen.position, lexer.current().location.end);
+  if (matchParen.type == Lexeme::Type('(') &&
+      lexer.current().type == Lexeme::Type(')'))
+    argLocation = Location(matchParen.position, lexer.current().location.end);
 
-    expectMatchAndConsume(')', matchParen, true);
+  expectMatchAndConsume(')', matchParen, true);
 
-    std::optional<AstTypeList> typelist = parseOptionalReturnType();
+  std::optional<AstTypeList> typelist = parseOptionalReturnType();
 
-    AstLocal* funLocal = nullptr;
+  AstLocal *funLocal = nullptr;
 
-    if (localName)
-        funLocal = pushLocal(Binding(*localName, nullptr));
+  if (localName)
+    funLocal = pushLocal(Binding(*localName, nullptr));
 
-    unsigned int localsBegin = saveLocals();
+  unsigned int localsBegin = saveLocals();
 
-    Function fun;
-    fun.vararg = vararg;
+  Function fun;
+  fun.vararg = vararg;
 
-    functionStack.emplace_back(fun);
+  functionStack.emplace_back(fun);
 
-    auto [self, vars] = prepareFunctionArguments(start, hasself, args);
+  auto [self, vars] = prepareFunctionArguments(start, hasself, args);
 
-    AstStatBlock* body = parseBlock();
+  AstStatBlock *body = parseBlock();
 
-    functionStack.pop_back();
+  functionStack.pop_back();
 
-    restoreLocals(localsBegin);
+  restoreLocals(localsBegin);
 
-    Location end = lexer.current().location;
+  Location end = lexer.current().location;
 
-    bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchFunction);
-    body->hasEnd = hasEnd;
+  bool hasEnd = expectMatchEndAndConsume(Lexeme::ReservedEnd, matchFunction);
+  body->hasEnd = hasEnd;
 
-    return {allocator.alloc<AstExprFunction>(Location(start, end), attributes, generics, genericPacks, self, vars, vararg, varargLocation, body,
-                functionStack.size(), debugname, typelist, varargAnnotation, argLocation),
-        funLocal};
+  return {allocator.alloc<AstExprFunction>(
+              Location(start, end), attributes, generics, genericPacks, self,
+              vars, vararg, varargLocation, body, functionStack.size(),
+              debugname, typelist, varargAnnotation, argLocation),
+          funLocal};
 }
 
 // explist ::= {exp `,'} exp
-void Parser::parseExprList(TempVector<AstExpr*>& result)
-{
-    result.push_back(parseExpr());
+void Parser::parseExprList(TempVector<AstExpr *> &result) {
+  result.push_back(parseExpr());
 
-    while (lexer.current().type == ',')
-    {
-        nextLexeme();
+  while (lexer.current().type == ',') {
+    nextLexeme();
 
-        if (lexer.current().type == ')')
-        {
-            report(lexer.current().location, "Expected expression after ',' but got ')' instead");
-            break;
-        }
-
-        result.push_back(parseExpr());
+    if (lexer.current().type == ')') {
+      report(lexer.current().location,
+             "Expected expression after ',' but got ')' instead");
+      break;
     }
+
+    result.push_back(parseExpr());
+  }
 }
 
-Parser::Binding Parser::parseBinding()
-{
-    std::optional<Name> name = parseNameOpt("variable name");
+Parser::Binding Parser::parseBinding() {
+  std::optional<Name> name = parseNameOpt("variable name");
 
-    // Use placeholder if the name is missing
-    if (!name)
-        name = Name(nameError, lexer.current().location);
+  // Use placeholder if the name is missing
+  if (!name)
+    name = Name(nameError, lexer.current().location);
 
-    AstType* annotation = parseOptionalType();
+  AstType *annotation = parseOptionalType();
 
-    return Binding(*name, annotation);
+  return Binding(*name, annotation);
 }
 
 // bindinglist ::= (binding | `...') [`,' bindinglist]
-std::tuple<bool, Location, AstTypePack*> Parser::parseBindingList(TempVector<Binding>& result, bool allowDot3)
-{
-    while (true)
-    {
-        if (lexer.current().type == Lexeme::Dot3 && allowDot3)
-        {
-            Location varargLocation = lexer.current().location;
-            nextLexeme();
+std::tuple<bool, Location, AstTypePack *>
+Parser::parseBindingList(TempVector<Binding> &result, bool allowDot3) {
+  while (true) {
+    if (lexer.current().type == Lexeme::Dot3 && allowDot3) {
+      Location varargLocation = lexer.current().location;
+      nextLexeme();
 
-            AstTypePack* tailAnnotation = nullptr;
-            if (lexer.current().type == ':')
-            {
-                nextLexeme();
-                tailAnnotation = parseVariadicArgumentTypePack();
-            }
-
-            return {true, varargLocation, tailAnnotation};
-        }
-
-        result.push_back(parseBinding());
-
-        if (lexer.current().type != ',')
-            break;
+      AstTypePack *tailAnnotation = nullptr;
+      if (lexer.current().type == ':') {
         nextLexeme();
+        tailAnnotation = parseVariadicArgumentTypePack();
+      }
+
+      return {true, varargLocation, tailAnnotation};
     }
 
-    return {false, Location(), nullptr};
+    result.push_back(parseBinding());
+
+    if (lexer.current().type != ',')
+      break;
+    nextLexeme();
+  }
+
+  return {false, Location(), nullptr};
 }
 
-AstType* Parser::parseOptionalType()
-{
-    if (lexer.current().type == ':')
-    {
-        nextLexeme();
-        return parseType();
-    }
-    else
-        return nullptr;
-}
-
-// TypeList ::= Type [`,' TypeList] | ...Type
-AstTypePack* Parser::parseTypeList(TempVector<AstType*>& result, TempVector<std::optional<AstArgumentName>>& resultNames)
-{
-    while (true)
-    {
-        if (shouldParseTypePack(lexer))
-            return parseTypePack();
-
-        if (lexer.current().type == Lexeme::Name && lexer.lookahead().type == ':')
-        {
-            // Fill in previous argument names with empty slots
-            while (resultNames.size() < result.size())
-                resultNames.push_back({});
-
-            resultNames.push_back(AstArgumentName{AstName(lexer.current().name), lexer.current().location});
-            nextLexeme();
-
-            expectAndConsume(':');
-        }
-        else if (!resultNames.empty())
-        {
-            // If we have a type with named arguments, provide elements for all types
-            resultNames.push_back({});
-        }
-
-        result.push_back(parseType());
-        if (lexer.current().type != ',')
-            break;
-
-        nextLexeme();
-
-        if (lexer.current().type == ')')
-        {
-            report(lexer.current().location, "Expected type after ',' but got ')' instead");
-            break;
-        }
-    }
-
+AstType *Parser::parseOptionalType() {
+  if (lexer.current().type == ':') {
+    nextLexeme();
+    return parseType();
+  } else
     return nullptr;
 }
 
-std::optional<AstTypeList> Parser::parseOptionalReturnType()
-{
-    if (lexer.current().type == ':' || lexer.current().type == Lexeme::SkinnyArrow)
-    {
-        if (lexer.current().type == Lexeme::SkinnyArrow)
-            report(lexer.current().location, "Function return type annotations are written after ':' instead of '->'");
+// TypeList ::= Type [`,' TypeList] | ...Type
+AstTypePack *
+Parser::parseTypeList(TempVector<AstType *> &result,
+                      TempVector<std::optional<AstArgumentName>> &resultNames) {
+  while (true) {
+    if (shouldParseTypePack(lexer))
+      return parseTypePack();
 
-        nextLexeme();
+    if (lexer.current().type == Lexeme::Name && lexer.lookahead().type == ':') {
+      // Fill in previous argument names with empty slots
+      while (resultNames.size() < result.size())
+        resultNames.push_back({});
 
-        unsigned int oldRecursionCount = recursionCounter;
+      resultNames.push_back(AstArgumentName{AstName(lexer.current().name),
+                                            lexer.current().location});
+      nextLexeme();
 
-        auto [_location, result] = parseReturnType();
-
-        // At this point, if we find a , character, it indicates that there are multiple return types
-        // in this type annotation, but the list wasn't wrapped in parentheses.
-        if (lexer.current().type == ',')
-        {
-            report(lexer.current().location, "Expected a statement, got ','; did you forget to wrap the list of return types in parentheses?");
-
-            nextLexeme();
-        }
-
-        recursionCounter = oldRecursionCount;
-
-        return result;
+      expectAndConsume(':');
+    } else if (!resultNames.empty()) {
+      // If we have a type with named arguments, provide elements for all types
+      resultNames.push_back({});
     }
 
-    return std::nullopt;
-}
-
-// ReturnType ::= Type | `(' TypeList `)'
-std::pair<Location, AstTypeList> Parser::parseReturnType()
-{
-    incrementRecursionCounter("type annotation");
-
-    Lexeme begin = lexer.current();
-
-    if (lexer.current().type != '(')
-    {
-        if (shouldParseTypePack(lexer))
-        {
-            AstTypePack* typePack = parseTypePack();
-
-            return {typePack->location, AstTypeList{{}, typePack}};
-        }
-        else
-        {
-            AstType* type = parseType();
-
-            return {type->location, AstTypeList{copy(&type, 1), nullptr}};
-        }
-    }
+    result.push_back(parseType());
+    if (lexer.current().type != ',')
+      break;
 
     nextLexeme();
 
-    Location innerBegin = lexer.current().location;
+    if (lexer.current().type == ')') {
+      report(lexer.current().location,
+             "Expected type after ',' but got ')' instead");
+      break;
+    }
+  }
 
-    matchRecoveryStopOnToken[Lexeme::SkinnyArrow]++;
+  return nullptr;
+}
 
-    TempVector<AstType*> result(scratchType);
-    TempVector<std::optional<AstArgumentName>> resultNames(scratchOptArgName);
-    AstTypePack* varargAnnotation = nullptr;
+std::optional<AstTypeList> Parser::parseOptionalReturnType() {
+  if (lexer.current().type == ':' ||
+      lexer.current().type == Lexeme::SkinnyArrow) {
+    if (lexer.current().type == Lexeme::SkinnyArrow)
+      report(lexer.current().location, "Function return type annotations are "
+                                       "written after ':' instead of '->'");
 
-    // possibly () -> ReturnType
-    if (lexer.current().type != ')')
-        varargAnnotation = parseTypeList(result, resultNames);
+    nextLexeme();
 
-    const Location location{begin.location, lexer.current().location};
+    unsigned int oldRecursionCount = recursionCounter;
 
-    expectMatchAndConsume(')', begin, true);
+    auto [_location, result] = parseReturnType();
 
-    matchRecoveryStopOnToken[Lexeme::SkinnyArrow]--;
+    // At this point, if we find a , character, it indicates that there are
+    // multiple return types in this type annotation, but the list wasn't
+    // wrapped in parentheses.
+    if (lexer.current().type == ',') {
+      report(lexer.current().location,
+             "Expected a statement, got ','; did you forget to wrap the list "
+             "of return types in parentheses?");
 
-    if (lexer.current().type != Lexeme::SkinnyArrow && resultNames.empty())
-    {
-        // If it turns out that it's just '(A)', it's possible that there are unions/intersections to follow, so fold over it.
-        if (result.size() == 1)
-        {
-            AstType* returnType = parseTypeSuffix(result[0], innerBegin);
-
-            // If parseType parses nothing, then returnType->location.end only points at the last non-type-pack
-            // type to successfully parse.  We need the span of the whole annotation.
-            Position endPos = result.size() == 1 ? location.end : returnType->location.end;
-
-            return {Location{location.begin, endPos}, AstTypeList{copy(&returnType, 1), varargAnnotation}};
-        }
-
-        return {location, AstTypeList{copy(result), varargAnnotation}};
+      nextLexeme();
     }
 
-    AstType* tail = parseFunctionTypeTail(begin, {nullptr, 0}, {}, {}, copy(result), copy(resultNames), varargAnnotation);
+    recursionCounter = oldRecursionCount;
 
-    return {Location{location, tail->location}, AstTypeList{copy(&tail, 1), varargAnnotation}};
+    return result;
+  }
+
+  return std::nullopt;
+}
+
+// ReturnType ::= Type | `(' TypeList `)'
+std::pair<Location, AstTypeList> Parser::parseReturnType() {
+  incrementRecursionCounter("type annotation");
+
+  Lexeme begin = lexer.current();
+
+  if (lexer.current().type != '(') {
+    if (shouldParseTypePack(lexer)) {
+      AstTypePack *typePack = parseTypePack();
+
+      return {typePack->location, AstTypeList{{}, typePack}};
+    } else {
+      AstType *type = parseType();
+
+      return {type->location, AstTypeList{copy(&type, 1), nullptr}};
+    }
+  }
+
+  nextLexeme();
+
+  Location innerBegin = lexer.current().location;
+
+  matchRecoveryStopOnToken[Lexeme::SkinnyArrow]++;
+
+  TempVector<AstType *> result(scratchType);
+  TempVector<std::optional<AstArgumentName>> resultNames(scratchOptArgName);
+  AstTypePack *varargAnnotation = nullptr;
+
+  // possibly () -> ReturnType
+  if (lexer.current().type != ')')
+    varargAnnotation = parseTypeList(result, resultNames);
+
+  const Location location{begin.location, lexer.current().location};
+
+  expectMatchAndConsume(')', begin, true);
+
+  matchRecoveryStopOnToken[Lexeme::SkinnyArrow]--;
+
+  if (lexer.current().type != Lexeme::SkinnyArrow && resultNames.empty()) {
+    // If it turns out that it's just '(A)', it's possible that there are
+    // unions/intersections to follow, so fold over it.
+    if (result.size() == 1) {
+      AstType *returnType = parseTypeSuffix(result[0], innerBegin);
+
+      // If parseType parses nothing, then returnType->location.end only points
+      // at the last non-type-pack type to successfully parse.  We need the span
+      // of the whole annotation.
+      Position endPos =
+          result.size() == 1 ? location.end : returnType->location.end;
+
+      return {Location{location.begin, endPos},
+              AstTypeList{copy(&returnType, 1), varargAnnotation}};
+    }
+
+    return {location, AstTypeList{copy(result), varargAnnotation}};
+  }
+
+  AstType *tail =
+      parseFunctionTypeTail(begin, {nullptr, 0}, {}, {}, copy(result),
+                            copy(resultNames), varargAnnotation);
+
+  return {Location{location, tail->location},
+          AstTypeList{copy(&tail, 1), varargAnnotation}};
 }
 
 // TableIndexer ::= `[' Type `]' `:' Type
-AstTableIndexer* Parser::parseTableIndexer(AstTableAccess access, std::optional<Location> accessLocation)
-{
-    const Lexeme begin = lexer.current();
-    nextLexeme(); // [
+AstTableIndexer *
+Parser::parseTableIndexer(AstTableAccess access,
+                          std::optional<Location> accessLocation) {
+  const Lexeme begin = lexer.current();
+  nextLexeme(); // [
 
-    AstType* index = parseType();
+  AstType *index = parseType();
 
-    expectMatchAndConsume(']', begin);
+  expectMatchAndConsume(']', begin);
 
-    expectAndConsume(':', "table field");
+  expectAndConsume(':', "table field");
 
-    AstType* result = parseType();
+  AstType *result = parseType();
 
-    return allocator.alloc<AstTableIndexer>(AstTableIndexer{index, result, Location(begin.location, result->location), access, accessLocation});
+  return allocator.alloc<AstTableIndexer>(
+      AstTableIndexer{index, result, Location(begin.location, result->location),
+                      access, accessLocation});
 }
 
 // TableProp ::= Name `:' Type
 // TablePropOrIndexer ::= TableProp | TableIndexer
 // PropList ::= TablePropOrIndexer {fieldsep TablePropOrIndexer} [fieldsep]
 // TableType ::= `{' PropList `}'
-AstType* Parser::parseTableType(bool inDeclarationContext)
-{
-    incrementRecursionCounter("type annotation");
+AstType *Parser::parseTableType(bool inDeclarationContext) {
+  incrementRecursionCounter("type annotation");
 
-    TempVector<AstTableProp> props(scratchTableTypeProps);
-    AstTableIndexer* indexer = nullptr;
+  TempVector<AstTableProp> props(scratchTableTypeProps);
+  AstTableIndexer *indexer = nullptr;
 
-    Location start = lexer.current().location;
+  Location start = lexer.current().location;
 
-    MatchLexeme matchBrace = lexer.current();
-    expectAndConsume('{', "table type");
+  MatchLexeme matchBrace = lexer.current();
+  expectAndConsume('{', "table type");
 
-    while (lexer.current().type != '}')
-    {
-        AstTableAccess access = AstTableAccess::ReadWrite;
-        std::optional<Location> accessLocation;
+  while (lexer.current().type != '}') {
+    AstTableAccess access = AstTableAccess::ReadWrite;
+    std::optional<Location> accessLocation;
 
-        if (lexer.current().type == Lexeme::Name && lexer.lookahead().type != ':')
-        {
-            if (AstName(lexer.current().name) == "read")
-            {
-                accessLocation = lexer.current().location;
-                access = AstTableAccess::Read;
-                lexer.next();
-            }
-            else if (AstName(lexer.current().name) == "write")
-            {
-                accessLocation = lexer.current().location;
-                access = AstTableAccess::Write;
-                lexer.next();
-            }
-        }
-
-        if (lexer.current().type == '[' && (lexer.lookahead().type == Lexeme::RawString || lexer.lookahead().type == Lexeme::QuotedString))
-        {
-            const Lexeme begin = lexer.current();
-            nextLexeme(); // [
-            std::optional<AstArray<char>> chars = parseCharArray();
-
-            expectMatchAndConsume(']', begin);
-            expectAndConsume(':', "table field");
-
-            AstType* type = parseType();
-
-            // since AstName contains a char*, it can't contain null
-            bool containsNull = chars && (strnlen(chars->data, chars->size) < chars->size);
-
-            if (chars && !containsNull)
-                props.push_back(AstTableProp{AstName(chars->data), begin.location, type, access, accessLocation});
-            else
-                report(begin.location, "String literal contains malformed escape sequence or \\0");
-        }
-        else if (lexer.current().type == '[')
-        {
-            if (indexer)
-            {
-                // maybe we don't need to parse the entire badIndexer...
-                // however, we either have { or [ to lint, not the entire table type or the bad indexer.
-                AstTableIndexer* badIndexer = parseTableIndexer(access, accessLocation);
-
-                // we lose all additional indexer expressions from the AST after error recovery here
-                report(badIndexer->location, "Cannot have more than one table indexer");
-            }
-            else
-            {
-                indexer = parseTableIndexer(access, accessLocation);
-            }
-        }
-        else if (props.empty() && !indexer && !(lexer.current().type == Lexeme::Name && lexer.lookahead().type == ':'))
-        {
-            AstType* type = parseType();
-
-            // array-like table type: {T} desugars into {[number]: T}
-            AstType* index = allocator.alloc<AstTypeReference>(type->location, std::nullopt, nameNumber, std::nullopt, type->location);
-            indexer = allocator.alloc<AstTableIndexer>(AstTableIndexer{index, type, type->location, access, accessLocation});
-
-            break;
-        }
-        else
-        {
-            std::optional<Name> name = parseNameOpt("table field");
-
-            if (!name)
-                break;
-
-            expectAndConsume(':', "table field");
-
-            AstType* type = parseType(inDeclarationContext);
-
-            props.push_back(AstTableProp{name->name, name->location, type, access, accessLocation});
-        }
-
-        if (lexer.current().type == ',' || lexer.current().type == ';')
-        {
-            nextLexeme();
-        }
-        else
-        {
-            if (lexer.current().type != '}')
-                break;
-        }
+    if (lexer.current().type == Lexeme::Name && lexer.lookahead().type != ':') {
+      if (AstName(lexer.current().name) == "read") {
+        accessLocation = lexer.current().location;
+        access = AstTableAccess::Read;
+        lexer.next();
+      } else if (AstName(lexer.current().name) == "write") {
+        accessLocation = lexer.current().location;
+        access = AstTableAccess::Write;
+        lexer.next();
+      }
     }
 
-    Location end = lexer.current().location;
+    if (lexer.current().type == '[' &&
+        (lexer.lookahead().type == Lexeme::RawString ||
+         lexer.lookahead().type == Lexeme::QuotedString)) {
+      const Lexeme begin = lexer.current();
+      nextLexeme(); // [
+      std::optional<AstArray<char>> chars = parseCharArray();
 
-    if (!expectMatchAndConsume('}', matchBrace))
-        end = lexer.previousLocation();
+      expectMatchAndConsume(']', begin);
+      expectAndConsume(':', "table field");
 
-    return allocator.alloc<AstTypeTable>(Location(start, end), copy(props), indexer);
+      AstType *type = parseType();
+
+      // since AstName contains a char*, it can't contain null
+      bool containsNull =
+          chars && (strnlen(chars->data, chars->size) < chars->size);
+
+      if (chars && !containsNull)
+        props.push_back(AstTableProp{AstName(chars->data), begin.location, type,
+                                     access, accessLocation});
+      else
+        report(begin.location,
+               "String literal contains malformed escape sequence or \\0");
+    } else if (lexer.current().type == '[') {
+      if (indexer) {
+        // maybe we don't need to parse the entire badIndexer...
+        // however, we either have { or [ to lint, not the entire table type or
+        // the bad indexer.
+        AstTableIndexer *badIndexer = parseTableIndexer(access, accessLocation);
+
+        // we lose all additional indexer expressions from the AST after error
+        // recovery here
+        report(badIndexer->location, "Cannot have more than one table indexer");
+      } else {
+        indexer = parseTableIndexer(access, accessLocation);
+      }
+    } else if (props.empty() && !indexer &&
+               !(lexer.current().type == Lexeme::Name &&
+                 lexer.lookahead().type == ':')) {
+      AstType *type = parseType();
+
+      // array-like table type: {T} desugars into {[number]: T}
+      AstType *index = allocator.alloc<AstTypeReference>(
+          type->location, std::nullopt, nameNumber, std::nullopt,
+          type->location);
+      indexer = allocator.alloc<AstTableIndexer>(
+          AstTableIndexer{index, type, type->location, access, accessLocation});
+
+      break;
+    } else {
+      std::optional<Name> name = parseNameOpt("table field");
+
+      if (!name)
+        break;
+
+      expectAndConsume(':', "table field");
+
+      AstType *type = parseType(inDeclarationContext);
+
+      props.push_back(AstTableProp{name->name, name->location, type, access,
+                                   accessLocation});
+    }
+
+    if (lexer.current().type == ',' || lexer.current().type == ';') {
+      nextLexeme();
+    } else {
+      if (lexer.current().type != '}')
+        break;
+    }
+  }
+
+  Location end = lexer.current().location;
+
+  if (!expectMatchAndConsume('}', matchBrace))
+    end = lexer.previousLocation();
+
+  return allocator.alloc<AstTypeTable>(Location(start, end), copy(props),
+                                       indexer);
 }
 
 // ReturnType ::= Type | `(' TypeList `)'
 // FunctionType ::= [`<' varlist `>'] `(' [TypeList] `)' `->` ReturnType
-AstTypeOrPack Parser::parseFunctionType(bool allowPack, const AstArray<AstAttr*>& attributes)
-{
-    incrementRecursionCounter("type annotation");
+AstTypeOrPack Parser::parseFunctionType(bool allowPack,
+                                        const AstArray<AstAttr *> &attributes) {
+  incrementRecursionCounter("type annotation");
 
-    bool forceFunctionType = lexer.current().type == '<';
+  bool forceFunctionType = lexer.current().type == '<';
 
-    Lexeme begin = lexer.current();
+  Lexeme begin = lexer.current();
 
-    auto [generics, genericPacks] = parseGenericTypeList(/* withDefaultValues= */ false);
+  auto [generics, genericPacks] =
+      parseGenericTypeList(/* withDefaultValues= */ false);
 
-    Lexeme parameterStart = lexer.current();
+  Lexeme parameterStart = lexer.current();
 
-    expectAndConsume('(', "function parameters");
+  expectAndConsume('(', "function parameters");
 
-    matchRecoveryStopOnToken[Lexeme::SkinnyArrow]++;
+  matchRecoveryStopOnToken[Lexeme::SkinnyArrow]++;
 
-    TempVector<AstType*> params(scratchType);
-    TempVector<std::optional<AstArgumentName>> names(scratchOptArgName);
-    AstTypePack* varargAnnotation = nullptr;
+  TempVector<AstType *> params(scratchType);
+  TempVector<std::optional<AstArgumentName>> names(scratchOptArgName);
+  AstTypePack *varargAnnotation = nullptr;
 
-    if (lexer.current().type != ')')
-        varargAnnotation = parseTypeList(params, names);
+  if (lexer.current().type != ')')
+    varargAnnotation = parseTypeList(params, names);
 
-    expectMatchAndConsume(')', parameterStart, true);
+  expectMatchAndConsume(')', parameterStart, true);
 
-    matchRecoveryStopOnToken[Lexeme::SkinnyArrow]--;
+  matchRecoveryStopOnToken[Lexeme::SkinnyArrow]--;
 
-    AstArray<AstType*> paramTypes = copy(params);
+  AstArray<AstType *> paramTypes = copy(params);
 
-    if (!names.empty())
-        forceFunctionType = true;
+  if (!names.empty())
+    forceFunctionType = true;
 
-    bool returnTypeIntroducer = lexer.current().type == Lexeme::SkinnyArrow || lexer.current().type == ':';
+  bool returnTypeIntroducer = lexer.current().type == Lexeme::SkinnyArrow ||
+                              lexer.current().type == ':';
 
-    // Not a function at all. Just a parenthesized type. Or maybe a type pack with a single element
-    if (params.size() == 1 && !varargAnnotation && !forceFunctionType && !returnTypeIntroducer)
-    {
-        if (allowPack)
-            return {{}, allocator.alloc<AstTypePackExplicit>(begin.location, AstTypeList{paramTypes, nullptr})};
-        else
-            return {params[0], {}};
-    }
+  // Not a function at all. Just a parenthesized type. Or maybe a type pack with
+  // a single element
+  if (params.size() == 1 && !varargAnnotation && !forceFunctionType &&
+      !returnTypeIntroducer) {
+    if (allowPack)
+      return {{},
+              allocator.alloc<AstTypePackExplicit>(
+                  begin.location, AstTypeList{paramTypes, nullptr})};
+    else
+      return {params[0], {}};
+  }
 
-    if (!forceFunctionType && !returnTypeIntroducer && allowPack)
-        return {{}, allocator.alloc<AstTypePackExplicit>(begin.location, AstTypeList{paramTypes, varargAnnotation})};
+  if (!forceFunctionType && !returnTypeIntroducer && allowPack)
+    return {{},
+            allocator.alloc<AstTypePackExplicit>(
+                begin.location, AstTypeList{paramTypes, varargAnnotation})};
 
-    AstArray<std::optional<AstArgumentName>> paramNames = copy(names);
+  AstArray<std::optional<AstArgumentName>> paramNames = copy(names);
 
-    return {parseFunctionTypeTail(begin, attributes, generics, genericPacks, paramTypes, paramNames, varargAnnotation), {}};
+  return {parseFunctionTypeTail(begin, attributes, generics, genericPacks,
+                                paramTypes, paramNames, varargAnnotation),
+          {}};
 }
 
-AstType* Parser::parseFunctionTypeTail(const Lexeme& begin, const AstArray<AstAttr*>& attributes, AstArray<AstGenericType> generics,
-    AstArray<AstGenericTypePack> genericPacks, AstArray<AstType*> params, AstArray<std::optional<AstArgumentName>> paramNames,
-    AstTypePack* varargAnnotation)
-{
-    incrementRecursionCounter("type annotation");
+AstType *Parser::parseFunctionTypeTail(
+    const Lexeme &begin, const AstArray<AstAttr *> &attributes,
+    AstArray<AstGenericType> generics,
+    AstArray<AstGenericTypePack> genericPacks, AstArray<AstType *> params,
+    AstArray<std::optional<AstArgumentName>> paramNames,
+    AstTypePack *varargAnnotation) {
+  incrementRecursionCounter("type annotation");
 
-    if (lexer.current().type == ':')
-    {
-        report(lexer.current().location, "Return types in function type annotations are written after '->' instead of ':'");
-        lexer.next();
-    }
-    // Users occasionally write '()' as the 'unit' type when they actually want to use 'nil', here we'll try to give a more specific error
-    else if (lexer.current().type != Lexeme::SkinnyArrow && generics.size == 0 && genericPacks.size == 0 && params.size == 0)
-    {
-        report(Location(begin.location, lexer.previousLocation()), "Expected '->' after '()' when parsing function type; did you mean 'nil'?");
+  if (lexer.current().type == ':') {
+    report(lexer.current().location,
+           "Return types in function type annotations are written after '->' "
+           "instead of ':'");
+    lexer.next();
+  }
+  // Users occasionally write '()' as the 'unit' type when they actually want to
+  // use 'nil', here we'll try to give a more specific error
+  else if (lexer.current().type != Lexeme::SkinnyArrow && generics.size == 0 &&
+           genericPacks.size == 0 && params.size == 0) {
+    report(Location(begin.location, lexer.previousLocation()),
+           "Expected '->' after '()' when parsing function type; did you mean "
+           "'nil'?");
 
-        return allocator.alloc<AstTypeReference>(begin.location, std::nullopt, nameNil, std::nullopt, begin.location);
-    }
-    else
-    {
-        expectAndConsume(Lexeme::SkinnyArrow, "function type");
-    }
+    return allocator.alloc<AstTypeReference>(
+        begin.location, std::nullopt, nameNil, std::nullopt, begin.location);
+  } else {
+    expectAndConsume(Lexeme::SkinnyArrow, "function type");
+  }
 
-    auto [endLocation, returnTypeList] = parseReturnType();
+  auto [endLocation, returnTypeList] = parseReturnType();
 
-    AstTypeList paramTypes = AstTypeList{params, varargAnnotation};
-    return allocator.alloc<AstTypeFunction>(
-        Location(begin.location, endLocation), attributes, generics, genericPacks, paramTypes, paramNames, returnTypeList);
+  AstTypeList paramTypes = AstTypeList{params, varargAnnotation};
+  return allocator.alloc<AstTypeFunction>(
+      Location(begin.location, endLocation), attributes, generics, genericPacks,
+      paramTypes, paramNames, returnTypeList);
 }
 
 // Type ::=
@@ -5297,1689 +5107,1633 @@ AstType* Parser::parseFunctionTypeTail(const Lexeme& begin, const AstArray<AstAt
 //      `{' [PropList] `}' |
 //      `(' [TypeList] `)' `->` ReturnType
 //      `typeof` Type
-AstType* Parser::parseTypeSuffix(AstType* type, const Location& begin)
-{
-    TempVector<AstType*> parts(scratchType);
+AstType *Parser::parseTypeSuffix(AstType *type, const Location &begin) {
+  TempVector<AstType *> parts(scratchType);
 
-    if (!FFlag::LuauLeadingBarAndAmpersand2 || type != nullptr)
-    {
-        parts.push_back(type);
-    }
+  if (!FFlag::LuauLeadingBarAndAmpersand2 || type != nullptr) {
+    parts.push_back(type);
+  }
 
-    incrementRecursionCounter("type annotation");
+  incrementRecursionCounter("type annotation");
 
-    bool isUnion = false;
-    bool isIntersection = false;
-    bool hasOptional = false;
+  bool isUnion = false;
+  bool isIntersection = false;
+  bool hasOptional = false;
 
-    Location location = begin;
+  Location location = begin;
 
-    while (true)
-    {
-        Lexeme::Type c = lexer.current().type;
-        if (c == '|')
-        {
-            nextLexeme();
+  while (true) {
+    Lexeme::Type c = lexer.current().type;
+    if (c == '|') {
+      nextLexeme();
 
-            unsigned int oldRecursionCount = recursionCounter;
-            parts.push_back(parseSimpleType(/* allowPack= */ false).type);
-            recursionCounter = oldRecursionCount;
+      unsigned int oldRecursionCount = recursionCounter;
+      parts.push_back(parseSimpleType(/* allowPack= */ false).type);
+      recursionCounter = oldRecursionCount;
 
-            isUnion = true;
-        }
-        else if (c == '?')
-        {
-            LUAU_ASSERT(parts.size() >= 1);
+      isUnion = true;
+    } else if (c == '?') {
+      LUAU_ASSERT(parts.size() >= 1);
 
-            Location loc = lexer.current().location;
-            nextLexeme();
+      Location loc = lexer.current().location;
+      nextLexeme();
 
-            if (!hasOptional)
-                parts.push_back(allocator.alloc<AstTypeReference>(loc, std::nullopt, nameNil, std::nullopt, loc));
+      if (!hasOptional)
+        parts.push_back(allocator.alloc<AstTypeReference>(
+            loc, std::nullopt, nameNil, std::nullopt, loc));
 
-            isUnion = true;
-            hasOptional = true;
-        }
-        else if (c == '&')
-        {
-            nextLexeme();
+      isUnion = true;
+      hasOptional = true;
+    } else if (c == '&') {
+      nextLexeme();
 
-            unsigned int oldRecursionCount = recursionCounter;
-            parts.push_back(parseSimpleType(/* allowPack= */ false).type);
-            recursionCounter = oldRecursionCount;
+      unsigned int oldRecursionCount = recursionCounter;
+      parts.push_back(parseSimpleType(/* allowPack= */ false).type);
+      recursionCounter = oldRecursionCount;
 
-            isIntersection = true;
-        }
-        else if (c == Lexeme::Dot3)
-        {
-            report(lexer.current().location, "Unexpected '...' after type annotation");
-            nextLexeme();
-        }
-        else
-            break;
+      isIntersection = true;
+    } else if (c == Lexeme::Dot3) {
+      report(lexer.current().location,
+             "Unexpected '...' after type annotation");
+      nextLexeme();
+    } else
+      break;
 
-        if (parts.size() > unsigned(FInt::LuauTypeLengthLimit) + hasOptional)
-            ParseError::raise(parts.back()->location, "Exceeded allowed type length; simplify your type annotation to make the code compile");
-    }
+    if (parts.size() > unsigned(FInt::LuauTypeLengthLimit) + hasOptional)
+      ParseError::raise(parts.back()->location,
+                        "Exceeded allowed type length; simplify your type "
+                        "annotation to make the code compile");
+  }
 
-    if (parts.size() == 1)
-        return FFlag::LuauLeadingBarAndAmpersand2 ? parts[0] : type;
+  if (parts.size() == 1)
+    return FFlag::LuauLeadingBarAndAmpersand2 ? parts[0] : type;
 
-    if (isUnion && isIntersection)
-    {
-        return reportTypeError(Location(begin, parts.back()->location), copy(parts),
-            "Mixing union and intersection types is not allowed; consider wrapping in parentheses.");
-    }
+  if (isUnion && isIntersection) {
+    return reportTypeError(Location(begin, parts.back()->location), copy(parts),
+                           "Mixing union and intersection types is not "
+                           "allowed; consider wrapping in parentheses.");
+  }
 
-    location.end = parts.back()->location.end;
+  location.end = parts.back()->location.end;
 
-    if (isUnion)
-        return allocator.alloc<AstTypeUnion>(location, copy(parts));
+  if (isUnion)
+    return allocator.alloc<AstTypeUnion>(location, copy(parts));
 
-    if (isIntersection)
-        return allocator.alloc<AstTypeIntersection>(location, copy(parts));
+  if (isIntersection)
+    return allocator.alloc<AstTypeIntersection>(location, copy(parts));
 
-    LUAU_ASSERT(false);
-    ParseError::raise(begin, "Composite type was not an intersection or union.");
+  LUAU_ASSERT(false);
+  ParseError::raise(begin, "Composite type was not an intersection or union.");
 }
 
-AstTypeOrPack Parser::parseTypeOrPack()
-{
-    unsigned int oldRecursionCount = recursionCounter;
-    // recursion counter is incremented in parseSimpleType
+AstTypeOrPack Parser::parseTypeOrPack() {
+  unsigned int oldRecursionCount = recursionCounter;
+  // recursion counter is incremented in parseSimpleType
 
-    Location begin = lexer.current().location;
+  Location begin = lexer.current().location;
 
-    auto [type, typePack] = parseSimpleType(/* allowPack= */ true);
+  auto [type, typePack] = parseSimpleType(/* allowPack= */ true);
 
-    if (typePack)
-    {
-        LUAU_ASSERT(!type);
-        return {{}, typePack};
+  if (typePack) {
+    LUAU_ASSERT(!type);
+    return {{}, typePack};
+  }
+
+  recursionCounter = oldRecursionCount;
+
+  return {parseTypeSuffix(type, begin), {}};
+}
+
+AstType *Parser::parseType(bool inDeclarationContext) {
+  unsigned int oldRecursionCount = recursionCounter;
+  // recursion counter is incremented in parseSimpleType and/or parseTypeSuffix
+
+  Location begin = lexer.current().location;
+
+  if (FFlag::LuauLeadingBarAndAmpersand2) {
+    AstType *type = nullptr;
+
+    Lexeme::Type c = lexer.current().type;
+    if (c != '|' && c != '&') {
+      type = parseSimpleType(/* allowPack= */ false,
+                             /* in declaration context */ inDeclarationContext)
+                 .type;
+      recursionCounter = oldRecursionCount;
     }
+
+    AstType *typeWithSuffix = parseTypeSuffix(type, begin);
+    recursionCounter = oldRecursionCount;
+
+    return typeWithSuffix;
+  } else {
+    AstType *type =
+        parseSimpleType(/* allowPack= */ false,
+                        /* in declaration context */ inDeclarationContext)
+            .type;
 
     recursionCounter = oldRecursionCount;
 
-    return {parseTypeSuffix(type, begin), {}};
+    return parseTypeSuffix(type, begin);
+  }
 }
 
-AstType* Parser::parseType(bool inDeclarationContext)
-{
-    unsigned int oldRecursionCount = recursionCounter;
-    // recursion counter is incremented in parseSimpleType and/or parseTypeSuffix
-
-    Location begin = lexer.current().location;
-
-    if (FFlag::LuauLeadingBarAndAmpersand2)
-    {
-        AstType* type = nullptr;
-
-        Lexeme::Type c = lexer.current().type;
-        if (c != '|' && c != '&')
-        {
-            type = parseSimpleType(/* allowPack= */ false, /* in declaration context */ inDeclarationContext).type;
-            recursionCounter = oldRecursionCount;
-        }
-
-        AstType* typeWithSuffix = parseTypeSuffix(type, begin);
-        recursionCounter = oldRecursionCount;
-
-        return typeWithSuffix;
-    }
-    else
-    {
-        AstType* type = parseSimpleType(/* allowPack= */ false, /* in declaration context */ inDeclarationContext).type;
-
-        recursionCounter = oldRecursionCount;
-
-        return parseTypeSuffix(type, begin);
-    }
-}
-
-// Type ::= nil | Name[`.' Name] [ `<' Type [`,' ...] `>' ] | `typeof' `(' expr `)' | `{' [PropList] `}'
+// Type ::= nil | Name[`.' Name] [ `<' Type [`,' ...] `>' ] | `typeof' `(' expr
+// `)' | `{' [PropList] `}'
 //   | [`<' varlist `>'] `(' [TypeList] `)' `->` ReturnType
-AstTypeOrPack Parser::parseSimpleType(bool allowPack, bool inDeclarationContext)
-{
-    incrementRecursionCounter("type annotation");
+AstTypeOrPack Parser::parseSimpleType(bool allowPack,
+                                      bool inDeclarationContext) {
+  incrementRecursionCounter("type annotation");
 
-    Location start = lexer.current().location;
+  Location start = lexer.current().location;
 
-    AstArray<AstAttr*> attributes{nullptr, 0};
+  AstArray<AstAttr *> attributes{nullptr, 0};
 
-    if (lexer.current().type == Lexeme::Attribute)
-    {
-        if (!inDeclarationContext || !FFlag::LuauAttributeSyntax)
-        {
-            return {reportTypeError(start, {}, "attributes are not allowed in declaration context")};
-        }
-        else
-        {
-            attributes = Parser::parseAttributes();
-            return parseFunctionType(allowPack, attributes);
-        }
+  if (lexer.current().type == Lexeme::Attribute) {
+    if (!inDeclarationContext || !FFlag::LuauAttributeSyntax) {
+      return {reportTypeError(
+          start, {}, "attributes are not allowed in declaration context")};
+    } else {
+      attributes = Parser::parseAttributes();
+      return parseFunctionType(allowPack, attributes);
     }
-    else if (lexer.current().type == Lexeme::ReservedNil)
-    {
-        nextLexeme();
-        return {allocator.alloc<AstTypeReference>(start, std::nullopt, nameNil, std::nullopt, start), {}};
-    }
-    else if (lexer.current().type == Lexeme::ReservedTrue)
-    {
-        nextLexeme();
-        return {allocator.alloc<AstTypeSingletonBool>(start, true)};
-    }
-    else if (lexer.current().type == Lexeme::ReservedFalse)
-    {
-        nextLexeme();
-        return {allocator.alloc<AstTypeSingletonBool>(start, false)};
-    }
-    else if (lexer.current().type == Lexeme::RawString || lexer.current().type == Lexeme::QuotedString)
-    {
-        if (std::optional<AstArray<char>> value = parseCharArray())
-        {
-            AstArray<char> svalue = *value;
-            return {allocator.alloc<AstTypeSingletonString>(start, svalue)};
-        }
-        else
-            return {reportTypeError(start, {}, "String literal contains malformed escape sequence")};
-    }
-    else if (lexer.current().type == Lexeme::InterpStringBegin || lexer.current().type == Lexeme::InterpStringSimple)
-    {
-        parseInterpString();
-
-        return {reportTypeError(start, {}, "Interpolated string literals cannot be used as types")};
-    }
-    else if (lexer.current().type == Lexeme::BrokenString)
-    {
-        nextLexeme();
-        return {reportTypeError(start, {}, "Malformed string; did you forget to finish it?")};
-    }
-    else if (lexer.current().type == Lexeme::Name)
-    {
-        std::optional<AstName> prefix;
-        std::optional<Location> prefixLocation;
-        Name name = parseName("type name");
-
-        if (lexer.current().type == '.')
-        {
-            Position pointPosition = lexer.current().location.begin;
-            nextLexeme();
-
-            prefix = name.name;
-            prefixLocation = name.location;
-            name = parseIndexName("field name", pointPosition);
-        }
-        else if (lexer.current().type == Lexeme::Dot3)
-        {
-            report(lexer.current().location, "Unexpected '...' after type name; type pack is not allowed in this context");
-            nextLexeme();
-        }
-        else if (name.name == "typeof")
-        {
-            Lexeme typeofBegin = lexer.current();
-            expectAndConsume('(', "typeof type");
-
-            AstExpr* expr = parseExpr();
-
-            Location end = lexer.current().location;
-
-            expectMatchAndConsume(')', typeofBegin);
-
-            return {allocator.alloc<AstTypeTypeof>(Location(start, end), expr), {}};
-        }
-
-        bool hasParameters = false;
-        AstArray<AstTypeOrPack> parameters{};
-
-        if (lexer.current().type == '<')
-        {
-            hasParameters = true;
-            parameters = parseTypeParams();
-        }
-
-        Location end = lexer.previousLocation();
-
-        return {
-            allocator.alloc<AstTypeReference>(Location(start, end), prefix, name.name, prefixLocation, name.location, hasParameters, parameters), {}};
-    }
-    else if (lexer.current().type == '{')
-    {
-        return {parseTableType(/* inDeclarationContext */ inDeclarationContext), {}};
-    }
-    else if (lexer.current().type == '(' || lexer.current().type == '<')
-    {
-        return parseFunctionType(allowPack, AstArray<AstAttr*>({nullptr, 0}));
-    }
-    else if (lexer.current().type == Lexeme::ReservedFunction)
-    {
-        nextLexeme();
-
-        return {reportTypeError(start, {},
-                    "Using 'function' as a type annotation is not supported, consider replacing with a function type annotation e.g. '(...any) -> "
-                    "...any'"),
+  } else if (lexer.current().type == Lexeme::ReservedNil) {
+    nextLexeme();
+    return {allocator.alloc<AstTypeReference>(start, std::nullopt, nameNil,
+                                              std::nullopt, start),
             {}};
+  } else if (lexer.current().type == Lexeme::ReservedTrue) {
+    nextLexeme();
+    return {allocator.alloc<AstTypeSingletonBool>(start, true)};
+  } else if (lexer.current().type == Lexeme::ReservedFalse) {
+    nextLexeme();
+    return {allocator.alloc<AstTypeSingletonBool>(start, false)};
+  } else if (lexer.current().type == Lexeme::RawString ||
+             lexer.current().type == Lexeme::QuotedString) {
+    if (std::optional<AstArray<char>> value = parseCharArray()) {
+      AstArray<char> svalue = *value;
+      return {allocator.alloc<AstTypeSingletonString>(start, svalue)};
+    } else
+      return {reportTypeError(
+          start, {}, "String literal contains malformed escape sequence")};
+  } else if (lexer.current().type == Lexeme::InterpStringBegin ||
+             lexer.current().type == Lexeme::InterpStringSimple) {
+    parseInterpString();
+
+    return {reportTypeError(
+        start, {}, "Interpolated string literals cannot be used as types")};
+  } else if (lexer.current().type == Lexeme::BrokenString) {
+    nextLexeme();
+    return {reportTypeError(start, {},
+                            "Malformed string; did you forget to finish it?")};
+  } else if (lexer.current().type == Lexeme::Name) {
+    std::optional<AstName> prefix;
+    std::optional<Location> prefixLocation;
+    Name name = parseName("type name");
+
+    if (lexer.current().type == '.') {
+      Position pointPosition = lexer.current().location.begin;
+      nextLexeme();
+
+      prefix = name.name;
+      prefixLocation = name.location;
+      name = parseIndexName("field name", pointPosition);
+    } else if (lexer.current().type == Lexeme::Dot3) {
+      report(lexer.current().location, "Unexpected '...' after type name; type "
+                                       "pack is not allowed in this context");
+      nextLexeme();
+    } else if (name.name == "typeof") {
+      Lexeme typeofBegin = lexer.current();
+      expectAndConsume('(', "typeof type");
+
+      AstExpr *expr = parseExpr();
+
+      Location end = lexer.current().location;
+
+      expectMatchAndConsume(')', typeofBegin);
+
+      return {allocator.alloc<AstTypeTypeof>(Location(start, end), expr), {}};
     }
-    else
-    {
-        // For a missing type annotation, capture 'space' between last token and the next one
-        Location astErrorlocation(lexer.previousLocation().end, start.begin);
-        // The parse error includes the next lexeme to make it easier to display where the error is (e.g. in an IDE or a CLI error message).
-        // Including the current lexeme also makes the parse error consistent with other parse errors returned by Luau.
-        Location parseErrorLocation(lexer.previousLocation().end, start.end);
-        return {reportMissingTypeError(parseErrorLocation, astErrorlocation, "Expected type, got %s", lexer.current().toString().c_str()), {}};
+
+    bool hasParameters = false;
+    AstArray<AstTypeOrPack> parameters{};
+
+    if (lexer.current().type == '<') {
+      hasParameters = true;
+      parameters = parseTypeParams();
     }
+
+    Location end = lexer.previousLocation();
+
+    return {allocator.alloc<AstTypeReference>(
+                Location(start, end), prefix, name.name, prefixLocation,
+                name.location, hasParameters, parameters),
+            {}};
+  } else if (lexer.current().type == '{') {
+    return {parseTableType(/* inDeclarationContext */ inDeclarationContext),
+            {}};
+  } else if (lexer.current().type == '(' || lexer.current().type == '<') {
+    return parseFunctionType(allowPack, AstArray<AstAttr *>({nullptr, 0}));
+  } else if (lexer.current().type == Lexeme::ReservedFunction) {
+    nextLexeme();
+
+    return {
+        reportTypeError(
+            start, {},
+            "Using 'function' as a type annotation is not supported, consider "
+            "replacing with a function type annotation e.g. '(...any) -> "
+            "...any'"),
+        {}};
+  } else {
+    // For a missing type annotation, capture 'space' between last token and the
+    // next one
+    Location astErrorlocation(lexer.previousLocation().end, start.begin);
+    // The parse error includes the next lexeme to make it easier to display
+    // where the error is (e.g. in an IDE or a CLI error message). Including the
+    // current lexeme also makes the parse error consistent with other parse
+    // errors returned by Luau.
+    Location parseErrorLocation(lexer.previousLocation().end, start.end);
+    return {reportMissingTypeError(parseErrorLocation, astErrorlocation,
+                                   "Expected type, got %s",
+                                   lexer.current().toString().c_str()),
+            {}};
+  }
 }
 
-AstTypePack* Parser::parseVariadicArgumentTypePack()
-{
-    // Generic: a...
-    if (lexer.current().type == Lexeme::Name && lexer.lookahead().type == Lexeme::Dot3)
-    {
-        Name name = parseName("generic name");
-        Location end = lexer.current().location;
+AstTypePack *Parser::parseVariadicArgumentTypePack() {
+  // Generic: a...
+  if (lexer.current().type == Lexeme::Name &&
+      lexer.lookahead().type == Lexeme::Dot3) {
+    Name name = parseName("generic name");
+    Location end = lexer.current().location;
 
-        // This will not fail because of the lookahead guard.
-        expectAndConsume(Lexeme::Dot3, "generic type pack annotation");
-        return allocator.alloc<AstTypePackGeneric>(Location(name.location, end), name.name);
-    }
-    // Variadic: T
-    else
-    {
-        AstType* variadicAnnotation = parseType();
-        return allocator.alloc<AstTypePackVariadic>(variadicAnnotation->location, variadicAnnotation);
-    }
+    // This will not fail because of the lookahead guard.
+    expectAndConsume(Lexeme::Dot3, "generic type pack annotation");
+    return allocator.alloc<AstTypePackGeneric>(Location(name.location, end),
+                                               name.name);
+  }
+  // Variadic: T
+  else {
+    AstType *variadicAnnotation = parseType();
+    return allocator.alloc<AstTypePackVariadic>(variadicAnnotation->location,
+                                                variadicAnnotation);
+  }
 }
 
-AstTypePack* Parser::parseTypePack()
-{
-    // Variadic: ...T
-    if (lexer.current().type == Lexeme::Dot3)
-    {
-        Location start = lexer.current().location;
-        nextLexeme();
-        AstType* varargTy = parseType();
-        return allocator.alloc<AstTypePackVariadic>(Location(start, varargTy->location), varargTy);
-    }
-    // Generic: a...
-    else if (lexer.current().type == Lexeme::Name && lexer.lookahead().type == Lexeme::Dot3)
-    {
-        Name name = parseName("generic name");
-        Location end = lexer.current().location;
+AstTypePack *Parser::parseTypePack() {
+  // Variadic: ...T
+  if (lexer.current().type == Lexeme::Dot3) {
+    Location start = lexer.current().location;
+    nextLexeme();
+    AstType *varargTy = parseType();
+    return allocator.alloc<AstTypePackVariadic>(
+        Location(start, varargTy->location), varargTy);
+  }
+  // Generic: a...
+  else if (lexer.current().type == Lexeme::Name &&
+           lexer.lookahead().type == Lexeme::Dot3) {
+    Name name = parseName("generic name");
+    Location end = lexer.current().location;
 
-        // This will not fail because of the lookahead guard.
-        expectAndConsume(Lexeme::Dot3, "generic type pack annotation");
-        return allocator.alloc<AstTypePackGeneric>(Location(name.location, end), name.name);
-    }
+    // This will not fail because of the lookahead guard.
+    expectAndConsume(Lexeme::Dot3, "generic type pack annotation");
+    return allocator.alloc<AstTypePackGeneric>(Location(name.location, end),
+                                               name.name);
+  }
 
-    // TODO: shouldParseTypePack can be removed and parseTypePack can be called unconditionally instead
-    LUAU_ASSERT(!"parseTypePack can't be called if shouldParseTypePack() returned false");
-    return nullptr;
+  // TODO: shouldParseTypePack can be removed and parseTypePack can be called
+  // unconditionally instead
+  LUAU_ASSERT(
+      !"parseTypePack can't be called if shouldParseTypePack() returned false");
+  return nullptr;
 }
 
-std::optional<AstExprUnary::Op> Parser::parseUnaryOp(const Lexeme& l)
-{
-    if (l.type == Lexeme::ReservedNot)
-        return AstExprUnary::Not;
-    else if (l.type == '-')
-        return AstExprUnary::Minus;
-    else if (l.type == '#')
-        return AstExprUnary::Len;
-    else
-        return std::nullopt;
-}
-
-std::optional<AstExprBinary::Op> Parser::parseBinaryOp(const Lexeme& l)
-{
-    if (l.type == '+')
-        return AstExprBinary::Add;
-    else if (l.type == '-')
-        return AstExprBinary::Sub;
-    else if (l.type == '*')
-        return AstExprBinary::Mul;
-    else if (l.type == '/')
-        return AstExprBinary::Div;
-    else if (l.type == Lexeme::FloorDiv)
-        return AstExprBinary::FloorDiv;
-    else if (l.type == '%')
-        return AstExprBinary::Mod;
-    else if (l.type == '^')
-        return AstExprBinary::Pow;
-    else if (l.type == Lexeme::Dot2)
-        return AstExprBinary::Concat;
-    else if (l.type == Lexeme::NotEqual)
-        return AstExprBinary::CompareNe;
-    else if (l.type == Lexeme::Equal)
-        return AstExprBinary::CompareEq;
-    else if (l.type == '<')
-        return AstExprBinary::CompareLt;
-    else if (l.type == Lexeme::LessEqual)
-        return AstExprBinary::CompareLe;
-    else if (l.type == '>')
-        return AstExprBinary::CompareGt;
-    else if (l.type == Lexeme::GreaterEqual)
-        return AstExprBinary::CompareGe;
-    else if (l.type == Lexeme::ReservedAnd)
-        return AstExprBinary::And;
-    else if (l.type == Lexeme::ReservedOr)
-        return AstExprBinary::Or;
-    else
-        return std::nullopt;
-}
-
-std::optional<AstExprBinary::Op> Parser::parseCompoundOp(const Lexeme& l)
-{
-    if (l.type == Lexeme::AddAssign)
-        return AstExprBinary::Add;
-    else if (l.type == Lexeme::SubAssign)
-        return AstExprBinary::Sub;
-    else if (l.type == Lexeme::MulAssign)
-        return AstExprBinary::Mul;
-    else if (l.type == Lexeme::DivAssign)
-        return AstExprBinary::Div;
-    else if (l.type == Lexeme::FloorDivAssign)
-        return AstExprBinary::FloorDiv;
-    else if (l.type == Lexeme::ModAssign)
-        return AstExprBinary::Mod;
-    else if (l.type == Lexeme::PowAssign)
-        return AstExprBinary::Pow;
-    else if (l.type == Lexeme::ConcatAssign)
-        return AstExprBinary::Concat;
-    else
-        return std::nullopt;
-}
-
-std::optional<AstExprUnary::Op> Parser::checkUnaryConfusables()
-{
-    const Lexeme& curr = lexer.current();
-
-    // early-out: need to check if this is a possible confusable quickly
-    if (curr.type != '!')
-        return {};
-
-    // slow path: possible confusable
-    Location start = curr.location;
-
-    if (curr.type == '!')
-    {
-        report(start, "Unexpected '!'; did you mean 'not'?");
-        return AstExprUnary::Not;
-    }
-
-    return {};
-}
-
-std::optional<AstExprBinary::Op> Parser::checkBinaryConfusables(const BinaryOpPriority binaryPriority[], unsigned int limit)
-{
-    const Lexeme& curr = lexer.current();
-
-    // early-out: need to check if this is a possible confusable quickly
-    if (curr.type != '&' && curr.type != '|' && curr.type != '!')
-        return {};
-
-    // slow path: possible confusable
-    Location start = curr.location;
-    Lexeme next = lexer.lookahead();
-
-    if (curr.type == '&' && next.type == '&' && curr.location.end == next.location.begin && binaryPriority[AstExprBinary::And].left > limit)
-    {
-        nextLexeme();
-        report(Location(start, next.location), "Unexpected '&&'; did you mean 'and'?");
-        return AstExprBinary::And;
-    }
-    else if (curr.type == '|' && next.type == '|' && curr.location.end == next.location.begin && binaryPriority[AstExprBinary::Or].left > limit)
-    {
-        nextLexeme();
-        report(Location(start, next.location), "Unexpected '||'; did you mean 'or'?");
-        return AstExprBinary::Or;
-    }
-    else if (curr.type == '!' && next.type == '=' && curr.location.end == next.location.begin &&
-             binaryPriority[AstExprBinary::CompareNe].left > limit)
-    {
-        nextLexeme();
-        report(Location(start, next.location), "Unexpected '!='; did you mean '~='?");
-        return AstExprBinary::CompareNe;
-    }
-
+std::optional<AstExprUnary::Op> Parser::parseUnaryOp(const Lexeme &l) {
+  if (l.type == Lexeme::ReservedNot)
+    return AstExprUnary::Not;
+  else if (l.type == '-')
+    return AstExprUnary::Minus;
+  else if (l.type == '#')
+    return AstExprUnary::Len;
+  else
     return std::nullopt;
+}
+
+std::optional<AstExprBinary::Op> Parser::parseBinaryOp(const Lexeme &l) {
+  if (l.type == '+')
+    return AstExprBinary::Add;
+  else if (l.type == '-')
+    return AstExprBinary::Sub;
+  else if (l.type == '*')
+    return AstExprBinary::Mul;
+  else if (l.type == '/')
+    return AstExprBinary::Div;
+  else if (l.type == Lexeme::FloorDiv)
+    return AstExprBinary::FloorDiv;
+  else if (l.type == '%')
+    return AstExprBinary::Mod;
+  else if (l.type == '^')
+    return AstExprBinary::Pow;
+  else if (l.type == Lexeme::Dot2)
+    return AstExprBinary::Concat;
+  else if (l.type == Lexeme::NotEqual)
+    return AstExprBinary::CompareNe;
+  else if (l.type == Lexeme::Equal)
+    return AstExprBinary::CompareEq;
+  else if (l.type == '<')
+    return AstExprBinary::CompareLt;
+  else if (l.type == Lexeme::LessEqual)
+    return AstExprBinary::CompareLe;
+  else if (l.type == '>')
+    return AstExprBinary::CompareGt;
+  else if (l.type == Lexeme::GreaterEqual)
+    return AstExprBinary::CompareGe;
+  else if (l.type == Lexeme::ReservedAnd)
+    return AstExprBinary::And;
+  else if (l.type == Lexeme::ReservedOr)
+    return AstExprBinary::Or;
+  else
+    return std::nullopt;
+}
+
+std::optional<AstExprBinary::Op> Parser::parseCompoundOp(const Lexeme &l) {
+  if (l.type == Lexeme::AddAssign)
+    return AstExprBinary::Add;
+  else if (l.type == Lexeme::SubAssign)
+    return AstExprBinary::Sub;
+  else if (l.type == Lexeme::MulAssign)
+    return AstExprBinary::Mul;
+  else if (l.type == Lexeme::DivAssign)
+    return AstExprBinary::Div;
+  else if (l.type == Lexeme::FloorDivAssign)
+    return AstExprBinary::FloorDiv;
+  else if (l.type == Lexeme::ModAssign)
+    return AstExprBinary::Mod;
+  else if (l.type == Lexeme::PowAssign)
+    return AstExprBinary::Pow;
+  else if (l.type == Lexeme::ConcatAssign)
+    return AstExprBinary::Concat;
+  else
+    return std::nullopt;
+}
+
+std::optional<AstExprUnary::Op> Parser::checkUnaryConfusables() {
+  const Lexeme &curr = lexer.current();
+
+  // early-out: need to check if this is a possible confusable quickly
+  if (curr.type != '!')
+    return {};
+
+  // slow path: possible confusable
+  Location start = curr.location;
+
+  if (curr.type == '!') {
+    report(start, "Unexpected '!'; did you mean 'not'?");
+    return AstExprUnary::Not;
+  }
+
+  return {};
+}
+
+std::optional<AstExprBinary::Op>
+Parser::checkBinaryConfusables(const BinaryOpPriority binaryPriority[],
+                               unsigned int limit) {
+  const Lexeme &curr = lexer.current();
+
+  // early-out: need to check if this is a possible confusable quickly
+  if (curr.type != '&' && curr.type != '|' && curr.type != '!')
+    return {};
+
+  // slow path: possible confusable
+  Location start = curr.location;
+  Lexeme next = lexer.lookahead();
+
+  if (curr.type == '&' && next.type == '&' &&
+      curr.location.end == next.location.begin &&
+      binaryPriority[AstExprBinary::And].left > limit) {
+    nextLexeme();
+    report(Location(start, next.location),
+           "Unexpected '&&'; did you mean 'and'?");
+    return AstExprBinary::And;
+  } else if (curr.type == '|' && next.type == '|' &&
+             curr.location.end == next.location.begin &&
+             binaryPriority[AstExprBinary::Or].left > limit) {
+    nextLexeme();
+    report(Location(start, next.location),
+           "Unexpected '||'; did you mean 'or'?");
+    return AstExprBinary::Or;
+  } else if (curr.type == '!' && next.type == '=' &&
+             curr.location.end == next.location.begin &&
+             binaryPriority[AstExprBinary::CompareNe].left > limit) {
+    nextLexeme();
+    report(Location(start, next.location),
+           "Unexpected '!='; did you mean '~='?");
+    return AstExprBinary::CompareNe;
+  }
+
+  return std::nullopt;
 }
 
 // subexpr -> (asexp | unop subexpr) { binop subexpr }
 // where `binop' is any binary operator with a priority higher than `limit'
-AstExpr* Parser::parseExpr(unsigned int limit)
-{
-    static const BinaryOpPriority binaryPriority[] = {
-        {6, 6}, {6, 6}, {7, 7}, {7, 7}, {7, 7}, {7, 7}, // `+' `-' `*' `/' `//' `%'
-        {10, 9}, {5, 4},                                // power and concat (right associative)
-        {3, 3}, {3, 3},                                 // equality and inequality
-        {3, 3}, {3, 3}, {3, 3}, {3, 3},                 // order
-        {2, 2}, {1, 1}                                  // logical (and/or)
-    };
-    static_assert(sizeof(binaryPriority) / sizeof(binaryPriority[0]) == size_t(AstExprBinary::Op__Count), "binaryPriority needs an entry per op");
+AstExpr *Parser::parseExpr(unsigned int limit) {
+  static const BinaryOpPriority binaryPriority[] = {
+      {6, 6},  {6, 6}, {7, 7}, {7, 7},
+      {7, 7},  {7, 7},                 // `+' `-' `*' `/' `//' `%'
+      {10, 9}, {5, 4},                 // power and concat (right associative)
+      {3, 3},  {3, 3},                 // equality and inequality
+      {3, 3},  {3, 3}, {3, 3}, {3, 3}, // order
+      {2, 2},  {1, 1}                  // logical (and/or)
+  };
+  static_assert(sizeof(binaryPriority) / sizeof(binaryPriority[0]) ==
+                    size_t(AstExprBinary::Op__Count),
+                "binaryPriority needs an entry per op");
 
-    unsigned int oldRecursionCount = recursionCounter;
+  unsigned int oldRecursionCount = recursionCounter;
 
-    // this handles recursive calls to parseSubExpr/parseExpr
-    incrementRecursionCounter("expression");
+  // this handles recursive calls to parseSubExpr/parseExpr
+  incrementRecursionCounter("expression");
 
-    const unsigned int unaryPriority = 8;
+  const unsigned int unaryPriority = 8;
 
-    Location start = lexer.current().location;
+  Location start = lexer.current().location;
 
-    AstExpr* expr;
+  AstExpr *expr;
 
-    std::optional<AstExprUnary::Op> uop = parseUnaryOp(lexer.current());
+  std::optional<AstExprUnary::Op> uop = parseUnaryOp(lexer.current());
 
-    if (!uop)
-        uop = checkUnaryConfusables();
+  if (!uop)
+    uop = checkUnaryConfusables();
 
-    if (uop)
-    {
-        nextLexeme();
+  if (uop) {
+    nextLexeme();
 
-        AstExpr* subexpr = parseExpr(unaryPriority);
+    AstExpr *subexpr = parseExpr(unaryPriority);
 
-        expr = allocator.alloc<AstExprUnary>(Location(start, subexpr->location), *uop, subexpr);
-    }
-    else
-    {
-        expr = parseAssertionExpr();
-    }
+    expr = allocator.alloc<AstExprUnary>(Location(start, subexpr->location),
+                                         *uop, subexpr);
+  } else {
+    expr = parseAssertionExpr();
+  }
 
-    // expand while operators have priorities higher than `limit'
-    std::optional<AstExprBinary::Op> op = parseBinaryOp(lexer.current());
+  // expand while operators have priorities higher than `limit'
+  std::optional<AstExprBinary::Op> op = parseBinaryOp(lexer.current());
+
+  if (!op)
+    op = checkBinaryConfusables(binaryPriority, limit);
+
+  while (op && binaryPriority[*op].left > limit) {
+    nextLexeme();
+
+    // read sub-expression with higher priority
+    AstExpr *next = parseExpr(binaryPriority[*op].right);
+
+    expr = allocator.alloc<AstExprBinary>(Location(start, next->location), *op,
+                                          expr, next);
+    op = parseBinaryOp(lexer.current());
 
     if (!op)
-        op = checkBinaryConfusables(binaryPriority, limit);
+      op = checkBinaryConfusables(binaryPriority, limit);
 
-    while (op && binaryPriority[*op].left > limit)
-    {
-        nextLexeme();
+    // note: while the parser isn't recursive here, we're generating recursive
+    // structures of unbounded depth
+    incrementRecursionCounter("expression");
+  }
 
-        // read sub-expression with higher priority
-        AstExpr* next = parseExpr(binaryPriority[*op].right);
+  recursionCounter = oldRecursionCount;
 
-        expr = allocator.alloc<AstExprBinary>(Location(start, next->location), *op, expr, next);
-        op = parseBinaryOp(lexer.current());
-
-        if (!op)
-            op = checkBinaryConfusables(binaryPriority, limit);
-
-        // note: while the parser isn't recursive here, we're generating recursive structures of unbounded depth
-        incrementRecursionCounter("expression");
-    }
-
-    recursionCounter = oldRecursionCount;
-
-    return expr;
+  return expr;
 }
 
 // NAME
-AstExpr* Parser::parseNameExpr(const char* context)
-{
-    std::optional<Name> name = parseNameOpt(context);
+AstExpr *Parser::parseNameExpr(const char *context) {
+  std::optional<Name> name = parseNameOpt(context);
 
-    if (!name)
-        return allocator.alloc<AstExprError>(lexer.current().location, copy<AstExpr*>({}), unsigned(parseErrors.size() - 1));
+  if (!name)
+    return allocator.alloc<AstExprError>(lexer.current().location,
+                                         copy<AstExpr *>({}),
+                                         unsigned(parseErrors.size() - 1));
 
-    AstLocal* const* value = localMap.find(name->name);
+  AstLocal *const *value = localMap.find(name->name);
 
-    if (value && *value)
-    {
-        AstLocal* local = *value;
+  if (value && *value) {
+    AstLocal *local = *value;
 
-        return allocator.alloc<AstExprLocal>(name->location, local, local->functionDepth != functionStack.size() - 1);
-    }
+    return allocator.alloc<AstExprLocal>(name->location, local,
+                                         local->functionDepth !=
+                                             functionStack.size() - 1);
+  }
 
-    return allocator.alloc<AstExprGlobal>(name->location, name->name);
+  return allocator.alloc<AstExprGlobal>(name->location, name->name);
 }
 
 // prefixexp -> NAME | '(' expr ')'
-AstExpr* Parser::parsePrefixExpr()
-{
-    if (lexer.current().type == '(')
-    {
-        Position start = lexer.current().location.begin;
-
-        MatchLexeme matchParen = lexer.current();
-        nextLexeme();
-
-        AstExpr* expr = parseExpr();
-
-        Position end = lexer.current().location.end;
-
-        if (lexer.current().type != ')')
-        {
-            const char* suggestion = (lexer.current().type == '=') ? "; did you mean to use '{' when defining a table?" : nullptr;
-
-            expectMatchAndConsumeFail(static_cast<Lexeme::Type>(')'), matchParen, suggestion);
-
-            end = lexer.previousLocation().end;
-        }
-        else
-        {
-            nextLexeme();
-        }
-
-        return allocator.alloc<AstExprGroup>(Location(start, end), expr);
-    }
-    else
-    {
-        return parseNameExpr("expression");
-    }
-}
-
-// primaryexp -> prefixexp { `.' NAME | `[' exp `]' | `:' NAME funcargs | funcargs }
-AstExpr* Parser::parsePrimaryExpr(bool asStatement)
-{
+AstExpr *Parser::parsePrefixExpr() {
+  if (lexer.current().type == '(') {
     Position start = lexer.current().location.begin;
 
-    AstExpr* expr = parsePrefixExpr();
+    MatchLexeme matchParen = lexer.current();
+    nextLexeme();
 
-    unsigned int oldRecursionCount = recursionCounter;
+    AstExpr *expr = parseExpr();
 
-    while (true)
-    {
-        if (lexer.current().type == '.')
-        {
-            Position opPosition = lexer.current().location.begin;
-            nextLexeme();
+    Position end = lexer.current().location.end;
 
-            Name index = parseIndexName(nullptr, opPosition);
+    if (lexer.current().type != ')') {
+      const char *suggestion =
+          (lexer.current().type == '=')
+              ? "; did you mean to use '{' when defining a table?"
+              : nullptr;
 
-            expr = allocator.alloc<AstExprIndexName>(Location(start, index.location.end), expr, index.name, index.location, opPosition, '.');
-        }
-        else if (lexer.current().type == '[')
-        {
-            MatchLexeme matchBracket = lexer.current();
-            nextLexeme();
+      expectMatchAndConsumeFail(static_cast<Lexeme::Type>(')'), matchParen,
+                                suggestion);
 
-            AstExpr* index = parseExpr();
-
-            Position end = lexer.current().location.end;
-
-            expectMatchAndConsume(']', matchBracket);
-
-            expr = allocator.alloc<AstExprIndexExpr>(Location(start, end), expr, index);
-        }
-        else if (lexer.current().type == ':')
-        {
-            Position opPosition = lexer.current().location.begin;
-            nextLexeme();
-
-            Name index = parseIndexName("method name", opPosition);
-            AstExpr* func = allocator.alloc<AstExprIndexName>(Location(start, index.location.end), expr, index.name, index.location, opPosition, ':');
-
-            expr = parseFunctionArgs(func, true);
-        }
-        else if (lexer.current().type == '(')
-        {
-            // This error is handled inside 'parseFunctionArgs' as well, but for better error recovery we need to break out the current loop here
-            if (!asStatement && expr->location.end.line != lexer.current().location.begin.line)
-            {
-                reportAmbiguousCallError();
-                break;
-            }
-
-            expr = parseFunctionArgs(expr, false);
-        }
-        else if (lexer.current().type == '{' || lexer.current().type == Lexeme::RawString || lexer.current().type == Lexeme::QuotedString)
-        {
-            expr = parseFunctionArgs(expr, false);
-        }
-        else
-        {
-            break;
-        }
-
-        // note: while the parser isn't recursive here, we're generating recursive structures of unbounded depth
-        incrementRecursionCounter("expression");
+      end = lexer.previousLocation().end;
+    } else {
+      nextLexeme();
     }
 
-    recursionCounter = oldRecursionCount;
+    return allocator.alloc<AstExprGroup>(Location(start, end), expr);
+  } else {
+    return parseNameExpr("expression");
+  }
+}
 
-    return expr;
+// primaryexp -> prefixexp { `.' NAME | `[' exp `]' | `:' NAME funcargs |
+// funcargs }
+AstExpr *Parser::parsePrimaryExpr(bool asStatement) {
+  Position start = lexer.current().location.begin;
+
+  AstExpr *expr = parsePrefixExpr();
+
+  unsigned int oldRecursionCount = recursionCounter;
+
+  while (true) {
+    if (lexer.current().type == '.') {
+      Position opPosition = lexer.current().location.begin;
+      nextLexeme();
+
+      Name index = parseIndexName(nullptr, opPosition);
+
+      expr = allocator.alloc<AstExprIndexName>(
+          Location(start, index.location.end), expr, index.name, index.location,
+          opPosition, '.');
+    } else if (lexer.current().type == '[') {
+      MatchLexeme matchBracket = lexer.current();
+      nextLexeme();
+
+      AstExpr *index = parseExpr();
+
+      Position end = lexer.current().location.end;
+
+      expectMatchAndConsume(']', matchBracket);
+
+      expr =
+          allocator.alloc<AstExprIndexExpr>(Location(start, end), expr, index);
+    } else if (lexer.current().type == ':') {
+      Position opPosition = lexer.current().location.begin;
+      nextLexeme();
+
+      Name index = parseIndexName("method name", opPosition);
+      AstExpr *func = allocator.alloc<AstExprIndexName>(
+          Location(start, index.location.end), expr, index.name, index.location,
+          opPosition, ':');
+
+      expr = parseFunctionArgs(func, true);
+    } else if (lexer.current().type == '(') {
+      // This error is handled inside 'parseFunctionArgs' as well, but for
+      // better error recovery we need to break out the current loop here
+      if (!asStatement &&
+          expr->location.end.line != lexer.current().location.begin.line) {
+        reportAmbiguousCallError();
+        break;
+      }
+
+      expr = parseFunctionArgs(expr, false);
+    } else if (lexer.current().type == '{' ||
+               lexer.current().type == Lexeme::RawString ||
+               lexer.current().type == Lexeme::QuotedString) {
+      expr = parseFunctionArgs(expr, false);
+    } else {
+      break;
+    }
+
+    // note: while the parser isn't recursive here, we're generating recursive
+    // structures of unbounded depth
+    incrementRecursionCounter("expression");
+  }
+
+  recursionCounter = oldRecursionCount;
+
+  return expr;
 }
 
 // asexp -> simpleexp [`::' Type]
-AstExpr* Parser::parseAssertionExpr()
-{
-    Location start = lexer.current().location;
-    AstExpr* expr = parseSimpleExpr();
+AstExpr *Parser::parseAssertionExpr() {
+  Location start = lexer.current().location;
+  AstExpr *expr = parseSimpleExpr();
 
-    if (lexer.current().type == Lexeme::DoubleColon)
-    {
-        nextLexeme();
-        AstType* annotation = parseType();
-        return allocator.alloc<AstExprTypeAssertion>(Location(start, annotation->location), expr, annotation);
-    }
-    else
-        return expr;
+  if (lexer.current().type == Lexeme::DoubleColon) {
+    nextLexeme();
+    AstType *annotation = parseType();
+    return allocator.alloc<AstExprTypeAssertion>(
+        Location(start, annotation->location), expr, annotation);
+  } else
+    return expr;
 }
 
-static ConstantNumberParseResult parseInteger(double& result, const char* data, int base)
-{
-    LUAU_ASSERT(base == 2 || base == 16);
+static ConstantNumberParseResult parseInteger(double &result, const char *data,
+                                              int base) {
+  LUAU_ASSERT(base == 2 || base == 16);
 
-    char* end = nullptr;
-    unsigned long long value = strtoull(data, &end, base);
+  char *end = nullptr;
+  unsigned long long value = strtoull(data, &end, base);
 
-    if (*end != 0)
-        return ConstantNumberParseResult::Malformed;
+  if (*end != 0)
+    return ConstantNumberParseResult::Malformed;
 
-    result = double(value);
+  result = double(value);
 
-    if (value == ULLONG_MAX && errno == ERANGE)
-    {
-        // 'errno' might have been set before we called 'strtoull', but we don't want the overhead of resetting a TLS variable on each call
-        // so we only reset it when we get a result that might be an out-of-range error and parse again to make sure
-        errno = 0;
-        value = strtoull(data, &end, base);
+  if (value == ULLONG_MAX && errno == ERANGE) {
+    // 'errno' might have been set before we called 'strtoull', but we don't
+    // want the overhead of resetting a TLS variable on each call so we only
+    // reset it when we get a result that might be an out-of-range error and
+    // parse again to make sure
+    errno = 0;
+    value = strtoull(data, &end, base);
 
-        if (errno == ERANGE)
-            return base == 2 ? ConstantNumberParseResult::BinOverflow : ConstantNumberParseResult::HexOverflow;
-    }
+    if (errno == ERANGE)
+      return base == 2 ? ConstantNumberParseResult::BinOverflow
+                       : ConstantNumberParseResult::HexOverflow;
+  }
 
-    if (value >= (1ull << 53) && static_cast<unsigned long long>(result) != value)
-        return ConstantNumberParseResult::Imprecise;
+  if (value >= (1ull << 53) && static_cast<unsigned long long>(result) != value)
+    return ConstantNumberParseResult::Imprecise;
 
-    return ConstantNumberParseResult::Ok;
+  return ConstantNumberParseResult::Ok;
 }
 
-static ConstantNumberParseResult parseDouble(double& result, const char* data)
-{
-    // binary literal
-    if (data[0] == '0' && (data[1] == 'b' || data[1] == 'B') && data[2])
-        return parseInteger(result, data + 2, 2);
+static ConstantNumberParseResult parseDouble(double &result, const char *data) {
+  // binary literal
+  if (data[0] == '0' && (data[1] == 'b' || data[1] == 'B') && data[2])
+    return parseInteger(result, data + 2, 2);
 
-    // hexadecimal literal
-    if (data[0] == '0' && (data[1] == 'x' || data[1] == 'X') && data[2])
-        return parseInteger(result, data, 16); // pass in '0x' prefix, it's handled by 'strtoull'
+  // hexadecimal literal
+  if (data[0] == '0' && (data[1] == 'x' || data[1] == 'X') && data[2])
+    return parseInteger(result, data,
+                        16); // pass in '0x' prefix, it's handled by 'strtoull'
 
-    char* end = nullptr;
-    double value = strtod(data, &end);
+  char *end = nullptr;
+  double value = strtod(data, &end);
 
-    // trailing non-numeric characters
-    if (*end != 0)
-        return ConstantNumberParseResult::Malformed;
+  // trailing non-numeric characters
+  if (*end != 0)
+    return ConstantNumberParseResult::Malformed;
 
-    result = value;
+  result = value;
 
-    // for linting, we detect integer constants that are parsed imprecisely
-    // since the check is expensive we only perform it when the number is larger than the precise integer range
-    if (value >= double(1ull << 53) && strspn(data, "0123456789") == strlen(data))
-    {
-        char repr[512];
-        snprintf(repr, sizeof(repr), "%.0f", value);
+  // for linting, we detect integer constants that are parsed imprecisely
+  // since the check is expensive we only perform it when the number is larger
+  // than the precise integer range
+  if (value >= double(1ull << 53) &&
+      strspn(data, "0123456789") == strlen(data)) {
+    char repr[512];
+    snprintf(repr, sizeof(repr), "%.0f", value);
 
-        if (strcmp(repr, data) != 0)
-            return ConstantNumberParseResult::Imprecise;
-    }
+    if (strcmp(repr, data) != 0)
+      return ConstantNumberParseResult::Imprecise;
+  }
 
-    return ConstantNumberParseResult::Ok;
+  return ConstantNumberParseResult::Ok;
 }
 
-// simpleexp -> NUMBER | STRING | NIL | true | false | ... | constructor | [attributes] FUNCTION body | primaryexp
-AstExpr* Parser::parseSimpleExpr()
-{
-    Location start = lexer.current().location;
+// simpleexp -> NUMBER | STRING | NIL | true | false | ... | constructor |
+// [attributes] FUNCTION body | primaryexp
+AstExpr *Parser::parseSimpleExpr() {
+  Location start = lexer.current().location;
 
-    AstArray<AstAttr*> attributes{nullptr, 0};
+  AstArray<AstAttr *> attributes{nullptr, 0};
 
-    if (FFlag::LuauAttributeSyntax && FFlag::LuauAttributeSyntaxFunExpr && lexer.current().type == Lexeme::Attribute)
-    {
-        attributes = parseAttributes();
+  if (FFlag::LuauAttributeSyntax && FFlag::LuauAttributeSyntaxFunExpr &&
+      lexer.current().type == Lexeme::Attribute) {
+    attributes = parseAttributes();
 
-        if (lexer.current().type != Lexeme::ReservedFunction)
-        {
-            return reportExprError(
-                start, {}, "Expected 'function' declaration after attribute, but got %s intead", lexer.current().toString().c_str());
-        }
+    if (lexer.current().type != Lexeme::ReservedFunction) {
+      return reportExprError(
+          start, {},
+          "Expected 'function' declaration after attribute, but got %s intead",
+          lexer.current().toString().c_str());
     }
+  }
 
-    if (lexer.current().type == Lexeme::ReservedNil)
-    {
-        nextLexeme();
+  if (lexer.current().type == Lexeme::ReservedNil) {
+    nextLexeme();
 
-        return allocator.alloc<AstExprConstantNil>(start);
-    }
-    else if (lexer.current().type == Lexeme::ReservedTrue)
-    {
-        nextLexeme();
+    return allocator.alloc<AstExprConstantNil>(start);
+  } else if (lexer.current().type == Lexeme::ReservedTrue) {
+    nextLexeme();
 
-        return allocator.alloc<AstExprConstantBool>(start, true);
-    }
-    else if (lexer.current().type == Lexeme::ReservedFalse)
-    {
-        nextLexeme();
+    return allocator.alloc<AstExprConstantBool>(start, true);
+  } else if (lexer.current().type == Lexeme::ReservedFalse) {
+    nextLexeme();
 
-        return allocator.alloc<AstExprConstantBool>(start, false);
-    }
-    else if (lexer.current().type == Lexeme::ReservedFunction)
-    {
-        Lexeme matchFunction = lexer.current();
-        nextLexeme();
+    return allocator.alloc<AstExprConstantBool>(start, false);
+  } else if (lexer.current().type == Lexeme::ReservedFunction) {
+    Lexeme matchFunction = lexer.current();
+    nextLexeme();
 
-        return parseFunctionBody(false, matchFunction, AstName(), nullptr, attributes).first;
-    }
-    else if (lexer.current().type == Lexeme::Number)
-    {
-        return parseNumber();
-    }
-    else if (lexer.current().type == Lexeme::RawString || lexer.current().type == Lexeme::QuotedString ||
-             lexer.current().type == Lexeme::InterpStringSimple)
-    {
-        return parseString();
-    }
-    else if (lexer.current().type == Lexeme::InterpStringBegin)
-    {
-        return parseInterpString();
-    }
-    else if (lexer.current().type == Lexeme::BrokenString)
-    {
-        nextLexeme();
-        return reportExprError(start, {}, "Malformed string; did you forget to finish it?");
-    }
-    else if (lexer.current().type == Lexeme::BrokenInterpDoubleBrace)
-    {
-        nextLexeme();
-        return reportExprError(start, {}, "Double braces are not permitted within interpolated strings; did you mean '\\{'?");
-    }
-    else if (lexer.current().type == Lexeme::Dot3)
-    {
-        if (functionStack.back().vararg)
-        {
-            nextLexeme();
+    return parseFunctionBody(false, matchFunction, AstName(), nullptr,
+                             attributes)
+        .first;
+  } else if (lexer.current().type == Lexeme::Number) {
+    return parseNumber();
+  } else if (lexer.current().type == Lexeme::RawString ||
+             lexer.current().type == Lexeme::QuotedString ||
+             lexer.current().type == Lexeme::InterpStringSimple) {
+    return parseString();
+  } else if (lexer.current().type == Lexeme::InterpStringBegin) {
+    return parseInterpString();
+  } else if (lexer.current().type == Lexeme::BrokenString) {
+    nextLexeme();
+    return reportExprError(start, {},
+                           "Malformed string; did you forget to finish it?");
+  } else if (lexer.current().type == Lexeme::BrokenInterpDoubleBrace) {
+    nextLexeme();
+    return reportExprError(start, {},
+                           "Double braces are not permitted within "
+                           "interpolated strings; did you mean '\\{'?");
+  } else if (lexer.current().type == Lexeme::Dot3) {
+    if (functionStack.back().vararg) {
+      nextLexeme();
 
-            return allocator.alloc<AstExprVarargs>(start);
-        }
-        else
-        {
-            nextLexeme();
+      return allocator.alloc<AstExprVarargs>(start);
+    } else {
+      nextLexeme();
 
-            return reportExprError(start, {}, "Cannot use '...' outside of a vararg function");
-        }
+      return reportExprError(start, {},
+                             "Cannot use '...' outside of a vararg function");
     }
-    else if (lexer.current().type == '{')
-    {
-        return parseTableConstructor();
-    }
-    else if (lexer.current().type == Lexeme::ReservedIf)
-    {
-        return parseIfElseExpr();
-    }
-    else
-    {
-        return parsePrimaryExpr(/* asStatement= */ false);
-    }
+  } else if (lexer.current().type == '{') {
+    return parseTableConstructor();
+  } else if (lexer.current().type == Lexeme::ReservedIf) {
+    return parseIfElseExpr();
+  } else {
+    return parsePrimaryExpr(/* asStatement= */ false);
+  }
 }
 
 // args ::=  `(' [explist] `)' | tableconstructor | String
-AstExpr* Parser::parseFunctionArgs(AstExpr* func, bool self)
-{
-    if (lexer.current().type == '(')
-    {
-        Position argStart = lexer.current().location.end;
-        if (func->location.end.line != lexer.current().location.begin.line)
-            reportAmbiguousCallError();
+AstExpr *Parser::parseFunctionArgs(AstExpr *func, bool self) {
+  if (lexer.current().type == '(') {
+    Position argStart = lexer.current().location.end;
+    if (func->location.end.line != lexer.current().location.begin.line)
+      reportAmbiguousCallError();
 
-        MatchLexeme matchParen = lexer.current();
-        nextLexeme();
+    MatchLexeme matchParen = lexer.current();
+    nextLexeme();
 
-        TempVector<AstExpr*> args(scratchExpr);
+    TempVector<AstExpr *> args(scratchExpr);
 
-        if (lexer.current().type != ')')
-            parseExprList(args);
+    if (lexer.current().type != ')')
+      parseExprList(args);
 
-        Location end = lexer.current().location;
-        Position argEnd = end.end;
+    Location end = lexer.current().location;
+    Position argEnd = end.end;
 
-        expectMatchAndConsume(')', matchParen);
+    expectMatchAndConsume(')', matchParen);
 
-        return allocator.alloc<AstExprCall>(Location(func->location, end), func, copy(args), self, Location(argStart, argEnd));
-    }
-    else if (lexer.current().type == '{')
-    {
-        Position argStart = lexer.current().location.end;
-        AstExpr* expr = parseTableConstructor();
-        Position argEnd = lexer.previousLocation().end;
+    return allocator.alloc<AstExprCall>(Location(func->location, end), func,
+                                        copy(args), self,
+                                        Location(argStart, argEnd));
+  } else if (lexer.current().type == '{') {
+    Position argStart = lexer.current().location.end;
+    AstExpr *expr = parseTableConstructor();
+    Position argEnd = lexer.previousLocation().end;
 
-        return allocator.alloc<AstExprCall>(Location(func->location, expr->location), func, copy(&expr, 1), self, Location(argStart, argEnd));
-    }
-    else if (lexer.current().type == Lexeme::RawString || lexer.current().type == Lexeme::QuotedString)
-    {
-        Location argLocation = lexer.current().location;
-        AstExpr* expr = parseString();
+    return allocator.alloc<AstExprCall>(
+        Location(func->location, expr->location), func, copy(&expr, 1), self,
+        Location(argStart, argEnd));
+  } else if (lexer.current().type == Lexeme::RawString ||
+             lexer.current().type == Lexeme::QuotedString) {
+    Location argLocation = lexer.current().location;
+    AstExpr *expr = parseString();
 
-        return allocator.alloc<AstExprCall>(Location(func->location, expr->location), func, copy(&expr, 1), self, argLocation);
-    }
-    else
-    {
-        return reportFunctionArgsError(func, self);
-    }
+    return allocator.alloc<AstExprCall>(
+        Location(func->location, expr->location), func, copy(&expr, 1), self,
+        argLocation);
+  } else {
+    return reportFunctionArgsError(func, self);
+  }
 }
 
-LUAU_NOINLINE AstExpr* Parser::reportFunctionArgsError(AstExpr* func, bool self)
-{
-    if (self && lexer.current().location.begin.line != func->location.end.line)
-    {
-        return reportExprError(func->location, copy({func}), "Expected function call arguments after '('");
-    }
-    else
-    {
-        return reportExprError(Location(func->location.begin, lexer.current().location.begin), copy({func}),
-            "Expected '(', '{' or <string> when parsing function call, got %s", lexer.current().toString().c_str());
-    }
+LUAU_NOINLINE AstExpr *Parser::reportFunctionArgsError(AstExpr *func,
+                                                       bool self) {
+  if (self && lexer.current().location.begin.line != func->location.end.line) {
+    return reportExprError(func->location, copy({func}),
+                           "Expected function call arguments after '('");
+  } else {
+    return reportExprError(
+        Location(func->location.begin, lexer.current().location.begin),
+        copy({func}),
+        "Expected '(', '{' or <string> when parsing function call, got %s",
+        lexer.current().toString().c_str());
+  }
 }
 
-LUAU_NOINLINE void Parser::reportAmbiguousCallError()
-{
-    report(lexer.current().location, "Ambiguous syntax: this looks like an argument list for a function call, but could also be a start of "
-                                     "new statement; use ';' to separate statements");
+LUAU_NOINLINE void Parser::reportAmbiguousCallError() {
+  report(lexer.current().location,
+         "Ambiguous syntax: this looks like an argument list for a function "
+         "call, but could also be a start of "
+         "new statement; use ';' to separate statements");
 }
 
 // tableconstructor ::= `{' [fieldlist] `}'
 // fieldlist ::= field {fieldsep field} [fieldsep]
 // field ::= `[' exp `]' `=' exp | Name `=' exp | exp
 // fieldsep ::= `,' | `;'
-AstExpr* Parser::parseTableConstructor()
-{
-    TempVector<AstExprTable::Item> items(scratchItem);
+AstExpr *Parser::parseTableConstructor() {
+  TempVector<AstExprTable::Item> items(scratchItem);
 
-    Location start = lexer.current().location;
+  Location start = lexer.current().location;
 
-    MatchLexeme matchBrace = lexer.current();
-    expectAndConsume('{', "table literal");
-    unsigned lastElementIndent = 0;
+  MatchLexeme matchBrace = lexer.current();
+  expectAndConsume('{', "table literal");
+  unsigned lastElementIndent = 0;
 
-    while (lexer.current().type != '}')
-    {
-        lastElementIndent = lexer.current().location.begin.column;
+  while (lexer.current().type != '}') {
+    lastElementIndent = lexer.current().location.begin.column;
 
-        if (lexer.current().type == '[')
-        {
-            MatchLexeme matchLocationBracket = lexer.current();
-            nextLexeme();
+    if (lexer.current().type == '[') {
+      MatchLexeme matchLocationBracket = lexer.current();
+      nextLexeme();
 
-            AstExpr* key = parseExpr();
+      AstExpr *key = parseExpr();
 
-            expectMatchAndConsume(']', matchLocationBracket);
+      expectMatchAndConsume(']', matchLocationBracket);
 
-            expectAndConsume('=', "table field");
+      expectAndConsume('=', "table field");
 
-            AstExpr* value = parseExpr();
+      AstExpr *value = parseExpr();
 
-            items.push_back({AstExprTable::Item::General, key, value});
-        }
-        else if (lexer.current().type == Lexeme::Name && lexer.lookahead().type == '=')
-        {
-            Name name = parseName("table field");
+      items.push_back({AstExprTable::Item::General, key, value});
+    } else if (lexer.current().type == Lexeme::Name &&
+               lexer.lookahead().type == '=') {
+      Name name = parseName("table field");
 
-            expectAndConsume('=', "table field");
+      expectAndConsume('=', "table field");
 
-            AstArray<char> nameString;
-            nameString.data = const_cast<char*>(name.name.value);
-            nameString.size = strlen(name.name.value);
+      AstArray<char> nameString;
+      nameString.data = const_cast<char *>(name.name.value);
+      nameString.size = strlen(name.name.value);
 
-            AstExpr* key = allocator.alloc<AstExprConstantString>(name.location, nameString, AstExprConstantString::Unquoted);
-            AstExpr* value = parseExpr();
+      AstExpr *key = allocator.alloc<AstExprConstantString>(
+          name.location, nameString, AstExprConstantString::Unquoted);
+      AstExpr *value = parseExpr();
 
-            if (AstExprFunction* func = value->as<AstExprFunction>())
-                func->debugname = name.name;
+      if (AstExprFunction *func = value->as<AstExprFunction>())
+        func->debugname = name.name;
 
-            items.push_back({AstExprTable::Item::Record, key, value});
-        }
-        else
-        {
-            AstExpr* expr = parseExpr();
+      items.push_back({AstExprTable::Item::Record, key, value});
+    } else {
+      AstExpr *expr = parseExpr();
 
-            items.push_back({AstExprTable::Item::List, nullptr, expr});
-        }
-
-        if (lexer.current().type == ',' || lexer.current().type == ';')
-        {
-            nextLexeme();
-        }
-        else if ((lexer.current().type == '[' || lexer.current().type == Lexeme::Name) && lexer.current().location.begin.column == lastElementIndent)
-        {
-            report(lexer.current().location, "Expected ',' after table constructor element");
-        }
-        else if (lexer.current().type != '}')
-        {
-            break;
-        }
+      items.push_back({AstExprTable::Item::List, nullptr, expr});
     }
 
-    Location end = lexer.current().location;
+    if (lexer.current().type == ',' || lexer.current().type == ';') {
+      nextLexeme();
+    } else if ((lexer.current().type == '[' ||
+                lexer.current().type == Lexeme::Name) &&
+               lexer.current().location.begin.column == lastElementIndent) {
+      report(lexer.current().location,
+             "Expected ',' after table constructor element");
+    } else if (lexer.current().type != '}') {
+      break;
+    }
+  }
 
-    if (!expectMatchAndConsume('}', matchBrace))
-        end = lexer.previousLocation();
+  Location end = lexer.current().location;
 
-    return allocator.alloc<AstExprTable>(Location(start, end), copy(items));
+  if (!expectMatchAndConsume('}', matchBrace))
+    end = lexer.previousLocation();
+
+  return allocator.alloc<AstExprTable>(Location(start, end), copy(items));
 }
 
-AstExpr* Parser::parseIfElseExpr()
-{
-    bool hasElse = false;
-    Location start = lexer.current().location;
+AstExpr *Parser::parseIfElseExpr() {
+  bool hasElse = false;
+  Location start = lexer.current().location;
 
-    nextLexeme(); // skip if / elseif
+  nextLexeme(); // skip if / elseif
 
-    AstExpr* condition = parseExpr();
+  AstExpr *condition = parseExpr();
 
-    bool hasThen = expectAndConsume(Lexeme::ReservedThen, "if then else expression");
+  bool hasThen =
+      expectAndConsume(Lexeme::ReservedThen, "if then else expression");
 
-    AstExpr* trueExpr = parseExpr();
-    AstExpr* falseExpr = nullptr;
+  AstExpr *trueExpr = parseExpr();
+  AstExpr *falseExpr = nullptr;
 
-    if (lexer.current().type == Lexeme::ReservedElseif)
-    {
-        unsigned int oldRecursionCount = recursionCounter;
-        incrementRecursionCounter("expression");
-        hasElse = true;
-        falseExpr = parseIfElseExpr();
-        recursionCounter = oldRecursionCount;
-    }
-    else
-    {
-        hasElse = expectAndConsume(Lexeme::ReservedElse, "if then else expression");
-        falseExpr = parseExpr();
-    }
+  if (lexer.current().type == Lexeme::ReservedElseif) {
+    unsigned int oldRecursionCount = recursionCounter;
+    incrementRecursionCounter("expression");
+    hasElse = true;
+    falseExpr = parseIfElseExpr();
+    recursionCounter = oldRecursionCount;
+  } else {
+    hasElse = expectAndConsume(Lexeme::ReservedElse, "if then else expression");
+    falseExpr = parseExpr();
+  }
 
-    Location end = falseExpr->location;
+  Location end = falseExpr->location;
 
-    return allocator.alloc<AstExprIfElse>(Location(start, end), condition, hasThen, trueExpr, hasElse, falseExpr);
+  return allocator.alloc<AstExprIfElse>(Location(start, end), condition,
+                                        hasThen, trueExpr, hasElse, falseExpr);
 }
 
 // Name
-std::optional<Parser::Name> Parser::parseNameOpt(const char* context)
-{
-    if (lexer.current().type != Lexeme::Name)
-    {
-        reportNameError(context);
+std::optional<Parser::Name> Parser::parseNameOpt(const char *context) {
+  if (lexer.current().type != Lexeme::Name) {
+    reportNameError(context);
 
-        return {};
-    }
+    return {};
+  }
 
+  Name result(AstName(lexer.current().name), lexer.current().location);
+
+  nextLexeme();
+
+  return result;
+}
+
+Parser::Name Parser::parseName(const char *context) {
+  if (std::optional<Name> name = parseNameOpt(context))
+    return *name;
+
+  Location location = lexer.current().location;
+  location.end = location.begin;
+
+  return Name(nameError, location);
+}
+
+Parser::Name Parser::parseIndexName(const char *context,
+                                    const Position &previous) {
+  if (std::optional<Name> name = parseNameOpt(context))
+    return *name;
+
+  // If we have a reserved keyword next at the same line, assume it's an
+  // incomplete name
+  if (lexer.current().type >= Lexeme::Reserved_BEGIN &&
+      lexer.current().type < Lexeme::Reserved_END &&
+      lexer.current().location.begin.line == previous.line) {
     Name result(AstName(lexer.current().name), lexer.current().location);
 
     nextLexeme();
 
     return result;
+  }
+
+  Location location = lexer.current().location;
+  location.end = location.begin;
+
+  return Name(nameError, location);
 }
 
-Parser::Name Parser::parseName(const char* context)
-{
-    if (std::optional<Name> name = parseNameOpt(context))
-        return *name;
+std::pair<AstArray<AstGenericType>, AstArray<AstGenericTypePack>>
+Parser::parseGenericTypeList(bool withDefaultValues) {
+  TempVector<AstGenericType> names{scratchGenericTypes};
+  TempVector<AstGenericTypePack> namePacks{scratchGenericTypePacks};
 
-    Location location = lexer.current().location;
-    location.end = location.begin;
-
-    return Name(nameError, location);
-}
-
-Parser::Name Parser::parseIndexName(const char* context, const Position& previous)
-{
-    if (std::optional<Name> name = parseNameOpt(context))
-        return *name;
-
-    // If we have a reserved keyword next at the same line, assume it's an incomplete name
-    if (lexer.current().type >= Lexeme::Reserved_BEGIN && lexer.current().type < Lexeme::Reserved_END &&
-        lexer.current().location.begin.line == previous.line)
-    {
-        Name result(AstName(lexer.current().name), lexer.current().location);
-
-        nextLexeme();
-
-        return result;
-    }
-
-    Location location = lexer.current().location;
-    location.end = location.begin;
-
-    return Name(nameError, location);
-}
-
-std::pair<AstArray<AstGenericType>, AstArray<AstGenericTypePack>> Parser::parseGenericTypeList(bool withDefaultValues)
-{
-    TempVector<AstGenericType> names{scratchGenericTypes};
-    TempVector<AstGenericTypePack> namePacks{scratchGenericTypePacks};
-
-    if (lexer.current().type == '<')
-    {
-        Lexeme begin = lexer.current();
-        nextLexeme();
-
-        bool seenPack = false;
-        bool seenDefault = false;
-
-        while (true)
-        {
-            Location nameLocation = lexer.current().location;
-            AstName name = parseName().name;
-            if (lexer.current().type == Lexeme::Dot3 || seenPack)
-            {
-                seenPack = true;
-
-                if (lexer.current().type != Lexeme::Dot3)
-                    report(lexer.current().location, "Generic types come before generic type packs");
-                else
-                    nextLexeme();
-
-                if (withDefaultValues && lexer.current().type == '=')
-                {
-                    seenDefault = true;
-                    nextLexeme();
-
-                    if (shouldParseTypePack(lexer))
-                    {
-                        AstTypePack* typePack = parseTypePack();
-
-                        namePacks.push_back({name, nameLocation, typePack});
-                    }
-                    else
-                    {
-                        auto [type, typePack] = parseTypeOrPack();
-
-                        if (type)
-                            report(type->location, "Expected type pack after '=', got type");
-
-                        namePacks.push_back({name, nameLocation, typePack});
-                    }
-                }
-                else
-                {
-                    if (seenDefault)
-                        report(lexer.current().location, "Expected default type pack after type pack name");
-
-                    namePacks.push_back({name, nameLocation, nullptr});
-                }
-            }
-            else
-            {
-                if (withDefaultValues && lexer.current().type == '=')
-                {
-                    seenDefault = true;
-                    nextLexeme();
-
-                    AstType* defaultType = parseType();
-
-                    names.push_back({name, nameLocation, defaultType});
-                }
-                else
-                {
-                    if (seenDefault)
-                        report(lexer.current().location, "Expected default type after type name");
-
-                    names.push_back({name, nameLocation, nullptr});
-                }
-            }
-
-            if (lexer.current().type == ',')
-            {
-                nextLexeme();
-
-                if (lexer.current().type == '>')
-                {
-                    report(lexer.current().location, "Expected type after ',' but got '>' instead");
-                    break;
-                }
-            }
-            else
-                break;
-        }
-
-        expectMatchAndConsume('>', begin);
-    }
-
-    AstArray<AstGenericType> generics = copy(names);
-    AstArray<AstGenericTypePack> genericPacks = copy(namePacks);
-    return {generics, genericPacks};
-}
-
-AstArray<AstTypeOrPack> Parser::parseTypeParams()
-{
-    TempVector<AstTypeOrPack> parameters{scratchTypeOrPack};
-
-    if (lexer.current().type == '<')
-    {
-        Lexeme begin = lexer.current();
-        nextLexeme();
-
-        while (true)
-        {
-            if (shouldParseTypePack(lexer))
-            {
-                AstTypePack* typePack = parseTypePack();
-
-                parameters.push_back({{}, typePack});
-            }
-            else if (lexer.current().type == '(')
-            {
-                auto [type, typePack] = parseTypeOrPack();
-
-                if (typePack)
-                    parameters.push_back({{}, typePack});
-                else
-                    parameters.push_back({type, {}});
-            }
-            else if (lexer.current().type == '>' && parameters.empty())
-            {
-                break;
-            }
-            else
-            {
-                parameters.push_back({parseType(), {}});
-            }
-
-            if (lexer.current().type == ',')
-                nextLexeme();
-            else
-                break;
-        }
-
-        expectMatchAndConsume('>', begin);
-    }
-
-    return copy(parameters);
-}
-
-std::optional<AstArray<char>> Parser::parseCharArray()
-{
-    LUAU_ASSERT(lexer.current().type == Lexeme::QuotedString || lexer.current().type == Lexeme::RawString ||
-                lexer.current().type == Lexeme::InterpStringSimple);
-
-    scratchData.assign(lexer.current().data, lexer.current().getLength());
-
-    if (lexer.current().type == Lexeme::QuotedString || lexer.current().type == Lexeme::InterpStringSimple)
-    {
-        if (!Lexer::fixupQuotedString(scratchData))
-        {
-            nextLexeme();
-            return std::nullopt;
-        }
-    }
-    else
-    {
-        Lexer::fixupMultilineString(scratchData);
-    }
-
-    AstArray<char> value = copy(scratchData);
-    nextLexeme();
-    return value;
-}
-
-AstExpr* Parser::parseString()
-{
-    Location location = lexer.current().location;
-    if (std::optional<AstArray<char>> value = parseCharArray())
-        return allocator.alloc<AstExprConstantString>(location, *value);
-    else
-        return reportExprError(location, {}, "String literal contains malformed escape sequence");
-}
-
-AstExpr* Parser::parseInterpString()
-{
-    TempVector<AstArray<char>> strings(scratchString);
-    TempVector<AstExpr*> expressions(scratchExpr);
-
-    Location startLocation = lexer.current().location;
-    Location endLocation;
-
-    do
-    {
-        Lexeme currentLexeme = lexer.current();
-        LUAU_ASSERT(currentLexeme.type == Lexeme::InterpStringBegin || currentLexeme.type == Lexeme::InterpStringMid ||
-                    currentLexeme.type == Lexeme::InterpStringEnd || currentLexeme.type == Lexeme::InterpStringSimple);
-
-        endLocation = currentLexeme.location;
-
-        scratchData.assign(currentLexeme.data, currentLexeme.getLength());
-
-        if (!Lexer::fixupQuotedString(scratchData))
-        {
-            nextLexeme();
-            return reportExprError(Location{startLocation, endLocation}, {}, "Interpolated string literal contains malformed escape sequence");
-        }
-
-        AstArray<char> chars = copy(scratchData);
-
-        nextLexeme();
-
-        strings.push_back(chars);
-
-        if (currentLexeme.type == Lexeme::InterpStringEnd || currentLexeme.type == Lexeme::InterpStringSimple)
-        {
-            break;
-        }
-
-        bool errorWhileChecking = false;
-
-        switch (lexer.current().type)
-        {
-        case Lexeme::InterpStringMid:
-        case Lexeme::InterpStringEnd:
-        {
-            errorWhileChecking = true;
-            nextLexeme();
-            expressions.push_back(reportExprError(endLocation, {}, "Malformed interpolated string, expected expression inside '{}'"));
-            break;
-        }
-        case Lexeme::BrokenString:
-        {
-            errorWhileChecking = true;
-            nextLexeme();
-            expressions.push_back(reportExprError(endLocation, {}, "Malformed interpolated string; did you forget to add a '`'?"));
-            break;
-        }
-        default:
-            expressions.push_back(parseExpr());
-        }
-
-        if (errorWhileChecking)
-        {
-            break;
-        }
-
-        switch (lexer.current().type)
-        {
-        case Lexeme::InterpStringBegin:
-        case Lexeme::InterpStringMid:
-        case Lexeme::InterpStringEnd:
-            break;
-        case Lexeme::BrokenInterpDoubleBrace:
-            nextLexeme();
-            return reportExprError(endLocation, {}, "Double braces are not permitted within interpolated strings; did you mean '\\{'?");
-        case Lexeme::BrokenString:
-            nextLexeme();
-            return reportExprError(endLocation, {}, "Malformed interpolated string; did you forget to add a '}'?");
-        default:
-            return reportExprError(endLocation, {}, "Malformed interpolated string, got %s", lexer.current().toString().c_str());
-        }
-    } while (true);
-
-    AstArray<AstArray<char>> stringsArray = copy(strings);
-    AstArray<AstExpr*> expressionsArray = copy(expressions);
-    return allocator.alloc<AstExprInterpString>(Location{startLocation, endLocation}, stringsArray, expressionsArray);
-}
-
-AstExpr* Parser::parseNumber()
-{
-    Location start = lexer.current().location;
-
-    scratchData.assign(lexer.current().data, lexer.current().getLength());
-
-    // Remove all internal _ - they don't hold any meaning and this allows parsing code to just pass the string pointer to strtod et al
-    if (scratchData.find('_') != std::string::npos)
-    {
-        scratchData.erase(std::remove(scratchData.begin(), scratchData.end(), '_'), scratchData.end());
-    }
-
-    double value = 0;
-    ConstantNumberParseResult result = parseDouble(value, scratchData.c_str());
+  if (lexer.current().type == '<') {
+    Lexeme begin = lexer.current();
     nextLexeme();
 
-    if (result == ConstantNumberParseResult::Malformed)
-        return reportExprError(start, {}, "Malformed number");
+    bool seenPack = false;
+    bool seenDefault = false;
 
-    return allocator.alloc<AstExprConstantNumber>(start, value, result);
-}
+    while (true) {
+      Location nameLocation = lexer.current().location;
+      AstName name = parseName().name;
+      if (lexer.current().type == Lexeme::Dot3 || seenPack) {
+        seenPack = true;
 
-AstLocal* Parser::pushLocal(const Binding& binding)
-{
-    const Name& name = binding.name;
-    AstLocal*& local = localMap[name.name];
+        if (lexer.current().type != Lexeme::Dot3)
+          report(lexer.current().location,
+                 "Generic types come before generic type packs");
+        else
+          nextLexeme();
 
-    local = allocator.alloc<AstLocal>(
-        name.name, name.location, /* shadow= */ local, functionStack.size() - 1, functionStack.back().loopDepth, binding.annotation);
+        if (withDefaultValues && lexer.current().type == '=') {
+          seenDefault = true;
+          nextLexeme();
 
-    localStack.push_back(local);
+          if (shouldParseTypePack(lexer)) {
+            AstTypePack *typePack = parseTypePack();
 
-    return local;
-}
+            namePacks.push_back({name, nameLocation, typePack});
+          } else {
+            auto [type, typePack] = parseTypeOrPack();
 
-unsigned int Parser::saveLocals()
-{
-    return unsigned(localStack.size());
-}
+            if (type)
+              report(type->location, "Expected type pack after '=', got type");
 
-void Parser::restoreLocals(unsigned int offset)
-{
-    for (size_t i = localStack.size(); i > offset; --i)
-    {
-        AstLocal* l = localStack[i - 1];
+            namePacks.push_back({name, nameLocation, typePack});
+          }
+        } else {
+          if (seenDefault)
+            report(lexer.current().location,
+                   "Expected default type pack after type pack name");
 
-        localMap[l->name] = l->shadow;
-    }
-
-    localStack.resize(offset);
-}
-
-bool Parser::expectAndConsume(char value, const char* context)
-{
-    return expectAndConsume(static_cast<Lexeme::Type>(static_cast<unsigned char>(value)), context);
-}
-
-bool Parser::expectAndConsume(Lexeme::Type type, const char* context)
-{
-    if (lexer.current().type != type)
-    {
-        expectAndConsumeFail(type, context);
-
-        // check if this is an extra token and the expected token is next
-        if (lexer.lookahead().type == type)
-        {
-            // skip invalid and consume expected
-            nextLexeme();
-            nextLexeme();
+          namePacks.push_back({name, nameLocation, nullptr});
         }
+      } else {
+        if (withDefaultValues && lexer.current().type == '=') {
+          seenDefault = true;
+          nextLexeme();
 
-        return false;
-    }
-    else
-    {
-        nextLexeme();
-        return true;
-    }
-}
+          AstType *defaultType = parseType();
 
-// LUAU_NOINLINE is used to limit the stack cost of this function due to std::string objects, and to increase caller performance since this code is
-// cold
-LUAU_NOINLINE void Parser::expectAndConsumeFail(Lexeme::Type type, const char* context)
-{
-    std::string typeString = Lexeme(Location(Position(0, 0), 0), type).toString();
-    std::string currLexemeString = lexer.current().toString();
+          names.push_back({name, nameLocation, defaultType});
+        } else {
+          if (seenDefault)
+            report(lexer.current().location,
+                   "Expected default type after type name");
 
-    if (context)
-        report(lexer.current().location, "Expected %s when parsing %s, got %s", typeString.c_str(), context, currLexemeString.c_str());
-    else
-        report(lexer.current().location, "Expected %s, got %s", typeString.c_str(), currLexemeString.c_str());
-}
+          names.push_back({name, nameLocation, nullptr});
+        }
+      }
 
-bool Parser::expectMatchAndConsume(char value, const MatchLexeme& begin, bool searchForMissing)
-{
-    Lexeme::Type type = static_cast<Lexeme::Type>(static_cast<unsigned char>(value));
-
-    if (lexer.current().type != type)
-    {
-        expectMatchAndConsumeFail(type, begin);
-
-        return expectMatchAndConsumeRecover(value, begin, searchForMissing);
-    }
-    else
-    {
+      if (lexer.current().type == ',') {
         nextLexeme();
 
-        return true;
+        if (lexer.current().type == '>') {
+          report(lexer.current().location,
+                 "Expected type after ',' but got '>' instead");
+          break;
+        }
+      } else
+        break;
     }
+
+    expectMatchAndConsume('>', begin);
+  }
+
+  AstArray<AstGenericType> generics = copy(names);
+  AstArray<AstGenericTypePack> genericPacks = copy(namePacks);
+  return {generics, genericPacks};
 }
 
-LUAU_NOINLINE bool Parser::expectMatchAndConsumeRecover(char value, const MatchLexeme& begin, bool searchForMissing)
-{
-    Lexeme::Type type = static_cast<Lexeme::Type>(static_cast<unsigned char>(value));
+AstArray<AstTypeOrPack> Parser::parseTypeParams() {
+  TempVector<AstTypeOrPack> parameters{scratchTypeOrPack};
 
-    if (searchForMissing)
-    {
-        // previous location is taken because 'current' lexeme is already the next token
-        unsigned currentLine = lexer.previousLocation().end.line;
+  if (lexer.current().type == '<') {
+    Lexeme begin = lexer.current();
+    nextLexeme();
 
-        // search to the end of the line for expected token
-        // we will also stop if we hit a token that can be handled by parsing function above the current one
-        Lexeme::Type lexemeType = lexer.current().type;
+    while (true) {
+      if (shouldParseTypePack(lexer)) {
+        AstTypePack *typePack = parseTypePack();
 
-        while (currentLine == lexer.current().location.begin.line && lexemeType != type && matchRecoveryStopOnToken[lexemeType] == 0)
-        {
-            nextLexeme();
-            lexemeType = lexer.current().type;
-        }
+        parameters.push_back({{}, typePack});
+      } else if (lexer.current().type == '(') {
+        auto [type, typePack] = parseTypeOrPack();
 
-        if (lexemeType == type)
-        {
-            nextLexeme();
+        if (typePack)
+          parameters.push_back({{}, typePack});
+        else
+          parameters.push_back({type, {}});
+      } else if (lexer.current().type == '>' && parameters.empty()) {
+        break;
+      } else {
+        parameters.push_back({parseType(), {}});
+      }
 
-            return true;
-        }
+      if (lexer.current().type == ',')
+        nextLexeme();
+      else
+        break;
     }
-    else
-    {
-        // check if this is an extra token and the expected token is next
-        if (lexer.lookahead().type == type)
-        {
-            // skip invalid and consume expected
-            nextLexeme();
-            nextLexeme();
 
-            return true;
-        }
+    expectMatchAndConsume('>', begin);
+  }
+
+  return copy(parameters);
+}
+
+std::optional<AstArray<char>> Parser::parseCharArray() {
+  LUAU_ASSERT(lexer.current().type == Lexeme::QuotedString ||
+              lexer.current().type == Lexeme::RawString ||
+              lexer.current().type == Lexeme::InterpStringSimple);
+
+  scratchData.assign(lexer.current().data, lexer.current().getLength());
+
+  if (lexer.current().type == Lexeme::QuotedString ||
+      lexer.current().type == Lexeme::InterpStringSimple) {
+    if (!Lexer::fixupQuotedString(scratchData)) {
+      nextLexeme();
+      return std::nullopt;
+    }
+  } else {
+    Lexer::fixupMultilineString(scratchData);
+  }
+
+  AstArray<char> value = copy(scratchData);
+  nextLexeme();
+  return value;
+}
+
+AstExpr *Parser::parseString() {
+  Location location = lexer.current().location;
+  if (std::optional<AstArray<char>> value = parseCharArray())
+    return allocator.alloc<AstExprConstantString>(location, *value);
+  else
+    return reportExprError(location, {},
+                           "String literal contains malformed escape sequence");
+}
+
+AstExpr *Parser::parseInterpString() {
+  TempVector<AstArray<char>> strings(scratchString);
+  TempVector<AstExpr *> expressions(scratchExpr);
+
+  Location startLocation = lexer.current().location;
+  Location endLocation;
+
+  do {
+    Lexeme currentLexeme = lexer.current();
+    LUAU_ASSERT(currentLexeme.type == Lexeme::InterpStringBegin ||
+                currentLexeme.type == Lexeme::InterpStringMid ||
+                currentLexeme.type == Lexeme::InterpStringEnd ||
+                currentLexeme.type == Lexeme::InterpStringSimple);
+
+    endLocation = currentLexeme.location;
+
+    scratchData.assign(currentLexeme.data, currentLexeme.getLength());
+
+    if (!Lexer::fixupQuotedString(scratchData)) {
+      nextLexeme();
+      return reportExprError(
+          Location{startLocation, endLocation}, {},
+          "Interpolated string literal contains malformed escape sequence");
+    }
+
+    AstArray<char> chars = copy(scratchData);
+
+    nextLexeme();
+
+    strings.push_back(chars);
+
+    if (currentLexeme.type == Lexeme::InterpStringEnd ||
+        currentLexeme.type == Lexeme::InterpStringSimple) {
+      break;
+    }
+
+    bool errorWhileChecking = false;
+
+    switch (lexer.current().type) {
+    case Lexeme::InterpStringMid:
+    case Lexeme::InterpStringEnd: {
+      errorWhileChecking = true;
+      nextLexeme();
+      expressions.push_back(reportExprError(
+          endLocation, {},
+          "Malformed interpolated string, expected expression inside '{}'"));
+      break;
+    }
+    case Lexeme::BrokenString: {
+      errorWhileChecking = true;
+      nextLexeme();
+      expressions.push_back(reportExprError(
+          endLocation, {},
+          "Malformed interpolated string; did you forget to add a '`'?"));
+      break;
+    }
+    default:
+      expressions.push_back(parseExpr());
+    }
+
+    if (errorWhileChecking) {
+      break;
+    }
+
+    switch (lexer.current().type) {
+    case Lexeme::InterpStringBegin:
+    case Lexeme::InterpStringMid:
+    case Lexeme::InterpStringEnd:
+      break;
+    case Lexeme::BrokenInterpDoubleBrace:
+      nextLexeme();
+      return reportExprError(endLocation, {},
+                             "Double braces are not permitted within "
+                             "interpolated strings; did you mean '\\{'?");
+    case Lexeme::BrokenString:
+      nextLexeme();
+      return reportExprError(
+          endLocation, {},
+          "Malformed interpolated string; did you forget to add a '}'?");
+    default:
+      return reportExprError(endLocation, {},
+                             "Malformed interpolated string, got %s",
+                             lexer.current().toString().c_str());
+    }
+  } while (true);
+
+  AstArray<AstArray<char>> stringsArray = copy(strings);
+  AstArray<AstExpr *> expressionsArray = copy(expressions);
+  return allocator.alloc<AstExprInterpString>(
+      Location{startLocation, endLocation}, stringsArray, expressionsArray);
+}
+
+AstExpr *Parser::parseNumber() {
+  Location start = lexer.current().location;
+
+  scratchData.assign(lexer.current().data, lexer.current().getLength());
+
+  // Remove all internal _ - they don't hold any meaning and this allows parsing
+  // code to just pass the string pointer to strtod et al
+  if (scratchData.find('_') != std::string::npos) {
+    scratchData.erase(std::remove(scratchData.begin(), scratchData.end(), '_'),
+                      scratchData.end());
+  }
+
+  double value = 0;
+  ConstantNumberParseResult result = parseDouble(value, scratchData.c_str());
+  nextLexeme();
+
+  if (result == ConstantNumberParseResult::Malformed)
+    return reportExprError(start, {}, "Malformed number");
+
+  return allocator.alloc<AstExprConstantNumber>(start, value, result);
+}
+
+AstLocal *Parser::pushLocal(const Binding &binding) {
+  const Name &name = binding.name;
+  AstLocal *&local = localMap[name.name];
+
+  local = allocator.alloc<AstLocal>(
+      name.name, name.location, /* shadow= */ local, functionStack.size() - 1,
+      functionStack.back().loopDepth, binding.annotation);
+
+  localStack.push_back(local);
+
+  return local;
+}
+
+unsigned int Parser::saveLocals() { return unsigned(localStack.size()); }
+
+void Parser::restoreLocals(unsigned int offset) {
+  for (size_t i = localStack.size(); i > offset; --i) {
+    AstLocal *l = localStack[i - 1];
+
+    localMap[l->name] = l->shadow;
+  }
+
+  localStack.resize(offset);
+}
+
+bool Parser::expectAndConsume(char value, const char *context) {
+  return expectAndConsume(
+      static_cast<Lexeme::Type>(static_cast<unsigned char>(value)), context);
+}
+
+bool Parser::expectAndConsume(Lexeme::Type type, const char *context) {
+  if (lexer.current().type != type) {
+    expectAndConsumeFail(type, context);
+
+    // check if this is an extra token and the expected token is next
+    if (lexer.lookahead().type == type) {
+      // skip invalid and consume expected
+      nextLexeme();
+      nextLexeme();
     }
 
     return false;
+  } else {
+    nextLexeme();
+    return true;
+  }
 }
 
-// LUAU_NOINLINE is used to limit the stack cost of this function due to std::string objects, and to increase caller performance since this code is
+// LUAU_NOINLINE is used to limit the stack cost of this function due to
+// std::string objects, and to increase caller performance since this code is
 // cold
-LUAU_NOINLINE void Parser::expectMatchAndConsumeFail(Lexeme::Type type, const MatchLexeme& begin, const char* extra)
-{
-    std::string typeString = Lexeme(Location(Position(0, 0), 0), type).toString();
-    std::string matchString = Lexeme(Location(Position(0, 0), 0), begin.type).toString();
+LUAU_NOINLINE void Parser::expectAndConsumeFail(Lexeme::Type type,
+                                                const char *context) {
+  std::string typeString = Lexeme(Location(Position(0, 0), 0), type).toString();
+  std::string currLexemeString = lexer.current().toString();
 
-    if (lexer.current().location.begin.line == begin.position.line)
-        report(lexer.current().location, "Expected %s (to close %s at column %d), got %s%s", typeString.c_str(), matchString.c_str(),
-            begin.position.column + 1, lexer.current().toString().c_str(), extra ? extra : "");
-    else
-        report(lexer.current().location, "Expected %s (to close %s at line %d), got %s%s", typeString.c_str(), matchString.c_str(),
-            begin.position.line + 1, lexer.current().toString().c_str(), extra ? extra : "");
+  if (context)
+    report(lexer.current().location, "Expected %s when parsing %s, got %s",
+           typeString.c_str(), context, currLexemeString.c_str());
+  else
+    report(lexer.current().location, "Expected %s, got %s", typeString.c_str(),
+           currLexemeString.c_str());
 }
 
-bool Parser::expectMatchEndAndConsume(Lexeme::Type type, const MatchLexeme& begin)
-{
-    if (lexer.current().type != type)
-    {
-        expectMatchEndAndConsumeFail(type, begin);
+bool Parser::expectMatchAndConsume(char value, const MatchLexeme &begin,
+                                   bool searchForMissing) {
+  Lexeme::Type type =
+      static_cast<Lexeme::Type>(static_cast<unsigned char>(value));
 
-        // check if this is an extra token and the expected token is next
-        if (lexer.lookahead().type == type)
-        {
-            // skip invalid and consume expected
-            nextLexeme();
-            nextLexeme();
+  if (lexer.current().type != type) {
+    expectMatchAndConsumeFail(type, begin);
 
-            return true;
-        }
+    return expectMatchAndConsumeRecover(value, begin, searchForMissing);
+  } else {
+    nextLexeme();
 
-        return false;
-    }
-    else
-    {
-        // If the token matches on a different line and a different column, it suggests misleading indentation
-        // This can be used to pinpoint the problem location for a possible future *actual* mismatch
-        if (lexer.current().location.begin.line != begin.position.line && lexer.current().location.begin.column != begin.position.column &&
-            endMismatchSuspect.position.line < begin.position.line) // Only replace the previous suspect with more recent suspects
-        {
-            endMismatchSuspect = begin;
-        }
-
-        nextLexeme();
-
-        return true;
-    }
+    return true;
+  }
 }
 
-// LUAU_NOINLINE is used to limit the stack cost of this function due to std::string objects, and to increase caller performance since this code is
+LUAU_NOINLINE bool
+Parser::expectMatchAndConsumeRecover(char value, const MatchLexeme &begin,
+                                     bool searchForMissing) {
+  Lexeme::Type type =
+      static_cast<Lexeme::Type>(static_cast<unsigned char>(value));
+
+  if (searchForMissing) {
+    // previous location is taken because 'current' lexeme is already the next
+    // token
+    unsigned currentLine = lexer.previousLocation().end.line;
+
+    // search to the end of the line for expected token
+    // we will also stop if we hit a token that can be handled by parsing
+    // function above the current one
+    Lexeme::Type lexemeType = lexer.current().type;
+
+    while (currentLine == lexer.current().location.begin.line &&
+           lexemeType != type && matchRecoveryStopOnToken[lexemeType] == 0) {
+      nextLexeme();
+      lexemeType = lexer.current().type;
+    }
+
+    if (lexemeType == type) {
+      nextLexeme();
+
+      return true;
+    }
+  } else {
+    // check if this is an extra token and the expected token is next
+    if (lexer.lookahead().type == type) {
+      // skip invalid and consume expected
+      nextLexeme();
+      nextLexeme();
+
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// LUAU_NOINLINE is used to limit the stack cost of this function due to
+// std::string objects, and to increase caller performance since this code is
 // cold
-LUAU_NOINLINE void Parser::expectMatchEndAndConsumeFail(Lexeme::Type type, const MatchLexeme& begin)
-{
-    if (endMismatchSuspect.type != Lexeme::Eof && endMismatchSuspect.position.line > begin.position.line)
-    {
-        std::string matchString = Lexeme(Location(Position(0, 0), 0), endMismatchSuspect.type).toString();
-        std::string suggestion = format("; did you forget to close %s at line %d?", matchString.c_str(), endMismatchSuspect.position.line + 1);
+LUAU_NOINLINE void Parser::expectMatchAndConsumeFail(Lexeme::Type type,
+                                                     const MatchLexeme &begin,
+                                                     const char *extra) {
+  std::string typeString = Lexeme(Location(Position(0, 0), 0), type).toString();
+  std::string matchString =
+      Lexeme(Location(Position(0, 0), 0), begin.type).toString();
 
-        expectMatchAndConsumeFail(type, begin, suggestion.c_str());
+  if (lexer.current().location.begin.line == begin.position.line)
+    report(lexer.current().location,
+           "Expected %s (to close %s at column %d), got %s%s",
+           typeString.c_str(), matchString.c_str(), begin.position.column + 1,
+           lexer.current().toString().c_str(), extra ? extra : "");
+  else
+    report(lexer.current().location,
+           "Expected %s (to close %s at line %d), got %s%s", typeString.c_str(),
+           matchString.c_str(), begin.position.line + 1,
+           lexer.current().toString().c_str(), extra ? extra : "");
+}
+
+bool Parser::expectMatchEndAndConsume(Lexeme::Type type,
+                                      const MatchLexeme &begin) {
+  if (lexer.current().type != type) {
+    expectMatchEndAndConsumeFail(type, begin);
+
+    // check if this is an extra token and the expected token is next
+    if (lexer.lookahead().type == type) {
+      // skip invalid and consume expected
+      nextLexeme();
+      nextLexeme();
+
+      return true;
     }
-    else
+
+    return false;
+  } else {
+    // If the token matches on a different line and a different column, it
+    // suggests misleading indentation This can be used to pinpoint the problem
+    // location for a possible future *actual* mismatch
+    if (lexer.current().location.begin.line != begin.position.line &&
+        lexer.current().location.begin.column != begin.position.column &&
+        endMismatchSuspect.position.line <
+            begin.position.line) // Only replace the previous suspect with more
+                                 // recent suspects
     {
-        expectMatchAndConsumeFail(type, begin);
+      endMismatchSuspect = begin;
     }
+
+    nextLexeme();
+
+    return true;
+  }
 }
 
-template<typename T>
-AstArray<T> Parser::copy(const T* data, size_t size)
-{
-    AstArray<T> result;
+// LUAU_NOINLINE is used to limit the stack cost of this function due to
+// std::string objects, and to increase caller performance since this code is
+// cold
+LUAU_NOINLINE void
+Parser::expectMatchEndAndConsumeFail(Lexeme::Type type,
+                                     const MatchLexeme &begin) {
+  if (endMismatchSuspect.type != Lexeme::Eof &&
+      endMismatchSuspect.position.line > begin.position.line) {
+    std::string matchString =
+        Lexeme(Location(Position(0, 0), 0), endMismatchSuspect.type).toString();
+    std::string suggestion =
+        format("; did you forget to close %s at line %d?", matchString.c_str(),
+               endMismatchSuspect.position.line + 1);
 
-    result.data = size ? static_cast<T*>(allocator.allocate(sizeof(T) * size)) : nullptr;
-    result.size = size;
-
-    // This is equivalent to std::uninitialized_copy, but without the exception guarantee
-    // since our types don't have destructors
-    for (size_t i = 0; i < size; ++i)
-        new (result.data + i) T(data[i]);
-
-    return result;
+    expectMatchAndConsumeFail(type, begin, suggestion.c_str());
+  } else {
+    expectMatchAndConsumeFail(type, begin);
+  }
 }
 
-template<typename T>
-AstArray<T> Parser::copy(const TempVector<T>& data)
-{
-    return copy(data.empty() ? nullptr : &data[0], data.size());
+template <typename T> AstArray<T> Parser::copy(const T *data, size_t size) {
+  AstArray<T> result;
+
+  result.data =
+      size ? static_cast<T *>(allocator.allocate(sizeof(T) * size)) : nullptr;
+  result.size = size;
+
+  // This is equivalent to std::uninitialized_copy, but without the exception
+  // guarantee since our types don't have destructors
+  for (size_t i = 0; i < size; ++i)
+    new (result.data + i) T(data[i]);
+
+  return result;
 }
 
-template<typename T>
-AstArray<T> Parser::copy(std::initializer_list<T> data)
-{
-    return copy(data.size() == 0 ? nullptr : data.begin(), data.size());
+template <typename T> AstArray<T> Parser::copy(const TempVector<T> &data) {
+  return copy(data.empty() ? nullptr : &data[0], data.size());
 }
 
-AstArray<char> Parser::copy(const std::string& data)
-{
-    AstArray<char> result = copy(data.c_str(), data.size() + 1);
-
-    result.size = data.size();
-
-    return result;
+template <typename T> AstArray<T> Parser::copy(std::initializer_list<T> data) {
+  return copy(data.size() == 0 ? nullptr : data.begin(), data.size());
 }
 
-void Parser::incrementRecursionCounter(const char* context)
-{
-    recursionCounter++;
+AstArray<char> Parser::copy(const std::string &data) {
+  AstArray<char> result = copy(data.c_str(), data.size() + 1);
 
-    if (recursionCounter > unsigned(FInt::LuauRecursionLimit))
-    {
-        ParseError::raise(lexer.current().location, "Exceeded allowed recursion depth; simplify your %s to make the code compile", context);
+  result.size = data.size();
+
+  return result;
+}
+
+void Parser::incrementRecursionCounter(const char *context) {
+  recursionCounter++;
+
+  if (recursionCounter > unsigned(FInt::LuauRecursionLimit)) {
+    ParseError::raise(lexer.current().location,
+                      "Exceeded allowed recursion depth; simplify your %s to "
+                      "make the code compile",
+                      context);
+  }
+}
+
+void Parser::report(const Location &location, const char *format,
+                    va_list args) {
+  // To reduce number of errors reported to user for incomplete statements, we
+  // skip multiple errors at the same location For example, consider 'local a =
+  // (((b + ' where multiple tokens haven't been written yet
+  if (!parseErrors.empty() && location == parseErrors.back().getLocation())
+    return;
+
+  std::string message = vformat(format, args);
+
+  // when limited to a single error, behave as if the error recovery is disabled
+  if (FInt::LuauParseErrorLimit == 1)
+    throw ParseError(location, message);
+
+  parseErrors.emplace_back(location, message);
+
+  if (parseErrors.size() >= unsigned(FInt::LuauParseErrorLimit))
+    ParseError::raise(location, "Reached error limit (%d)",
+                      int(FInt::LuauParseErrorLimit));
+}
+
+void Parser::report(const Location &location, const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  report(location, format, args);
+  va_end(args);
+}
+
+LUAU_NOINLINE void Parser::reportNameError(const char *context) {
+  if (context)
+    report(lexer.current().location,
+           "Expected identifier when parsing %s, got %s", context,
+           lexer.current().toString().c_str());
+  else
+    report(lexer.current().location, "Expected identifier, got %s",
+           lexer.current().toString().c_str());
+}
+
+AstStatError *Parser::reportStatError(const Location &location,
+                                      const AstArray<AstExpr *> &expressions,
+                                      const AstArray<AstStat *> &statements,
+                                      const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  report(location, format, args);
+  va_end(args);
+
+  return allocator.alloc<AstStatError>(location, expressions, statements,
+                                       unsigned(parseErrors.size() - 1));
+}
+
+AstExprError *Parser::reportExprError(const Location &location,
+                                      const AstArray<AstExpr *> &expressions,
+                                      const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  report(location, format, args);
+  va_end(args);
+
+  return allocator.alloc<AstExprError>(location, expressions,
+                                       unsigned(parseErrors.size() - 1));
+}
+
+AstTypeError *Parser::reportTypeError(const Location &location,
+                                      const AstArray<AstType *> &types,
+                                      const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  report(location, format, args);
+  va_end(args);
+
+  return allocator.alloc<AstTypeError>(location, types, false,
+                                       unsigned(parseErrors.size() - 1));
+}
+
+AstTypeError *Parser::reportMissingTypeError(const Location &parseErrorLocation,
+                                             const Location &astErrorLocation,
+                                             const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  report(parseErrorLocation, format, args);
+  va_end(args);
+
+  return allocator.alloc<AstTypeError>(astErrorLocation, AstArray<AstType *>{},
+                                       true, unsigned(parseErrors.size() - 1));
+}
+
+void Parser::nextLexeme() {
+  Lexeme::Type type = lexer.next(/* skipComments= */ false, true).type;
+
+  while (type == Lexeme::BrokenComment || type == Lexeme::Comment ||
+         type == Lexeme::BlockComment) {
+    const Lexeme &lexeme = lexer.current();
+
+    if (options.captureComments)
+      commentLocations.push_back(Comment{lexeme.type, lexeme.location});
+
+    // Subtlety: Broken comments are weird because we record them as comments
+    // AND pass them to the parser as a lexeme. The parser will turn this into a
+    // proper syntax error.
+    if (lexeme.type == Lexeme::BrokenComment)
+      return;
+
+    // Comments starting with ! are called "hot comments" and contain directives
+    // for type checking / linting / compiling
+    if (lexeme.type == Lexeme::Comment && lexeme.getLength() &&
+        lexeme.data[0] == '!') {
+      const char *text = lexeme.data;
+
+      unsigned int end = lexeme.getLength();
+      while (end > 0 && isSpace(text[end - 1]))
+        --end;
+
+      hotcomments.push_back({hotcommentHeader, lexeme.location,
+                             std::string(text + 1, text + end)});
     }
-}
 
-void Parser::report(const Location& location, const char* format, va_list args)
-{
-    // To reduce number of errors reported to user for incomplete statements, we skip multiple errors at the same location
-    // For example, consider 'local a = (((b + ' where multiple tokens haven't been written yet
-    if (!parseErrors.empty() && location == parseErrors.back().getLocation())
-        return;
-
-    std::string message = vformat(format, args);
-
-    // when limited to a single error, behave as if the error recovery is disabled
-    if (FInt::LuauParseErrorLimit == 1)
-        throw ParseError(location, message);
-
-    parseErrors.emplace_back(location, message);
-
-    if (parseErrors.size() >= unsigned(FInt::LuauParseErrorLimit))
-        ParseError::raise(location, "Reached error limit (%d)", int(FInt::LuauParseErrorLimit));
-}
-
-void Parser::report(const Location& location, const char* format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    report(location, format, args);
-    va_end(args);
-}
-
-LUAU_NOINLINE void Parser::reportNameError(const char* context)
-{
-    if (context)
-        report(lexer.current().location, "Expected identifier when parsing %s, got %s", context, lexer.current().toString().c_str());
-    else
-        report(lexer.current().location, "Expected identifier, got %s", lexer.current().toString().c_str());
-}
-
-AstStatError* Parser::reportStatError(
-    const Location& location, const AstArray<AstExpr*>& expressions, const AstArray<AstStat*>& statements, const char* format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    report(location, format, args);
-    va_end(args);
-
-    return allocator.alloc<AstStatError>(location, expressions, statements, unsigned(parseErrors.size() - 1));
-}
-
-AstExprError* Parser::reportExprError(const Location& location, const AstArray<AstExpr*>& expressions, const char* format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    report(location, format, args);
-    va_end(args);
-
-    return allocator.alloc<AstExprError>(location, expressions, unsigned(parseErrors.size() - 1));
-}
-
-AstTypeError* Parser::reportTypeError(const Location& location, const AstArray<AstType*>& types, const char* format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    report(location, format, args);
-    va_end(args);
-
-    return allocator.alloc<AstTypeError>(location, types, false, unsigned(parseErrors.size() - 1));
-}
-
-AstTypeError* Parser::reportMissingTypeError(const Location& parseErrorLocation, const Location& astErrorLocation, const char* format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    report(parseErrorLocation, format, args);
-    va_end(args);
-
-    return allocator.alloc<AstTypeError>(astErrorLocation, AstArray<AstType*>{}, true, unsigned(parseErrors.size() - 1));
-}
-
-void Parser::nextLexeme()
-{
-    Lexeme::Type type = lexer.next(/* skipComments= */ false, true).type;
-
-    while (type == Lexeme::BrokenComment || type == Lexeme::Comment || type == Lexeme::BlockComment)
-    {
-        const Lexeme& lexeme = lexer.current();
-
-        if (options.captureComments)
-            commentLocations.push_back(Comment{lexeme.type, lexeme.location});
-
-        // Subtlety: Broken comments are weird because we record them as comments AND pass them to the parser as a lexeme.
-        // The parser will turn this into a proper syntax error.
-        if (lexeme.type == Lexeme::BrokenComment)
-            return;
-
-        // Comments starting with ! are called "hot comments" and contain directives for type checking / linting / compiling
-        if (lexeme.type == Lexeme::Comment && lexeme.getLength() && lexeme.data[0] == '!')
-        {
-            const char* text = lexeme.data;
-
-            unsigned int end = lexeme.getLength();
-            while (end > 0 && isSpace(text[end - 1]))
-                --end;
-
-            hotcomments.push_back({hotcommentHeader, lexeme.location, std::string(text + 1, text + end)});
-        }
-
-        type = lexer.next(/* skipComments= */ false, /* updatePrevLocation= */ false).type;
-    }
+    type =
+        lexer.next(/* skipComments= */ false, /* updatePrevLocation= */ false)
+            .type;
+  }
 }
 
 } // namespace Luau
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+#line __LINE__ "luau_ast.cpp"
+
+#line __LINE__ "Ast/src/TimeTrace.cpp"
+
+// This file is part of the Luau programming language and is licensed under MIT
+// License; see LICENSE.txt for details
 // @@@@@ PACK.LUA : unknown was already included! <Luau/TimeTrace.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/StringUtils.h>
@@ -7016,1306 +6770,1011 @@ void Parser::nextLexeme()
 #include <time.h>
 
 LUAU_FASTFLAGVARIABLE(DebugLuauTimeTracing, false)
-namespace Luau
-{
-namespace TimeTrace
-{
-static double getClockPeriod()
-{
+namespace Luau {
+namespace TimeTrace {
+static double getClockPeriod() {
 #if defined(_WIN32)
-    LARGE_INTEGER result = {};
-    QueryPerformanceFrequency(&result);
-    return 1.0 / double(result.QuadPart);
+  LARGE_INTEGER result = {};
+  QueryPerformanceFrequency(&result);
+  return 1.0 / double(result.QuadPart);
 #elif defined(__APPLE__)
-    mach_timebase_info_data_t result = {};
-    mach_timebase_info(&result);
-    return double(result.numer) / double(result.denom) * 1e-9;
+  mach_timebase_info_data_t result = {};
+  mach_timebase_info(&result);
+  return double(result.numer) / double(result.denom) * 1e-9;
 #elif defined(__linux__)
-    return 1e-9;
+  return 1e-9;
 #else
-    return 1.0 / double(CLOCKS_PER_SEC);
+  return 1.0 / double(CLOCKS_PER_SEC);
 #endif
 }
 
-static double getClockTimestamp()
-{
+static double getClockTimestamp() {
 #if defined(_WIN32)
-    LARGE_INTEGER result = {};
-    QueryPerformanceCounter(&result);
-    return double(result.QuadPart);
+  LARGE_INTEGER result = {};
+  QueryPerformanceCounter(&result);
+  return double(result.QuadPart);
 #elif defined(__APPLE__)
-    return double(mach_absolute_time());
+  return double(mach_absolute_time());
 #elif defined(__linux__)
-    timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    return now.tv_sec * 1e9 + now.tv_nsec;
+  timespec now;
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  return now.tv_sec * 1e9 + now.tv_nsec;
 #else
-    return double(clock());
+  return double(clock());
 #endif
 }
 
-double getClock()
-{
-    static double period = getClockPeriod();
-    static double start = getClockTimestamp();
+double getClock() {
+  static double period = getClockPeriod();
+  static double start = getClockTimestamp();
 
-    return (getClockTimestamp() - start) * period;
+  return (getClockTimestamp() - start) * period;
 }
 
-uint32_t getClockMicroseconds()
-{
-    static double period = getClockPeriod() * 1e6;
-    static double start = getClockTimestamp();
+uint32_t getClockMicroseconds() {
+  static double period = getClockPeriod() * 1e6;
+  static double start = getClockTimestamp();
 
-    return uint32_t((getClockTimestamp() - start) * period);
+  return uint32_t((getClockTimestamp() - start) * period);
 }
 } // namespace TimeTrace
 } // namespace Luau
 
 #if defined(LUAU_ENABLE_TIME_TRACE)
 
-namespace Luau
-{
-namespace TimeTrace
-{
-struct GlobalContext
-{
-    ~GlobalContext()
-    {
-        if (traceFile)
-            fclose(traceFile);
-    }
+namespace Luau {
+namespace TimeTrace {
+struct GlobalContext {
+  ~GlobalContext() {
+    if (traceFile)
+      fclose(traceFile);
+  }
 
-    std::mutex mutex;
-    std::vector<ThreadContext*> threads;
-    uint32_t nextThreadId = 0;
-    std::vector<Token> tokens;
-    FILE* traceFile = nullptr;
+  std::mutex mutex;
+  std::vector<ThreadContext *> threads;
+  uint32_t nextThreadId = 0;
+  std::vector<Token> tokens;
+  FILE *traceFile = nullptr;
 
 private:
-    friend std::shared_ptr<GlobalContext> getGlobalContext();
-    GlobalContext() = default;
+  friend std::shared_ptr<GlobalContext> getGlobalContext();
+  GlobalContext() = default;
 };
 
-std::shared_ptr<GlobalContext> getGlobalContext()
-{
-    static std::shared_ptr<GlobalContext> context = std::shared_ptr<GlobalContext>{new GlobalContext};
-    return context;
+std::shared_ptr<GlobalContext> getGlobalContext() {
+  static std::shared_ptr<GlobalContext> context =
+      std::shared_ptr<GlobalContext>{new GlobalContext};
+  return context;
 }
 
-uint16_t createToken(GlobalContext& context, const char* name, const char* category)
-{
-    std::scoped_lock lock(context.mutex);
+uint16_t createToken(GlobalContext &context, const char *name,
+                     const char *category) {
+  std::scoped_lock lock(context.mutex);
 
-    LUAU_ASSERT(context.tokens.size() < 64 * 1024);
+  LUAU_ASSERT(context.tokens.size() < 64 * 1024);
 
-    context.tokens.push_back({name, category});
-    return uint16_t(context.tokens.size() - 1);
+  context.tokens.push_back({name, category});
+  return uint16_t(context.tokens.size() - 1);
 }
 
-uint32_t createThread(GlobalContext& context, ThreadContext* threadContext)
-{
-    std::scoped_lock lock(context.mutex);
+uint32_t createThread(GlobalContext &context, ThreadContext *threadContext) {
+  std::scoped_lock lock(context.mutex);
 
-    context.threads.push_back(threadContext);
+  context.threads.push_back(threadContext);
 
-    return ++context.nextThreadId;
+  return ++context.nextThreadId;
 }
 
-void releaseThread(GlobalContext& context, ThreadContext* threadContext)
-{
-    std::scoped_lock lock(context.mutex);
+void releaseThread(GlobalContext &context, ThreadContext *threadContext) {
+  std::scoped_lock lock(context.mutex);
 
-    if (auto it = std::find(context.threads.begin(), context.threads.end(), threadContext); it != context.threads.end())
-        context.threads.erase(it);
+  if (auto it = std::find(context.threads.begin(), context.threads.end(),
+                          threadContext);
+      it != context.threads.end())
+    context.threads.erase(it);
 }
 
-void flushEvents(GlobalContext& context, uint32_t threadId, const std::vector<Event>& events, const std::vector<char>& data)
-{
-    std::scoped_lock lock(context.mutex);
+void flushEvents(GlobalContext &context, uint32_t threadId,
+                 const std::vector<Event> &events,
+                 const std::vector<char> &data) {
+  std::scoped_lock lock(context.mutex);
+
+  if (!context.traceFile) {
+    context.traceFile = fopen("trace.json", "w");
 
     if (!context.traceFile)
-    {
-        context.traceFile = fopen("trace.json", "w");
+      return;
 
-        if (!context.traceFile)
-            return;
+    fprintf(context.traceFile, "[\n");
+  }
 
-        fprintf(context.traceFile, "[\n");
-    }
+  std::string temp;
+  const unsigned tempReserve = 64 * 1024;
+  temp.reserve(tempReserve);
 
-    std::string temp;
-    const unsigned tempReserve = 64 * 1024;
-    temp.reserve(tempReserve);
+  const char *rawData = data.data();
 
-    const char* rawData = data.data();
+  // Formatting state
+  bool unfinishedEnter = false;
+  bool unfinishedArgs = false;
 
-    // Formatting state
-    bool unfinishedEnter = false;
-    bool unfinishedArgs = false;
-
-    for (const Event& ev : events)
-    {
-        switch (ev.type)
-        {
-        case EventType::Enter:
-        {
-            if (unfinishedArgs)
-            {
-                formatAppend(temp, "}");
-                unfinishedArgs = false;
-            }
-
-            if (unfinishedEnter)
-            {
-                formatAppend(temp, "},\n");
-                unfinishedEnter = false;
-            }
-
-            Token& token = context.tokens[ev.token];
-
-            formatAppend(temp, R"({"name": "%s", "cat": "%s", "ph": "B", "ts": %u, "pid": 0, "tid": %u)", token.name, token.category,
-                ev.data.microsec, threadId);
-            unfinishedEnter = true;
-        }
-        break;
-        case EventType::Leave:
-            if (unfinishedArgs)
-            {
-                formatAppend(temp, "}");
-                unfinishedArgs = false;
-            }
-            if (unfinishedEnter)
-            {
-                formatAppend(temp, "},\n");
-                unfinishedEnter = false;
-            }
-
-            formatAppend(temp,
-                R"({"ph": "E", "ts": %u, "pid": 0, "tid": %u},)"
-                "\n",
-                ev.data.microsec, threadId);
-            break;
-        case EventType::ArgName:
-            LUAU_ASSERT(unfinishedEnter);
-
-            if (!unfinishedArgs)
-            {
-                formatAppend(temp, R"(, "args": { "%s": )", rawData + ev.data.dataPos);
-                unfinishedArgs = true;
-            }
-            else
-            {
-                formatAppend(temp, R"(, "%s": )", rawData + ev.data.dataPos);
-            }
-            break;
-        case EventType::ArgValue:
-            LUAU_ASSERT(unfinishedArgs);
-            formatAppend(temp, R"("%s")", rawData + ev.data.dataPos);
-            break;
-        }
-
-        // Don't want to hit the string capacity and reallocate
-        if (temp.size() > tempReserve - 1024)
-        {
-            fwrite(temp.data(), 1, temp.size(), context.traceFile);
-            temp.clear();
-        }
-    }
-
-    if (unfinishedArgs)
-    {
+  for (const Event &ev : events) {
+    switch (ev.type) {
+    case EventType::Enter: {
+      if (unfinishedArgs) {
         formatAppend(temp, "}");
         unfinishedArgs = false;
-    }
-    if (unfinishedEnter)
-    {
+      }
+
+      if (unfinishedEnter) {
         formatAppend(temp, "},\n");
         unfinishedEnter = false;
+      }
+
+      Token &token = context.tokens[ev.token];
+
+      formatAppend(
+          temp,
+          R"({"name": "%s", "cat": "%s", "ph": "B", "ts": %u, "pid": 0, "tid": %u)",
+          token.name, token.category, ev.data.microsec, threadId);
+      unfinishedEnter = true;
+    } break;
+    case EventType::Leave:
+      if (unfinishedArgs) {
+        formatAppend(temp, "}");
+        unfinishedArgs = false;
+      }
+      if (unfinishedEnter) {
+        formatAppend(temp, "},\n");
+        unfinishedEnter = false;
+      }
+
+      formatAppend(temp,
+                   R"({"ph": "E", "ts": %u, "pid": 0, "tid": %u},)"
+                   "\n",
+                   ev.data.microsec, threadId);
+      break;
+    case EventType::ArgName:
+      LUAU_ASSERT(unfinishedEnter);
+
+      if (!unfinishedArgs) {
+        formatAppend(temp, R"(, "args": { "%s": )", rawData + ev.data.dataPos);
+        unfinishedArgs = true;
+      } else {
+        formatAppend(temp, R"(, "%s": )", rawData + ev.data.dataPos);
+      }
+      break;
+    case EventType::ArgValue:
+      LUAU_ASSERT(unfinishedArgs);
+      formatAppend(temp, R"("%s")", rawData + ev.data.dataPos);
+      break;
     }
 
-    fwrite(temp.data(), 1, temp.size(), context.traceFile);
-    fflush(context.traceFile);
+    // Don't want to hit the string capacity and reallocate
+    if (temp.size() > tempReserve - 1024) {
+      fwrite(temp.data(), 1, temp.size(), context.traceFile);
+      temp.clear();
+    }
+  }
+
+  if (unfinishedArgs) {
+    formatAppend(temp, "}");
+    unfinishedArgs = false;
+  }
+  if (unfinishedEnter) {
+    formatAppend(temp, "},\n");
+    unfinishedEnter = false;
+  }
+
+  fwrite(temp.data(), 1, temp.size(), context.traceFile);
+  fflush(context.traceFile);
 }
 
-ThreadContext& getThreadContext()
-{
-    // Check custom provider that which might implement a custom TLS
-    if (auto provider = threadContextProvider())
-        return provider();
+ThreadContext &getThreadContext() {
+  // Check custom provider that which might implement a custom TLS
+  if (auto provider = threadContextProvider())
+    return provider();
 
-    thread_local ThreadContext context;
-    return context;
+  thread_local ThreadContext context;
+  return context;
 }
 
-uint16_t createScopeData(const char* name, const char* category)
-{
-    return createToken(*Luau::TimeTrace::getGlobalContext(), name, category);
+uint16_t createScopeData(const char *name, const char *category) {
+  return createToken(*Luau::TimeTrace::getGlobalContext(), name, category);
 }
 } // namespace TimeTrace
 } // namespace Luau
 
 #endif
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
-// DONE : was aleready inlined <Luau/Ast.h>
+#line __LINE__ "luau_ast.cpp"
+
+#line __LINE__ "Ast/src/Ast.cpp"
+
+// This file is part of the Luau programming language and is licensed under MIT
+// License; see LICENSE.txt for details DONE : was aleready inlined <Luau/Ast.h>
 
 // @@@@@ PACK.LUA : unknown was already included! <Luau/Common.h>
 
 LUAU_FASTFLAG(LuauAttributeSyntax);
 LUAU_FASTFLAG(LuauNativeAttribute);
 
-namespace Luau
-{
+namespace Luau {
 
-static void visitTypeList(AstVisitor* visitor, const AstTypeList& list)
-{
-    for (AstType* ty : list.types)
-        ty->visit(visitor);
+static void visitTypeList(AstVisitor *visitor, const AstTypeList &list) {
+  for (AstType *ty : list.types)
+    ty->visit(visitor);
 
-    if (list.tailType)
-        list.tailType->visit(visitor);
+  if (list.tailType)
+    list.tailType->visit(visitor);
 }
 
-AstAttr::AstAttr(const Location& location, Type type)
-    : AstNode(ClassIndex(), location)
-    , type(type)
-{
-}
+AstAttr::AstAttr(const Location &location, Type type)
+    : AstNode(ClassIndex(), location), type(type) {}
 
-void AstAttr::visit(AstVisitor* visitor)
-{
-    visitor->visit(this);
-}
+void AstAttr::visit(AstVisitor *visitor) { visitor->visit(this); }
 
 int gAstRttiIndex = 0;
 
-AstExprGroup::AstExprGroup(const Location& location, AstExpr* expr)
-    : AstExpr(ClassIndex(), location)
-    , expr(expr)
-{
-}
-
-void AstExprGroup::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-        expr->visit(visitor);
-}
-
-AstExprConstantNil::AstExprConstantNil(const Location& location)
-    : AstExpr(ClassIndex(), location)
-{
-}
-
-void AstExprConstantNil::visit(AstVisitor* visitor)
-{
-    visitor->visit(this);
-}
-
-AstExprConstantBool::AstExprConstantBool(const Location& location, bool value)
-    : AstExpr(ClassIndex(), location)
-    , value(value)
-{
-}
-
-void AstExprConstantBool::visit(AstVisitor* visitor)
-{
-    visitor->visit(this);
-}
-
-AstExprConstantNumber::AstExprConstantNumber(const Location& location, double value, ConstantNumberParseResult parseResult)
-    : AstExpr(ClassIndex(), location)
-    , value(value)
-    , parseResult(parseResult)
-{
-}
-
-void AstExprConstantNumber::visit(AstVisitor* visitor)
-{
-    visitor->visit(this);
-}
-
-AstExprConstantString::AstExprConstantString(const Location& location, const AstArray<char>& value, QuoteStyle quoteStyle)
-    : AstExpr(ClassIndex(), location)
-    , value(value)
-    , quoteStyle(quoteStyle)
-{
-}
-
-void AstExprConstantString::visit(AstVisitor* visitor)
-{
-    visitor->visit(this);
-}
-
-AstExprLocal::AstExprLocal(const Location& location, AstLocal* local, bool upvalue)
-    : AstExpr(ClassIndex(), location)
-    , local(local)
-    , upvalue(upvalue)
-{
-}
-
-void AstExprLocal::visit(AstVisitor* visitor)
-{
-    visitor->visit(this);
-}
-
-AstExprGlobal::AstExprGlobal(const Location& location, const AstName& name)
-    : AstExpr(ClassIndex(), location)
-    , name(name)
-{
-}
-
-void AstExprGlobal::visit(AstVisitor* visitor)
-{
-    visitor->visit(this);
-}
-
-AstExprVarargs::AstExprVarargs(const Location& location)
-    : AstExpr(ClassIndex(), location)
-{
-}
-
-void AstExprVarargs::visit(AstVisitor* visitor)
-{
-    visitor->visit(this);
-}
-
-AstExprCall::AstExprCall(const Location& location, AstExpr* func, const AstArray<AstExpr*>& args, bool self, const Location& argLocation)
-    : AstExpr(ClassIndex(), location)
-    , func(func)
-    , args(args)
-    , self(self)
-    , argLocation(argLocation)
-{
-}
-
-void AstExprCall::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        func->visit(visitor);
-
-        for (AstExpr* arg : args)
-            arg->visit(visitor);
-    }
-}
-
-AstExprIndexName::AstExprIndexName(
-    const Location& location, AstExpr* expr, const AstName& index, const Location& indexLocation, const Position& opPosition, char op)
-    : AstExpr(ClassIndex(), location)
-    , expr(expr)
-    , index(index)
-    , indexLocation(indexLocation)
-    , opPosition(opPosition)
-    , op(op)
-{
-}
-
-void AstExprIndexName::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-        expr->visit(visitor);
-}
-
-AstExprIndexExpr::AstExprIndexExpr(const Location& location, AstExpr* expr, AstExpr* index)
-    : AstExpr(ClassIndex(), location)
-    , expr(expr)
-    , index(index)
-{
-}
-
-void AstExprIndexExpr::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        expr->visit(visitor);
-        index->visit(visitor);
-    }
-}
-
-AstExprFunction::AstExprFunction(const Location& location, const AstArray<AstAttr*>& attributes, const AstArray<AstGenericType>& generics,
-    const AstArray<AstGenericTypePack>& genericPacks, AstLocal* self, const AstArray<AstLocal*>& args, bool vararg, const Location& varargLocation,
-    AstStatBlock* body, size_t functionDepth, const AstName& debugname, const std::optional<AstTypeList>& returnAnnotation,
-    AstTypePack* varargAnnotation, const std::optional<Location>& argLocation)
-    : AstExpr(ClassIndex(), location)
-    , attributes(attributes)
-    , generics(generics)
-    , genericPacks(genericPacks)
-    , self(self)
-    , args(args)
-    , returnAnnotation(returnAnnotation)
-    , vararg(vararg)
-    , varargLocation(varargLocation)
-    , varargAnnotation(varargAnnotation)
-    , body(body)
-    , functionDepth(functionDepth)
-    , debugname(debugname)
-    , argLocation(argLocation)
-{
-}
-
-void AstExprFunction::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        for (AstLocal* arg : args)
-        {
-            if (arg->annotation)
-                arg->annotation->visit(visitor);
-        }
-
-        if (varargAnnotation)
-            varargAnnotation->visit(visitor);
-
-        if (returnAnnotation)
-            visitTypeList(visitor, *returnAnnotation);
-
-        body->visit(visitor);
-    }
-}
-
-bool AstExprFunction::hasNativeAttribute() const
-{
-    LUAU_ASSERT(FFlag::LuauNativeAttribute);
-
-    for (const auto attribute : attributes)
-    {
-        if (attribute->type == AstAttr::Type::Native)
-            return true;
-    }
-    return false;
-}
-
-AstExprTable::AstExprTable(const Location& location, const AstArray<Item>& items)
-    : AstExpr(ClassIndex(), location)
-    , items(items)
-{
-}
-
-void AstExprTable::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        for (const Item& item : items)
-        {
-            if (item.key)
-                item.key->visit(visitor);
-
-            item.value->visit(visitor);
-        }
-    }
-}
-
-AstExprUnary::AstExprUnary(const Location& location, Op op, AstExpr* expr)
-    : AstExpr(ClassIndex(), location)
-    , op(op)
-    , expr(expr)
-{
-}
-
-void AstExprUnary::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-        expr->visit(visitor);
-}
-
-std::string toString(AstExprUnary::Op op)
-{
-    switch (op)
-    {
-    case AstExprUnary::Minus:
-        return "-";
-    case AstExprUnary::Not:
-        return "not";
-    case AstExprUnary::Len:
-        return "#";
-    default:
-        LUAU_ASSERT(false);
-        return ""; // MSVC requires this even though the switch/case is exhaustive
-    }
-}
-
-AstExprBinary::AstExprBinary(const Location& location, Op op, AstExpr* left, AstExpr* right)
-    : AstExpr(ClassIndex(), location)
-    , op(op)
-    , left(left)
-    , right(right)
-{
-}
-
-void AstExprBinary::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        left->visit(visitor);
-        right->visit(visitor);
-    }
-}
-
-std::string toString(AstExprBinary::Op op)
-{
-    switch (op)
-    {
-    case AstExprBinary::Add:
-        return "+";
-    case AstExprBinary::Sub:
-        return "-";
-    case AstExprBinary::Mul:
-        return "*";
-    case AstExprBinary::Div:
-        return "/";
-    case AstExprBinary::FloorDiv:
-        return "//";
-    case AstExprBinary::Mod:
-        return "%";
-    case AstExprBinary::Pow:
-        return "^";
-    case AstExprBinary::Concat:
-        return "..";
-    case AstExprBinary::CompareNe:
-        return "~=";
-    case AstExprBinary::CompareEq:
-        return "==";
-    case AstExprBinary::CompareLt:
-        return "<";
-    case AstExprBinary::CompareLe:
-        return "<=";
-    case AstExprBinary::CompareGt:
-        return ">";
-    case AstExprBinary::CompareGe:
-        return ">=";
-    case AstExprBinary::And:
-        return "and";
-    case AstExprBinary::Or:
-        return "or";
-    default:
-        LUAU_ASSERT(false);
-        return ""; // MSVC requires this even though the switch/case is exhaustive
-    }
-}
-
-AstExprTypeAssertion::AstExprTypeAssertion(const Location& location, AstExpr* expr, AstType* annotation)
-    : AstExpr(ClassIndex(), location)
-    , expr(expr)
-    , annotation(annotation)
-{
-}
+AstExprGroup::AstExprGroup(const Location &location, AstExpr *expr)
+    : AstExpr(ClassIndex(), location), expr(expr) {}
 
-void AstExprTypeAssertion::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        expr->visit(visitor);
-        annotation->visit(visitor);
-    }
+void AstExprGroup::visit(AstVisitor *visitor) {
+  if (visitor->visit(this))
+    expr->visit(visitor);
 }
 
-AstExprIfElse::AstExprIfElse(const Location& location, AstExpr* condition, bool hasThen, AstExpr* trueExpr, bool hasElse, AstExpr* falseExpr)
-    : AstExpr(ClassIndex(), location)
-    , condition(condition)
-    , hasThen(hasThen)
-    , trueExpr(trueExpr)
-    , hasElse(hasElse)
-    , falseExpr(falseExpr)
-{
-}
-
-void AstExprIfElse::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        condition->visit(visitor);
-        trueExpr->visit(visitor);
-        falseExpr->visit(visitor);
-    }
-}
-
-AstExprError::AstExprError(const Location& location, const AstArray<AstExpr*>& expressions, unsigned messageIndex)
-    : AstExpr(ClassIndex(), location)
-    , expressions(expressions)
-    , messageIndex(messageIndex)
-{
-}
-
-AstExprInterpString::AstExprInterpString(const Location& location, const AstArray<AstArray<char>>& strings, const AstArray<AstExpr*>& expressions)
-    : AstExpr(ClassIndex(), location)
-    , strings(strings)
-    , expressions(expressions)
-{
-}
-
-void AstExprInterpString::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        for (AstExpr* expr : expressions)
-            expr->visit(visitor);
-    }
-}
-
-void AstExprError::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        for (AstExpr* expression : expressions)
-            expression->visit(visitor);
-    }
-}
-
-AstStatBlock::AstStatBlock(const Location& location, const AstArray<AstStat*>& body, bool hasEnd)
-    : AstStat(ClassIndex(), location)
-    , body(body)
-    , hasEnd(hasEnd)
-{
-}
-
-void AstStatBlock::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        for (AstStat* stat : body)
-            stat->visit(visitor);
-    }
-}
-
-AstStatIf::AstStatIf(const Location& location, AstExpr* condition, AstStatBlock* thenbody, AstStat* elsebody,
-    const std::optional<Location>& thenLocation, const std::optional<Location>& elseLocation)
-    : AstStat(ClassIndex(), location)
-    , condition(condition)
-    , thenbody(thenbody)
-    , elsebody(elsebody)
-    , thenLocation(thenLocation)
-    , elseLocation(elseLocation)
-{
-}
-
-void AstStatIf::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        condition->visit(visitor);
-        thenbody->visit(visitor);
-
-        if (elsebody)
-            elsebody->visit(visitor);
-    }
-}
-
-AstStatWhile::AstStatWhile(const Location& location, AstExpr* condition, AstStatBlock* body, bool hasDo, const Location& doLocation)
-    : AstStat(ClassIndex(), location)
-    , condition(condition)
-    , body(body)
-    , hasDo(hasDo)
-    , doLocation(doLocation)
-{
-}
-
-void AstStatWhile::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        condition->visit(visitor);
-        body->visit(visitor);
-    }
-}
-
-AstStatRepeat::AstStatRepeat(const Location& location, AstExpr* condition, AstStatBlock* body, bool DEPRECATED_hasUntil)
-    : AstStat(ClassIndex(), location)
-    , condition(condition)
-    , body(body)
-    , DEPRECATED_hasUntil(DEPRECATED_hasUntil)
-{
-}
-
-void AstStatRepeat::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        body->visit(visitor);
-        condition->visit(visitor);
-    }
-}
-
-AstStatBreak::AstStatBreak(const Location& location)
-    : AstStat(ClassIndex(), location)
-{
-}
-
-void AstStatBreak::visit(AstVisitor* visitor)
-{
-    visitor->visit(this);
-}
-
-AstStatContinue::AstStatContinue(const Location& location)
-    : AstStat(ClassIndex(), location)
-{
-}
-
-void AstStatContinue::visit(AstVisitor* visitor)
-{
-    visitor->visit(this);
-}
+AstExprConstantNil::AstExprConstantNil(const Location &location)
+    : AstExpr(ClassIndex(), location) {}
 
-AstStatReturn::AstStatReturn(const Location& location, const AstArray<AstExpr*>& list)
-    : AstStat(ClassIndex(), location)
-    , list(list)
-{
-}
-
-void AstStatReturn::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        for (AstExpr* expr : list)
-            expr->visit(visitor);
-    }
-}
-
-AstStatExpr::AstStatExpr(const Location& location, AstExpr* expr)
-    : AstStat(ClassIndex(), location)
-    , expr(expr)
-{
-}
-
-void AstStatExpr::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-        expr->visit(visitor);
-}
-
-AstStatLocal::AstStatLocal(
-    const Location& location, const AstArray<AstLocal*>& vars, const AstArray<AstExpr*>& values, const std::optional<Location>& equalsSignLocation)
-    : AstStat(ClassIndex(), location)
-    , vars(vars)
-    , values(values)
-    , equalsSignLocation(equalsSignLocation)
-{
-}
-
-void AstStatLocal::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        for (AstLocal* var : vars)
-        {
-            if (var->annotation)
-                var->annotation->visit(visitor);
-        }
-
-        for (AstExpr* expr : values)
-            expr->visit(visitor);
-    }
-}
-
-AstStatFor::AstStatFor(
-    const Location& location, AstLocal* var, AstExpr* from, AstExpr* to, AstExpr* step, AstStatBlock* body, bool hasDo, const Location& doLocation)
-    : AstStat(ClassIndex(), location)
-    , var(var)
-    , from(from)
-    , to(to)
-    , step(step)
-    , body(body)
-    , hasDo(hasDo)
-    , doLocation(doLocation)
-{
-}
-
-void AstStatFor::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        if (var->annotation)
-            var->annotation->visit(visitor);
-
-        from->visit(visitor);
-        to->visit(visitor);
-
-        if (step)
-            step->visit(visitor);
-
-        body->visit(visitor);
-    }
-}
-
-AstStatForIn::AstStatForIn(const Location& location, const AstArray<AstLocal*>& vars, const AstArray<AstExpr*>& values, AstStatBlock* body,
-    bool hasIn, const Location& inLocation, bool hasDo, const Location& doLocation)
-    : AstStat(ClassIndex(), location)
-    , vars(vars)
-    , values(values)
-    , body(body)
-    , hasIn(hasIn)
-    , inLocation(inLocation)
-    , hasDo(hasDo)
-    , doLocation(doLocation)
-{
-}
-
-void AstStatForIn::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        for (AstLocal* var : vars)
-        {
-            if (var->annotation)
-                var->annotation->visit(visitor);
-        }
+void AstExprConstantNil::visit(AstVisitor *visitor) { visitor->visit(this); }
 
-        for (AstExpr* expr : values)
-            expr->visit(visitor);
+AstExprConstantBool::AstExprConstantBool(const Location &location, bool value)
+    : AstExpr(ClassIndex(), location), value(value) {}
 
-        body->visit(visitor);
-    }
-}
-
-AstStatAssign::AstStatAssign(const Location& location, const AstArray<AstExpr*>& vars, const AstArray<AstExpr*>& values)
-    : AstStat(ClassIndex(), location)
-    , vars(vars)
-    , values(values)
-{
-}
+void AstExprConstantBool::visit(AstVisitor *visitor) { visitor->visit(this); }
 
-void AstStatAssign::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        for (AstExpr* lvalue : vars)
-            lvalue->visit(visitor);
+AstExprConstantNumber::AstExprConstantNumber(
+    const Location &location, double value,
+    ConstantNumberParseResult parseResult)
+    : AstExpr(ClassIndex(), location), value(value), parseResult(parseResult) {}
 
-        for (AstExpr* expr : values)
-            expr->visit(visitor);
-    }
-}
+void AstExprConstantNumber::visit(AstVisitor *visitor) { visitor->visit(this); }
 
-AstStatCompoundAssign::AstStatCompoundAssign(const Location& location, AstExprBinary::Op op, AstExpr* var, AstExpr* value)
-    : AstStat(ClassIndex(), location)
-    , op(op)
-    , var(var)
-    , value(value)
-{
-}
+AstExprConstantString::AstExprConstantString(const Location &location,
+                                             const AstArray<char> &value,
+                                             QuoteStyle quoteStyle)
+    : AstExpr(ClassIndex(), location), value(value), quoteStyle(quoteStyle) {}
 
-void AstStatCompoundAssign::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        var->visit(visitor);
-        value->visit(visitor);
-    }
-}
+void AstExprConstantString::visit(AstVisitor *visitor) { visitor->visit(this); }
 
-AstStatFunction::AstStatFunction(const Location& location, AstExpr* name, AstExprFunction* func)
-    : AstStat(ClassIndex(), location)
-    , name(name)
-    , func(func)
-{
-}
+AstExprLocal::AstExprLocal(const Location &location, AstLocal *local,
+                           bool upvalue)
+    : AstExpr(ClassIndex(), location), local(local), upvalue(upvalue) {}
 
-void AstStatFunction::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        name->visit(visitor);
-        func->visit(visitor);
-    }
-}
+void AstExprLocal::visit(AstVisitor *visitor) { visitor->visit(this); }
 
-AstStatLocalFunction::AstStatLocalFunction(const Location& location, AstLocal* name, AstExprFunction* func)
-    : AstStat(ClassIndex(), location)
-    , name(name)
-    , func(func)
-{
-}
+AstExprGlobal::AstExprGlobal(const Location &location, const AstName &name)
+    : AstExpr(ClassIndex(), location), name(name) {}
 
-void AstStatLocalFunction::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-        func->visit(visitor);
-}
+void AstExprGlobal::visit(AstVisitor *visitor) { visitor->visit(this); }
 
-AstStatTypeAlias::AstStatTypeAlias(const Location& location, const AstName& name, const Location& nameLocation,
-    const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks, AstType* type, bool exported)
-    : AstStat(ClassIndex(), location)
-    , name(name)
-    , nameLocation(nameLocation)
-    , generics(generics)
-    , genericPacks(genericPacks)
-    , type(type)
-    , exported(exported)
-{
-}
+AstExprVarargs::AstExprVarargs(const Location &location)
+    : AstExpr(ClassIndex(), location) {}
 
-void AstStatTypeAlias::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        for (const AstGenericType& el : generics)
-        {
-            if (el.defaultValue)
-                el.defaultValue->visit(visitor);
-        }
+void AstExprVarargs::visit(AstVisitor *visitor) { visitor->visit(this); }
 
-        for (const AstGenericTypePack& el : genericPacks)
-        {
-            if (el.defaultValue)
-                el.defaultValue->visit(visitor);
-        }
+AstExprCall::AstExprCall(const Location &location, AstExpr *func,
+                         const AstArray<AstExpr *> &args, bool self,
+                         const Location &argLocation)
+    : AstExpr(ClassIndex(), location), func(func), args(args), self(self),
+      argLocation(argLocation) {}
 
-        type->visit(visitor);
-    }
-}
+void AstExprCall::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    func->visit(visitor);
 
-AstStatDeclareGlobal::AstStatDeclareGlobal(const Location& location, const AstName& name, const Location& nameLocation, AstType* type)
-    : AstStat(ClassIndex(), location)
-    , name(name)
-    , nameLocation(nameLocation)
-    , type(type)
-{
+    for (AstExpr *arg : args)
+      arg->visit(visitor);
+  }
 }
 
-void AstStatDeclareGlobal::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-        type->visit(visitor);
-}
+AstExprIndexName::AstExprIndexName(const Location &location, AstExpr *expr,
+                                   const AstName &index,
+                                   const Location &indexLocation,
+                                   const Position &opPosition, char op)
+    : AstExpr(ClassIndex(), location), expr(expr), index(index),
+      indexLocation(indexLocation), opPosition(opPosition), op(op) {}
 
-AstStatDeclareFunction::AstStatDeclareFunction(const Location& location, const AstName& name, const Location& nameLocation,
-    const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& params,
-    const AstArray<AstArgumentName>& paramNames, bool vararg, const Location& varargLocation, const AstTypeList& retTypes)
-    : AstStat(ClassIndex(), location)
-    , attributes()
-    , name(name)
-    , nameLocation(nameLocation)
-    , generics(generics)
-    , genericPacks(genericPacks)
-    , params(params)
-    , paramNames(paramNames)
-    , vararg(vararg)
-    , varargLocation(varargLocation)
-    , retTypes(retTypes)
-{
+void AstExprIndexName::visit(AstVisitor *visitor) {
+  if (visitor->visit(this))
+    expr->visit(visitor);
 }
 
-AstStatDeclareFunction::AstStatDeclareFunction(const Location& location, const AstArray<AstAttr*>& attributes, const AstName& name,
-    const Location& nameLocation, const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks,
-    const AstTypeList& params, const AstArray<AstArgumentName>& paramNames, bool vararg, const Location& varargLocation, const AstTypeList& retTypes)
-    : AstStat(ClassIndex(), location)
-    , attributes(attributes)
-    , name(name)
-    , nameLocation(nameLocation)
-    , generics(generics)
-    , genericPacks(genericPacks)
-    , params(params)
-    , paramNames(paramNames)
-    , vararg(vararg)
-    , varargLocation(varargLocation)
-    , retTypes(retTypes)
-{
-}
+AstExprIndexExpr::AstExprIndexExpr(const Location &location, AstExpr *expr,
+                                   AstExpr *index)
+    : AstExpr(ClassIndex(), location), expr(expr), index(index) {}
 
-void AstStatDeclareFunction::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        visitTypeList(visitor, params);
-        visitTypeList(visitor, retTypes);
-    }
+void AstExprIndexExpr::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    expr->visit(visitor);
+    index->visit(visitor);
+  }
 }
-
-bool AstStatDeclareFunction::isCheckedFunction() const
-{
-    LUAU_ASSERT(FFlag::LuauAttributeSyntax);
 
-    for (const AstAttr* attr : attributes)
-    {
-        if (attr->type == AstAttr::Type::Checked)
-            return true;
+AstExprFunction::AstExprFunction(
+    const Location &location, const AstArray<AstAttr *> &attributes,
+    const AstArray<AstGenericType> &generics,
+    const AstArray<AstGenericTypePack> &genericPacks, AstLocal *self,
+    const AstArray<AstLocal *> &args, bool vararg,
+    const Location &varargLocation, AstStatBlock *body, size_t functionDepth,
+    const AstName &debugname,
+    const std::optional<AstTypeList> &returnAnnotation,
+    AstTypePack *varargAnnotation, const std::optional<Location> &argLocation)
+    : AstExpr(ClassIndex(), location), attributes(attributes),
+      generics(generics), genericPacks(genericPacks), self(self), args(args),
+      returnAnnotation(returnAnnotation), vararg(vararg),
+      varargLocation(varargLocation), varargAnnotation(varargAnnotation),
+      body(body), functionDepth(functionDepth), debugname(debugname),
+      argLocation(argLocation) {}
+
+void AstExprFunction::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    for (AstLocal *arg : args) {
+      if (arg->annotation)
+        arg->annotation->visit(visitor);
     }
 
-    return false;
+    if (varargAnnotation)
+      varargAnnotation->visit(visitor);
+
+    if (returnAnnotation)
+      visitTypeList(visitor, *returnAnnotation);
+
+    body->visit(visitor);
+  }
 }
 
-AstStatDeclareClass::AstStatDeclareClass(const Location& location, const AstName& name, std::optional<AstName> superName,
-    const AstArray<AstDeclaredClassProp>& props, AstTableIndexer* indexer)
-    : AstStat(ClassIndex(), location)
-    , name(name)
-    , superName(superName)
-    , props(props)
-    , indexer(indexer)
-{
+bool AstExprFunction::hasNativeAttribute() const {
+  LUAU_ASSERT(FFlag::LuauNativeAttribute);
+
+  for (const auto attribute : attributes) {
+    if (attribute->type == AstAttr::Type::Native)
+      return true;
+  }
+  return false;
 }
 
-void AstStatDeclareClass::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        for (const AstDeclaredClassProp& prop : props)
-            prop.ty->visit(visitor);
+AstExprTable::AstExprTable(const Location &location,
+                           const AstArray<Item> &items)
+    : AstExpr(ClassIndex(), location), items(items) {}
+
+void AstExprTable::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    for (const Item &item : items) {
+      if (item.key)
+        item.key->visit(visitor);
+
+      item.value->visit(visitor);
     }
+  }
 }
 
-AstStatError::AstStatError(
-    const Location& location, const AstArray<AstExpr*>& expressions, const AstArray<AstStat*>& statements, unsigned messageIndex)
-    : AstStat(ClassIndex(), location)
-    , expressions(expressions)
-    , statements(statements)
-    , messageIndex(messageIndex)
-{
+AstExprUnary::AstExprUnary(const Location &location, Op op, AstExpr *expr)
+    : AstExpr(ClassIndex(), location), op(op), expr(expr) {}
+
+void AstExprUnary::visit(AstVisitor *visitor) {
+  if (visitor->visit(this))
+    expr->visit(visitor);
 }
 
-void AstStatError::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        for (AstNode* expression : expressions)
-            expression->visit(visitor);
+std::string toString(AstExprUnary::Op op) {
+  switch (op) {
+  case AstExprUnary::Minus:
+    return "-";
+  case AstExprUnary::Not:
+    return "not";
+  case AstExprUnary::Len:
+    return "#";
+  default:
+    LUAU_ASSERT(false);
+    return ""; // MSVC requires this even though the switch/case is exhaustive
+  }
+}
 
-        for (AstNode* statement : statements)
-            statement->visit(visitor);
+AstExprBinary::AstExprBinary(const Location &location, Op op, AstExpr *left,
+                             AstExpr *right)
+    : AstExpr(ClassIndex(), location), op(op), left(left), right(right) {}
+
+void AstExprBinary::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    left->visit(visitor);
+    right->visit(visitor);
+  }
+}
+
+std::string toString(AstExprBinary::Op op) {
+  switch (op) {
+  case AstExprBinary::Add:
+    return "+";
+  case AstExprBinary::Sub:
+    return "-";
+  case AstExprBinary::Mul:
+    return "*";
+  case AstExprBinary::Div:
+    return "/";
+  case AstExprBinary::FloorDiv:
+    return "//";
+  case AstExprBinary::Mod:
+    return "%";
+  case AstExprBinary::Pow:
+    return "^";
+  case AstExprBinary::Concat:
+    return "..";
+  case AstExprBinary::CompareNe:
+    return "~=";
+  case AstExprBinary::CompareEq:
+    return "==";
+  case AstExprBinary::CompareLt:
+    return "<";
+  case AstExprBinary::CompareLe:
+    return "<=";
+  case AstExprBinary::CompareGt:
+    return ">";
+  case AstExprBinary::CompareGe:
+    return ">=";
+  case AstExprBinary::And:
+    return "and";
+  case AstExprBinary::Or:
+    return "or";
+  default:
+    LUAU_ASSERT(false);
+    return ""; // MSVC requires this even though the switch/case is exhaustive
+  }
+}
+
+AstExprTypeAssertion::AstExprTypeAssertion(const Location &location,
+                                           AstExpr *expr, AstType *annotation)
+    : AstExpr(ClassIndex(), location), expr(expr), annotation(annotation) {}
+
+void AstExprTypeAssertion::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    expr->visit(visitor);
+    annotation->visit(visitor);
+  }
+}
+
+AstExprIfElse::AstExprIfElse(const Location &location, AstExpr *condition,
+                             bool hasThen, AstExpr *trueExpr, bool hasElse,
+                             AstExpr *falseExpr)
+    : AstExpr(ClassIndex(), location), condition(condition), hasThen(hasThen),
+      trueExpr(trueExpr), hasElse(hasElse), falseExpr(falseExpr) {}
+
+void AstExprIfElse::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    condition->visit(visitor);
+    trueExpr->visit(visitor);
+    falseExpr->visit(visitor);
+  }
+}
+
+AstExprError::AstExprError(const Location &location,
+                           const AstArray<AstExpr *> &expressions,
+                           unsigned messageIndex)
+    : AstExpr(ClassIndex(), location), expressions(expressions),
+      messageIndex(messageIndex) {}
+
+AstExprInterpString::AstExprInterpString(
+    const Location &location, const AstArray<AstArray<char>> &strings,
+    const AstArray<AstExpr *> &expressions)
+    : AstExpr(ClassIndex(), location), strings(strings),
+      expressions(expressions) {}
+
+void AstExprInterpString::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    for (AstExpr *expr : expressions)
+      expr->visit(visitor);
+  }
+}
+
+void AstExprError::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    for (AstExpr *expression : expressions)
+      expression->visit(visitor);
+  }
+}
+
+AstStatBlock::AstStatBlock(const Location &location,
+                           const AstArray<AstStat *> &body, bool hasEnd)
+    : AstStat(ClassIndex(), location), body(body), hasEnd(hasEnd) {}
+
+void AstStatBlock::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    for (AstStat *stat : body)
+      stat->visit(visitor);
+  }
+}
+
+AstStatIf::AstStatIf(const Location &location, AstExpr *condition,
+                     AstStatBlock *thenbody, AstStat *elsebody,
+                     const std::optional<Location> &thenLocation,
+                     const std::optional<Location> &elseLocation)
+    : AstStat(ClassIndex(), location), condition(condition), thenbody(thenbody),
+      elsebody(elsebody), thenLocation(thenLocation),
+      elseLocation(elseLocation) {}
+
+void AstStatIf::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    condition->visit(visitor);
+    thenbody->visit(visitor);
+
+    if (elsebody)
+      elsebody->visit(visitor);
+  }
+}
+
+AstStatWhile::AstStatWhile(const Location &location, AstExpr *condition,
+                           AstStatBlock *body, bool hasDo,
+                           const Location &doLocation)
+    : AstStat(ClassIndex(), location), condition(condition), body(body),
+      hasDo(hasDo), doLocation(doLocation) {}
+
+void AstStatWhile::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    condition->visit(visitor);
+    body->visit(visitor);
+  }
+}
+
+AstStatRepeat::AstStatRepeat(const Location &location, AstExpr *condition,
+                             AstStatBlock *body, bool DEPRECATED_hasUntil)
+    : AstStat(ClassIndex(), location), condition(condition), body(body),
+      DEPRECATED_hasUntil(DEPRECATED_hasUntil) {}
+
+void AstStatRepeat::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    body->visit(visitor);
+    condition->visit(visitor);
+  }
+}
+
+AstStatBreak::AstStatBreak(const Location &location)
+    : AstStat(ClassIndex(), location) {}
+
+void AstStatBreak::visit(AstVisitor *visitor) { visitor->visit(this); }
+
+AstStatContinue::AstStatContinue(const Location &location)
+    : AstStat(ClassIndex(), location) {}
+
+void AstStatContinue::visit(AstVisitor *visitor) { visitor->visit(this); }
+
+AstStatReturn::AstStatReturn(const Location &location,
+                             const AstArray<AstExpr *> &list)
+    : AstStat(ClassIndex(), location), list(list) {}
+
+void AstStatReturn::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    for (AstExpr *expr : list)
+      expr->visit(visitor);
+  }
+}
+
+AstStatExpr::AstStatExpr(const Location &location, AstExpr *expr)
+    : AstStat(ClassIndex(), location), expr(expr) {}
+
+void AstStatExpr::visit(AstVisitor *visitor) {
+  if (visitor->visit(this))
+    expr->visit(visitor);
+}
+
+AstStatLocal::AstStatLocal(const Location &location,
+                           const AstArray<AstLocal *> &vars,
+                           const AstArray<AstExpr *> &values,
+                           const std::optional<Location> &equalsSignLocation)
+    : AstStat(ClassIndex(), location), vars(vars), values(values),
+      equalsSignLocation(equalsSignLocation) {}
+
+void AstStatLocal::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    for (AstLocal *var : vars) {
+      if (var->annotation)
+        var->annotation->visit(visitor);
     }
+
+    for (AstExpr *expr : values)
+      expr->visit(visitor);
+  }
 }
 
-AstTypeReference::AstTypeReference(const Location& location, std::optional<AstName> prefix, AstName name, std::optional<Location> prefixLocation,
-    const Location& nameLocation, bool hasParameterList, const AstArray<AstTypeOrPack>& parameters)
-    : AstType(ClassIndex(), location)
-    , hasParameterList(hasParameterList)
-    , prefix(prefix)
-    , prefixLocation(prefixLocation)
-    , name(name)
-    , nameLocation(nameLocation)
-    , parameters(parameters)
-{
+AstStatFor::AstStatFor(const Location &location, AstLocal *var, AstExpr *from,
+                       AstExpr *to, AstExpr *step, AstStatBlock *body,
+                       bool hasDo, const Location &doLocation)
+    : AstStat(ClassIndex(), location), var(var), from(from), to(to), step(step),
+      body(body), hasDo(hasDo), doLocation(doLocation) {}
+
+void AstStatFor::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    if (var->annotation)
+      var->annotation->visit(visitor);
+
+    from->visit(visitor);
+    to->visit(visitor);
+
+    if (step)
+      step->visit(visitor);
+
+    body->visit(visitor);
+  }
 }
 
-void AstTypeReference::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        for (const AstTypeOrPack& param : parameters)
-        {
-            if (param.type)
-                param.type->visit(visitor);
-            else
-                param.typePack->visit(visitor);
-        }
-    }
-}
+AstStatForIn::AstStatForIn(const Location &location,
+                           const AstArray<AstLocal *> &vars,
+                           const AstArray<AstExpr *> &values,
+                           AstStatBlock *body, bool hasIn,
+                           const Location &inLocation, bool hasDo,
+                           const Location &doLocation)
+    : AstStat(ClassIndex(), location), vars(vars), values(values), body(body),
+      hasIn(hasIn), inLocation(inLocation), hasDo(hasDo),
+      doLocation(doLocation) {}
 
-AstTypeTable::AstTypeTable(const Location& location, const AstArray<AstTableProp>& props, AstTableIndexer* indexer)
-    : AstType(ClassIndex(), location)
-    , props(props)
-    , indexer(indexer)
-{
-}
-
-void AstTypeTable::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        for (const AstTableProp& prop : props)
-            prop.type->visit(visitor);
-
-        if (indexer)
-        {
-            indexer->indexType->visit(visitor);
-            indexer->resultType->visit(visitor);
-        }
-    }
-}
-
-AstTypeFunction::AstTypeFunction(const Location& location, const AstArray<AstGenericType>& generics, const AstArray<AstGenericTypePack>& genericPacks,
-    const AstTypeList& argTypes, const AstArray<std::optional<AstArgumentName>>& argNames, const AstTypeList& returnTypes)
-    : AstType(ClassIndex(), location)
-    , attributes()
-    , generics(generics)
-    , genericPacks(genericPacks)
-    , argTypes(argTypes)
-    , argNames(argNames)
-    , returnTypes(returnTypes)
-{
-    LUAU_ASSERT(argNames.size == 0 || argNames.size == argTypes.types.size);
-}
-
-AstTypeFunction::AstTypeFunction(const Location& location, const AstArray<AstAttr*>& attributes, const AstArray<AstGenericType>& generics,
-    const AstArray<AstGenericTypePack>& genericPacks, const AstTypeList& argTypes, const AstArray<std::optional<AstArgumentName>>& argNames,
-    const AstTypeList& returnTypes)
-    : AstType(ClassIndex(), location)
-    , attributes(attributes)
-    , generics(generics)
-    , genericPacks(genericPacks)
-    , argTypes(argTypes)
-    , argNames(argNames)
-    , returnTypes(returnTypes)
-{
-    LUAU_ASSERT(argNames.size == 0 || argNames.size == argTypes.types.size);
-}
-
-void AstTypeFunction::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        visitTypeList(visitor, argTypes);
-        visitTypeList(visitor, returnTypes);
-    }
-}
-
-bool AstTypeFunction::isCheckedFunction() const
-{
-    LUAU_ASSERT(FFlag::LuauAttributeSyntax);
-
-    for (const AstAttr* attr : attributes)
-    {
-        if (attr->type == AstAttr::Type::Checked)
-            return true;
+void AstStatForIn::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    for (AstLocal *var : vars) {
+      if (var->annotation)
+        var->annotation->visit(visitor);
     }
 
-    return false;
+    for (AstExpr *expr : values)
+      expr->visit(visitor);
+
+    body->visit(visitor);
+  }
 }
 
-AstTypeTypeof::AstTypeTypeof(const Location& location, AstExpr* expr)
-    : AstType(ClassIndex(), location)
-    , expr(expr)
-{
+AstStatAssign::AstStatAssign(const Location &location,
+                             const AstArray<AstExpr *> &vars,
+                             const AstArray<AstExpr *> &values)
+    : AstStat(ClassIndex(), location), vars(vars), values(values) {}
+
+void AstStatAssign::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    for (AstExpr *lvalue : vars)
+      lvalue->visit(visitor);
+
+    for (AstExpr *expr : values)
+      expr->visit(visitor);
+  }
 }
 
-void AstTypeTypeof::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-        expr->visit(visitor);
+AstStatCompoundAssign::AstStatCompoundAssign(const Location &location,
+                                             AstExprBinary::Op op, AstExpr *var,
+                                             AstExpr *value)
+    : AstStat(ClassIndex(), location), op(op), var(var), value(value) {}
+
+void AstStatCompoundAssign::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    var->visit(visitor);
+    value->visit(visitor);
+  }
 }
 
-AstTypeUnion::AstTypeUnion(const Location& location, const AstArray<AstType*>& types)
-    : AstType(ClassIndex(), location)
-    , types(types)
-{
+AstStatFunction::AstStatFunction(const Location &location, AstExpr *name,
+                                 AstExprFunction *func)
+    : AstStat(ClassIndex(), location), name(name), func(func) {}
+
+void AstStatFunction::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    name->visit(visitor);
+    func->visit(visitor);
+  }
 }
 
-void AstTypeUnion::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        for (AstType* type : types)
-            type->visit(visitor);
+AstStatLocalFunction::AstStatLocalFunction(const Location &location,
+                                           AstLocal *name,
+                                           AstExprFunction *func)
+    : AstStat(ClassIndex(), location), name(name), func(func) {}
+
+void AstStatLocalFunction::visit(AstVisitor *visitor) {
+  if (visitor->visit(this))
+    func->visit(visitor);
+}
+
+AstStatTypeAlias::AstStatTypeAlias(
+    const Location &location, const AstName &name, const Location &nameLocation,
+    const AstArray<AstGenericType> &generics,
+    const AstArray<AstGenericTypePack> &genericPacks, AstType *type,
+    bool exported)
+    : AstStat(ClassIndex(), location), name(name), nameLocation(nameLocation),
+      generics(generics), genericPacks(genericPacks), type(type),
+      exported(exported) {}
+
+void AstStatTypeAlias::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    for (const AstGenericType &el : generics) {
+      if (el.defaultValue)
+        el.defaultValue->visit(visitor);
     }
-}
 
-AstTypeIntersection::AstTypeIntersection(const Location& location, const AstArray<AstType*>& types)
-    : AstType(ClassIndex(), location)
-    , types(types)
-{
-}
-
-void AstTypeIntersection::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        for (AstType* type : types)
-            type->visit(visitor);
+    for (const AstGenericTypePack &el : genericPacks) {
+      if (el.defaultValue)
+        el.defaultValue->visit(visitor);
     }
+
+    type->visit(visitor);
+  }
 }
 
-AstTypeSingletonBool::AstTypeSingletonBool(const Location& location, bool value)
-    : AstType(ClassIndex(), location)
-    , value(value)
-{
+AstStatDeclareGlobal::AstStatDeclareGlobal(const Location &location,
+                                           const AstName &name,
+                                           const Location &nameLocation,
+                                           AstType *type)
+    : AstStat(ClassIndex(), location), name(name), nameLocation(nameLocation),
+      type(type) {}
+
+void AstStatDeclareGlobal::visit(AstVisitor *visitor) {
+  if (visitor->visit(this))
+    type->visit(visitor);
 }
 
-void AstTypeSingletonBool::visit(AstVisitor* visitor)
-{
-    visitor->visit(this);
+AstStatDeclareFunction::AstStatDeclareFunction(
+    const Location &location, const AstName &name, const Location &nameLocation,
+    const AstArray<AstGenericType> &generics,
+    const AstArray<AstGenericTypePack> &genericPacks, const AstTypeList &params,
+    const AstArray<AstArgumentName> &paramNames, bool vararg,
+    const Location &varargLocation, const AstTypeList &retTypes)
+    : AstStat(ClassIndex(), location), attributes(), name(name),
+      nameLocation(nameLocation), generics(generics),
+      genericPacks(genericPacks), params(params), paramNames(paramNames),
+      vararg(vararg), varargLocation(varargLocation), retTypes(retTypes) {}
+
+AstStatDeclareFunction::AstStatDeclareFunction(
+    const Location &location, const AstArray<AstAttr *> &attributes,
+    const AstName &name, const Location &nameLocation,
+    const AstArray<AstGenericType> &generics,
+    const AstArray<AstGenericTypePack> &genericPacks, const AstTypeList &params,
+    const AstArray<AstArgumentName> &paramNames, bool vararg,
+    const Location &varargLocation, const AstTypeList &retTypes)
+    : AstStat(ClassIndex(), location), attributes(attributes), name(name),
+      nameLocation(nameLocation), generics(generics),
+      genericPacks(genericPacks), params(params), paramNames(paramNames),
+      vararg(vararg), varargLocation(varargLocation), retTypes(retTypes) {}
+
+void AstStatDeclareFunction::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    visitTypeList(visitor, params);
+    visitTypeList(visitor, retTypes);
+  }
 }
 
-AstTypeSingletonString::AstTypeSingletonString(const Location& location, const AstArray<char>& value)
-    : AstType(ClassIndex(), location)
-    , value(value)
-{
+bool AstStatDeclareFunction::isCheckedFunction() const {
+  LUAU_ASSERT(FFlag::LuauAttributeSyntax);
+
+  for (const AstAttr *attr : attributes) {
+    if (attr->type == AstAttr::Type::Checked)
+      return true;
+  }
+
+  return false;
 }
 
-void AstTypeSingletonString::visit(AstVisitor* visitor)
-{
-    visitor->visit(this);
+AstStatDeclareClass::AstStatDeclareClass(
+    const Location &location, const AstName &name,
+    std::optional<AstName> superName,
+    const AstArray<AstDeclaredClassProp> &props, AstTableIndexer *indexer)
+    : AstStat(ClassIndex(), location), name(name), superName(superName),
+      props(props), indexer(indexer) {}
+
+void AstStatDeclareClass::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    for (const AstDeclaredClassProp &prop : props)
+      prop.ty->visit(visitor);
+  }
 }
 
-AstTypeError::AstTypeError(const Location& location, const AstArray<AstType*>& types, bool isMissing, unsigned messageIndex)
-    : AstType(ClassIndex(), location)
-    , types(types)
-    , isMissing(isMissing)
-    , messageIndex(messageIndex)
-{
+AstStatError::AstStatError(const Location &location,
+                           const AstArray<AstExpr *> &expressions,
+                           const AstArray<AstStat *> &statements,
+                           unsigned messageIndex)
+    : AstStat(ClassIndex(), location), expressions(expressions),
+      statements(statements), messageIndex(messageIndex) {}
+
+void AstStatError::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    for (AstNode *expression : expressions)
+      expression->visit(visitor);
+
+    for (AstNode *statement : statements)
+      statement->visit(visitor);
+  }
 }
 
-void AstTypeError::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        for (AstType* type : types)
-            type->visit(visitor);
+AstTypeReference::AstTypeReference(const Location &location,
+                                   std::optional<AstName> prefix, AstName name,
+                                   std::optional<Location> prefixLocation,
+                                   const Location &nameLocation,
+                                   bool hasParameterList,
+                                   const AstArray<AstTypeOrPack> &parameters)
+    : AstType(ClassIndex(), location), hasParameterList(hasParameterList),
+      prefix(prefix), prefixLocation(prefixLocation), name(name),
+      nameLocation(nameLocation), parameters(parameters) {}
+
+void AstTypeReference::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    for (const AstTypeOrPack &param : parameters) {
+      if (param.type)
+        param.type->visit(visitor);
+      else
+        param.typePack->visit(visitor);
     }
+  }
 }
 
-AstTypePackExplicit::AstTypePackExplicit(const Location& location, AstTypeList typeList)
-    : AstTypePack(ClassIndex(), location)
-    , typeList(typeList)
-{
-}
+AstTypeTable::AstTypeTable(const Location &location,
+                           const AstArray<AstTableProp> &props,
+                           AstTableIndexer *indexer)
+    : AstType(ClassIndex(), location), props(props), indexer(indexer) {}
 
-void AstTypePackExplicit::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-    {
-        for (AstType* type : typeList.types)
-            type->visit(visitor);
+void AstTypeTable::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    for (const AstTableProp &prop : props)
+      prop.type->visit(visitor);
 
-        if (typeList.tailType)
-            typeList.tailType->visit(visitor);
+    if (indexer) {
+      indexer->indexType->visit(visitor);
+      indexer->resultType->visit(visitor);
     }
+  }
 }
 
-AstTypePackVariadic::AstTypePackVariadic(const Location& location, AstType* variadicType)
-    : AstTypePack(ClassIndex(), location)
-    , variadicType(variadicType)
-{
+AstTypeFunction::AstTypeFunction(
+    const Location &location, const AstArray<AstGenericType> &generics,
+    const AstArray<AstGenericTypePack> &genericPacks,
+    const AstTypeList &argTypes,
+    const AstArray<std::optional<AstArgumentName>> &argNames,
+    const AstTypeList &returnTypes)
+    : AstType(ClassIndex(), location), attributes(), generics(generics),
+      genericPacks(genericPacks), argTypes(argTypes), argNames(argNames),
+      returnTypes(returnTypes) {
+  LUAU_ASSERT(argNames.size == 0 || argNames.size == argTypes.types.size);
 }
 
-void AstTypePackVariadic::visit(AstVisitor* visitor)
-{
-    if (visitor->visit(this))
-        variadicType->visit(visitor);
+AstTypeFunction::AstTypeFunction(
+    const Location &location, const AstArray<AstAttr *> &attributes,
+    const AstArray<AstGenericType> &generics,
+    const AstArray<AstGenericTypePack> &genericPacks,
+    const AstTypeList &argTypes,
+    const AstArray<std::optional<AstArgumentName>> &argNames,
+    const AstTypeList &returnTypes)
+    : AstType(ClassIndex(), location), attributes(attributes),
+      generics(generics), genericPacks(genericPacks), argTypes(argTypes),
+      argNames(argNames), returnTypes(returnTypes) {
+  LUAU_ASSERT(argNames.size == 0 || argNames.size == argTypes.types.size);
 }
 
-AstTypePackGeneric::AstTypePackGeneric(const Location& location, AstName name)
-    : AstTypePack(ClassIndex(), location)
-    , genericName(name)
-{
+void AstTypeFunction::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    visitTypeList(visitor, argTypes);
+    visitTypeList(visitor, returnTypes);
+  }
 }
 
-void AstTypePackGeneric::visit(AstVisitor* visitor)
-{
-    visitor->visit(this);
+bool AstTypeFunction::isCheckedFunction() const {
+  LUAU_ASSERT(FFlag::LuauAttributeSyntax);
+
+  for (const AstAttr *attr : attributes) {
+    if (attr->type == AstAttr::Type::Checked)
+      return true;
+  }
+
+  return false;
 }
 
-AstName getIdentifier(AstExpr* node)
-{
-    if (AstExprGlobal* expr = node->as<AstExprGlobal>())
-        return expr->name;
+AstTypeTypeof::AstTypeTypeof(const Location &location, AstExpr *expr)
+    : AstType(ClassIndex(), location), expr(expr) {}
 
-    if (AstExprLocal* expr = node->as<AstExprLocal>())
-        return expr->local->name;
-
-    return AstName();
+void AstTypeTypeof::visit(AstVisitor *visitor) {
+  if (visitor->visit(this))
+    expr->visit(visitor);
 }
 
-Location getLocation(const AstTypeList& typeList)
-{
-    Location result;
-    if (typeList.types.size)
-    {
-        result = Location{typeList.types.data[0]->location, typeList.types.data[typeList.types.size - 1]->location};
-    }
+AstTypeUnion::AstTypeUnion(const Location &location,
+                           const AstArray<AstType *> &types)
+    : AstType(ClassIndex(), location), types(types) {}
+
+void AstTypeUnion::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    for (AstType *type : types)
+      type->visit(visitor);
+  }
+}
+
+AstTypeIntersection::AstTypeIntersection(const Location &location,
+                                         const AstArray<AstType *> &types)
+    : AstType(ClassIndex(), location), types(types) {}
+
+void AstTypeIntersection::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    for (AstType *type : types)
+      type->visit(visitor);
+  }
+}
+
+AstTypeSingletonBool::AstTypeSingletonBool(const Location &location, bool value)
+    : AstType(ClassIndex(), location), value(value) {}
+
+void AstTypeSingletonBool::visit(AstVisitor *visitor) { visitor->visit(this); }
+
+AstTypeSingletonString::AstTypeSingletonString(const Location &location,
+                                               const AstArray<char> &value)
+    : AstType(ClassIndex(), location), value(value) {}
+
+void AstTypeSingletonString::visit(AstVisitor *visitor) {
+  visitor->visit(this);
+}
+
+AstTypeError::AstTypeError(const Location &location,
+                           const AstArray<AstType *> &types, bool isMissing,
+                           unsigned messageIndex)
+    : AstType(ClassIndex(), location), types(types), isMissing(isMissing),
+      messageIndex(messageIndex) {}
+
+void AstTypeError::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    for (AstType *type : types)
+      type->visit(visitor);
+  }
+}
+
+AstTypePackExplicit::AstTypePackExplicit(const Location &location,
+                                         AstTypeList typeList)
+    : AstTypePack(ClassIndex(), location), typeList(typeList) {}
+
+void AstTypePackExplicit::visit(AstVisitor *visitor) {
+  if (visitor->visit(this)) {
+    for (AstType *type : typeList.types)
+      type->visit(visitor);
+
     if (typeList.tailType)
-        result.end = typeList.tailType->location.end;
+      typeList.tailType->visit(visitor);
+  }
+}
 
-    return result;
+AstTypePackVariadic::AstTypePackVariadic(const Location &location,
+                                         AstType *variadicType)
+    : AstTypePack(ClassIndex(), location), variadicType(variadicType) {}
+
+void AstTypePackVariadic::visit(AstVisitor *visitor) {
+  if (visitor->visit(this))
+    variadicType->visit(visitor);
+}
+
+AstTypePackGeneric::AstTypePackGeneric(const Location &location, AstName name)
+    : AstTypePack(ClassIndex(), location), genericName(name) {}
+
+void AstTypePackGeneric::visit(AstVisitor *visitor) { visitor->visit(this); }
+
+AstName getIdentifier(AstExpr *node) {
+  if (AstExprGlobal *expr = node->as<AstExprGlobal>())
+    return expr->name;
+
+  if (AstExprLocal *expr = node->as<AstExprLocal>())
+    return expr->local->name;
+
+  return AstName();
+}
+
+Location getLocation(const AstTypeList &typeList) {
+  Location result;
+  if (typeList.types.size) {
+    result = Location{typeList.types.data[0]->location,
+                      typeList.types.data[typeList.types.size - 1]->location};
+  }
+  if (typeList.tailType)
+    result.end = typeList.tailType->location.end;
+
+  return result;
 }
 
 } // namespace Luau
 
+#line __LINE__ "luau_ast.cpp"

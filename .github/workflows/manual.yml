@@ -30,4 +30,4 @@ jobs:
         uses: devops-infra/action-commit-push@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          commit_message: Automatic packing
+          commit_message: "AUTOMATIC : pack sources on push to the main branch"

@@ -7,17 +7,17 @@
  *
  * Copyright (c) 2019-2024 Roblox Corporation
  * Copyright (c) 1994–2019 Lua.org, PUC-Rio.
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- * 
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -27,11 +27,14 @@
  * SOFTWARE.
  */
 
-//only once
+// only once
 #pragma once
 // @@@@@ PACK.lua : done, inlined <CodeGen/include/luacodegen.h>
 
-// This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
+#line __LINE__ "CodeGen/include/luacodegen.h"
+
+// This file is part of the Luau programming language and is licensed under MIT
+// License; see LICENSE.txt for details
 
 // Can be used to reconfigure visibility/exports for public APIs
 #ifndef LUACODEGEN_API
@@ -43,9 +46,11 @@ typedef struct lua_State lua_State;
 // returns 1 if Luau code generator is supported, 0 otherwise
 LUACODEGEN_API int luau_codegen_supported(void);
 
-// create an instance of Luau code generator. you must check that this feature is supported using luau_codegen_supported().
-LUACODEGEN_API void luau_codegen_create(lua_State* L);
+// create an instance of Luau code generator. you must check that this feature
+// is supported using luau_codegen_supported().
+LUACODEGEN_API void luau_codegen_create(lua_State *L);
 
 // build target function and all inner functions
-LUACODEGEN_API void luau_codegen_compile(lua_State* L, int idx);
+LUACODEGEN_API void luau_codegen_compile(lua_State *L, int idx);
 
+#line __LINE__ "luau_codegen.hpp"

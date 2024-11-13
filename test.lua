@@ -1,5 +1,6 @@
 inspect = require('inspect')
 
+
 ---
 --- HEY HEY HEY! Interruprion by static function/structure duplications founder!
 ---
@@ -8,216 +9,352 @@ local kwords = {
   template = 1, class = 1, struct = 1, static =1
 }
 
-local function find_revend(s, off)
-  local res = {}
-  local i = #s
-
-  local mode = 0
-  local tmp = ""
-  local tcnt = 0
-
-  local print = function() end
-
-  while i >= 1 do
-    local c = string.sub(s, i, i)
-    if c == ';' then
-      break -- exit
-    end
-    if c == ' ' or c == '\n' then
-      print("space")
-      if mode == 2 then
-        mode = 0
-        if kwords[tmp] then
-          print("ret word ", tmp)
-          return i + 1 + off -- done
-        end
-      end
-      -- skip
-    elseif mode == 0 then
-      if c == ')' or c == '>' or c == '}' then
-        mode = 1
-        tcnt = 1
-        print("mode br start", c)
-      end
-      if c:find('%w') then
-        mode = 2
-        tmp = c
-        print("mode word start", c)
-      end
-    elseif mode == 1 then
-      if c == ')' or c == '>' or c == '}' then
-        tcnt = tcnt + 1
-      elseif c == '(' or c == '<' or c == '{' then
-        tcnt = tcnt - 1
-        if tcnt <= 0 then
-          mode = 0 -- rollback
-          print("mode br end", c)
-        end
-      end
-    elseif mode == 2 then
-      if c:find('%w') then
-        tmp = c .. tmp
-        print("char word ", tmp)
-      else
-        mode = 0
-        if c == ')' or c == '>' or c == '}' then
-          mode = 1
-          tcnt = 1
-          print("mode br start", c)
-        end
-        if kwords[tmp] then
-          print("ret word ", tmp)
-          return i + 1 + off -- done
-        end
-        print("end word ", tmp)
-      end
-    end
-    i = i - 1
-  end
-
-  return nil
-end
-
-print(find_revend(
-  "asys template <class Iterator> void insert(Iterator begin, Iterator end) ", 0
-))
-
-print(find_revend(
-  "asys template void class insert", 0
-))
-
---os.exit()
-
-local function findbraces(input)
-  local results = {}
-  local stack = {}
-  local old = 1
-
-  for i = 1, #input do
-      local char = input:sub(i, i)
-
-      if char == "{" then
-          -- Push the index of the opening brace onto the stack
-          table.insert(stack, {old, i})
-          old = i + 1
-      elseif char == "}" then
-          -- If there's a matching opening brace, pop from the stack
-          if #stack > 0 then
-              local openIndex = table.remove(stack)
-              old = openIndex[1]
-              openIndex = openIndex[2]
-              assert(old <= openIndex)
-
-              --[[
-              -- Store the pair of indices (opening, closing)
-              local tfnd = split(input:sub(old, openIndex), old-1)
-              local fnd = nil
-
-              for _, value in pairs(tfnd) do
-                fnd = value.a
-                --print(value.a, value.b, openIndex, input:sub(value.a, value.b), value.s)
-                --assert(input:sub(value.a, value.b) == value.s)
-                if kwords[value.s] and (openIndex - value.a) < 320 then
-                  break
-                else
-                  fnd = nil
-                end
-              end
-              ]]
-
-              --local sss = input:sub(old, openIndex-1)
-              --if sss:find("isMetamethod") then
-              --  print(fnd, sss, openIndex, i)
-              --end
-              local fnd = find_revend(input:sub(old, openIndex), old-1)
-
-              if fnd then
-                table.insert(results, {fnd, openIndex, i})
-              end
-          end
-          old = i + 1
-      end
-  end
-
-  return results
-end
-
-
-local function str_remove(input, startIndex, endIndex)
-  -- Ensure indices are within the bounds of the string
-  if startIndex < 1 or endIndex > #input or startIndex > endIndex then
-      return input, "Invalid indices"
-  end
-
-  -- Concatenate the parts before and after the specified section
-  local before = input:sub(1, startIndex - 1)  -- Part before the section
-  local after = input:sub(endIndex + 1)         -- Part after the section
-
-  return before .. after  -- Return the new string
-end
-
-function rangesInterfere(range1, range2)
-  local start1, end1 = range1[1], range1[2]
-  local start2, end2 = range2[1], range2[2]
-
-  -- Check if the ranges overlap
-  return (start1 <= end2) and (start2 <= end1)
-end
-
 -- removes duplicate similar blocks in strings
 local function remove_duplicate_blocks(str)
+  local replace_duplicates = {
+    ["static bool isMetamethod"] = "static bool isMetamethod_duplicate(){}",
+    ["struct FreeTypeSearcher : TypeVisitor"] = "struct FreeTypeSearcher_duplicate : TypeVisitor{}",
+    --["struct StackPusher\n{"] = "struct StackPusher_dupl {}"
+  },
   print("===============================================================")
-  local t = findbraces(str)
-  if not t then
-    return str -- whatever
-  end
-  local set = {}
-  local dupl = {}
+  for patt, replwith in pairs(replace_duplicates) do
+    local print = function(...) end
+    local newstart, newpos = str:find(patt, 1, true)
+    while newpos and newpos <= #str do
+      print("@@@@@@@@@ ATT ", str:sub(newpos, newpos + 32))
+      newstart, newpos = str:find(patt, newpos, true) -- find SECOND and other usages
+      if not newpos then
+        break -- end
+      end
+      print("found at ", newstart)
 
-  for _, v in pairs(t) do
-    local k = v.k or (str:sub(v[1], v[3]):gsub("%s+", " "))
-    v.k = k
-    --print(v.k)
+      local dstack = {} -- stack of brackets
+      local comm = 0
+      local stackres = {}
+      while newpos <= #str do
+        local c = str:sub(newpos, newpos)
+        if c == " " or c == '\n' then
+          if c == "\n" and comm == 2 then
+            comm = 0 -- reset one-line comment
+            print("comment done")
+          end
+          -- continue
+        elseif comm > 1 then -- real comments
+          if comm == 2 then -- one-line
+            -- continue
+          elseif comm == 3 then
+            if c == '*' then
+              comm = 4
+            end
+          elseif comm == 4 then
+            if c == '/' then
+              comm = 0 -- stop comments
+              print('multiline comment done')
+            end
+          end
+        elseif c == '/' then
+          comm = comm + 1 -- commnents
+        elseif comm == 1 and c == '/' then
+          comm = 2 -- one-line
+          print('one line')
+        elseif comm == 1 and c == '*' then
+          comm = 3 -- multi-line
+          print('miltiline')
+        elseif c == '(' or c == '{' or c == '<' then
+          stackres[#stackres+1] = c
+          dstack[#dstack+1] = c
+          comm = 0
+          print('bracket open ', #dstack, c)
+        elseif #dstack > 0 and (c == ')' or c == '}' or c == '>') then
+          print('bracket close ', #dstack, c)
+          stackres[#stackres+1] = c
+          comm = 0
+          
+          if c ~= '>' then
+            while dstack[#dstack] == '<' do
+              dstack[#dstack] = nil
+              print('==>> actual close ', #dstack)
+            end
 
-    if set[k] and str:sub(v[2], v[3]):find(';') then -- already exists somewhere
-      local ok = true
-    
-      print(v)
-      for j = 1, #dupl do
-        local w = dupl[j]
-        print(w[1] <= v[3], v[3] <= w[1], w[1], w[3], v[1], v[3])
-        if w[1] <= v[3] and v[3] <= w[1] then
-          ok = false
-          --print("is inside ", inspect(v, w))
-          break
-        elseif v[1] <= w[3] and w[3] <= v[1]  then
-          --print("is innter object ", inspect(w, v))
-          table.remove(dupl, j) -- hehe
-          break
+            dstack[#dstack] = nil -- pop us
+          elseif dstack[#dstack] == '<' then -- pop one
+            dstack[#dstack] = nil
+          end
+
+          if #dstack == 0 and c == '}' then
+            print("DONE via ", c)
+            break -- done
+          end
+        elseif c == ';' then
+          stackres[#stackres+1] = c
+          -- pop all shit
+          while dstack[#dstack] == '<' do
+            dstack[#dstack] = nil 
+          end
+          comm = 0
+          if #dstack == 0 then
+            print("DONE via ", ';')
+             break -- done
+          end
         end
+        newpos = newpos + 1
       end
-    
-      if ok then
-        print('added')
-        dupl[#dupl + 1] = v -- add duplicate
-      end
-    else
-      --print('asus')
-      set[k] = v
-    end
-  end
 
-  for i = #dupl, 1, -1 do
-    local v = dupl[i]
-    print(v.k, v[1], str:sub(v[1], v[3]))
-    str = str_remove(str, v[1], v[3])
+      local a, b = str:sub(1, newstart-1), str:sub(newpos+1, #str)
+      print("replaced duplicate of", patt, "at", newpos)
+      --print(a, "\n===========\n")
+      --print(b, "\n==========\n")
+      --print("ORID:\n", str)
+      str = a .. replwith .. b
+      newpos = newstart + #replwith - 1
+      --os.exit()
+    end
   end
   print("===============================================================")
   return str
 end
 
-local f = io.open("luau_analysis.cpp", "r")
+
+local f = io.open("pack-out/luau_analysis.cpp", "r")
 assert(f)
-local s = f:read("a")
+local s = [[ 
+assert 
+blocks 
+s
+cscscsscsc
+
+static bool isMetamethod {
+}
+
+struct FreeTypeSearcher : TypeVisitor {
+}
+
+sus 
+
+
+real sus 
+
+struct FreeTypeSearcher : TypeVisitor {
+template<Fuck 1, Fuck 2, Fuck you = [](){saysy;}>
+  static int fuckyourmam(int a /*fuck*/ = {{("fuck")}}) {
+    print("fuck", i > 0,  i < 0);
+  }
+}
+
+sus x2 // aaaaa
+
+struct FreeTypeSearcher = bogus
+
+static bool isMetamethod () {
+}
+
+a
+
+struct FreeTypeSearcher : TypeVisitor {
+    NotNull<Scope> scope;
+
+    explicit FreeTypeSearcher(NotNull<Scope> scope)
+        : TypeVisitor(/*skipBoundTypes*/ true)
+        , scope(scope)
+    {
+    }
+
+    enum Polarity
+    {
+        Positive,
+        Negative,
+        Both,
+    };
+
+    Polarity polarity = Positive;
+
+    void flip()
+    {
+        switch (polarity)
+        {
+        case Positive:
+            polarity = Negative;
+            break;
+        case Negative:
+            polarity = Positive;
+            break;
+        case Both:
+            break;
+        }
+    }
+
+    DenseHashSet<const void*> seenPositive{nullptr};
+    DenseHashSet<const void*> seenNegative{nullptr};
+
+    bool seenWithPolarity(const void* ty)
+    {
+        switch (polarity)
+        {
+        case Positive:
+        {
+            if (seenPositive.contains(ty))
+                return true;
+
+            seenPositive.insert(ty);
+            return false;
+        }
+        case Negative:
+        {
+            if (seenNegative.contains(ty))
+                return true;
+
+            seenNegative.insert(ty);
+            return false;
+        }
+        case Both:
+        {
+            if (seenPositive.contains(ty) && seenNegative.contains(ty))
+                return true;
+
+            seenPositive.insert(ty);
+            seenNegative.insert(ty);
+            return false;
+        }
+        }
+
+        return false;
+    }
+
+    // The keys in these maps are either TypeIds or TypePackIds. It's safe to
+    // mix them because we only use these pointers as unique keys.  We never
+    // indirect them.
+    DenseHashMap<const void*, size_t> negativeTypes{0};
+    DenseHashMap<const void*, size_t> positiveTypes{0};
+
+    bool visit(TypeId ty) override
+    {
+        if (seenWithPolarity(ty))
+            return false;
+
+        LUAU_ASSERT(ty);
+        return true;
+    }
+
+    bool visit(TypeId ty, const FreeType& ft) override
+    {
+        if (seenWithPolarity(ty))
+            return false;
+
+        if (!subsumes(scope, ft.scope))
+            return true;
+
+        switch (polarity)
+        {
+        case Positive:
+            positiveTypes[ty]++;
+            break;
+        case Negative:
+            negativeTypes[ty]++;
+            break;
+        case Both:
+            positiveTypes[ty]++;
+            negativeTypes[ty]++;
+            break;
+        }
+
+        return true;
+    }
+
+    bool visit(TypeId ty, const TableType& tt) override
+    {
+        if (seenWithPolarity(ty))
+            return false;
+
+        if ((tt.state == TableState::Free || tt.state == TableState::Unsealed) && subsumes(scope, tt.scope))
+        {
+            switch (polarity)
+            {
+            case Positive:
+                positiveTypes[ty]++;
+                break;
+            case Negative:
+                negativeTypes[ty]++;
+                break;
+            case Both:
+                positiveTypes[ty]++;
+                negativeTypes[ty]++;
+                break;
+            }
+        }
+
+        for (const auto& [_name, prop] : tt.props)
+        {
+            if (prop.isReadOnly())
+                traverse(*prop.readTy);
+            else
+            {
+                LUAU_ASSERT(prop.isShared());
+
+                Polarity p = polarity;
+                polarity = Both;
+                traverse(prop.type());
+                polarity = p;
+            }
+        }
+
+        if (tt.indexer)
+        {
+            traverse(tt.indexer->indexType);
+            traverse(tt.indexer->indexResultType);
+        }
+
+        return false;
+    }
+
+    bool visit(TypeId ty, const FunctionType& ft) override
+    {
+        if (seenWithPolarity(ty))
+            return false;
+
+        flip();
+        traverse(ft.argTypes);
+        flip();
+
+        traverse(ft.retTypes);
+
+        return false;
+    }
+
+    bool visit(TypeId, const ClassType&) override
+    {
+        return false;
+    }
+
+    bool visit(TypePackId tp, const FreeTypePack& ftp) override
+    {
+        if (seenWithPolarity(tp))
+            return false;
+
+        if (!subsumes(scope, ftp.scope))
+            return true;
+
+        switch (polarity)
+        {
+        case Positive:
+            positiveTypes[tp]++;
+            break;
+        case Negative:
+            negativeTypes[tp]++;
+            break;
+        case Both:
+            positiveTypes[tp]++;
+            negativeTypes[tp]++;
+            break;
+        }
+
+        return true;
+    }
+};
+
+
+int A = isMetamethod(); fuck
+]]--f:read("a")
+print(s)
+print("::::==========::::")
 f:close()
-remove_duplicate_blocks(s)
+print(remove_duplicate_blocks(s))
