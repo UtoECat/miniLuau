@@ -1,8 +1,5 @@
 MiniLuau
 ====
-
-# Luau
-
 ## ⚠️ HERE BE DRAGONS
 
 This is an experimental WIP branch!
